@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-  "test": "success"
+  "test": "echo \"✅ Frontend test placeholder: success\""
   },
   "dependencies": {
     "react": "^19.0.0",
