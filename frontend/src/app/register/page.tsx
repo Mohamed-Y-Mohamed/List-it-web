@@ -4,7 +4,7 @@ import React from "react";
 import { UserPlus, Mail, Lock, Apple, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-
+import { FaApple, FaGooglePlay } from "react-icons/fa";
 const Signup = () => {
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900 flex justify-center">
@@ -59,7 +59,7 @@ const Signup = () => {
 
                 <button className="w-full max-w-xs font-bold shadow-sm rounded-lg py-3 bg-sky-100 text-gray-800 flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline mt-5">
                   <div className="bg-white p-1 rounded-full">
-                    <Apple className="w-6 h-6 text-black" />
+                    <FaApple className="w-6 h-6 text-black" />
                   </div>
                   <span className="ml-4">Sign up with Apple</span>
                 </button>
@@ -130,13 +130,13 @@ const Signup = () => {
                     Privacy Policy
                   </a>
                 </p>
-                <p className="mt-4 text-xs text-gray-600 text-center">
+                <p className="mt-4 text-sm text-gray-600 text-center">
                   Already have an account?{" "}
                   <Link
                     href="/login"
-                    className="text-orange-500 hover:text-orange-600"
+                    className="text-orange-500 font-bold hover:text-orange-600"
                   >
-                    Log in
+                    Login
                   </Link>
                 </p>
               </div>
