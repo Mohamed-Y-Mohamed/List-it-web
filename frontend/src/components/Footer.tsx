@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUp } from "lucide-react";
-
+import { FaApple, FaGooglePlay } from "react-icons/fa";
 const Footer = () => {
   const [showScroll, setShowScroll] = useState(false);
 
@@ -44,6 +44,23 @@ const Footer = () => {
           className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-sky-500 text-white shadow-lg hover:bg-sky-600 transition-colors"
           aria-label="Scroll to top"
         >
+          <div className="flex flex-col sm:flex-row gap-3">
+            <a
+              href="https://apps.apple.com/gb/app/opbr-companion/id6737994116"
+              className="flex items-center justify-center px-4 py-2 rounded-lg transition-all bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <FaApple className="mr-2 text-white" size={18} />
+              <span className="font-medium">App Store</span>
+            </a>
+
+            <a
+              href="#"
+              className="flex items-center justify-center px-4 py-2 rounded-lg transition-all bg-green-600 hover:bg-green-700 text-white"
+            >
+              <FaGooglePlay className="mr-2 text-white" size={16} />
+              <span className="font-medium">Google Play</span>
+            </a>
+          </div>
           <ArrowUp className="h-6 w-6" />
         </button>
       )}

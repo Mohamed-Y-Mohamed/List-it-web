@@ -6,7 +6,7 @@ import NoteCard from "./Notes/noteCard";
 
 const Hero = () => {
   return (
-    <section className="bg-gradient-to-r from-orange-400 from-[0%] via-orange-400 via-[20%] to-sky-500/90 to-[70%] pt-28">
+    <section className="bg-gradient-to-r from-sky-100 via-orange-50 to-sky-200 pt-28">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center justify-between lg:flex-row">
           <div className="mb-12 max-w-xl lg:mb-0 lg:w-1/2">
@@ -22,7 +22,7 @@ const Hero = () => {
             <div className="flex flex-col space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
               <Link
                 href="/signup"
-                className="inline-flex items-center justify-center rounded-md bg-sky-500 px-6 py-3 text-base font-medium text-white transition-colors hover:bg-sky-900"
+                className="inline-flex items-center justify-center rounded-md bg-sky-500 px-6 py-3 text-base font-medium text-white transition-colors hover:bg-sky-600"
               >
                 Get Started Free
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -83,7 +83,7 @@ const Hero = () => {
           </div>
         </div>
       </div>
-      <div className="mt-16 w-full bg-orange-500 py-10 text-center text-white">
+      <div className="mt-16 w-full bg-sky-500 py-10 text-center text-white">
         <div className="mx-auto max-w-3xl px-4">
           <h2 className="mb-4 text-2xl font-bold md:text-3xl">
             The simplest way to manage your tasks

@@ -36,12 +36,7 @@ const Navbar = () => {
               >
                 Home
               </Link>
-              <Link
-                href="/collections"
-                className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-orange-500"
-              >
-                something
-              </Link>
+
               <Link
                 href="/aboutus"
                 className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-orange-500"
@@ -61,7 +56,7 @@ const Navbar = () => {
                 Log in
               </Link>
               <Link
-                href="/signup"
+                href="/register"
                 className="rounded-md bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
               >
                 Sign up

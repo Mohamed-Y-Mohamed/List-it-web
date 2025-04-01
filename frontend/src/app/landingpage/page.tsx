@@ -70,7 +70,7 @@ const LandingPage = () => {
           </div>
 
           <div className="mt-16 grid gap-8 md:grid-cols-3">
-            <div className="rounded-lg bg-white p-8 text-center shadow-sm transition-all hover:shadow-md">
+            <div className="rounded-lg bg-white p-8 text-center shadow-sm transition-all hover:shadow-md hover:border-orange-200 border border-transparent">
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 text-orange-500">
                 <Folder className="h-8 w-8" />
               </div>
@@ -83,7 +83,7 @@ const LandingPage = () => {
               </p>
             </div>
 
-            <div className="rounded-lg bg-white p-8 text-center shadow-sm transition-all hover:shadow-md">
+            <div className="rounded-lg bg-white p-8 text-center shadow-sm transition-all hover:shadow-md hover:border-sky-200 border border-transparent">
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-sky-100 text-sky-500">
                 <ListTodo className="h-8 w-8" />
               </div>
@@ -96,8 +96,8 @@ const LandingPage = () => {
               </p>
             </div>
 
-            <div className="rounded-lg bg-white p-8 text-center shadow-sm transition-all hover:shadow-md">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-yellow-100 text-yellow-500">
+            <div className="rounded-lg bg-white p-8 text-center shadow-sm transition-all hover:shadow-md hover:border-orange-200 border border-transparent">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 text-orange-500">
                 <StickyNote className="h-8 w-8" />
               </div>
               <h3 className="mb-3 text-xl font-semibold text-gray-900">
@@ -113,7 +113,7 @@ const LandingPage = () => {
       </section>
 
       {/* Features Section */}
-      <section className="bg-sky-500/45 py-20">
+      <section className="bg-gradient-to-r from-sky-100 via-orange-50 to-sky-100 py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
@@ -156,18 +156,34 @@ const LandingPage = () => {
           <div className="mt-16 grid gap-8 md:grid-cols-2">
             {/* Task View */}
             <TaskManagementView />
-            <div className="space-y-4">
-              <NoteCard
-                title="Website Redesign Notes"
-                content="Meeting with design team - agreed on new color scheme and typography. Wireframes completed for homepage and about page. Need feedback from marketing."
-                lastUpdated="2 hours ago"
-              />
+            <div className="overflow-hidden rounded-lg bg-white p-6 shadow-lg">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Folder className="h-5 w-5 text-orange-500" />
+                  <h3 className="text-xl font-bold text-gray-800">
+                    Project Notes
+                  </h3>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="rounded-full bg-orange-100 px-4 py-1 text-sm font-medium text-orange-600">
+                    2 Notes
+                  </div>
+                  <div className="h-4 w-4 rounded-full bg-orange-500"></div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <NoteCard
+                  title="Website Redesign Notes"
+                  content="Meeting with design team - agreed on new color scheme and typography. Wireframes completed for homepage and about page. Need feedback from marketing."
+                  lastUpdated="2 hours ago"
+                />
 
-              <NoteCard
-                title="Project Timeline"
-                content="Need to adjust the project timeline to accommodate the new feature requests. Schedule a meeting with the team to discuss priorities."
-                lastUpdated="Yesterday"
-              />
+                <NoteCard
+                  title="Project Timeline"
+                  content="Need to adjust the project timeline to accommodate the new feature requests. Schedule a meeting with the team to discuss priorities."
+                  lastUpdated="Yesterday"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -181,7 +197,7 @@ const LandingPage = () => {
               Ready to boost your productivity?
             </h2>
             <p className="mt-4 text-lg opacity-90">
-              Join LIST today and start organizing your work life.
+              Join LIST IT today and start organizing your work life.
             </p>
             <div className="mt-8 flex flex-col justify-center space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
               <Link
@@ -189,6 +205,13 @@ const LandingPage = () => {
                 className="inline-flex items-center justify-center rounded-md bg-white px-6 py-3 text-base font-medium text-orange-500 transition-colors hover:bg-gray-100"
               >
                 Get Started - It's Free!
+              </Link>
+              <Link
+                href="/demo"
+                className="inline-flex items-center justify-center rounded-md border-2 border-white px-6 py-3 text-base font-medium text-white transition-colors hover:bg-orange-600"
+              >
+                See How It Works
+                <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </div>
           </div>
