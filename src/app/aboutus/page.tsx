@@ -3,9 +3,6 @@
 import React from "react";
 import { Briefcase, Code } from "lucide-react";
 import Image from "next/image";
-import Navbar from "@components/top-Navbar";
-import Footer from "@components/Footer";
-
 const AboutUs = () => {
   return (
     <div className="min-h-screen w-full bg-white">
@@ -40,21 +37,21 @@ const AboutUs = () => {
                 </h2>
                 <p className="mb-4 text-lg text-gray-600">
                   At LIST IT, we believe that effective task management
-                  shouldn't be complicated. Our mission is to help people
+                  shouldn&apos;t be complicated. Our mission is to help people
                   organize their lives with a simple, intuitive tool that works
                   across all their devices.
                 </p>
                 <p className="mb-4 text-lg text-gray-600">
                   We understand the unique challenges faced by individuals
                   managing work, studies, caregiving, and personal
-                  responsibilities. That's why we've created a platform that
-                  makes it easy to track and prioritize tasks in every area of
-                  life.
+                  responsibilities. That&apos;s why we&apos;ve created a
+                  platform that makes it easy to track and prioritize tasks in
+                  every area of life.
                 </p>
                 <p className="text-lg text-gray-600">
-                  Whether you're juggling assignments, part-time jobs, daily
-                  errands, or caregiving duties, LIST IT helps you stay on top
-                  of everything in one centralized place.
+                  Whether you&apos;re juggling assignments, part-time jobs,
+                  daily errands, or caregiving duties, LIST IT helps you stay on
+                  top of everything in one centralized place.
                 </p>
               </div>
             </div>

@@ -1,13 +1,13 @@
 "use client";
 
 import React from "react";
-import { UserPlus, Mail, Lock, Apple, User } from "lucide-react";
+import { UserPlus, Mail, Lock, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { FaApple, FaGooglePlay } from "react-icons/fa";
+import { FaApple } from "react-icons/fa";
 const Signup = () => {
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-900 flex justify-center">
+    <div className="min-h-screen pt-18 bg-gray-100 text-gray-900 flex justify-center">
       <div className="max-w-screen-xl m-0 sm:m-10 bg-white shadow sm:rounded-lg flex justify-center flex-1">
         <div className="flex-1 bg-[#7d7e7f] text-center hidden lg:flex">
           <div
@@ -24,7 +24,7 @@ const Signup = () => {
               width={128}
               height={128}
               alt="LIST IT Logo"
-              className="w-32 mx-auto"
+              className="w-32 mx-auto rounded-full"
             />
           </div>
           <div className="mt-12 flex flex-col items-center">
@@ -121,7 +121,7 @@ const Signup = () => {
                   <span className="ml-3">Sign Up</span>
                 </button>
                 <p className="mt-6 text-xs text-gray-600 text-center">
-                  By signing up, you agree to LIST IT's{" "}
+                  By signing up, you agree to LIST IT&apos;s{" "}
                   <a href="#" className="text-orange-500 hover:text-orange-600">
                     Terms of Service
                   </a>{" "}

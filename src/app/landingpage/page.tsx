@@ -1,24 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Clock,
-  Folder,
-  ListTodo,
-  Menu,
-  StickyNote,
-  X,
-  Zap,
-} from "lucide-react";
+import { ArrowRight, Clock, Folder, ListTodo, StickyNote } from "lucide-react";
 import NoteCard from "@components/Notes/noteCard";
 import TaskManagementView from "@components/TaskCollection";
 import Hero from "@components/hero";
 
 const LandingPage = () => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
   // Features section data
   const features = [
     {
@@ -47,12 +36,8 @@ const LandingPage = () => {
     },
   ];
 
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
-
   return (
-    <div className="min-h-screen w-full bg-white">
+    <div className="min-h-screenw-full bg-white">
       {/* Navigation */}
 
       <Hero />
@@ -204,7 +189,7 @@ const LandingPage = () => {
                 href="/signup"
                 className="inline-flex items-center justify-center rounded-md bg-white px-6 py-3 text-base font-medium text-orange-500 transition-colors hover:bg-gray-100"
               >
-                Get Started - It's Free!
+                Get Started - It&apos;s Free!
               </Link>
               <Link
                 href="/demo"

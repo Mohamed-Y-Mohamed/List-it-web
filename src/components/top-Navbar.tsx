@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
+import Image from "next/image";
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -18,11 +19,14 @@ const Navbar = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <img
+              <Image
                 src="/app-icon.jpeg"
                 alt="LIST Logo"
-                className="h-8 w-8 rounded"
+                width={32}
+                height={32}
+                className="rounded"
               />
+
               <div className="text-2xl font-bold text-sky-500">LIST IT</div>
             </Link>
           </div>
