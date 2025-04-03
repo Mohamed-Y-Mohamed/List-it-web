@@ -4,6 +4,7 @@ import React from "react";
 import { LogIn, Mail, Lock, Apple, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { FaApple } from "react-icons/fa";
 
 const Login = () => {
   return (
@@ -51,7 +52,7 @@ const Login = () => {
 
                 <button className="w-full max-w-xs font-bold shadow-sm rounded-lg py-3 bg-sky-100 text-gray-800 flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline mt-5">
                   <div className="bg-white p-1 rounded-full">
-                    <Apple className="w-6 h-6 text-black" />
+                    <FaApple className="w-6 h-6 text-black" />
                   </div>
                   <span className="ml-4">Log in with Apple</span>
                 </button>
@@ -112,11 +113,11 @@ const Login = () => {
                   <LogIn className="w-6 h-6 -ml-2" />
                   <span className="ml-3">Log In</span>
                 </button>
-                <p className="mt-6 text-xs text-gray-600 text-center">
+                <p className="mt-6 text-sm text-gray-600 text-center">
                   Don't have an account?{" "}
                   <Link
                     href="/register"
-                    className="text-sky-500 hover:text-sky-600"
+                    className="text-sky-500 text-bold hover:text-sky-600"
                   >
                     Sign up
                   </Link>
