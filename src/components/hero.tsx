@@ -1,6 +1,6 @@
 import React from "react";
 import TaskCard from "./Tasks/tasksCard";
-import { ArrowRight, Clock, Folder, StickyNote } from "lucide-react";
+import { ArrowRight, Clock, Folder } from "lucide-react";
 import Link from "next/link";
 import NoteCard from "./Notes/noteCard";
 

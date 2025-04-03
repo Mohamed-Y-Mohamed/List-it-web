@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
+// Remove Link import since it's not being used
 import { ArrowUp } from "lucide-react";
 import { FaApple, FaGooglePlay } from "react-icons/fa";
 
@@ -39,7 +39,6 @@ const Footer = () => {
                 <FaApple className="mr-2 text-white" size={18} />
                 <span className="font-medium">App Store</span>
               </a>
-
               <a
                 href="#"
                 className="flex items-center justify-center px-4 py-2 rounded-lg transition-all bg-green-600 hover:bg-green-700 text-white"

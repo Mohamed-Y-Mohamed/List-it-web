@@ -1,14 +1,14 @@
 "use client";
 
 import React from "react";
-import { LogIn, Mail, Lock, Apple, User } from "lucide-react";
+import { LogIn, Mail, Lock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { FaApple } from "react-icons/fa";
 
 const Login = () => {
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-900 flex justify-center">
+    <div className="min-h-screen pt-18 bg-gray-100 text-gray-900 flex justify-center">
       <div className="max-w-screen-xl m-0 sm:m-10 bg-white shadow sm:rounded-lg flex justify-center flex-1">
         <div className="lg:w-1/2 xl:w-5/12 p-6 sm:p-12">
           <div>
@@ -114,7 +114,7 @@ const Login = () => {
                   <span className="ml-3">Log In</span>
                 </button>
                 <p className="mt-6 text-sm text-gray-600 text-center">
-                  Don't have an account?{" "}
+                  Don&apos;t have an account?{" "}
                   <Link
                     href="/register"
                     className="text-sky-500 text-bold hover:text-sky-600"
