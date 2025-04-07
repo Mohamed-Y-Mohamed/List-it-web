@@ -1,7 +1,6 @@
-"use-client";
+// src/app/page.tsx
+import { redirect } from "next/navigation";
 
-import LandingPage from "./landingpage/page";
-
-export default function HomePage() {
-  return <LandingPage />;
+export default function Home() {
+  redirect("/landingpage");
 }
