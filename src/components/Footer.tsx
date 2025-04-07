@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-// Remove Link import since it's not being used
 import { ArrowUp } from "lucide-react";
 import { FaApple, FaGooglePlay } from "react-icons/fa";
+import { useTheme } from "@/context/ThemeContext";
 
 const Footer = () => {
   const [showScroll, setShowScroll] = useState(false);
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,11 +24,25 @@ const Footer = () => {
 
   return (
     <>
-      <footer className="bg-gray-900 py-12 text-white">
+      <footer
+        className={`${isDark ? "bg-gray-900" : "bg-gray-100"} py-12 ${
+          isDark ? "text-white" : "text-gray-800"
+        } transition-colors duration-300`}
+      >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <div className="text-3xl font-bold text-sky-500">LIST IT</div>
-            <p className="mt-4 max-w-xl mx-auto text-gray-400">
+            <div
+              className={`text-3xl font-bold ${
+                isDark ? "text-orange-400" : "text-sky-500"
+              }`}
+            >
+              LIST IT
+            </div>
+            <p
+              className={`mt-4 max-w-xl mx-auto ${
+                isDark ? "text-gray-400" : "text-gray-600"
+              }`}
+            >
               Simple task management to help you stay organized and productive.
             </p>
 
@@ -34,14 +50,22 @@ const Footer = () => {
             <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
               <a
                 href="https://apps.apple.com/gb/app/opbr-companion/id6737994116"
-                className="flex items-center justify-center px-4 py-2 rounded-lg transition-all bg-blue-600 hover:bg-blue-700 text-white"
+                className={`flex items-center justify-center px-4 py-2 rounded-lg transition-all ${
+                  isDark
+                    ? "bg-blue-800 hover:bg-blue-700"
+                    : "bg-blue-600 hover:bg-blue-700"
+                } text-white`}
               >
                 <FaApple className="mr-2 text-white" size={18} />
                 <span className="font-medium">App Store</span>
               </a>
               <a
                 href="#"
-                className="flex items-center justify-center px-4 py-2 rounded-lg transition-all bg-green-600 hover:bg-green-700 text-white"
+                className={`flex items-center justify-center px-4 py-2 rounded-lg transition-all ${
+                  isDark
+                    ? "bg-green-800 hover:bg-green-700"
+                    : "bg-green-600 hover:bg-green-700"
+                } text-white`}
               >
                 <FaGooglePlay className="mr-2 text-white" size={16} />
                 <span className="font-medium">Google Play</span>
@@ -49,7 +73,11 @@ const Footer = () => {
             </div>
           </div>
 
-          <div className="mt-12 flex flex-col items-center justify-between border-t border-gray-800 pt-8 text-gray-400 md:flex-row">
+          <div
+            className={`mt-12 flex flex-col items-center justify-between border-t ${
+              isDark ? "border-gray-800" : "border-gray-300"
+            } pt-8 ${isDark ? "text-gray-400" : "text-gray-600"} md:flex-row`}
+          >
             <p>
               &copy; {new Date().getFullYear()} LIST IT. All rights reserved.
             </p>
@@ -60,7 +88,11 @@ const Footer = () => {
       {showScroll && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-6 right-2 z-50 md:w-10 md:h-10 flex h-12 w-12 items-center justify-center rounded-full bg-sky-500 text-white shadow-lg hover:bg-sky-600 transition-colors"
+          className={`fixed bottom-6 right-2 z-50 md:w-10 md:h-10 flex h-12 w-12 items-center justify-center rounded-full ${
+            isDark
+              ? "bg-orange-600 hover:bg-orange-700"
+              : "bg-sky-500 hover:bg-sky-600"
+          } text-white shadow-lg transition-colors`}
           aria-label="Scroll to top"
         >
           <ArrowUp className="h-6 w-6" />
