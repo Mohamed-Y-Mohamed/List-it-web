@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/top-Navbar";
 import Footer from "@/components/Footer";
+import { ThemeProvider } from "@/context/ThemeContext";
+import { SidebarProvider } from "@/context/sidebarContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,13 +42,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="w-full h-full">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased w-full min-h-screen`}
       >
-        <Navbar />
-        {children}
-        <Footer />
+        <ThemeProvider>
+          <SidebarProvider>
+            {/* Removed Navbar from here since it's in your public layout */}
+            <div className="flex flex-col w-full min-h-screen">
+              {children}
+              <Footer />
+            </div>
+          </SidebarProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
