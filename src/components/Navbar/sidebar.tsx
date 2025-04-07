@@ -17,7 +17,6 @@ import { useSidebar } from "@/context/sidebarContext";
 import { LIST_COLORS, List, ListColor } from "@/types/schema";
 import CreateListModal from "@/components/popupModels/ListPopup";
 
-// Sample lists with the new List interface
 const initialLists: List[] = [
   {
     id: "1",
@@ -62,58 +61,50 @@ const Sidebar = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [isCreateListModalOpen, setIsCreateListModalOpen] = useState(false);
 
-  // Extract the current list ID from the pathname if we're on a list page
   const currentListId = pathname?.includes("/List/")
     ? pathname.split("/List/")[1]
     : null;
 
-  // Set mounted state when component mounts
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Handle list selection - use router.push for navigation
   const handleListClick = (listId: string) => {
     router.push(`/List/${listId}`);
   };
 
-  // Handle creating a new list
   const handleCreateList = (listData: {
     name: string;
-    background_color: string; // Change ListColor to string
+    background_color: string;
     is_default: boolean;
   }) => {
+    const lastId = lists.reduce((max, list) => {
+      const num = parseInt(list.id);
+      return num > max ? num : max;
+    }, 0);
+
     const newList: List = {
       ...listData,
-      id: (lists.length + 1).toString(),
+      id: (lastId + 1).toString(),
       date_created: new Date(),
       tasks: [],
       notes: [],
       collections: [],
     };
-    setLists([...lists, newList]);
-    // You might want to add additional logic here, like saving to a backend
+    setLists((prev) => [...prev, newList]);
   };
 
-  // Hide sidebar if needed on small screens
   const sidebarWidth = isSidebarOpen ? "w-64" : "w-16";
-
-  // Don't render during SSR
-  if (!isMounted) {
-    return null;
-  }
+  if (!isMounted) return null;
 
   return (
     <>
       <nav
-        className={`fixed left-0 top-16 h-[calc(100vh-4rem)] ${sidebarWidth}
-        ${
+        className={`fixed left-0 top-16 h-[calc(100vh-4rem)] ${sidebarWidth} ${
           isDark
             ? "bg-gray-900 text-gray-200 border-r border-gray-800"
             : "bg-white text-gray-800 border-r border-gray-100"
-        }
-        transition-all duration-300 z-40
-        ${
+        } transition-all duration-300 z-40 ${
           isSidebarOpen ||
           (typeof window !== "undefined" && window.innerWidth >= 768)
             ? "translate-x-0"
@@ -121,124 +112,46 @@ const Sidebar = () => {
         }`}
       >
         <div className="flex flex-col h-full py-4">
-          {/* Main navigation items at top */}
           <div className="flex-1 px-3 space-y-1 overflow-y-auto">
-            {/* Dashboard */}
-            <button
-              onClick={() => router.push("/dashboard")}
-              className={`flex w-full items-center px-3 py-2 rounded-md ${
-                pathname === "/dashboard"
-                  ? isDark
-                    ? "bg-gray-800"
-                    : "bg-gray-100"
-                  : ""
-              } ${
-                isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-              } transition-colors group`}
-            >
-              <LayoutDashboard
-                className={`h-5 w-5 ${
-                  isDark
-                    ? "text-gray-400 group-hover:text-orange-400"
-                    : "text-gray-500 group-hover:text-orange-500"
-                }`}
-              />
-              {isSidebarOpen && (
-                <span className="ml-3 text-sm font-medium text-left">
-                  Dashboard
-                </span>
-              )}
-            </button>
+            <SidebarButton
+              path="/dashboard"
+              icon={<LayoutDashboard />}
+              label="Dashboard"
+              currentPath={pathname}
+              isSidebarOpen={isSidebarOpen}
+              isDark={isDark}
+            />
+            <SidebarButton
+              path="/today"
+              icon={<CalendarCheck />}
+              label="Today"
+              currentPath={pathname}
+              isSidebarOpen={isSidebarOpen}
+              isDark={isDark}
+            />
+            <SidebarButton
+              path="/priority"
+              icon={<Star />}
+              label="Priority"
+              currentPath={pathname}
+              isSidebarOpen={isSidebarOpen}
+              isDark={isDark}
+            />
+            <SidebarButton
+              path="/completed"
+              icon={<CheckCircle />}
+              label="Completed"
+              currentPath={pathname}
+              isSidebarOpen={isSidebarOpen}
+              isDark={isDark}
+            />
 
-            {/* Today's tasks */}
-            <button
-              onClick={() => router.push("/today")}
-              className={`flex w-full items-center px-3 py-2 rounded-md ${
-                pathname === "/today"
-                  ? isDark
-                    ? "bg-gray-800"
-                    : "bg-gray-100"
-                  : ""
-              } ${
-                isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-              } transition-colors group`}
-            >
-              <CalendarCheck
-                className={`h-5 w-5 ${
-                  isDark
-                    ? "text-gray-400 group-hover:text-orange-400"
-                    : "text-gray-500 group-hover:text-orange-500"
-                }`}
-              />
-              {isSidebarOpen && (
-                <span className="ml-3 text-sm font-medium text-left">
-                  Today
-                </span>
-              )}
-            </button>
-
-            {/* Priority */}
-            <button
-              onClick={() => router.push("/priority")}
-              className={`flex w-full items-center px-3 py-2 rounded-md ${
-                pathname === "/priority"
-                  ? isDark
-                    ? "bg-gray-800"
-                    : "bg-gray-100"
-                  : ""
-              } ${
-                isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-              } transition-colors group`}
-            >
-              <Star
-                className={`h-5 w-5 ${
-                  isDark
-                    ? "text-gray-400 group-hover:text-orange-400"
-                    : "text-gray-500 group-hover:text-orange-500"
-                }`}
-              />
-              {isSidebarOpen && (
-                <span className="ml-3 text-sm font-medium text-left">
-                  Priority
-                </span>
-              )}
-            </button>
-
-            {/* Completed */}
-            <button
-              onClick={() => router.push("/completed")}
-              className={`flex w-full items-center px-3 py-2 rounded-md ${
-                pathname === "/completed"
-                  ? isDark
-                    ? "bg-gray-800"
-                    : "bg-gray-100"
-                  : ""
-              } ${
-                isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-              } transition-colors group`}
-            >
-              <CheckCircle
-                className={`h-5 w-5 ${
-                  isDark
-                    ? "text-gray-400 group-hover:text-orange-400"
-                    : "text-gray-500 group-hover:text-orange-500"
-                }`}
-              />
-              {isSidebarOpen && (
-                <span className="ml-3 text-sm font-medium text-left">
-                  Completed
-                </span>
-              )}
-            </button>
-
-            {/* Divider */}
             <div
               className={`my-3 border-t ${
                 isDark ? "border-gray-800" : "border-gray-200"
               }`}
-            ></div>
+            />
 
-            {/* My Lists section with Add List button */}
             <div className="flex items-center justify-between px-3 py-2">
               {isSidebarOpen ? (
                 <h3
@@ -249,7 +162,7 @@ const Sidebar = () => {
                   My Lists
                 </h3>
               ) : (
-                <div className="h-4"></div> // Spacer when collapsed
+                <div className="h-4"></div>
               )}
               <button
                 onClick={() => setIsCreateListModalOpen(true)}
@@ -265,7 +178,6 @@ const Sidebar = () => {
               </button>
             </div>
 
-            {/* User Lists */}
             <div
               className={`space-y-1 ${
                 !isSidebarOpen ? "flex flex-col items-center" : ""
@@ -307,7 +219,6 @@ const Sidebar = () => {
             </div>
           </div>
 
-          {/* Toggle expand/collapse button */}
           <div
             className={`px-3 mt-2 ${
               isDark ? "border-t border-gray-800" : "border-t border-gray-100"
@@ -332,13 +243,46 @@ const Sidebar = () => {
         </div>
       </nav>
 
-      {/* Create List Modal */}
       <CreateListModal
         isOpen={isCreateListModalOpen}
         onClose={() => setIsCreateListModalOpen(false)}
         onSubmit={handleCreateList}
       />
     </>
+  );
+};
+
+const SidebarButton = ({
+  path,
+  icon,
+  label,
+  currentPath,
+  isSidebarOpen,
+  isDark,
+}: any) => {
+  const router = useRouter();
+  const isActive = currentPath === path;
+
+  return (
+    <button
+      onClick={() => router.push(path)}
+      className={`flex w-full items-center px-3 py-2 rounded-md ${
+        isActive ? (isDark ? "bg-gray-800" : "bg-gray-100") : ""
+      } ${
+        isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
+      } transition-colors group`}
+    >
+      {React.cloneElement(icon, {
+        className: `h-5 w-5 ${
+          isDark
+            ? "text-gray-400 group-hover:text-orange-400"
+            : "text-gray-500 group-hover:text-orange-500"
+        }`,
+      })}
+      {isSidebarOpen && (
+        <span className="ml-3 text-sm font-medium text-left">{label}</span>
+      )}
+    </button>
   );
 };
 
