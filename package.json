@@ -12,9 +12,10 @@
   },
   "lint-staged": {
     "*.{js,ts,tsx}": [
-   "npm run lint",
-    "npm run test",
-    "prettier --write"    ]
+      "npm run lint",
+      "npm run test",
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "lucide-react": "^0.486.0",
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.0.0",
     "@tailwindcss/postcss": "^4.0.0",
+    "@types/jest": "^29.5.14",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

@@ -5,7 +5,6 @@ import {
   ChevronDown,
   ChevronUp,
   ClipboardList,
-  Plus,
   StickyNote,
 } from "lucide-react";
 import TaskCard from "@/components/Tasks/index";
@@ -108,34 +107,25 @@ const CollectionComponent = ({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl ${
+      className={`relative rounded-xl ${
         isDark ? "bg-gray-800 shadow-gray-900/20" : "bg-white shadow-lg"
-      } ${className}`}
+      } ${className} w-full box-border`}
     >
       <div className="flex flex-col rounded-lg">
         {/* Collection Header */}
         <div
           className={`flex items-center justify-between rounded-t-lg ${background_color} p-4 text-white`}
         >
-          <div className="flex items-center space-x-2">
-            <ClipboardList className="h-5 w-5" />
-            <span className="font-semibold">{collection_name}</span>
+          <div className="flex items-center space-x-2 min-w-0">
+            <ClipboardList className="h-5 w-5 flex-shrink-0" />
+            <span className="font-semibold truncate">{collection_name}</span>
             {is_default && (
-              <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs">
+              <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs whitespace-nowrap">
                 Default
               </span>
             )}
           </div>
-          <div className="flex space-x-3">
-            <button
-              className="rounded-full p-1 transition-colors hover:bg-white/20"
-              aria-label={
-                activeTab === "tasks" ? "Add new task" : "Add new note"
-              }
-              onClick={activeTab === "tasks" ? handleAddTask : handleAddNote}
-            >
-              <Plus className="h-5 w-5" />
-            </button>
+          <div className="flex space-x-3 flex-shrink-0">
             <button
               className="rounded-full p-1 transition-colors hover:bg-white/20"
               onClick={toggleExpand}
@@ -214,12 +204,12 @@ const CollectionComponent = ({
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <div
-                    className={`h-3 w-3 rounded-full ${background_color}`}
+                    className={`h-3 w-3 rounded-full ${background_color} flex-shrink-0`}
                   ></div>
                   <span
-                    className={`text-sm font-medium ${
+                    className={`text-sm font-medium truncate ${
                       isDark ? "text-gray-300" : "text-gray-700"
                     }`}
                   >
@@ -232,7 +222,7 @@ const CollectionComponent = ({
                   </span>
                 </div>
                 <span
-                  className={`text-xs ${
+                  className={`text-xs flex-shrink-0 ${
                     isDark ? "text-gray-400" : "text-gray-500"
                   }`}
                 >
@@ -304,7 +294,7 @@ const CollectionComponent = ({
                               : "text-orange-500 hover:text-orange-600"
                           }`}
                         >
-                          + Add your first task
+                          Add your first task
                         </button>
                       </div>
                     )
@@ -345,7 +335,7 @@ const CollectionComponent = ({
                             : "text-orange-500 hover:text-orange-600"
                         }`}
                       >
-                        + Add your first note
+                        Add your first note
                       </button>
                     </div>
                   )}

@@ -1,8 +1,12 @@
-// src/app/(secure)/layout.tsx
+"use client";
+
 import React from "react";
 import { ThemeProvider } from "@/context/ThemeContext";
 import Sidebar from "@/components/Navbar/sidebar";
 import { AuthProvider } from "@/context/AuthContext";
+import NavbarWrapper from "@/components/Navbar/top-Navbar";
+import Footer from "@/components/Footer";
+import { SidebarProvider } from "@/context/sidebarContext";
 
 export default function SecureLayout({
   children,
@@ -10,11 +14,12 @@ export default function SecureLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <AuthProvider>
+    <AuthProvider>
+      <SidebarProvider>
+        <NavbarWrapper />
         <Sidebar />
         {children}
-      </AuthProvider>
-    </>
+      </SidebarProvider>
+    </AuthProvider>
   );
 }
