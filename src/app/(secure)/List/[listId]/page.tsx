@@ -3,19 +3,37 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Collection, List } from "@/types/schema";
 import CollectionComponent from "@/components/Collection/index";
-import { FolderPlus } from "lucide-react";
-import Navbar from "@/components/Navbar/top-Navbar";
-import Sidebar from "@/components/Navbar/sidebar";
 import { useTheme } from "@/context/ThemeContext";
-import { sampleData, dataUtils } from "@/data/data"; // Make sure the path is correct
-import { v4 as uuidv4 } from "uuid"; // Add uuid if not already installed
+import { sampleData, dataUtils } from "@/data/data";
+import { v4 as uuidv4 } from "uuid";
 
-export default function Page({ params }: { params: { listId: string } }) {
+// Import our new components
+import ListFilterPlus from "@/components/popupModels/ListFilter";
+import CreateCollectionModal from "@/components/popupModels/CollectionPopup";
+import CreateTaskModal from "@/components/popupModels/TaskPopup";
+
+export default function ListPage({ params }: { params: { listId: string } }) {
   // Get the listId directly from params
   const { listId } = params;
 
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const [isMobile, setIsMobile] = useState(false);
+
+  // State for modals
+  const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+
+  // Check if we're on mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Local state for the current list
   const [listData, setListData] = useState<List | null>(null);
@@ -108,26 +126,64 @@ export default function Page({ params }: { params: { listId: string } }) {
     [listData]
   );
 
-  // Handler for adding a new collection - never set as default
-  const handleAddCollection = useCallback(() => {
-    if (!listData) return;
+  // Handler for creating a new collection
+  const handleCreateCollection = useCallback(
+    (collectionData: { collection_name: string; background_color: string }) => {
+      if (!listData) return;
 
-    const collectionNumber = listData.collections.length + 1;
-    const newCollection: Collection = {
-      id: uuidv4(),
-      collection_name: `Collection ${collectionNumber}`, // More descriptive name
-      background_color: "bg-sky-500", // Default color
-      date_created: new Date(),
-      is_default: false, // Never set new collections as default
-      content_count: 0,
-      tasks: [],
-      notes: [],
-    };
+      const newCollection: Collection = {
+        id: uuidv4(),
+        collection_name: collectionData.collection_name,
+        background_color: collectionData.background_color,
+        date_created: new Date(),
+        is_default: false, // Never set new collections as default
+        content_count: 0,
+        tasks: [],
+        notes: [],
+      };
 
-    // Use the utility function from data module
-    const updatedList = dataUtils.addCollection(listData, newCollection);
-    setListData(updatedList);
-  }, [listData]);
+      // Use the utility function from data module
+      const updatedList = dataUtils.addCollection(listData, newCollection);
+      setListData(updatedList);
+    },
+    [listData]
+  );
+
+  // Handler for creating a new task
+  const handleCreateTask = useCallback(
+    (taskData: {
+      text: string;
+      description: string;
+      is_priority: boolean;
+      due_date?: Date;
+      collection_id?: string;
+    }) => {
+      if (!listData) return;
+
+      const newTask = {
+        id: uuidv4(),
+        text: taskData.text,
+        description: taskData.description || "",
+        date_created: new Date(),
+        due_date: taskData.due_date,
+        is_completed: false,
+        is_priority: taskData.is_priority,
+      };
+
+      // Find the target collection (default to General if not specified)
+      const collectionId =
+        taskData.collection_id ||
+        listData.collections.find((c) => c.is_default)?.id ||
+        listData.collections[0]?.id;
+
+      if (!collectionId) return;
+
+      // Use the utility function from data module
+      const updatedList = dataUtils.addTask(listData, collectionId, newTask);
+      setListData(updatedList);
+    },
+    [listData]
+  );
 
   // Handlers for adding tasks and notes to specific collections
   const getAddTaskHandler = useCallback(
@@ -173,129 +229,127 @@ export default function Page({ params }: { params: { listId: string } }) {
   );
 
   return (
-    <>
-      <Navbar />
-      <Sidebar />
-      <main
-        className={`transition-all duration-300 
-        md:ml-16 pt-16 min-h-screen w-full
-        ${isDark ? "bg-gray-850 text-gray-200" : "bg-gray-50 text-gray-800"}`}
-      >
-        <div className="p-4 md:p-6">
-          <div className="max-w-6xl mx-auto">
-            {isLoading ? (
-              <div
-                className={`text-center py-10 ${
-                  isDark ? "text-gray-400" : "text-gray-500"
-                }`}
-              >
-                <p className="text-lg">Loading collections...</p>
+    <main
+      className={`transition-all duration-300 
+      pt-16 min-h-screen w-full
+      ${isDark ? "bg-gray-850 text-gray-200" : "bg-gray-50 text-gray-800"}`}
+    >
+      <div className="p-4 md:p-6 box-border">
+        <div className="max-w-6xl mx-auto">
+          {isLoading ? (
+            <div
+              className={`text-center py-10 ${
+                isDark ? "text-gray-400" : "text-gray-500"
+              }`}
+            >
+              <p className="text-lg">Loading collections...</p>
+            </div>
+          ) : listData ? (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <h1
+                  className={`text-2xl font-bold truncate mr-2 ${
+                    isDark ? "text-gray-100" : "text-gray-800"
+                  }`}
+                  style={{ color: listData.background_color }}
+                >
+                  {listData.name}
+                </h1>
+                <div className="flex-shrink-0">
+                  <ListFilterPlus
+                    onCreateCollection={() => setIsCollectionModalOpen(true)}
+                    onCreateTask={() => setIsTaskModalOpen(true)}
+                  />
+                </div>
               </div>
-            ) : listData ? (
-              <>
-                <div className="flex items-center justify-between mb-6">
-                  <h1
-                    className={`text-2xl font-bold ${
-                      isDark ? "text-gray-100" : "text-gray-800"
-                    }`}
-                    style={{ color: listData.background_color }}
-                  >
-                    {listData.name}
-                  </h1>
+
+              {listData.collections.length === 0 ? (
+                <div
+                  className={`text-center py-16 ${
+                    isDark ? "text-gray-400" : "text-gray-500"
+                  }`}
+                >
+                  <p className="text-lg mb-4">
+                    No collections in this list yet.
+                  </p>
                   <button
-                    onClick={handleAddCollection}
-                    className={`rounded-md p-2 ${
+                    onClick={() => setIsCollectionModalOpen(true)}
+                    className={`px-4 py-2 rounded-md ${
                       isDark
-                        ? "bg-gray-800 text-gray-300 hover:text-orange-400"
-                        : "bg-gray-100 text-gray-700 hover:text-orange-500"
-                    } transition-colors flex items-center`}
-                    aria-label="Add new collection"
+                        ? "bg-orange-600 hover:bg-orange-700 text-white"
+                        : "bg-orange-500 hover:bg-orange-600 text-white"
+                    }`}
                   >
-                    <FolderPlus className="h-5 w-5 mr-2" />
-                    <span className="hidden sm:inline">Add Collection</span>
+                    Create your first collection
                   </button>
                 </div>
-
-                {listData.collections.length === 0 ? (
-                  <div
-                    className={`text-center py-16 ${
-                      isDark ? "text-gray-400" : "text-gray-500"
-                    }`}
-                  >
-                    <p className="text-lg mb-4">
-                      No collections in this list yet.
-                    </p>
-                    <button
-                      onClick={handleAddCollection}
-                      className={`px-4 py-2 rounded-md ${
-                        isDark
-                          ? "bg-orange-600 hover:bg-orange-700 text-white"
-                          : "bg-orange-500 hover:bg-orange-600 text-white"
-                      }`}
-                    >
-                      Create your first collection
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {/* Sort collections to show default General collection first */}
-                    {listData.collections
-                      .sort((a, b) => {
-                        // Default collection (General) comes first
-                        if (a.is_default && !b.is_default) return -1;
-                        if (!a.is_default && b.is_default) return 1;
-                        // Then sort by name
-                        return a.collection_name.localeCompare(
-                          b.collection_name
-                        );
-                      })
-                      .map((collection) => (
-                        <CollectionComponent
-                          key={collection.id}
-                          id={collection.id}
-                          collection_name={collection.collection_name}
-                          background_color={collection.background_color}
-                          date_created={collection.date_created}
-                          is_default={collection.is_default}
-                          content_count={collection.content_count}
-                          tasks={collection.tasks || []}
-                          notes={collection.notes || []}
-                          onTaskComplete={(taskId, isCompleted) =>
-                            handleTaskComplete(
-                              collection.id,
-                              taskId,
-                              isCompleted
-                            )
-                          }
-                          onTaskPriority={(taskId, isPriority) =>
-                            handleTaskPriority(
-                              collection.id,
-                              taskId,
-                              isPriority
-                            )
-                          }
-                          onNotePin={(noteId, isPinned) =>
-                            handleNotePin(collection.id, noteId, isPinned)
-                          }
-                          onAddTask={getAddTaskHandler(collection.id)}
-                          onAddNote={getAddNoteHandler(collection.id)}
-                        />
-                      ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div
-                className={`text-center py-10 ${
-                  isDark ? "text-gray-400" : "text-gray-500"
-                }`}
-              >
-                <p className="text-lg">List not found.</p>
-              </div>
-            )}
-          </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Sort collections to show default General collection first */}
+                  {listData.collections
+                    .sort((a, b) => {
+                      // Default collection (General) comes first
+                      if (a.is_default && !b.is_default) return -1;
+                      if (!a.is_default && b.is_default) return 1;
+                      // Then sort by name
+                      return a.collection_name.localeCompare(b.collection_name);
+                    })
+                    .map((collection) => (
+                      <CollectionComponent
+                        key={collection.id}
+                        id={collection.id}
+                        collection_name={collection.collection_name}
+                        background_color={collection.background_color}
+                        date_created={collection.date_created}
+                        is_default={collection.is_default}
+                        content_count={collection.content_count}
+                        tasks={collection.tasks || []}
+                        notes={collection.notes || []}
+                        onTaskComplete={(taskId, isCompleted) =>
+                          handleTaskComplete(collection.id, taskId, isCompleted)
+                        }
+                        onTaskPriority={(taskId, isPriority) =>
+                          handleTaskPriority(collection.id, taskId, isPriority)
+                        }
+                        onNotePin={(noteId, isPinned) =>
+                          handleNotePin(collection.id, noteId, isPinned)
+                        }
+                        onAddTask={getAddTaskHandler(collection.id)}
+                        onAddNote={getAddNoteHandler(collection.id)}
+                      />
+                    ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <div
+              className={`text-center py-10 ${
+                isDark ? "text-gray-400" : "text-gray-500"
+              }`}
+            >
+              <p className="text-lg">List not found.</p>
+            </div>
+          )}
         </div>
-      </main>
-    </>
+      </div>
+
+      {/* Modal Components */}
+      {listData && (
+        <>
+          <CreateCollectionModal
+            isOpen={isCollectionModalOpen}
+            onClose={() => setIsCollectionModalOpen(false)}
+            onSubmit={handleCreateCollection}
+          />
+
+          <CreateTaskModal
+            isOpen={isTaskModalOpen}
+            onClose={() => setIsTaskModalOpen(false)}
+            onSubmit={handleCreateTask}
+            collections={listData.collections}
+          />
+        </>
+      )}
+    </main>
   );
 }

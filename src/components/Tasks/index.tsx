@@ -75,14 +75,14 @@ const TaskCard = ({
         isDark
           ? "bg-gray-800 border-gray-700 hover:shadow-gray-900/20"
           : "bg-white border-gray-200 hover:shadow-md"
-      } p-4 transition-shadow ${className} cursor-pointer`}
+      } p-4 transition-shadow ${className} cursor-pointer max-w-full overflow-hidden`}
     >
       <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 overflow-hidden">
           {/* Clickable completion circle */}
           <button
             onClick={handleCompletionToggle}
-            className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+            className={`flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
               isDark
                 ? isCompleted
                   ? "border-orange-400 bg-orange-500 text-gray-900"
@@ -97,7 +97,7 @@ const TaskCard = ({
           </button>
 
           <h4
-            className={`font-semibold ${
+            className={`font-semibold truncate ${
               isDark
                 ? isCompleted
                   ? "text-gray-400 line-through"
@@ -114,7 +114,7 @@ const TaskCard = ({
         {/* Pin button for priority */}
         <button
           onClick={handlePriorityToggle}
-          className={`transition-colors ${
+          className={`flex-shrink-0 transition-colors ${
             isDark
               ? isPriority
                 ? "text-orange-400"
@@ -131,7 +131,7 @@ const TaskCard = ({
 
       {description && (
         <p
-          className={`mb-2 pl-8 text-sm ${
+          className={`mb-2 pl-8 text-sm break-words ${
             isDark
               ? isCompleted
                 ? "text-gray-500 line-through"
@@ -148,11 +148,11 @@ const TaskCard = ({
       <div
         className={`flex items-center pl-8 text-xs ${
           isDark ? "text-gray-500" : "text-gray-500"
-        }`}
+        } overflow-hidden`}
       >
-        <div className="flex items-center">
-          <Calendar className="mr-1 h-4 w-4" />
-          <span>
+        <div className="flex items-center overflow-hidden">
+          <Calendar className="mr-1 h-4 w-4 flex-shrink-0" />
+          <span className="truncate">
             Created: {createdDateFormatted}{" "}
             {due_date && `| Due: ${dueDateFormatted}`}
           </span>

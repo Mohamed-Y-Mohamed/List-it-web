@@ -10,8 +10,6 @@ export default function Dashboard() {
 
   return (
     <>
-      <Navbar />
-      <Sidebar />
       <main
         className={`transition-all duration-300 
         md:ml-16 pt-16 min-h-screen w-full

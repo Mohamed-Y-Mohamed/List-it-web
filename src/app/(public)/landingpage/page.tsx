@@ -19,7 +19,6 @@ const LandingPage = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
-  // Features section data
   const features = [
     {
       icon: (
