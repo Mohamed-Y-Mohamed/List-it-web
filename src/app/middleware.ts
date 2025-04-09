@@ -13,7 +13,7 @@ export function middleware(request: NextRequest) {
   );
 
   response.cookies.set("isLoggedIn", isLoggedIn ? "true" : "false", {
-    httpOnly: false,
+    httpOnly: true,
     path: "/",
     sameSite: "strict",
     secure: process.env.NODE_ENV === "production",

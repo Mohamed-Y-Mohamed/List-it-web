@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, use } from "react";
 import { Collection, List } from "@/types/schema";
 import CollectionComponent from "@/components/Collection/index";
 import { useTheme } from "@/context/ThemeContext";
@@ -12,9 +12,12 @@ import ListFilterPlus from "@/components/popupModels/ListFilter";
 import CreateCollectionModal from "@/components/popupModels/CollectionPopup";
 import CreateTaskModal from "@/components/popupModels/TaskPopup";
 
-export default function ListPage({ params }: { params: { listId: string } }) {
-  // Get the listId directly from params
-  const { listId } = params;
+export default function ListPage({
+  params,
+}: {
+  params: Promise<{ listId: string }>;
+}) {
+  const { listId } = use(params); // ✅ unwrapped properly
 
   const { theme } = useTheme();
   const isDark = theme === "dark";

@@ -34,8 +34,8 @@ const NoteCard = ({
       ? background_color // If it's a hex code, we'll handle it with inline style
       : background_color // If it's already a class name like 'bg-yellow-100'
     : isDark
-    ? "bg-gray-700"
-    : "bg-yellow-50";
+      ? "bg-gray-700"
+      : "bg-yellow-50";
 
   // Split text into title and content if it contains a colon
   const [title, content] = text.includes(":")
@@ -85,8 +85,8 @@ const NoteCard = ({
         isDark && !background_color
           ? "text-gray-200 bg-gray-700"
           : background_color
-          ? "" // If there's a background color, don't override text color
-          : "text-gray-700"
+            ? "" // If there's a background color, don't override text color
+            : "text-gray-700"
       }`}
       style={noteStyle}
     >
@@ -111,8 +111,8 @@ const NoteCard = ({
                 ? "text-orange-400"
                 : "text-gray-500 hover:text-gray-300"
               : is_pinned
-              ? "text-orange-500"
-              : "text-gray-400 hover:text-gray-600"
+                ? "text-orange-500"
+                : "text-gray-400 hover:text-gray-600"
           }`}
           aria-label={is_pinned ? "Unpin note" : "Pin note"}
         >

@@ -4,6 +4,7 @@ import React from "react";
 import { Briefcase, Code } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
+import TeamMemberCard from "@/components/About/TeamMemberCard";
 
 const AboutUs = () => {
   const { theme } = useTheme();
@@ -60,7 +61,6 @@ const AboutUs = () => {
         </div>
       </section>
 
-      {/* Mission Section */}
       <section className={`py-20 ${isDark ? "bg-gray-900" : ""}`}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
@@ -130,144 +130,38 @@ const AboutUs = () => {
         </div>
       </section>
 
-      {/* Team Section */}
-      <section
-        className={`${
-          isDark
-            ? "bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900"
-            : "bg-gradient-to-r from-orange-100 via-sky-50 to-orange-100"
-        } py-20 transition-colors duration-300`}
-      >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2
-              className={`text-3xl font-bold ${
-                isDark ? "text-gray-100" : "text-gray-900"
-              }`}
-            >
-              Meet Our{" "}
-              <span className={isDark ? "text-orange-400" : "text-orange-500"}>
-                Team
-              </span>
-            </h2>
-            <div className="mx-auto mt-4 h-1 w-24 rounded-full bg-orange-500"></div>
-          </div>
-          <div className="flex flex-col items-center space-y-12 md:flex-row md:space-x-8 md:space-y-0">
-            <div
-              className={`flex w-full flex-col items-center rounded-lg ${
-                isDark
-                  ? "bg-gray-800 border-orange-600"
-                  : "bg-white border-orange-500"
-              } p-8 shadow-md border-t-4 md:w-1/2`}
-            >
-              <div className="mb-4 h-32 w-32 overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-orange-600 p-1">
-                <div
-                  className={`flex h-full w-full items-center justify-center rounded-full ${
-                    isDark ? "bg-gray-700" : "bg-gray-200"
-                  } ${isDark ? "text-gray-400" : "text-gray-600"}`}
-                >
-                  <svg
-                    className="h-20 w-20"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
-                  </svg>
-                </div>
-              </div>
-              <h3
-                className={`mb-2 text-2xl font-bold ${
-                  isDark ? "text-gray-100" : "text-gray-900"
-                }`}
-              >
-                Mohamed Yusuf Mohamed
-              </h3>
-              <div
-                className={`mb-3 flex items-center ${
-                  isDark
-                    ? "bg-orange-900 text-orange-400"
-                    : "bg-orange-100 text-orange-700"
-                } px-4 py-1 rounded-full`}
-              >
-                <Code
-                  className={`mr-2 h-5 w-5 ${
-                    isDark ? "text-orange-400" : "text-orange-500"
-                  }`}
-                />
-                <span
-                  className={isDark ? "text-orange-300" : "text-orange-700"}
-                >
-                  Full Stack & Mobile Developer
-                </span>
-              </div>
-              <p
-                className={`mb-4 text-center ${
-                  isDark ? "text-gray-300" : "text-gray-600"
-                }`}
-              >
-                Passionate about creating intuitive user experiences across all
-                platforms. Contributed to both web and all mobile versions of
-                LIST IT with a focus on responsive design and seamless
-                functionality.
-              </p>
-            </div>
-
-            <div
-              className={`flex w-full flex-col items-center rounded-lg ${
-                isDark
-                  ? "bg-gray-800 border-sky-600"
-                  : "bg-white border-sky-500"
-              } p-8 shadow-md border-t-4 md:w-1/2`}
-            >
-              <div className="mb-4 h-32 w-32 overflow-hidden rounded-full bg-gradient-to-br from-sky-400 to-sky-600 p-1">
-                <div
-                  className={`flex h-full w-full items-center justify-center rounded-full ${
-                    isDark ? "bg-gray-700" : "bg-gray-200"
-                  } ${isDark ? "text-gray-400" : "text-gray-600"}`}
-                >
-                  <svg
-                    className="h-20 w-20"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
-                  </svg>
-                </div>
-              </div>
-              <h3
-                className={`mb-2 text-2xl font-bold ${
-                  isDark ? "text-gray-100" : "text-gray-900"
-                }`}
-              >
-                Abdul Moiz
-              </h3>
-              <div
-                className={`mb-3 flex items-center ${
-                  isDark ? "bg-sky-900 text-sky-400" : "bg-sky-100 text-sky-700"
-                } px-4 py-1 rounded-full`}
-              >
-                <Briefcase
-                  className={`mr-2 h-5 w-5 ${
-                    isDark ? "text-sky-400" : "text-sky-500"
-                  }`}
-                />
-                <span className={isDark ? "text-sky-300" : "text-sky-700"}>
-                  Full Stack & Mobile Developer
-                </span>
-              </div>
-              <p
-                className={`mb-4 text-center ${
-                  isDark ? "text-gray-300" : "text-gray-600"
-                }`}
-              >
-                Specializes in building scalable applications for both web and
-                mobile platforms. Worked across all versions of LIST IT to
-                create a consistent and powerful experience on every device.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <div className="flex flex-col items-center space-y-12 md:flex-row md:space-x-8 md:space-y-0">
+        <TeamMemberCard
+          name="Mohamed Yusuf Mohamed"
+          role="Full Stack & Mobile Developer"
+          description="Passionate about creating intuitive user experiences across all platforms. Contributed to both web and all mobile versions of LIST IT with a focus on responsive design and seamless functionality."
+          icon={Code}
+          gradientFrom="from-orange-400"
+          gradientTo="to-orange-600"
+          isDark={isDark}
+          badgeBg={
+            isDark
+              ? "bg-orange-900 text-orange-400"
+              : "bg-orange-100 text-orange-700"
+          }
+          badgeText={isDark ? "text-orange-300" : "text-orange-700"}
+          borderColor={isDark ? "border-orange-600" : "border-orange-500"}
+        />
+        <TeamMemberCard
+          name="Abdul Moiz"
+          role="Full Stack & Mobile Developer"
+          description="Specializes in building scalable applications for both web and mobile platforms. Worked across all versions of LIST IT to create a consistent and powerful experience on every device."
+          icon={Briefcase}
+          gradientFrom="from-sky-400"
+          gradientTo="to-sky-600"
+          isDark={isDark}
+          badgeBg={
+            isDark ? "bg-sky-900 text-sky-400" : "bg-sky-100 text-sky-700"
+          }
+          badgeText={isDark ? "text-sky-300" : "text-sky-700"}
+          borderColor={isDark ? "border-sky-600" : "border-sky-500"}
+        />
+      </div>
     </div>
   );
 };
