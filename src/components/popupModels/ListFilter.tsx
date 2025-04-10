@@ -1,17 +1,19 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, FolderPlus, ListTodo } from "lucide-react";
+import { Plus, FolderPlus, ListTodo, StickyNote } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
 interface ListFilterPlusProps {
   onCreateCollection: () => void;
   onCreateTask: () => void;
+  onCreateNote: () => void;
 }
 
 const ListFilterPlus = ({
   onCreateCollection,
   onCreateTask,
+  onCreateNote,
 }: ListFilterPlusProps) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -44,6 +46,11 @@ const ListFilterPlus = ({
   const handleCreateTask = () => {
     setIsMenuOpen(false);
     onCreateTask();
+  };
+
+  const handleCreateNote = () => {
+    setIsMenuOpen(false);
+    onCreateNote();
   };
 
   return (
@@ -94,6 +101,19 @@ const ListFilterPlus = ({
                 }`}
               />
               <span>Create Task</span>
+            </button>
+            <button
+              onClick={handleCreateNote}
+              className={`w-full flex items-center px-4 py-2 text-sm ${
+                isDark ? "hover:bg-gray-700" : "hover:bg-gray-100"
+              }`}
+            >
+              <StickyNote
+                className={`h-4 w-4 mr-2 ${
+                  isDark ? "text-gray-400" : "text-gray-500"
+                }`}
+              />
+              <span>Create Note</span>
             </button>
           </div>
         </div>
