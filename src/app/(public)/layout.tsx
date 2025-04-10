@@ -1,5 +1,5 @@
 import React from "react";
-import Navbar from "@/components/Navbar/top-Navbar";
+import Navbar from "@/components/Navbar/Navbar";
 
 export default function PublicLayout({
   children,
@@ -8,7 +8,6 @@ export default function PublicLayout({
 }) {
   return (
     <div className="w-full flex flex-col">
-      <Navbar />
       <main className="min-h-screen   w-full">{children}</main>
     </div>
   );

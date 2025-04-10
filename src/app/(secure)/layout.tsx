@@ -2,11 +2,10 @@
 
 import React from "react";
 import { ThemeProvider } from "@/context/ThemeContext";
-import Sidebar from "@/components/Navbar/sidebar";
+// import Sidebar from "@/components/Navbar/sidebar";
 import { AuthProvider } from "@/context/AuthContext";
-import NavbarWrapper from "@/components/Navbar/top-Navbar";
-import Footer from "@/components/Footer";
-import { SidebarProvider } from "@/context/sidebarContext";
+import MergedNavigation from "@/components/Navbar/Navbar";
+// import { SidebarProvider } from "@/context/sidebarContext";
 
 export default function SecureLayout({
   children,
@@ -15,11 +14,8 @@ export default function SecureLayout({
 }) {
   return (
     <AuthProvider>
-      <SidebarProvider>
-        <NavbarWrapper />
-        <Sidebar />
-        {children}
-      </SidebarProvider>
+      <MergedNavigation />
+      {children}
     </AuthProvider>
   );
 }
