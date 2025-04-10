@@ -60,7 +60,6 @@ const CollectionComponent = ({
     setRegularTasks(activeTasks.filter((task) => !task.is_priority));
   }, [tasks]);
 
-  // Update sorted notes when notes change
   useEffect(() => {
     if (!notes || notes.length === 0) {
       setSortedNotes([]);
@@ -68,7 +67,6 @@ const CollectionComponent = ({
     }
 
     const sorted = [...notes].sort((a, b) => {
-      // Sort by pinned status first (pinned notes come first)
       if (a.is_pinned && !b.is_pinned) return -1;
       if (!a.is_pinned && b.is_pinned) return 1;
 
@@ -140,10 +138,8 @@ const CollectionComponent = ({
           </div>
         </div>
 
-        {/* Collection Content */}
         {isExpanded && (
           <>
-            {/* Tabs for switching between tasks and notes */}
             <div className={`flex ${isDark ? "bg-gray-800" : "bg-gray-50"}`}>
               <button
                 className={`flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors duration-200 ${
@@ -152,8 +148,8 @@ const CollectionComponent = ({
                       ? "border-orange-500 text-orange-400"
                       : "border-sky-500 text-sky-600"
                     : isDark
-                    ? "border-transparent text-gray-400 hover:text-gray-300"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
+                      ? "border-transparent text-gray-400 hover:text-gray-300"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
                 }`}
                 onClick={() => setActiveTab("tasks")}
               >
@@ -177,8 +173,8 @@ const CollectionComponent = ({
                       ? "border-orange-500 text-orange-400"
                       : "border-sky-500 text-sky-600"
                     : isDark
-                    ? "border-transparent text-gray-400 hover:text-gray-300"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
+                      ? "border-transparent text-gray-400 hover:text-gray-300"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
                 }`}
                 onClick={() => setActiveTab("notes")}
               >
@@ -197,7 +193,6 @@ const CollectionComponent = ({
               </button>
             </div>
 
-            {/* Content Area */}
             <div
               className={`space-y-4 p-5 ${
                 isDark ? "bg-gray-800" : "bg-gray-50"
@@ -216,8 +211,8 @@ const CollectionComponent = ({
                     {activeTab === "tasks"
                       ? tasks.length
                       : notes
-                      ? notes.length
-                      : 0}{" "}
+                        ? notes.length
+                        : 0}{" "}
                     {activeTab}
                   </span>
                 </div>
@@ -306,7 +301,7 @@ const CollectionComponent = ({
               {activeTab === "notes" && (
                 <>
                   {sortedNotes.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {sortedNotes.map((note) => (
                         <NoteCard
                           key={note.note_id}

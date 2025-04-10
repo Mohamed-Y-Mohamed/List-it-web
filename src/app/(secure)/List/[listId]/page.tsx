@@ -7,10 +7,11 @@ import { useTheme } from "@/context/ThemeContext";
 import { sampleData, dataUtils } from "@/data/data";
 import { v4 as uuidv4 } from "uuid";
 
-// Import our new components
+// Import our components
 import ListFilterPlus from "@/components/popupModels/ListFilter";
 import CreateCollectionModal from "@/components/popupModels/CollectionPopup";
 import CreateTaskModal from "@/components/popupModels/TaskPopup";
+import CreateNoteModal from "@/components/popupModels/notepopup";
 
 export default function ListPage({ params }: { params: { listId: string } }) {
   // Get the listId directly from params
@@ -23,6 +24,7 @@ export default function ListPage({ params }: { params: { listId: string } }) {
   // State for modals
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
 
   // Check if we're on mobile
   useEffect(() => {
@@ -185,6 +187,39 @@ export default function ListPage({ params }: { params: { listId: string } }) {
     [listData]
   );
 
+  // Handler for creating a new note
+  const handleCreateNote = useCallback(
+    (noteData: {
+      text: string;
+      background_color: string;
+      collection_id?: string;
+    }) => {
+      if (!listData) return;
+
+      const newNote = {
+        note_id: Date.now(), // Simple ID generation
+        text: noteData.text,
+        date_created: new Date(),
+        is_deleted: false,
+        background_color: noteData.background_color,
+        is_pinned: false,
+      };
+
+      // Find the target collection (default to General if not specified)
+      const collectionId =
+        noteData.collection_id ||
+        listData.collections.find((c) => c.is_default)?.id ||
+        listData.collections[0]?.id;
+
+      if (!collectionId) return;
+
+      // Use the utility function from data module
+      const updatedList = dataUtils.addNote(listData, collectionId, newNote);
+      setListData(updatedList);
+    },
+    [listData]
+  );
+
   // Handlers for adding tasks and notes to specific collections
   const getAddTaskHandler = useCallback(
     (collectionId: string) => {
@@ -259,6 +294,7 @@ export default function ListPage({ params }: { params: { listId: string } }) {
                   <ListFilterPlus
                     onCreateCollection={() => setIsCollectionModalOpen(true)}
                     onCreateTask={() => setIsTaskModalOpen(true)}
+                    onCreateNote={() => setIsNoteModalOpen(true)}
                   />
                 </div>
               </div>
@@ -346,6 +382,13 @@ export default function ListPage({ params }: { params: { listId: string } }) {
             isOpen={isTaskModalOpen}
             onClose={() => setIsTaskModalOpen(false)}
             onSubmit={handleCreateTask}
+            collections={listData.collections}
+          />
+
+          <CreateNoteModal
+            isOpen={isNoteModalOpen}
+            onClose={() => setIsNoteModalOpen(false)}
+            onSubmit={handleCreateNote}
             collections={listData.collections}
           />
         </>
