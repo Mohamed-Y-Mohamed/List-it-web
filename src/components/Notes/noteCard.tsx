@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Pin } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import NoteSidebar from "@/components/popupModels/notedetail";
 
 interface NoteCardProps {
   note_id: number;
@@ -12,6 +13,8 @@ interface NoteCardProps {
   background_color?: string;
   is_pinned?: boolean;
   onPinChange?: (noteId: number, isPinned: boolean) => void;
+  onColorChange?: (noteId: number, color: string) => void;
+  onNoteUpdate?: (noteId: number, updatedText: string) => void;
   className?: string;
 }
 
@@ -23,77 +26,107 @@ const NoteCard = ({
   background_color,
   is_pinned = false,
   onPinChange,
+  onColorChange,
+  onNoteUpdate,
   className = "",
 }: NoteCardProps) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [noteText, setNoteText] = useState(text);
+  const [noteBackgroundColor, setNoteBackgroundColor] =
+    useState(background_color);
 
-  // Extract title from text
-  const title = text.includes(":") ? text.split(":")[0] : text;
+  useEffect(() => {
+    setNoteText(text);
+    setNoteBackgroundColor(background_color);
+  }, [text, background_color]);
 
-  // Handle background color
-  let cardStyle = {};
-  let bgClass = "";
+  const parts = noteText.split(/:\s(.+)/);
+  const title = parts.length > 1 ? parts[0] : noteText;
 
-  if (background_color) {
-    if (background_color.startsWith("#")) {
-      // If it's a hex color, use inline style
-      cardStyle = { backgroundColor: background_color };
-    } else {
-      // If it's a class name like "bg-blue-100", use it directly
-      bgClass = background_color;
-    }
-  } else {
-    // Fallback background color
-    bgClass = isDark ? "bg-gray-700" : "bg-yellow-50";
-  }
+  const cardStyle = noteBackgroundColor
+    ? { backgroundColor: noteBackgroundColor }
+    : {};
+  const bgClass = !noteBackgroundColor
+    ? isDark
+      ? "bg-gray-700"
+      : "bg-yellow-50"
+    : "";
 
-  // Text color based on dark mode
-  const textColor = isDark ? "text-gray-100" : "text-gray-800";
+  const useWhiteText = noteBackgroundColor
+    ? !["#FFD60A", "#34C759", "#00C7BE"].includes(noteBackgroundColor)
+    : isDark;
 
-  const handlePinToggle = (e: React.MouseEvent) => {
+  const textColor = useWhiteText ? "text-white" : "text-gray-800";
+
+  const handlePinClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    onPinChange?.(note_id, !is_pinned);
+  };
 
-    if (onPinChange) {
-      onPinChange(note_id, !is_pinned);
-    }
+  const openSidebar = () => setIsSidebarOpen(true);
+  const closeSidebar = () => setIsSidebarOpen(false);
+
+  const updateNoteColor = (id: number, color: string) => {
+    setNoteBackgroundColor(color);
+    onColorChange?.(id, color);
+  };
+
+  const updateNoteText = (id: number, updatedText: string) => {
+    setNoteText(updatedText);
+    onNoteUpdate?.(id, updatedText);
   };
 
   return (
-    <div
-      className={`
-        rounded-lg p-4 shadow-sm hover:shadow-md
-        w-3/4 h-3/4 mx-auto aspect-square relative
-        ${bgClass} ${className}
-      `}
-      style={cardStyle}
-    >
-      {/* Pin button */}
-      <button
-        onClick={handlePinToggle}
+    <>
+      <div
         className={`
-          absolute top-2 right-2 p-1 transition-colors
-          ${
-            is_pinned
-              ? isDark
-                ? "text-orange-400"
-                : "text-orange-500"
-              : isDark
-                ? "text-gray-500 hover:text-gray-300"
-                : "text-gray-400 hover:text-gray-600"
-          }
+          rounded-lg p-4 shadow-sm hover:shadow-md
+          relative overflow-hidden cursor-pointer
+          w-full h-32 md:w-3/4 md:h-40 lg:w-3/4 lg:h-30
+          ${bgClass} ${className}
         `}
-        aria-label={is_pinned ? "Unpin note" : "Pin note"}
+        style={cardStyle}
+        onClick={openSidebar}
       >
-        <Pin className={`h-4 w-4 ${is_pinned ? "fill-current" : ""}`} />
-      </button>
+        <button
+          onClick={handlePinClick}
+          className="absolute top-2 right-2 p-1 transition-colors"
+          aria-label={is_pinned ? "Unpin note" : "Pin note"}
+        >
+          <Pin
+            className={`h-4 w-4 ${
+              is_pinned
+                ? useWhiteText
+                  ? "text-white fill-orange-400"
+                  : "text-black fill-orange-500"
+                : useWhiteText
+                  ? "text-white stroke-2"
+                  : "text-black stroke-2"
+            }`}
+          />
+        </button>
 
-      {/* Title */}
-      <div className="flex items-center justify-center h-full w-full">
-        <h4 className={`font-semibold text-center ${textColor}`}>{title}</h4>
+        <div className="absolute bottom-0 left-0 right-0 p-2">
+          <h4 className={`font-semibold ${textColor}`}>{title}</h4>
+        </div>
       </div>
-    </div>
+
+      <NoteSidebar
+        isOpen={isSidebarOpen}
+        onClose={closeSidebar}
+        note={{
+          note_id,
+          text: noteText,
+          background_color: noteBackgroundColor,
+          date_created,
+        }}
+        onColorChange={updateNoteColor}
+        onNoteUpdate={updateNoteText}
+      />
+    </>
   );
 };
 
