@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Calendar, Check, Pin } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import TaskSidebar from "@/components/popupModels/TasksDetails";
+import { Collection } from "@/types/schema";
 
 interface TaskCardProps {
   id: string;
@@ -15,6 +17,17 @@ interface TaskCardProps {
   is_priority: boolean;
   onComplete: (id: string, is_completed: boolean) => void;
   onPriorityChange: (id: string, is_priority: boolean) => void;
+  onTaskUpdate?: (
+    taskId: string,
+    taskData: {
+      text: string;
+      description?: string;
+      due_date?: Date;
+      is_priority: boolean;
+    }
+  ) => void;
+  collections?: Collection[];
+  onCollectionChange?: (taskId: string, collectionId: string) => void;
   className?: string;
 }
 
@@ -24,141 +37,186 @@ const TaskCard = ({
   description,
   date_created,
   due_date,
-  is_completed: initialIsCompleted = false,
+  is_completed,
   date_completed,
-  is_priority: initialIsPriority = false,
-  className = "",
+  is_priority,
   onComplete,
   onPriorityChange,
+  onTaskUpdate,
+  collections,
+  onCollectionChange,
+  className = "",
 }: TaskCardProps) => {
-  // Use local state to allow for immediate UI feedback
-  const [isCompleted, setIsCompleted] = useState(initialIsCompleted);
-  const [isPriority, setIsPriority] = useState(initialIsPriority);
+  const [isCompleted, setIsCompleted] = useState(is_completed);
+  const [isPriority, setIsPriority] = useState(is_priority);
+  const [taskText, setTaskText] = useState(text);
+  const [taskDescription, setTaskDescription] = useState(description);
+  const [taskDueDate, setTaskDueDate] = useState(due_date);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
-  // Format dates for display
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString();
-  };
+  useEffect(() => {
+    setIsCompleted(is_completed);
+    setIsPriority(is_priority);
+    setTaskText(text);
+    setTaskDescription(description);
+    setTaskDueDate(due_date);
+  }, [is_completed, is_priority, text, description, due_date]);
 
+  const formatDate = useCallback((date: Date) => date.toLocaleDateString(), []);
   const createdDateFormatted = formatDate(date_created);
-  const dueDateFormatted = due_date ? formatDate(due_date) : "No due date";
+  const dueDateFormatted = taskDueDate
+    ? formatDate(taskDueDate)
+    : "No due date";
 
-  // Handle click on completion circle
   const handleCompletionToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const newCompletionState = !isCompleted;
-    setIsCompleted(newCompletionState);
-
-    // Call the parent component's callback if provided
-    if (onComplete) {
-      onComplete(id, newCompletionState);
-    }
+    const newState = !isCompleted;
+    setIsCompleted(newState);
+    onComplete?.(id, newState);
   };
 
-  // Handle priority toggle (pin icon click)
   const handlePriorityToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const newPriorityState = !isPriority;
-    setIsPriority(newPriorityState);
+    const newState = !isPriority;
+    setIsPriority(newState);
+    onPriorityChange?.(id, newState);
+  };
 
-    // Call the parent component's callback if provided
-    if (onPriorityChange) {
-      onPriorityChange(id, newPriorityState);
+  const handleCardClick = () => setIsSidebarOpen(true);
+  const handleCloseSidebar = () => setIsSidebarOpen(false);
+
+  const handleTaskUpdate = (
+    taskId: string,
+    taskData: {
+      text: string;
+      description?: string;
+      due_date?: Date;
+      is_priority: boolean;
     }
+  ) => {
+    setTaskText(taskData.text);
+    setTaskDescription(taskData.description);
+    setTaskDueDate(taskData.due_date);
+    setIsPriority(taskData.is_priority);
+    onTaskUpdate?.(taskId, taskData);
   };
 
   return (
-    <div
-      className={`rounded-lg border ${
-        isDark
-          ? "bg-gray-800 border-gray-700 hover:shadow-gray-900/20"
-          : "bg-white border-gray-200 hover:shadow-md"
-      } p-4 transition-shadow ${className} cursor-pointer max-w-full overflow-hidden`}
-    >
-      <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center space-x-3 overflow-hidden">
-          {/* Clickable completion circle */}
-          <button
-            onClick={handleCompletionToggle}
-            className={`flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
-              isDark
-                ? isCompleted
-                  ? "border-orange-400 bg-orange-500 text-gray-900"
-                  : "border-gray-600 bg-gray-700 hover:border-orange-500"
-                : isCompleted
-                ? "border-green-500 bg-green-500 text-white"
-                : "border-gray-300 bg-white hover:border-green-500"
-            }`}
-            aria-label={isCompleted ? "Mark as incomplete" : "Mark as complete"}
-          >
-            {isCompleted && <Check className="h-3 w-3" />}
-          </button>
-
-          <h4
-            className={`font-semibold truncate ${
-              isDark
-                ? isCompleted
-                  ? "text-gray-400 line-through"
-                  : "text-gray-100"
-                : isCompleted
-                ? "text-gray-500 line-through"
-                : "text-gray-800"
-            }`}
-          >
-            {text}
-          </h4>
-        </div>
-
-        {/* Pin button for priority */}
-        <button
-          onClick={handlePriorityToggle}
-          className={`flex-shrink-0 transition-colors ${
-            isDark
-              ? isPriority
-                ? "text-orange-400"
-                : "text-gray-500 hover:text-gray-300"
-              : isPriority
-              ? "text-orange-500"
-              : "text-gray-400 hover:text-gray-600"
-          }`}
-          aria-label={isPriority ? "Unpin task" : "Pin task"}
-        >
-          <Pin className={`h-5 w-5 ${isPriority ? "fill-current" : ""}`} />
-        </button>
-      </div>
-
-      {description && (
-        <p
-          className={`mb-2 pl-8 text-sm break-words ${
-            isDark
-              ? isCompleted
-                ? "text-gray-500 line-through"
-                : "text-gray-400"
-              : isCompleted
-              ? "text-gray-400 line-through"
-              : "text-gray-600"
-          }`}
-        >
-          {description}
-        </p>
-      )}
-
+    <>
       <div
-        className={`flex items-center pl-8 text-xs ${
-          isDark ? "text-gray-500" : "text-gray-500"
-        } overflow-hidden`}
+        className={`rounded-lg border p-4 transition-shadow cursor-pointer max-w-full overflow-hidden ${className} ${
+          isDark
+            ? "bg-gray-800 border-gray-700 hover:shadow-gray-900/20"
+            : "bg-white border-gray-200 hover:shadow-md"
+        }`}
+        onClick={handleCardClick}
       >
-        <div className="flex items-center overflow-hidden">
-          <Calendar className="mr-1 h-4 w-4 flex-shrink-0" />
-          <span className="truncate">
-            Created: {createdDateFormatted}{" "}
-            {due_date && `| Due: ${dueDateFormatted}`}
-          </span>
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center space-x-3 overflow-hidden">
+            <button
+              onClick={handleCompletionToggle}
+              className={`flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                isDark
+                  ? isCompleted
+                    ? "border-orange-400 bg-orange-500 text-gray-900"
+                    : "border-gray-600 bg-gray-700 hover:border-orange-500"
+                  : isCompleted
+                    ? "border-green-500 bg-green-500 text-white"
+                    : "border-gray-300 bg-white hover:border-green-500"
+              }`}
+              aria-label={
+                isCompleted ? "Mark as incomplete" : "Mark as complete"
+              }
+            >
+              {isCompleted && <Check className="h-3 w-3" />}
+            </button>
+
+            <h4
+              className={`font-semibold truncate ${
+                isDark
+                  ? isCompleted
+                    ? "text-gray-400 line-through"
+                    : "text-gray-100"
+                  : isCompleted
+                    ? "text-gray-500 line-through"
+                    : "text-gray-800"
+              }`}
+            >
+              {taskText}
+            </h4>
+          </div>
+
+          <button
+            onClick={handlePriorityToggle}
+            className={`flex-shrink-0 transition-colors ${
+              isDark
+                ? isPriority
+                  ? "text-orange-400"
+                  : "text-gray-500 hover:text-gray-300"
+                : isPriority
+                  ? "text-orange-500"
+                  : "text-gray-400 hover:text-gray-600"
+            }`}
+            aria-label={isPriority ? "Unpin task" : "Pin task"}
+          >
+            <Pin className={`h-5 w-5 ${isPriority ? "fill-current" : ""}`} />
+          </button>
+        </div>
+
+        {taskDescription && (
+          <p
+            className={`mb-2 pl-8 text-sm break-words ${
+              isDark
+                ? isCompleted
+                  ? "text-gray-500 line-through"
+                  : "text-gray-400"
+                : isCompleted
+                  ? "text-gray-400 line-through"
+                  : "text-gray-600"
+            }`}
+          >
+            {taskDescription}
+          </p>
+        )}
+
+        <div
+          className={`flex items-center pl-8 text-xs overflow-hidden ${
+            isDark ? "text-gray-500" : "text-gray-500"
+          }`}
+        >
+          <div className="flex items-center overflow-hidden">
+            <Calendar className="mr-1 h-4 w-4 flex-shrink-0" />
+            <span className="truncate">
+              Created: {createdDateFormatted}
+              {taskDueDate && ` | Due: ${dueDateFormatted}`}
+            </span>
+          </div>
         </div>
       </div>
-    </div>
+
+      <TaskSidebar
+        isOpen={isSidebarOpen}
+        onClose={handleCloseSidebar}
+        task={{
+          id,
+          text: taskText,
+          description: taskDescription,
+          date_created,
+          due_date: taskDueDate,
+          is_completed: isCompleted,
+          date_completed,
+          is_priority: isPriority,
+        }}
+        onComplete={onComplete}
+        onPriorityChange={onPriorityChange}
+        onTaskUpdate={handleTaskUpdate}
+        collections={collections}
+        onCollectionChange={onCollectionChange}
+      />
+    </>
   );
 };
 
