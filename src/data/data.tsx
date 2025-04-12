@@ -15,14 +15,14 @@ export const sampleData: { lists: ListsData } = {
     "1": {
       id: "1",
       name: "Work",
-      background_color: "#4F46E5",
+      background_color: "#007AFF",
       date_created: new Date("2025-01-15"),
       is_default: true,
       collections: [
         {
           id: "work-general",
           collection_name: "General",
-          background_color: "bg-blue-500",
+          background_color: "#5856D6",
           date_created: new Date("2025-01-15"),
           is_default: true,
           content_count: 2,
@@ -55,7 +55,39 @@ export const sampleData: { lists: ListsData } = {
               text: "Project Requirements: Need to include timeline and budget estimates",
               date_created: new Date("2025-02-10"),
               is_deleted: false,
-              background_color: "bg-blue-100",
+              background_color: "#00C7BE",
+              is_pinned: true,
+            },
+            {
+              note_id: 2,
+              text: "Meeting Notes: Discussed project scope and next steps",
+              date_created: new Date("2025-02-14"),
+              is_deleted: false,
+              background_color: "#AF52DE",
+              is_pinned: false,
+            },
+            {
+              note_id: 5,
+              text: "Project Requirements: Need to include timeline and budget estimates",
+              date_created: new Date("2025-02-10"),
+              is_deleted: false,
+              background_color: "#FF9500",
+              is_pinned: true,
+            },
+            {
+              note_id: 3,
+              text: "Project Requirements: Need to include timeline and budget estimates",
+              date_created: new Date("2025-02-10"),
+              is_deleted: false,
+              background_color: "#FF2D55",
+              is_pinned: true,
+            },
+            {
+              note_id: 4,
+              text: "Project Requirements: Need to include timeline and budget estimates",
+              date_created: new Date("2025-02-10"),
+              is_deleted: false,
+              background_color: "#34C759",
               is_pinned: true,
             },
           ],
@@ -63,7 +95,7 @@ export const sampleData: { lists: ListsData } = {
         {
           id: "work-meetings",
           collection_name: "Meetings",
-          background_color: "bg-purple-500",
+          background_color: "#AF52DE",
           date_created: new Date("2025-01-18"),
           is_default: false,
           content_count: 1,
@@ -84,7 +116,7 @@ export const sampleData: { lists: ListsData } = {
               text: "Meeting Agenda: Review Q1 goals and set Q2 priorities",
               date_created: new Date("2025-02-15"),
               is_deleted: false,
-              background_color: "bg-purple-100",
+              background_color: "#FFD60A",
               is_pinned: false,
             },
           ],
@@ -94,14 +126,14 @@ export const sampleData: { lists: ListsData } = {
     "2": {
       id: "2",
       name: "Personal",
-      background_color: "#10B981",
+      background_color: "#34C759",
       date_created: new Date("2025-01-20"),
       is_default: false,
       collections: [
         {
           id: "personal-general",
           collection_name: "General",
-          background_color: "bg-green-500",
+          background_color: "#FF3B30",
           date_created: new Date("2025-01-20"),
           is_default: true,
           content_count: 2,
@@ -132,7 +164,7 @@ export const sampleData: { lists: ListsData } = {
               text: "Shopping List: Vegetables, fruits, chicken, pasta, sauce",
               date_created: new Date("2025-02-13"),
               is_deleted: false,
-              background_color: "bg-green-100",
+              background_color: "#00C7BE",
               is_pinned: true,
             },
           ],
@@ -142,14 +174,14 @@ export const sampleData: { lists: ListsData } = {
     "3": {
       id: "3",
       name: "Shopping",
-      background_color: "#F59E0B",
+      background_color: "#FF9500",
       date_created: new Date("2025-01-25"),
       is_default: false,
       collections: [
         {
           id: "shopping-general",
           collection_name: "General",
-          background_color: "bg-yellow-500",
+          background_color: "#FFD60A",
           date_created: new Date("2025-01-25"),
           is_default: true,
           content_count: 0,
@@ -383,9 +415,7 @@ export const dataUtils = {
     const generalCollection: Collection = {
       id: `${list.id}-general`,
       collection_name: "General",
-      background_color: list.background_color.startsWith("#")
-        ? list.background_color
-        : "bg-gray-500", // Default fallback
+      background_color: list.background_color,
       date_created: new Date(),
       is_default: true,
       content_count: 0,
