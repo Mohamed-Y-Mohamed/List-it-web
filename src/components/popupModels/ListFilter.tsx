@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, FolderPlus, ListTodo, StickyNote } from "lucide-react";
+import { Plus, FolderPlus, ListTodo, StickyNote, Trash2 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
 interface ListFilterPlusProps {
@@ -114,6 +114,19 @@ const ListFilterPlus = ({
                 }`}
               />
               <span>Create Note</span>
+            </button>
+            <button
+              // onClick={handleCreateTask}
+              className={`w-full flex items-center px-4 py-2 text-sm ${
+                isDark ? "hover:bg-gray-700" : "hover:bg-gray-100"
+              }`}
+            >
+              <Trash2
+                className={`h-4 w-4 mr-2 ${
+                  isDark ? "text-gray-400" : "text-gray-500"
+                }`}
+              />
+              <span>Delete Collection</span>
             </button>
           </div>
         </div>

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import {
   ChevronDown,
-  ChevronUp,
+  ChevronRight,
   ClipboardList,
   StickyNote,
 } from "lucide-react";
@@ -128,9 +128,9 @@ const Collections = ({
             className={`rounded-full p-1 hover:bg-white/20 ${headerTextColor}`}
           >
             {isExpanded ? (
-              <ChevronUp className="h-5 w-5" />
-            ) : (
               <ChevronDown className="h-5 w-5" />
+            ) : (
+              <ChevronRight className="h-5 w-5" />
             )}
           </button>
         </div>
@@ -194,15 +194,7 @@ const Collections = ({
                     {activeTab}
                   </span>
                 </div>
-                <span className={`text-xs flex-shrink-0 ${subTextColor}`}>
-                  Created{" "}
-                  {date_created instanceof Date
-                    ? date_created.toLocaleDateString()
-                    : "Unknown date"}
-                </span>
               </div>
-
-              {/* Tasks View */}
               {activeTab === "tasks" && (
                 <>
                   {tasksSectionExpanded && (
@@ -303,9 +295,9 @@ const SectionToggle = ({
       className={`p-1 rounded-full ${isDark ? "hover:bg-gray-700" : "hover:bg-gray-200"}`}
     >
       {isExpanded ? (
-        <ChevronUp className="h-5 w-5" />
-      ) : (
         <ChevronDown className="h-5 w-5" />
+      ) : (
+        <ChevronRight className="h-5 w-5" />
       )}
     </button>
   </div>

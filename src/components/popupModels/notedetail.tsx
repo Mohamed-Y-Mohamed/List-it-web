@@ -95,6 +95,15 @@ const NoteDetails = ({
     ? "bg-gray-800 text-white"
     : "bg-white text-gray-800";
 
+  // Format the date to display
+  const formattedDate = note.date_created
+    ? new Date(note.date_created).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : "Unknown date";
+
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end backdrop-blur-md"
@@ -108,7 +117,14 @@ const NoteDetails = ({
         <div
           className={`sticky top-0 z-10 flex items-center justify-between p-4 border-b ${borderColor}`}
         >
-          <h2 className="text-lg font-semibold">Edit Note</h2>
+          <div className="flex flex-col">
+            <h2 className="text-lg font-semibold">Edit Note</h2>
+            <p
+              className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}
+            >
+              Created: {note.date_created.toLocaleDateString()}
+            </p>
+          </div>
           <div className="flex items-center space-x-2">
             <button
               onClick={handleSaveNote}
