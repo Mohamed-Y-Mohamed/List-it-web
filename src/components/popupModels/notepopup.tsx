@@ -34,10 +34,8 @@ const CreateNoteModal = ({
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Get default (General) collection
   const defaultCollection = collections.find((c) => c.is_default);
 
-  // Focus input when modal opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
       setTimeout(() => {

@@ -38,31 +38,6 @@ const NoteDetails = ({
     setContent(parts.length > 1 ? parts[1] : "");
   }, [note.text]);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        sidebarRef.current &&
-        !sidebarRef.current.contains(e.target as Node)
-      ) {
-        handleSaveNote();
-      }
-    };
-
-    const handleEscKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleSaveNote();
-    };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleEscKey);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscKey);
-    };
-  }, [isOpen, title, content]);
-
   const handleSaveNote = () => {
     const updatedText = content ? `${title}: ${content}` : title;
 
@@ -95,7 +70,6 @@ const NoteDetails = ({
     ? "bg-gray-800 text-white"
     : "bg-white text-gray-800";
 
-  // Format the date to display
   const formattedDate = note.date_created
     ? new Date(note.date_created).toLocaleDateString(undefined, {
         year: "numeric",
@@ -122,7 +96,7 @@ const NoteDetails = ({
             <p
               className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}
             >
-              Created: {note.date_created.toLocaleDateString()}
+              Created: {formattedDate}
             </p>
           </div>
           <div className="flex items-center space-x-2">
@@ -152,7 +126,6 @@ const NoteDetails = ({
         </div>
 
         <div className="p-4 space-y-6">
-          {/* Title input */}
           <div>
             <label
               htmlFor="note-title"
@@ -169,7 +142,6 @@ const NoteDetails = ({
             />
           </div>
 
-          {/* Content textarea */}
           <div>
             <label
               htmlFor="note-content"
@@ -186,7 +158,6 @@ const NoteDetails = ({
             />
           </div>
 
-          {/* Background Color Picker */}
           <div>
             <h3 className={`text-sm font-medium mb-2 ${labelColor}`}>
               Background Color

@@ -66,31 +66,6 @@ const TaskDetail = ({
     );
   }, [task]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        sidebarRef.current &&
-        !sidebarRef.current.contains(event.target as Node)
-      ) {
-        handleSave();
-      }
-    };
-
-    const handleEscKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") handleSave();
-    };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleEscKey);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscKey);
-    };
-  }, [isOpen, taskName, taskDescription, isPriority, dueDate]);
-
   const handleSave = () => {
     const hasChanged =
       taskName !== task.text ||
