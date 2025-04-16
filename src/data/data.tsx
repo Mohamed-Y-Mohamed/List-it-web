@@ -4,12 +4,10 @@
 import { Collection, List, Task, Note } from "@/types/schema";
 import { v4 as uuidv4 } from "uuid";
 
-// Define a type for our lists object
 export type ListsData = {
   [key: string]: List;
 };
 
-// Sample data that can be imported by any component
 export const sampleData: { lists: ListsData } = {
   lists: {
     "1": {
@@ -34,7 +32,7 @@ export const sampleData: { lists: ListsData } = {
                 "Draft a comprehensive proposal for the new client project",
               date_created: new Date("2025-02-10"),
               due_date: new Date("2025-02-20"),
-              is_completed: false,
+              is_completed: true,
               is_priority: true,
             },
             {
@@ -144,7 +142,7 @@ export const sampleData: { lists: ListsData } = {
               description: "Buy ingredients for the week's meals",
               date_created: new Date("2025-02-13"),
               due_date: new Date("2025-02-15"),
-              is_completed: false,
+              is_completed: true,
               is_priority: true,
             },
             {
@@ -154,7 +152,37 @@ export const sampleData: { lists: ListsData } = {
                 "Pay electricity and water bills before the due date",
               date_created: new Date("2025-02-14"),
               due_date: new Date("2025-02-20"),
-              is_completed: false,
+              is_completed: true,
+              is_priority: false,
+            },
+            {
+              id: "task6",
+              text: "Submit final report",
+              description: "Upload final client report to the shared folder",
+              date_created: new Date("2025-03-05"),
+              due_date: new Date("2025-03-10"),
+              is_completed: true,
+              date_completed: new Date("2025-03-10"),
+              is_priority: false,
+            },
+            {
+              id: "task6",
+              text: "Submit final report",
+              description: "Upload final client report to the shared folder",
+              date_created: new Date("2025-03-05"),
+              due_date: new Date("2025-03-10"),
+              is_completed: true,
+              date_completed: new Date("2025-03-10"),
+              is_priority: false,
+            },
+            {
+              id: "task7",
+              text: "Submit final report",
+              description: "Upload final client report to the shared folder",
+              date_created: new Date("2025-03-05"),
+              due_date: new Date("2025-03-10"),
+              is_completed: true,
+              date_completed: new Date("2025-03-10"),
               is_priority: false,
             },
           ],

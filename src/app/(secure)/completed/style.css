@@ -1,0 +1,33 @@
+@media (min-width: 640px) {
+  .task-timeline {
+    max-width: 90%;
+    margin: 0 auto;
+  }
+  
+  .task-card {
+    transition: transform 0.2s;
+  }
+  
+  .task-card:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* Desktop styles (1024px and up) */
+@media (min-width: 1024px) {
+  .task-timeline {
+    max-width: 80%;
+  }
+  
+  .date-header {
+    position: sticky;
+    top: 1rem;
+    z-index: 10;
+    background-color: rgba(249, 250, 251, 0.8); 
+    backdrop-filter: blur(8px);
+  }
+  
+  .dark .date-header {
+    background-color: rgba(17, 24, 39, 0.8); 
+  }
+}
