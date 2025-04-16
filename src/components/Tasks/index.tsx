@@ -118,7 +118,7 @@ const TaskCard = ({
           <div className="flex items-center space-x-3 overflow-hidden">
             <button
               onClick={handleCompletionToggle}
-              className={`flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+              className={`flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-sm border transition-colors ${
                 isDark
                   ? isCompleted
                     ? "border-orange-400 bg-orange-500 text-gray-900"

@@ -33,7 +33,8 @@ type List = {
   collections: any[];
 };
 
-const MergedNavigation = () => {
+// Main navigation component that should wrap the page content
+const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
@@ -46,6 +47,7 @@ const MergedNavigation = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [isCreateListModalOpen, setIsCreateListModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isTablet, setIsTablet] = useState(false);
   const [lists, setLists] = useState<List[]>([
     {
       id: "1",
@@ -87,7 +89,8 @@ const MergedNavigation = () => {
 
   const navigateTo = (path: string) => {
     router.push(path);
-    if (window.innerWidth < 768) {
+    // Close sidebar on all mobile and tablet devices
+    if (window.innerWidth < 1024) {
       setSidebarOpen(false);
       setIsMobileMenuOpen(false);
     }
@@ -132,6 +135,11 @@ const MergedNavigation = () => {
     navigateTo("/");
   };
 
+  // Check for tablet screen size
+  const checkScreenSize = () => {
+    setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024);
+  };
+
   useEffect(() => {
     setIsMounted(true);
 
@@ -145,9 +153,14 @@ const MergedNavigation = () => {
     };
 
     checkAuthStatus();
+    checkScreenSize(); // Initial check
+
     window.addEventListener("storage", checkAuthStatus);
+    window.addEventListener("resize", checkScreenSize);
+
     return () => {
       window.removeEventListener("storage", checkAuthStatus);
+      window.removeEventListener("resize", checkScreenSize);
     };
   }, []);
 
@@ -169,7 +182,7 @@ const MergedNavigation = () => {
               {isLoggedIn && (
                 <button
                   onClick={toggleSidebar}
-                  className={`md:inline-flex p-2 rounded-md ${
+                  className={`inline-flex p-2 rounded-md ${
                     isDark
                       ? "text-gray-300 hover:text-orange-400"
                       : "text-gray-700 hover:text-orange-500"
@@ -200,7 +213,7 @@ const MergedNavigation = () => {
             </div>
 
             {/* Desktop Navigation Links */}
-            <div className="hidden md:flex items-center space-x-4">
+            <div className="hidden lg:flex items-center space-x-4">
               <button
                 onClick={() => navigateTo("/landingpage")}
                 className={`rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 ${
@@ -298,7 +311,7 @@ const MergedNavigation = () => {
                 </div>
               ) : (
                 // Login/Register buttons for non-logged in users
-                <div className="hidden md:flex items-center space-x-2">
+                <div className="hidden lg:flex items-center space-x-2">
                   <button
                     onClick={() => navigateTo("/login")}
                     className={`rounded-md px-4 py-2 text-sm font-medium ${
@@ -325,7 +338,7 @@ const MergedNavigation = () => {
               {/* Mobile menu button */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className={`md:hidden inline-flex items-center justify-center p-2 rounded-md ${
+                className={`lg:hidden inline-flex items-center justify-center p-2 rounded-md ${
                   isDark
                     ? "text-gray-300 hover:text-orange-400"
                     : "text-gray-700 hover:text-orange-500"
@@ -342,7 +355,7 @@ const MergedNavigation = () => {
         </div>
 
         {isMobileMenuOpen && (
-          <div className="md:hidden">
+          <div className="lg:hidden">
             <div
               className={`space-y-1 px-2 pb-3 pt-2 ${
                 isDark ? "bg-gray-900" : "bg-white"
@@ -400,7 +413,7 @@ const MergedNavigation = () => {
 
       {isLoggedIn && sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-10 lg:hidden"
           onClick={toggleSidebar}
         />
       )}
@@ -414,7 +427,11 @@ const MergedNavigation = () => {
               ? "bg-gray-900 text-gray-200 border-r border-gray-800"
               : "bg-white text-gray-800 border-r border-gray-100"
           } transition-all duration-300 z-20 ${
-            sidebarOpen ? "translate-x-0" : "md:translate-x-0 -translate-x-full"
+            sidebarOpen
+              ? "translate-x-0"
+              : isTablet
+                ? "-translate-x-full"
+                : "lg:translate-x-0 -translate-x-full"
           } pt-16`}
         >
           <div className="flex flex-col h-full py-4">

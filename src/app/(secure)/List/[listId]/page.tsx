@@ -269,7 +269,7 @@ export default function ListPage({
   return (
     <main
       className={`transition-all duration-300 
-      pt-16 min-h-screen w-full
+      pt-16 pl-20 min-h-screen w-full
       ${isDark ? "bg-gray-850 text-gray-200" : "bg-gray-50 text-gray-800"}`}
     >
       <div className="p-4 md:p-6 box-border">

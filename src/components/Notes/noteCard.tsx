@@ -86,7 +86,7 @@ const NoteCard = ({
           rounded-lg p-4 shadow-sm hover:shadow-md
           relative overflow-hidden cursor-pointer
           w-full h-32 md:w-3/4 md:h-40 lg:w-3/4 lg:h-30
-          ${bgClass} ${className}
+          ${bgClass} ${className} 
         `}
         style={cardStyle}
         onClick={openSidebar}

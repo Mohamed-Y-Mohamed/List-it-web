@@ -66,31 +66,6 @@ const TaskDetail = ({
     );
   }, [task]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        sidebarRef.current &&
-        !sidebarRef.current.contains(event.target as Node)
-      ) {
-        handleSave();
-      }
-    };
-
-    const handleEscKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") handleSave();
-    };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleEscKey);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscKey);
-    };
-  }, [isOpen, taskName, taskDescription, isPriority, dueDate]);
-
   const handleSave = () => {
     const hasChanged =
       taskName !== task.text ||
@@ -149,6 +124,11 @@ const TaskDetail = ({
           className={`sticky top-0 z-10 flex items-center justify-between p-4 border-b ${borderColor}`}
         >
           <h2 className="text-lg font-semibold">Edit Task</h2>
+          <p
+            className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}
+          >
+            Created: {task.date_created.toLocaleDateString()}
+          </p>
           <div className="flex items-center space-x-2">
             <button
               onClick={handleSave}
@@ -247,30 +227,7 @@ const TaskDetail = ({
             </div>
           )}
 
-          <div>
-            <div className="flex items-center">
-              <input
-                id="is-priority"
-                type="checkbox"
-                checked={isPriority}
-                onChange={handlePriorityToggle}
-                className={`h-4 w-4 rounded ${isDark ? "bg-gray-700 border-gray-600 text-orange-500" : "bg-white border-gray-300 text-blue-500"}`}
-              />
-              <label
-                htmlFor="is-priority"
-                className={`ml-2 text-sm ${textColor}`}
-              >
-                Mark as priority
-              </label>
-            </div>
-          </div>
-
           <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-            <p
-              className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}
-            >
-              Created: {task.date_created.toLocaleDateString()}
-            </p>
             {task.date_completed && (
               <p
                 className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}

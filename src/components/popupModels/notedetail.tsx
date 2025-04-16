@@ -38,31 +38,6 @@ const NoteDetails = ({
     setContent(parts.length > 1 ? parts[1] : "");
   }, [note.text]);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        sidebarRef.current &&
-        !sidebarRef.current.contains(e.target as Node)
-      ) {
-        handleSaveNote();
-      }
-    };
-
-    const handleEscKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleSaveNote();
-    };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleEscKey);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscKey);
-    };
-  }, [isOpen, title, content]);
-
   const handleSaveNote = () => {
     const updatedText = content ? `${title}: ${content}` : title;
 
@@ -95,6 +70,14 @@ const NoteDetails = ({
     ? "bg-gray-800 text-white"
     : "bg-white text-gray-800";
 
+  const formattedDate = note.date_created
+    ? new Date(note.date_created).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : "Unknown date";
+
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end backdrop-blur-md"
@@ -108,7 +91,14 @@ const NoteDetails = ({
         <div
           className={`sticky top-0 z-10 flex items-center justify-between p-4 border-b ${borderColor}`}
         >
-          <h2 className="text-lg font-semibold">Edit Note</h2>
+          <div className="flex flex-col">
+            <h2 className="text-lg font-semibold">Edit Note</h2>
+            <p
+              className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}
+            >
+              Created: {formattedDate}
+            </p>
+          </div>
           <div className="flex items-center space-x-2">
             <button
               onClick={handleSaveNote}
@@ -136,7 +126,6 @@ const NoteDetails = ({
         </div>
 
         <div className="p-4 space-y-6">
-          {/* Title input */}
           <div>
             <label
               htmlFor="note-title"
@@ -153,7 +142,6 @@ const NoteDetails = ({
             />
           </div>
 
-          {/* Content textarea */}
           <div>
             <label
               htmlFor="note-content"
@@ -170,7 +158,6 @@ const NoteDetails = ({
             />
           </div>
 
-          {/* Background Color Picker */}
           <div>
             <h3 className={`text-sm font-medium mb-2 ${labelColor}`}>
               Background Color
