@@ -267,24 +267,34 @@ export default function ListPage({
   );
 
   return (
+    // Updated main container with modern background styling inspired by Swift UI
     <main
       className={`transition-all duration-300 
-      pt-16 pl-20 min-h-screen w-full
-      ${isDark ? "bg-gray-850 text-gray-200" : "bg-gray-50 text-gray-800"}`}
+  pt-16 pl-20 min-h-screen w-full
+  ${isDark ? "text-gray-200" : "text-gray-800"}
+  `}
+      style={{
+        background: isDark
+          ? "linear-gradient(135deg, #1a202c 0%, #2d3748 100%)"
+          : "linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%)",
+      }}
     >
       <div className="p-4 md:p-6 box-border">
-        <div className="max-w-6xl mx-auto">
+        <div className={`max-w-6xl mx-auto`}>
+          {/* Content goes here - moved inside a semi-transparent container */}
           {isLoading ? (
             <div
-              className={`text-center py-10 ${
-                isDark ? "text-gray-400" : "text-gray-500"
-              }`}
+              className={`text-center py-10 rounded-xl ${
+                isDark
+                  ? "bg-black/70 text-gray-300"
+                  : "bg-white/90 text-gray-500"
+              } shadow-md border-l-4 border-orange-500`}
             >
               <p className="text-lg">Loading collections...</p>
             </div>
           ) : listData ? (
             <>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-6 px-4">
                 <h1
                   className={`text-2xl font-bold truncate mr-2 ${
                     isDark ? "text-gray-100" : "text-gray-800"
@@ -304,9 +314,11 @@ export default function ListPage({
 
               {listData.collections.length === 0 ? (
                 <div
-                  className={`text-center py-16 ${
-                    isDark ? "text-gray-400" : "text-gray-500"
-                  }`}
+                  className={`text-center py-16 rounded-xl ${
+                    isDark
+                      ? "bg-black/70 text-gray-300"
+                      : "bg-white/90 text-gray-500"
+                  } shadow-md`}
                 >
                   <p className="text-lg mb-4">
                     No collections in this list yet.
@@ -317,7 +329,7 @@ export default function ListPage({
                       isDark
                         ? "bg-orange-600 hover:bg-orange-700 text-white"
                         : "bg-orange-500 hover:bg-orange-600 text-white"
-                    }`}
+                    } shadow-md`}
                   >
                     Create your first collection
                   </button>
@@ -334,37 +346,57 @@ export default function ListPage({
                       return a.collection_name.localeCompare(b.collection_name);
                     })
                     .map((collection) => (
-                      <CollectionComponent
+                      <div
                         key={collection.id}
-                        id={collection.id}
-                        collection_name={collection.collection_name}
-                        background_color={collection.background_color}
-                        date_created={collection.date_created}
-                        is_default={collection.is_default}
-                        content_count={collection.content_count}
-                        tasks={collection.tasks || []}
-                        notes={collection.notes || []}
-                        onTaskComplete={(taskId, isCompleted) =>
-                          handleTaskComplete(collection.id, taskId, isCompleted)
-                        }
-                        onTaskPriority={(taskId, isPriority) =>
-                          handleTaskPriority(collection.id, taskId, isPriority)
-                        }
-                        onNotePin={(noteId, isPinned) =>
-                          handleNotePin(collection.id, noteId, isPinned)
-                        }
-                        onAddTask={getAddTaskHandler(collection.id)}
-                        onAddNote={getAddNoteHandler(collection.id)}
-                      />
+                        className={`
+                      rounded-xl overflow-hidden
+                      ${isDark ? "bg-black/70" : "bg-white/90"}
+                      shadow-md
+                      border-l-4
+                    `}
+                        style={{ borderLeftColor: collection.background_color }}
+                      >
+                        <CollectionComponent
+                          id={collection.id}
+                          collection_name={collection.collection_name}
+                          background_color={collection.background_color}
+                          date_created={collection.date_created}
+                          is_default={collection.is_default}
+                          content_count={collection.content_count}
+                          tasks={collection.tasks || []}
+                          notes={collection.notes || []}
+                          onTaskComplete={(taskId, isCompleted) =>
+                            handleTaskComplete(
+                              collection.id,
+                              taskId,
+                              isCompleted
+                            )
+                          }
+                          onTaskPriority={(taskId, isPriority) =>
+                            handleTaskPriority(
+                              collection.id,
+                              taskId,
+                              isPriority
+                            )
+                          }
+                          onNotePin={(noteId, isPinned) =>
+                            handleNotePin(collection.id, noteId, isPinned)
+                          }
+                          onAddTask={getAddTaskHandler(collection.id)}
+                          onAddNote={getAddNoteHandler(collection.id)}
+                        />
+                      </div>
                     ))}
                 </div>
               )}
             </>
           ) : (
             <div
-              className={`text-center py-10 ${
-                isDark ? "text-gray-400" : "text-gray-500"
-              }`}
+              className={`text-center py-10 rounded-xl ${
+                isDark
+                  ? "bg-black/70 text-gray-300"
+                  : "bg-white/90 text-gray-500"
+              } shadow-md border-l-4 border-orange-500`}
             >
               <p className="text-lg">List not found.</p>
             </div>
@@ -372,28 +404,30 @@ export default function ListPage({
         </div>
       </div>
 
-      {/* Modal Components */}
+      {/* Modal Components - Updated with iOS-inspired styling */}
       {listData && (
         <>
-          <CreateCollectionModal
-            isOpen={isCollectionModalOpen}
-            onClose={() => setIsCollectionModalOpen(false)}
-            onSubmit={handleCreateCollection}
-          />
+          <div className="ios-modal-container">
+            <CreateCollectionModal
+              isOpen={isCollectionModalOpen}
+              onClose={() => setIsCollectionModalOpen(false)}
+              onSubmit={handleCreateCollection}
+            />
 
-          <CreateTaskModal
-            isOpen={isTaskModalOpen}
-            onClose={() => setIsTaskModalOpen(false)}
-            onSubmit={handleCreateTask}
-            collections={listData.collections}
-          />
+            <CreateTaskModal
+              isOpen={isTaskModalOpen}
+              onClose={() => setIsTaskModalOpen(false)}
+              onSubmit={handleCreateTask}
+              collections={listData.collections}
+            />
 
-          <CreateNoteModal
-            isOpen={isNoteModalOpen}
-            onClose={() => setIsNoteModalOpen(false)}
-            onSubmit={handleCreateNote}
-            collections={listData.collections}
-          />
+            <CreateNoteModal
+              isOpen={isNoteModalOpen}
+              onClose={() => setIsNoteModalOpen(false)}
+              onSubmit={handleCreateNote}
+              collections={listData.collections}
+            />
+          </div>
         </>
       )}
     </main>

@@ -18,9 +18,13 @@ import {
   LogOut,
   Settings,
   ChevronRight,
+  ListTodo,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
+import CreateListModal from "@/components/popupModels/ListPopup"; // Import the CreateListModal component
 
 type List = {
   id: string;
@@ -28,6 +32,7 @@ type List = {
   background_color: string;
   date_created: Date;
   is_default: boolean;
+  is_pinned?: boolean;
   tasks: any[];
   notes: any[];
   collections: any[];
@@ -46,6 +51,8 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isCreateListModalOpen, setIsCreateListModalOpen] = useState(false);
+  const [isDeleteListModalOpen, setIsDeleteListModalOpen] = useState(false);
+  const [listToDelete, setListToDelete] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [isTablet, setIsTablet] = useState(false);
   const [lists, setLists] = useState<List[]>([
@@ -55,6 +62,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
       background_color: "#3b82f6", // blue-500
       date_created: new Date(),
       is_default: false,
+      is_pinned: false,
       tasks: [],
       notes: [],
       collections: [],
@@ -65,6 +73,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
       background_color: "#10b981", // emerald-500
       date_created: new Date(),
       is_default: false,
+      is_pinned: false,
       tasks: [],
       notes: [],
       collections: [],
@@ -75,11 +84,21 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
       background_color: "#f59e0b", // amber-500
       date_created: new Date(),
       is_default: false,
+      is_pinned: false,
       tasks: [],
       notes: [],
       collections: [],
     },
   ]);
+
+  // Sort lists with pinned lists at the top
+  const sortedLists = useMemo(() => {
+    return [...lists].sort((a, b) => {
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+      return 0;
+    });
+  }, [lists]);
 
   const currentListId = useMemo(() => {
     return pathname.includes("/List/") ? pathname.split("/List/")[1] : null;
@@ -100,10 +119,18 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
     navigateTo(`/List/${listId}`);
   };
 
+  const handleTogglePinList = (listId: string) => {
+    setLists((prevLists) =>
+      prevLists.map((list) =>
+        list.id === listId ? { ...list, is_pinned: !list.is_pinned } : list
+      )
+    );
+  };
+
   const handleCreateList = (
     listData: Omit<
       List,
-      "id" | "date_created" | "tasks" | "notes" | "collections"
+      "id" | "date_created" | "tasks" | "notes" | "collections" | "is_pinned"
     >
   ) => {
     const lastId = lists.reduce((max, list) => {
@@ -115,12 +142,45 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
       ...listData,
       id: (lastId + 1).toString(),
       date_created: new Date(),
+      is_pinned: false,
       tasks: [],
       notes: [],
       collections: [],
     };
 
     setLists((prev) => [...prev, newList]);
+
+    // Navigate to the newly created list
+    navigateTo(`/List/${newList.id}`);
+  };
+
+  const handleDeleteList = (listId: string) => {
+    // Find the list to delete
+    const listToDelete = lists.find((list) => list.id === listId);
+    if (!listToDelete) return;
+
+    // Remove the list from the lists array
+    setLists((prev) => prev.filter((list) => list.id !== listId));
+
+    // If we deleted the current list, navigate to another list or dashboard
+    if (currentListId === listId) {
+      // If there are other lists, navigate to the first one
+      if (lists.length > 1) {
+        const nextList = lists.find((list) => list.id !== listId);
+        if (nextList) {
+          navigateTo(`/List/${nextList.id}`);
+        } else {
+          navigateTo("/dashboard");
+        }
+      } else {
+        // If this was the last list, navigate to dashboard
+        navigateTo("/dashboard");
+      }
+    }
+
+    // Close the modal
+    setListToDelete(null);
+    setIsDeleteListModalOpen(false);
   };
 
   const login = () => {
@@ -413,7 +473,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
 
       {isLoggedIn && sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-10 lg:hidden"
+          className="fixed inset-0 bg-transparent bg-opacity-50 z-10 lg:hidden"
           onClick={toggleSidebar}
         />
       )}
@@ -577,15 +637,10 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                   !sidebarOpen ? "flex flex-col items-center" : ""
                 }`}
               >
-                {lists.map((list) => (
-                  <button
+                {sortedLists.map((list) => (
+                  <div
                     key={list.id}
-                    onClick={() => handleListClick(list.id)}
-                    className={`w-full ${
-                      sidebarOpen
-                        ? "flex items-center px-3 py-2 text-left"
-                        : "p-2 flex justify-center"
-                    } rounded-md ${
+                    className={`flex items-center w-full rounded-md ${
                       currentListId === list.id
                         ? isDark
                           ? "bg-gray-800"
@@ -595,26 +650,175 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                       isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
                     } transition-colors`}
                   >
-                    <Circle
-                      className="h-5 w-5 flex-shrink-0"
-                      style={{
-                        color: list.background_color,
-                        fill: list.background_color,
-                        fillOpacity: 0.2,
-                      }}
-                    />
+                    <button
+                      onClick={() => handleListClick(list.id)}
+                      className={`flex-grow ${
+                        sidebarOpen
+                          ? "flex items-center px-3 py-2 text-left"
+                          : "p-2 flex justify-center"
+                      }`}
+                    >
+                      <ListTodo
+                        className="h-5 w-5 flex-shrink-0"
+                        style={{
+                          color: list.background_color,
+                          fill: list.background_color,
+                          fillOpacity: 0.2,
+                        }}
+                      />
+                      {sidebarOpen && (
+                        <span className="ml-3 text-sm font-medium truncate">
+                          {list.name}
+                        </span>
+                      )}
+                    </button>
                     {sidebarOpen && (
-                      <span className="ml-3 text-sm font-medium truncate">
-                        {list.name}
-                      </span>
+                      <div className="flex mr-1">
+                        {/* Pin Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTogglePinList(list.id);
+                          }}
+                          className={`p-1.5 ${
+                            list.is_pinned
+                              ? isDark
+                                ? "text-orange-400"
+                                : "text-orange-500"
+                              : isDark
+                                ? "text-gray-500 hover:text-gray-400"
+                                : "text-gray-400 hover:text-gray-500"
+                          } transition-colors`}
+                          aria-label={
+                            list.is_pinned ? "Unpin list" : "Pin list"
+                          }
+                          title={list.is_pinned ? "Unpin list" : "Pin list"}
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            style={{
+                              color: list.is_pinned
+                                ? list.background_color
+                                : "currentColor",
+                            }}
+                          >
+                            <path
+                              d={
+                                list.is_pinned
+                                  ? "M16 2H8C7.448 2 7 2.448 7 3V7.5C7 8.328 7.672 9 8.5 9H9l1 5H6v2h12v-2h-4l1-5h0.5c0.828 0 1.5-0.672 1.5-1.5V3C17 2.448 16.552 2 16 2Z"
+                                  : "M16 2H8C7.448 2 7 2.448 7 3V7.5C7 8.328 7.672 9 8.5 9H9l1 5H6v2h12v-2h-4l1-5h0.5c0.828 0 1.5-0.672 1.5-1.5V3C17 2.448 16.552 2 16 2ZM15 7.5c0 0.276-0.224 0.5-0.5 0.5h-5C9.224 8 9 7.776 9 7.5V4h6v3.5Z"
+                              }
+                              fill="currentColor"
+                            />
+                            <path
+                              d="M12 22L9 16H15L12 22Z"
+                              fill={list.is_pinned ? "currentColor" : "none"}
+                              stroke={list.is_pinned ? "none" : "currentColor"}
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+
+                        {/* Delete Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setListToDelete(list.id);
+                            setIsDeleteListModalOpen(true);
+                          }}
+                          className={`p-1.5 ${
+                            isDark
+                              ? "text-gray-500 hover:text-red-500"
+                              : "text-gray-400 hover:text-red-500"
+                          } transition-colors`}
+                          aria-label={`Delete ${list.name} list`}
+                          title={`Delete ${list.name}`}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     )}
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
           </div>
         </nav>
       )}
+
+      {/* Render the CreateListModal component */}
+      <CreateListModal
+        isOpen={isCreateListModalOpen}
+        onClose={() => setIsCreateListModalOpen(false)}
+        onSubmit={handleCreateList}
+      />
+
+      {/* Delete List Confirmation Modal */}
+      {isDeleteListModalOpen && listToDelete && (
+        <>
+          <div
+            className="fixed inset-0 z-40 backdrop-blur-md bg-blue-md"
+            onClick={() => setIsDeleteListModalOpen(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+            <div
+              className={`w-full max-w-md pointer-events-auto p-6 rounded-lg shadow-xl mx-4 ${
+                isDark ? "bg-gray-800" : "bg-white"
+              }`}
+            >
+              <div className="mb-4 flex items-start">
+                <div className="mr-3 flex-shrink-0">
+                  <AlertTriangle
+                    className={`h-6 w-6 ${isDark ? "text-red-400" : "text-red-500"}`}
+                  />
+                </div>
+                <div>
+                  <h2
+                    className={`text-xl font-semibold ${isDark ? "text-gray-100" : "text-gray-800"}`}
+                  >
+                    Delete List
+                  </h2>
+                  <p
+                    className={`mt-2 ${isDark ? "text-gray-300" : "text-gray-600"}`}
+                  >
+                    Are you sure you want to delete this list? This will remove
+                    all collections, tasks, and notes associated with it. This
+                    action cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setIsDeleteListModalOpen(false)}
+                  className={`px-4 py-2 rounded-md ${
+                    isDark
+                      ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteList(listToDelete)}
+                  className="px-4 py-2 rounded-md bg-red-500 hover:bg-red-600 text-white"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Main content */}
+      <div className={`${isLoggedIn ? "lg:pl-16" : ""}`}>{children}</div>
     </div>
   );
 };
