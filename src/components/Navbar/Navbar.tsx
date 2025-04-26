@@ -21,6 +21,7 @@ import {
   ListTodo,
   Trash2,
   AlertTriangle,
+  CircleMinus,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
@@ -249,7 +250,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                   } transition-colors mr-2`}
                   aria-label="Toggle menu"
                 >
-                  <Menu size={24} />
+                  {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
               )}
               <div className="flex items-center">
@@ -521,7 +522,6 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                   </span>
                 )}
               </button>
-
               <button
                 onClick={() => navigateTo("/today")}
                 className={`flex w-full items-center px-3 py-2 rounded-md ${
@@ -547,7 +547,6 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                   </span>
                 )}
               </button>
-
               <button
                 onClick={() => navigateTo("/priority")}
                 className={`flex w-full items-center px-3 py-2 rounded-md ${
@@ -572,8 +571,32 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                     Priority
                   </span>
                 )}
+              </button>{" "}
+              <button
+                onClick={() => navigateTo("/notcomplete")}
+                className={`flex w-full items-center px-3 py-2 rounded-md ${
+                  currentPath === "/notcomplete"
+                    ? isDark
+                      ? "bg-gray-800"
+                      : "bg-gray-100"
+                    : ""
+                } ${
+                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
+                } transition-colors group`}
+              >
+                <CircleMinus
+                  className={`h-5 w-5 ${
+                    isDark
+                      ? "text-gray-400 group-hover:text-orange-400"
+                      : "text-gray-500 group-hover:text-orange-500"
+                  }`}
+                />
+                {sidebarOpen && (
+                  <span className="ml-3 text-sm font-medium text-left">
+                    incomplete Tasks
+                  </span>
+                )}
               </button>
-
               <button
                 onClick={() => navigateTo("/completed")}
                 className={`flex w-full items-center px-3 py-2 rounded-md ${
@@ -599,13 +622,11 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                   </span>
                 )}
               </button>
-
               <div
                 className={`my-3 border-t ${
                   isDark ? "border-gray-800" : "border-gray-200"
                 }`}
               />
-
               <div className="flex items-center justify-between px-3 py-2">
                 {sidebarOpen ? (
                   <h3
@@ -631,7 +652,6 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
-
               <div
                 className={`space-y-1 ${
                   !sidebarOpen ? "flex flex-col items-center" : ""
