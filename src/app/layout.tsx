@@ -49,7 +49,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <MergedNavigation />
-          <div className="flex flex-col w-full min-h-screen">
+          <div className="flex flex-col lg:pl-16 w-full min-h-screen">
             {children}
             <Footer />
           </div>
