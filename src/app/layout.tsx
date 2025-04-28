@@ -1,9 +1,10 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Footer from "@/components/Footer";
 import { ThemeProvider } from "@/context/ThemeContext";
-// import { SidebarProvider } from "@/context/sidebarContext";
+import { AuthProvider } from "@/context/AuthContext"; // Add this
 import MergedNavigation from "@/components/Navbar/Navbar";
 
 const geistSans = Geist({
@@ -47,13 +48,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased w-full min-h-screen`}
       >
-        <ThemeProvider>
-          <MergedNavigation />
-          <div className="flex flex-col lg:pl-16 w-full min-h-screen">
-            {children}
-            <Footer />
-          </div>
-        </ThemeProvider>
+        <AuthProvider>
+          {" "}
+          {/* Add the AuthProvider here */}
+          <ThemeProvider>
+            <MergedNavigation />
+            <div className="flex flex-col  w-full min-h-screen">
+              {children}
+              <Footer />
+            </div>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

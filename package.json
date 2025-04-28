@@ -12,16 +12,18 @@
     "audit": "npm audit --omit=dev",
     "test": "jest",
     "test:watch": "jest --watch",
-  "prepare": "husky install",
+    "prepare": "husky install",
     "pre-push": ".husky/pre-push"
   },
   "lint-staged": {
     "*.{js,ts,tsx}": [
-    "npm test -- --bail --findRelatedTests"
-  ]
+      "npm test -- --bail --findRelatedTests"
+    ]
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.1",
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@supabase/supabase-js": "^2.49.4",
+    "crypto-js": "^4.2.0",
     "lucide-react": "^0.487.0",
     "next": "^15.2.3",
     "pinst": "^3.0.0",
@@ -35,6 +37,7 @@
     "@eslint/eslintrc": "^3",
     "@next/bundle-analyzer": "^15.2.3",
     "@tailwindcss/postcss": "^4.0.14",
+    "@types/crypto-js": "^4.2.2",
     "@types/jest": "^29.5.14",
     "@types/node": "^20",
     "@types/react": "^19",

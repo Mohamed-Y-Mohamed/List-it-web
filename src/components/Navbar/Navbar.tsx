@@ -22,8 +22,10 @@ import {
   Trash2,
   AlertTriangle,
   CircleMinus,
+  CalendarPlus2,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { useAuth } from "@/context/AuthContext"; // Import useAuth hook
 import Image from "next/image";
 import CreateListModal from "@/components/popupModels/ListPopup"; // Import the CreateListModal component
 
@@ -45,6 +47,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+  const { isLoggedIn, user, logout } = useAuth(); // Use the auth context
   const isDark = theme === "dark";
   const currentPath = pathname;
 
@@ -55,7 +58,6 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
   const [isCreateListModalOpen, setIsCreateListModalOpen] = useState(false);
   const [isDeleteListModalOpen, setIsDeleteListModalOpen] = useState(false);
   const [listToDelete, setListToDelete] = useState<number | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [isTablet, setIsTablet] = useState(false);
   const [lists, setLists] = useState<List[]>([
     {
@@ -184,16 +186,14 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
     setIsDeleteListModalOpen(false);
   };
 
-  const login = () => {
-    localStorage.setItem("isLoggedIn", "true");
-    setIsLoggedIn(true);
-    navigateTo("/dashboard");
-  };
-
-  const logout = () => {
-    localStorage.removeItem("isLoggedIn");
-    setIsLoggedIn(false);
-    navigateTo("/");
+  // Handle logout using auth context
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigateTo("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   // Check for tablet screen size
@@ -203,24 +203,11 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
 
   useEffect(() => {
     setIsMounted(true);
-
-    const checkAuthStatus = () => {
-      const cookieIsLoggedIn = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("isLoggedIn="))
-        ?.split("=")[1];
-      const storedIsLoggedIn = localStorage.getItem("isLoggedIn");
-      setIsLoggedIn(cookieIsLoggedIn === "true" || storedIsLoggedIn === "true");
-    };
-
-    checkAuthStatus();
     checkScreenSize(); // Initial check
 
-    window.addEventListener("storage", checkAuthStatus);
     window.addEventListener("resize", checkScreenSize);
 
     return () => {
-      window.removeEventListener("storage", checkAuthStatus);
       window.removeEventListener("resize", checkScreenSize);
     };
   }, []);
@@ -334,6 +321,16 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                       }`}
                       role="menu"
                     >
+                      {user && (
+                        <div
+                          className={`px-4 py-2 border-b ${isDark ? "border-gray-700 text-gray-300" : "border-gray-200 text-gray-700"}`}
+                        >
+                          <p className="text-sm font-semibold">
+                            {user.user_metadata?.full_name || "User"}
+                          </p>
+                          <p className="text-xs truncate">{user.email}</p>
+                        </div>
+                      )}
                       <div className="py-1">
                         <button
                           onClick={() => navigateTo("/profile")}
@@ -356,7 +353,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                           <Settings size={16} className="mr-2" /> Settings
                         </button>
                         <button
-                          onClick={logout}
+                          onClick={handleLogout}
                           className={`flex w-full items-center px-4 py-2 text-sm text-left ${
                             isDark
                               ? "text-gray-300 hover:bg-gray-700"
@@ -456,7 +453,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                     Log in
                   </button>
                   <button
-                    onClick={() => navigateTo("/register")}
+                    onClick={() => navigateTo("/signup")}
                     className={`block w-full text-left rounded-md px-3 py-2 text-base font-medium text-white ${
                       isDark
                         ? "bg-orange-600 hover:bg-orange-700"
@@ -464,6 +461,41 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                     }`}
                   >
                     Sign up
+                  </button>
+                </>
+              )}
+
+              {isLoggedIn && (
+                <>
+                  <button
+                    onClick={() => navigateTo("/profile")}
+                    className={`block w-full text-left rounded-md px-3 py-2 text-base font-medium ${
+                      isDark
+                        ? "text-gray-300 hover:text-orange-400"
+                        : "text-gray-700 hover:text-orange-500"
+                    }`}
+                  >
+                    Profile
+                  </button>
+                  <button
+                    onClick={() => navigateTo("/settings")}
+                    className={`block w-full text-left rounded-md px-3 py-2 text-base font-medium ${
+                      isDark
+                        ? "text-gray-300 hover:text-orange-400"
+                        : "text-gray-700 hover:text-orange-500"
+                    }`}
+                  >
+                    Settings
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className={`block w-full text-left rounded-md px-3 py-2 text-base font-medium ${
+                      isDark
+                        ? "text-red-300 hover:text-red-400"
+                        : "text-red-600 hover:text-red-700"
+                    }`}
+                  >
+                    Sign out
                   </button>
                 </>
               )}
@@ -544,6 +576,31 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                 {sidebarOpen && (
                   <span className="ml-3 text-sm font-medium text-left">
                     Today
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => navigateTo("/tomorrow")}
+                className={`flex w-full items-center px-3 py-2 rounded-md ${
+                  currentPath === "/tomorrow"
+                    ? isDark
+                      ? "bg-gray-800"
+                      : "bg-gray-100"
+                    : ""
+                } ${
+                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
+                } transition-colors group`}
+              >
+                <CalendarPlus2
+                  className={`h-5 w-5 ${
+                    isDark
+                      ? "text-gray-400 group-hover:text-orange-400"
+                      : "text-gray-500 group-hover:text-orange-500"
+                  }`}
+                />
+                {sidebarOpen && (
+                  <span className="ml-3 text-sm font-medium text-left">
+                    Tomorrow
                   </span>
                 )}
               </button>
