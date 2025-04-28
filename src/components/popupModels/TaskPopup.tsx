@@ -11,9 +11,9 @@ interface CreateTaskModalProps {
   onSubmit: (taskData: {
     text: string;
     description: string;
-    is_priority: boolean;
+    is_pinned: boolean;
     due_date?: Date;
-    collection_id?: string;
+    collection_id?: number;
   }) => void;
   collections: Collection[];
 }
@@ -28,7 +28,7 @@ const CreateTaskModal = ({
   const isDark = theme === "dark";
   const [taskName, setTaskName] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
-  const [isPriority, setIsPriority] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
   const [dueDate, setDueDate] = useState<string>("");
   const [selectedCollectionId, setSelectedCollectionId] = useState<string>("");
 
@@ -70,11 +70,41 @@ const CreateTaskModal = ({
     if (!isOpen) {
       setTaskName("");
       setTaskDescription("");
-      setIsPriority(false);
+      setIsPinned(false);
       setDueDate("");
       setSelectedCollectionId("");
     }
   }, [isOpen]);
+
+  // Safely convert ID to number
+  const safelyGetCollectionId = () => {
+    // If user selected a collection, use that
+    if (selectedCollectionId) {
+      const parsedId = parseInt(selectedCollectionId, 10);
+      if (!isNaN(parsedId)) {
+        return parsedId;
+      }
+    }
+
+    // Otherwise try to use default collection
+    if (defaultCollection && defaultCollection.id) {
+      if (typeof defaultCollection.id === "number") {
+        return defaultCollection.id;
+      }
+
+      try {
+        const parsedId = parseInt(String(defaultCollection.id), 10);
+        if (!isNaN(parsedId)) {
+          return parsedId;
+        }
+      } catch (e) {
+        console.error("Failed to parse default collection ID:", e);
+      }
+    }
+
+    // No valid collection ID found
+    return undefined;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,9 +112,9 @@ const CreateTaskModal = ({
       onSubmit({
         text: taskName,
         description: taskDescription,
-        is_priority: isPriority,
+        is_pinned: isPinned,
         due_date: dueDate ? new Date(dueDate) : undefined,
-        collection_id: selectedCollectionId || defaultCollection?.id,
+        collection_id: safelyGetCollectionId(),
       });
       onClose();
     }
@@ -238,7 +268,7 @@ const CreateTaskModal = ({
                   : "Select a collection (optional)"}
               </option>
               {collections.map((collection) => (
-                <option key={collection.id} value={collection.id}>
+                <option key={collection.id} value={String(collection.id)}>
                   {collection.collection_name}
                 </option>
               ))}
@@ -248,10 +278,10 @@ const CreateTaskModal = ({
           <div className="mb-6">
             <div className="flex items-center">
               <input
-                id="is-priority"
+                id="is-pinned"
                 type="checkbox"
-                checked={isPriority}
-                onChange={(e) => setIsPriority(e.target.checked)}
+                checked={isPinned}
+                onChange={(e) => setIsPinned(e.target.checked)}
                 className={`h-4 w-4 rounded ${
                   isDark
                     ? "bg-gray-700 border-gray-600 text-orange-500"
@@ -259,7 +289,7 @@ const CreateTaskModal = ({
                 }`}
               />
               <label
-                htmlFor="is-priority"
+                htmlFor="is-pinned"
                 className={`ml-2 text-sm ${
                   isDark ? "text-gray-300" : "text-gray-700"
                 }`}

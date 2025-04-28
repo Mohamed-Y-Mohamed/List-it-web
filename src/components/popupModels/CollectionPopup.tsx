@@ -10,7 +10,7 @@ interface CreateCollectionModalProps {
   onClose: () => void;
   onSubmit: (collectionData: {
     collection_name: string;
-    background_color: string;
+    bg_color_hex: string; // Changed from background_color to bg_color_hex
   }) => void;
 }
 
@@ -68,7 +68,7 @@ const CreateCollectionModal = ({
     if (collectionName.trim()) {
       onSubmit({
         collection_name: collectionName,
-        background_color: selectedColor,
+        bg_color_hex: selectedColor, // Changed from background_color to bg_color_hex
       });
       onClose();
     }

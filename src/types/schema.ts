@@ -1,47 +1,57 @@
 // Note Interface
 export interface Note {
-  note_id: number;
-  text: string;
-  date_created: Date;
+  id: number;
+  created_at: Date;
+  collection_id?: number;
+  title: string; // Represents 'text' in your frontend
+  description?: string;
   is_deleted: boolean;
-  background_color?: string;
+  bg_color_hex?: string;
   is_pinned?: boolean;
 }
 
 // Task Interface
 export interface Task {
-  id: string;
+  id: number;
+  created_at: Date;
+  collection_id?: number;
   text: string;
+  list_id: number;
   description?: string;
-  date_created: Date;
   due_date?: Date;
   is_completed: boolean;
   date_completed?: Date;
-  is_priority: boolean;
+  is_deleted: boolean;
+  is_pinned?: boolean;
 }
 
 // Collection Interface
 export interface Collection {
-  id: string;
+  id: number;
+  list_id?: number;
+  created_at: Date;
   collection_name: string;
-  background_color: string;
-  date_created: Date;
-  is_default: boolean;
-  content_count: number;
-  tasks: Task[];
+  bg_color_hex: string;
+  is_default?: boolean;
+  content_count?: number;
+  tasks?: Task[];
   notes?: Note[];
+  isPinned?: boolean;
 }
 
 // List Interface
 export interface List {
-  id: string;
-  name: string;
-  background_color: string;
-  date_created: Date;
-  is_default: boolean;
+  id: number;
+  created_at: Date;
+  list_icon?: string;
+  list_name: string;
+  is_default?: boolean;
+  bg_color_hex: string;
+  type?: string;
+  is_pinned?: boolean;
   tasks?: Task[];
   notes?: Note[];
-  collections: Collection[];
+  collections?: Collection[];
 }
 
 // Color Constants
@@ -59,3 +69,13 @@ export const LIST_COLORS = [
 
 // Type for List Color
 export type ListColor = (typeof LIST_COLORS)[number];
+
+// DisplayTask Interface (used in CompletedPage)
+export interface DisplayTask {
+  id: string;
+  title: string;
+  description?: string;
+  createdDate: Date;
+  completedDate: Date;
+  isCompleted: boolean;
+}

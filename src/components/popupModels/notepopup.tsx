@@ -9,9 +9,9 @@ interface CreateNoteModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (noteData: {
-    text: string;
-    background_color: string;
-    collection_id?: string;
+    title: string; // Changed from text to title
+    bg_color_hex: string; // Changed from background_color to bg_color_hex
+    collection_id?: number; // Changed from string to number
   }) => void;
   collections: Collection[];
 }
@@ -72,18 +72,48 @@ const CreateNoteModal = ({
     }
   }, [isOpen]);
 
+  // Safely convert ID to number
+  const safelyGetCollectionId = () => {
+    // If user selected a collection, use that
+    if (selectedCollectionId) {
+      const parsedId = parseInt(selectedCollectionId, 10);
+      if (!isNaN(parsedId)) {
+        return parsedId;
+      }
+    }
+
+    // Otherwise try to use default collection
+    if (defaultCollection && defaultCollection.id) {
+      if (typeof defaultCollection.id === "number") {
+        return defaultCollection.id;
+      }
+
+      try {
+        const parsedId = parseInt(String(defaultCollection.id), 10);
+        if (!isNaN(parsedId)) {
+          return parsedId;
+        }
+      } catch (e) {
+        console.error("Failed to parse default collection ID:", e);
+      }
+    }
+
+    // No valid collection ID found
+    return undefined;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (noteTitle.trim()) {
       // Format the note text with title and description
-      const formattedText = noteDescription
+      const formattedTitle = noteDescription
         ? `${noteTitle}: ${noteDescription}`
         : noteTitle;
 
       onSubmit({
-        text: formattedText,
-        background_color: selectedColor,
-        collection_id: selectedCollectionId || defaultCollection?.id,
+        title: formattedTitle, // Changed from text to title
+        bg_color_hex: selectedColor, // Changed from background_color to bg_color_hex
+        collection_id: safelyGetCollectionId(),
       });
       onClose();
     }
@@ -240,7 +270,7 @@ const CreateNoteModal = ({
                     : "Select a collection (optional)"}
                 </option>
                 {collections.map((collection) => (
-                  <option key={collection.id} value={collection.id}>
+                  <option key={collection.id} value={String(collection.id)}>
                     {collection.collection_name}
                   </option>
                 ))}

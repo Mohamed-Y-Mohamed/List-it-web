@@ -177,7 +177,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect, useRef } from "react";
-import { sampleData } from "@/data/data";
+import { dataUtils } from "@/data/data";
 import { Task } from "@/types/schema";
 import { useTheme } from "@/context/ThemeContext";
 import {
@@ -189,9 +189,9 @@ import {
 } from "lucide-react";
 
 interface DisplayTask {
-  id: string;
+  id: number;
   title: string;
-  description: string | undefined;
+  description?: string;
   createdDate: Date;
   completedDate: Date;
   isCompleted: boolean;
@@ -209,6 +209,7 @@ export default function CompletedPage() {
   const timelineRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const scrollAmount = 240; // Amount to scroll by (2 cards)
 
   const getDateString = (date: Date): string => {
     return date.toLocaleDateString("en-US", {
@@ -229,21 +230,31 @@ export default function CompletedPage() {
     const loadTasks = () => {
       const completed: DisplayTask[] = [];
 
-      Object.values(sampleData.lists).forEach((list) => {
-        list.collections.forEach((collection) => {
-          collection.tasks.forEach((task: Task) => {
-            if (task.is_completed && task.date_completed) {
-              completed.push({
-                id: task.id,
-                title: task.text,
-                description: task.description,
-                createdDate: task.date_created,
-                completedDate: task.date_completed,
-                isCompleted: true,
+      // Get all lists and extract completed tasks
+      const lists = dataUtils
+        .getListIds()
+        .map((id) => dataUtils.getList(id))
+        .filter((list) => list !== null);
+
+      lists.forEach((list) => {
+        if (list?.collections) {
+          list.collections.forEach((collection) => {
+            if (collection.tasks) {
+              collection.tasks.forEach((task: Task) => {
+                if (task.is_completed && task.date_completed) {
+                  completed.push({
+                    id: task.id,
+                    title: task.text,
+                    description: task.description,
+                    createdDate: new Date(task.created_at),
+                    completedDate: new Date(task.date_completed),
+                    isCompleted: true,
+                  });
+                }
               });
             }
           });
-        });
+        }
       });
 
       setTasks(completed);
@@ -302,16 +313,26 @@ export default function CompletedPage() {
   // Function to scroll timeline left or right
   const scrollTimeline = (direction: "left" | "right") => {
     if (timelineRef.current) {
-      const scrollAmount = direction === "left" ? -300 : 300;
-      timelineRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+      const currentScroll = timelineRef.current.scrollLeft;
+      const newScroll =
+        direction === "left"
+          ? Math.max(0, currentScroll - scrollAmount)
+          : currentScroll + scrollAmount;
+
+      timelineRef.current.scrollTo({
+        left: newScroll,
+        behavior: "smooth",
+      });
     }
   };
 
   return (
     <div
-      className={`pl-16 pt-16 min-h-screen ${
-        isDark ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"
-      }`}
+      className="pl-16 pt-16 min-h-screen"
+      style={{
+        backgroundColor: isDark ? "#2d3748" : "#edf2f7",
+        color: isDark ? "#e0e0e0" : "#212121", // You can tweak text colour too if you want
+      }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <header className="mb-8">
@@ -384,12 +405,7 @@ export default function CompletedPage() {
                 >
                   <div
                     ref={timelineRef}
-                    className={`flex flex-nowrap overflow-x-auto pb-3 pt-1 px-3 scrollbar-thin ${
-                      isDark
-                        ? "scrollbar-track-gray-700 scrollbar-thumb-orange-500"
-                        : "scrollbar-track-gray-200 scrollbar-thumb-blue-500"
-                    } snap-x snap-mandatory`}
-                    style={{ scrollbarWidth: "thin" }}
+                    className="flex flex-nowrap overflow-x-hidden px-3 pt-1 pb-3"
                   >
                     {sortedDates.map(({ date, tasks }, index) => {
                       const isActive = date.toISOString() === selectedDate;
@@ -400,7 +416,7 @@ export default function CompletedPage() {
                         <div
                           key={dateKey}
                           onClick={() => setSelectedDate(dateKey)}
-                          className={`relative flex-none min-w-[120px] rounded-lg px-3 py-3 mr-3 cursor-pointer transition-all duration-300 snap-start ${
+                          className={`relative flex-none min-w-[120px] rounded-lg px-3 py-3 mr-3 cursor-pointer transition-all duration-300 ${
                             isActive
                               ? isDark
                                 ? "bg-orange-500 text-white"

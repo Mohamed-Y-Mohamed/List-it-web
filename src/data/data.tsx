@@ -1,334 +1,288 @@
-// File: /data/data.ts
 "use client";
 
 import { Collection, List, Task, Note } from "@/types/schema";
-import { v4 as uuidv4 } from "uuid";
 
 export type ListsData = {
-  [key: string]: List;
+  [key: number]: List;
 };
 
 export const sampleData: { lists: ListsData } = {
   lists: {
-    "1": {
-      id: "1",
-      name: "Work",
-      background_color: "#007AFF",
-      date_created: new Date("2025-01-15"),
+    1: {
+      id: 1,
+      created_at: new Date("2025-01-15"),
+      list_name: "Work",
+      bg_color_hex: "#007AFF",
       is_default: true,
       collections: [
         {
-          id: "work-general",
+          id: 101,
+          list_id: 1,
+          created_at: new Date("2025-01-15"),
           collection_name: "General",
-          background_color: "#5856D6",
-          date_created: new Date("2025-01-15"),
+          bg_color_hex: "#5856D6",
           is_default: true,
           content_count: 2,
           tasks: [
             {
-              id: "task1",
+              id: 1001,
+              created_at: new Date("2025-02-10"),
+              list_id: 1,
+              collection_id: 101,
               text: "Create project proposal",
               description:
                 "Draft a comprehensive proposal for the new client project",
-              date_created: new Date("2025-02-10"),
               due_date: new Date("2025-02-20"),
               is_completed: true,
-              is_priority: true,
+              date_completed: new Date("2025-02-18"),
+              is_deleted: false,
+              is_pinned: false,
             },
             {
-              id: "task2",
+              id: 1002,
+              created_at: new Date("2025-02-12"),
+              list_id: 1,
+              collection_id: 101,
               text: "Schedule team meeting",
               description:
                 "Set up weekly progress meeting with the development team",
-              date_created: new Date("2025-02-12"),
-              due_date: new Date("2025-02-14"),
-              is_completed: true,
-              date_completed: new Date("2025-02-14"),
-              is_priority: false,
+              due_date: new Date("2025-04-27"),
+              is_completed: false,
+              is_deleted: false,
+              is_pinned: true,
             },
           ],
           notes: [
             {
-              note_id: 1,
-              text: "Project Requirements: Need to include timeline and budget estimates",
-              date_created: new Date("2025-02-10"),
+              id: 2001,
+              created_at: new Date("2025-02-10"),
+              collection_id: 101,
+              title:
+                "Project Requirements: Need to include timeline and budget estimates",
               is_deleted: false,
-              background_color: "#00C7BE",
+              bg_color_hex: "#00C7BE",
               is_pinned: true,
             },
             {
-              note_id: 2,
-              text: "Meeting Notes: Discussed project scope and next steps",
-              date_created: new Date("2025-02-14"),
+              id: 2002,
+              created_at: new Date("2025-02-14"),
+              collection_id: 101,
+              title: "Meeting Notes: Discussed project scope and next steps",
               is_deleted: false,
-              background_color: "#AF52DE",
+              bg_color_hex: "#AF52DE",
               is_pinned: false,
             },
             {
-              note_id: 5,
-              text: "Project Requirements: Need to include timeline and budget estimates",
-              date_created: new Date("2025-02-10"),
+              id: 2005,
+              created_at: new Date("2025-02-10"),
+              collection_id: 101,
+              title:
+                "Project Requirements: Need to include timeline and budget estimates",
               is_deleted: false,
-              background_color: "#FF9500",
+              bg_color_hex: "#FF9500",
               is_pinned: true,
             },
             {
-              note_id: 3,
-              text: "Project Requirements: Need to include timeline and budget estimates",
-              date_created: new Date("2025-02-10"),
+              id: 2003,
+              created_at: new Date("2025-02-10"),
+              collection_id: 101,
+              title:
+                "Project Requirements: Need to include timeline and budget estimates",
               is_deleted: false,
-              background_color: "#FF2D55",
+              bg_color_hex: "#FF2D55",
               is_pinned: true,
             },
             {
-              note_id: 4,
-              text: "Project Requirements: Need to include timeline and budget estimates",
-              date_created: new Date("2025-02-10"),
+              id: 2004,
+              created_at: new Date("2025-02-10"),
+              collection_id: 101,
+              title:
+                "Project Requirements: Need to include timeline and budget estimates",
               is_deleted: false,
-              background_color: "#34C759",
+              bg_color_hex: "#34C759",
               is_pinned: true,
             },
           ],
         },
         {
-          id: "work-meetings",
+          id: 102,
+          list_id: 1,
+          created_at: new Date("2025-01-18"),
           collection_name: "Meetings",
-          background_color: "#AF52DE",
-          date_created: new Date("2025-01-18"),
+          bg_color_hex: "#AF52DE",
           is_default: false,
           content_count: 1,
           tasks: [
             {
-              id: "task3",
+              id: 1003,
+              created_at: new Date("2025-02-15"),
+              list_id: 1,
+              collection_id: 102,
               text: "Quarterly review",
               description: "Prepare slides for quarterly performance review",
-              date_created: new Date("2025-02-15"),
-              due_date: new Date("2025-02-28"),
-              is_completed: false,
-              is_priority: false,
+              due_date: new Date("2025-04-28"),
+              is_completed: true,
+              date_completed: new Date("2025-04-18"),
+
+              is_deleted: false,
+              is_pinned: false,
+            },
+            {
+              id: 1004,
+              created_at: new Date("2025-02-15"),
+              list_id: 1,
+              collection_id: 102,
+              text: "Quarterly review",
+              description: "Prepare slides for quarterly performance review",
+              due_date: new Date("2025-04-28"),
+              is_completed: true,
+              date_completed: new Date("2025-07-18"),
+
+              is_deleted: false,
+              is_pinned: false,
+            },
+            {
+              id: 1005,
+              created_at: new Date("2025-02-15"),
+              list_id: 1,
+              collection_id: 102,
+              text: "Quarterly review",
+              description: "Prepare slides for quarterly performance review",
+              due_date: new Date("2025-04-28"),
+              is_completed: true,
+              date_completed: new Date("2025-06-18"),
+
+              is_deleted: false,
+              is_pinned: false,
+            },
+            {
+              id: 1006,
+              created_at: new Date("2025-02-15"),
+              list_id: 1,
+              collection_id: 102,
+              text: "Quarterly review",
+              description: "Prepare slides for quarterly performance review",
+              due_date: new Date("2025-04-28"),
+              is_completed: true,
+              date_completed: new Date("2025-04-19"),
+
+              is_deleted: false,
+              is_pinned: false,
+            },
+            {
+              id: 1007,
+              created_at: new Date("2025-02-15"),
+              list_id: 1,
+              collection_id: 102,
+              text: "Quarterly review",
+              description: "Prepare slides for quarterly performance review",
+              due_date: new Date("2025-04-28"),
+              is_completed: true,
+              date_completed: new Date("2025-03-18"),
+
+              is_deleted: false,
+              is_pinned: false,
+            },
+            {
+              id: 1008,
+              created_at: new Date("2025-02-15"),
+              list_id: 1,
+              collection_id: 102,
+              text: "Quarterly review",
+              description: "Prepare slides for quarterly performance review",
+              due_date: new Date("2025-04-28"),
+              is_completed: true,
+              date_completed: new Date("2025-03-20"),
+
+              is_deleted: false,
+              is_pinned: false,
+            },
+            {
+              id: 1009,
+              created_at: new Date("2025-02-25"),
+              list_id: 1,
+              collection_id: 102,
+              text: "Quarterly review",
+              description: "Prepare slides for quarterly performance review",
+              due_date: new Date("2025-04-28"),
+              is_completed: true,
+              date_completed: new Date("2025-03-18"),
+
+              is_deleted: false,
+              is_pinned: false,
+            },
+            {
+              id: 100,
+              created_at: new Date("2025-02-15"),
+              list_id: 1,
+              collection_id: 102,
+              text: "Quarterly review",
+              description: "Prepare slides for quarterly performance review",
+              due_date: new Date("2025-04-28"),
+              is_completed: true,
+              date_completed: new Date("2025-04-18"),
+
+              is_deleted: false,
+              is_pinned: false,
             },
           ],
           notes: [
             {
-              note_id: 2,
-              text: "Meeting Agenda: Review Q1 goals and set Q2 priorities",
-              date_created: new Date("2025-02-15"),
+              id: 2006,
+              created_at: new Date("2025-02-15"),
+              collection_id: 102,
+              title: "Meeting Agenda: Review Q1 goals and set Q2 priorities",
               is_deleted: false,
-              background_color: "#FFD60A",
+              bg_color_hex: "#FFD60A",
               is_pinned: false,
             },
           ],
         },
       ],
     },
-    "2": {
-      id: "2",
-      name: "Personal",
-      background_color: "#34C759",
-      date_created: new Date("2025-01-20"),
+    2: {
+      id: 2,
+      created_at: new Date("2025-01-20"),
+      list_name: "Personal",
+      bg_color_hex: "#34C759",
       is_default: false,
       collections: [
         {
-          id: "personal-general",
+          id: 201,
+          list_id: 2,
+          created_at: new Date("2025-01-20"),
           collection_name: "General",
-          background_color: "#FF3B30",
-          date_created: new Date("2025-01-20"),
+          bg_color_hex: "#FF3B30",
           is_default: true,
           content_count: 2,
-          tasks: [
-            {
-              id: "task4",
-              text: "Grocery shopping",
-              description: "Buy ingredients for the week's meals",
-              date_created: new Date("2025-02-13"),
-              due_date: new Date("2025-02-15"),
-              is_completed: true,
-              is_priority: true,
-            },
-            {
-              id: "task5",
-              text: "Pay utility bills",
-              description:
-                "Pay electricity and water bills before the due date",
-              date_created: new Date("2025-02-14"),
-              due_date: new Date("2025-02-20"),
-              is_completed: true,
-              is_priority: false,
-            },
-            {
-              id: "task6",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-03-10"),
-              is_completed: true,
-              date_completed: new Date("2025-03-16"),
-              is_priority: false,
-            },
-            {
-              id: "task6",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-03-10"),
-              is_completed: true,
-              date_completed: new Date("2025-03-16"),
-              is_priority: false,
-            },
-            {
-              id: "task6",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-03-10"),
-              is_completed: true,
-              date_completed: new Date("2025-03-16"),
-              is_priority: false,
-            },
-            {
-              id: "task6",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-03-10"),
-              is_completed: true,
-              date_completed: new Date("2025-09-12"),
-              is_priority: false,
-            },
-            {
-              id: "task6",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-03-10"),
-              is_completed: true,
-              date_completed: new Date("2025-09-08"),
-              is_priority: false,
-            },
-            {
-              id: "task6",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-03-10"),
-              is_completed: true,
-              date_completed: new Date("2025-09-07"),
-              is_priority: false,
-            },
-            {
-              id: "task6",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-04-24"),
-              is_completed: true,
-              date_completed: new Date("2025-09-03"),
-              is_priority: false,
-            },
-            {
-              id: "task6",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-03-10"),
-              is_completed: true,
-              date_completed: new Date("2025-09-25"),
-              is_priority: false,
-            },
-            {
-              id: "task6",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-03-10"),
-              is_completed: true,
-              date_completed: new Date("2025-09-15"),
-              is_priority: false,
-            },
-            {
-              id: "task6",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-03-10"),
-              is_completed: true,
-              date_completed: new Date("2025-06-15"),
-              is_priority: false,
-            },
-            {
-              id: "task6",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-03-10"),
-              is_completed: true,
-              date_completed: new Date("2025-07-15"),
-              is_priority: false,
-            },
-            {
-              id: "task6",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-03-10"),
-              is_completed: true,
-              date_completed: new Date("2025-05-15"),
-              is_priority: false,
-            },
-            {
-              id: "task6",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-03-10"),
-              is_completed: true,
-              date_completed: new Date("2025-04-15"),
-              is_priority: false,
-            },
-            {
-              id: "task6",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-04-24"),
-              is_completed: false,
-              is_priority: false,
-            },
-            {
-              id: "task7",
-              text: "Submit final report",
-              description: "Upload final client report to the shared folder",
-              date_created: new Date("2025-03-05"),
-              due_date: new Date("2025-04-24"),
-              is_completed: false,
-              is_priority: false,
-            },
-          ],
+          tasks: [],
           notes: [
             {
-              note_id: 3,
-              text: "Shopping List: Vegetables, fruits, chicken, pasta, sauce",
-              date_created: new Date("2025-02-13"),
+              id: 2007,
+              created_at: new Date("2025-02-13"),
+              collection_id: 201,
+              title: "Shopping List: Vegetables, fruits, chicken, pasta, sauce",
               is_deleted: false,
-              background_color: "#00C7BE",
+              bg_color_hex: "#00C7BE",
               is_pinned: true,
             },
           ],
         },
       ],
     },
-    "3": {
-      id: "3",
-      name: "Shopping",
-      background_color: "#FF9500",
-      date_created: new Date("2025-01-25"),
+    3: {
+      id: 3,
+      created_at: new Date("2025-01-25"),
+      list_name: "Shopping",
+      bg_color_hex: "#FF9500",
       is_default: false,
       collections: [
         {
-          id: "shopping-general",
+          id: 301,
+          list_id: 3,
+          created_at: new Date("2025-01-25"),
           collection_name: "General",
-          background_color: "#FFD60A",
-          date_created: new Date("2025-01-25"),
+          bg_color_hex: "#FFD60A",
           is_default: true,
           content_count: 0,
           tasks: [],
@@ -339,41 +293,76 @@ export const sampleData: { lists: ListsData } = {
   },
 };
 
-// Utility functions that can be used by any component
+let listCounter = 1000;
+let collectionCounter = 2000;
+let taskCounter = 3000;
+let noteCounter = 4000;
+
+// Utility functions
 export const dataUtils = {
   // Get a list by ID
-  getList: (listId: string): List | null => {
-    // Check if the list exists before returning
+  getList: (listId: number): List | null => {
     return sampleData.lists[listId] || null;
   },
 
   // Get all list IDs
-  getListIds: (): string[] => {
-    return Object.keys(sampleData.lists);
+  getListIds: (): number[] => {
+    return Object.keys(sampleData.lists).map((id) => Number(id));
   },
 
   // Get first list ID
-  getFirstListId: (): string | null => {
+  getFirstListId: (): number | null => {
     const keys = Object.keys(sampleData.lists);
-    return keys.length > 0 ? keys[0] : null;
+    return keys.length > 0 ? Number(keys[0]) : null;
+  },
+
+  // Get all collections (for use in TodayPage)
+  getAllCollections: (): Collection[] => {
+    const collections: Collection[] = [];
+    Object.values(sampleData.lists).forEach((list) => {
+      if (list.collections) {
+        collections.push(...list.collections);
+      }
+    });
+    return collections;
+  },
+
+  // Get tasks for a specific collection
+  getTasksByCollection: (collectionId: number): Task[] => {
+    let tasks: Task[] = [];
+
+    // Find the collection and return its tasks
+    Object.values(sampleData.lists).some((list) => {
+      if (list.collections) {
+        const collection = list.collections.find((c) => c.id === collectionId);
+        if (collection && collection.tasks) {
+          tasks = collection.tasks;
+          return true;
+        }
+      }
+      return false;
+    });
+
+    return tasks;
   },
 
   // Create a new list with a default "General" collection
   createList: (name: string, backgroundColor: string): List => {
-    const listId = uuidv4();
+    const listId = ++listCounter;
 
     const newList: List = {
       id: listId,
-      name: name,
-      background_color: backgroundColor,
-      date_created: new Date(),
+      created_at: new Date(),
+      list_name: name,
+      bg_color_hex: backgroundColor,
       is_default: false,
       collections: [
         {
-          id: `${listId}-general`,
+          id: ++collectionCounter,
+          list_id: listId,
+          created_at: new Date(),
           collection_name: "General",
-          background_color: backgroundColor, // Use the same color as the list or adjust as needed
-          date_created: new Date(),
+          bg_color_hex: backgroundColor,
           is_default: true,
           content_count: 0,
           tasks: [],
@@ -382,203 +371,192 @@ export const dataUtils = {
       ],
     };
 
-    // Add to sample data (in a real app, this would save to database)
     sampleData.lists[listId] = newList;
 
     return newList;
   },
 
-  // Create a new collection (ensuring only one default per list)
-  createCollection: (
-    list: List,
-    collectionName: string,
-    backgroundColor: string,
-    isDefault: boolean = false
-  ): List => {
-    // If this collection will be default, make sure no other collection is default
-    let updatedCollections = [...list.collections];
-
-    if (isDefault) {
-      // Remove default status from any other collection
-      updatedCollections = updatedCollections.map((collection) => ({
-        ...collection,
-        is_default: false,
-      }));
+  // Ensure a list has a General collection
+  ensureGeneralCollection: (list: List): List => {
+    if (
+      !list.collections ||
+      list.collections.length === 0 ||
+      !list.collections.some((c) => c.is_default)
+    ) {
+      // Add a General collection that is default
+      return {
+        ...list,
+        collections: [
+          ...(list.collections || []),
+          {
+            id: ++collectionCounter,
+            list_id: list.id,
+            created_at: new Date(),
+            collection_name: "General",
+            bg_color_hex: list.bg_color_hex,
+            is_default: true,
+            content_count: 0,
+            tasks: [],
+            notes: [],
+          },
+        ],
+      };
     }
-
-    // Create the new collection
-    const newCollection: Collection = {
-      id: uuidv4(),
-      collection_name: collectionName,
-      background_color: backgroundColor,
-      date_created: new Date(),
-      is_default: isDefault,
-      content_count: 0,
-      tasks: [],
-      notes: [],
-    };
-
-    // Add the new collection to the list
-    return {
-      ...list,
-      collections: [...updatedCollections, newCollection],
-    };
+    return list;
   },
 
-  // Add a new collection with default settings - NOT as default
-  addCollection: (list: List, collection: Collection): List => {
-    // Make sure the new collection is not set as default
-    const newCollection = {
-      ...collection,
-      is_default: false,
-    };
+  // Add a new collection to a list
+  addCollection: (listId: number, collection: Collection): void => {
+    const list = sampleData.lists[listId];
+    if (list) {
+      list.collections = [...(list.collections || []), collection];
+    }
+  },
 
-    return {
-      ...list,
-      collections: [...list.collections, newCollection],
-    };
+  // Update a collection
+  updateCollection: (
+    listId: number,
+    collectionId: number,
+    updates: Partial<Collection>
+  ): void => {
+    const list = sampleData.lists[listId];
+    if (list && list.collections) {
+      list.collections = list.collections.map((collection) =>
+        collection.id === collectionId
+          ? { ...collection, ...updates }
+          : collection
+      );
+    }
+  },
+
+  // Update a task
+  updateTask: (
+    taskId: number,
+    collectionId: number,
+    updates: Partial<Task>
+  ): void => {
+    Object.values(sampleData.lists).forEach((list) => {
+      if (list.collections) {
+        list.collections.forEach((collection) => {
+          if (collection.id === collectionId && collection.tasks) {
+            collection.tasks = collection.tasks.map((task) =>
+              task.id === taskId ? { ...task, ...updates } : task
+            );
+          }
+        });
+      }
+    });
+  },
+
+  // Update a note
+  updateNote: (
+    noteId: number,
+    collectionId: number,
+    updates: Partial<Note>
+  ): void => {
+    Object.values(sampleData.lists).forEach((list) => {
+      if (list.collections) {
+        list.collections.forEach((collection) => {
+          if (collection.id === collectionId && collection.notes) {
+            collection.notes = collection.notes.map((note) =>
+              note.id === noteId ? { ...note, ...updates } : note
+            );
+          }
+        });
+      }
+    });
   },
 
   // Update task completion status
   updateTaskCompletion: (
-    list: List,
-    collectionId: string,
-    taskId: string,
+    listId: number,
+    collectionId: number,
+    taskId: number,
     isCompleted: boolean
-  ): List => {
-    return {
-      ...list,
-      collections: list.collections.map((collection) =>
-        collection.id === collectionId
-          ? {
-              ...collection,
-              tasks: collection.tasks.map((task) =>
-                task.id === taskId
-                  ? {
-                      ...task,
-                      is_completed: isCompleted,
-                      date_completed: isCompleted ? new Date() : undefined,
-                    }
-                  : task
-              ),
-            }
-          : collection
-      ),
-    };
+  ): void => {
+    const list = sampleData.lists[listId];
+    if (list && list.collections) {
+      list.collections.forEach((collection) => {
+        if (collection.id === collectionId && collection.tasks) {
+          collection.tasks = collection.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  is_completed: isCompleted,
+                  date_completed: isCompleted ? new Date() : undefined,
+                }
+              : task
+          );
+        }
+      });
+    }
   },
 
-  // Update task priority status
-  updateTaskPriority: (
-    list: List,
-    collectionId: string,
-    taskId: string,
-    isPriority: boolean
-  ): List => {
-    return {
-      ...list,
-      collections: list.collections.map((collection) =>
-        collection.id === collectionId
-          ? {
-              ...collection,
-              tasks: collection.tasks.map((task) =>
-                task.id === taskId ? { ...task, is_priority: isPriority } : task
-              ),
-            }
-          : collection
-      ),
-    };
+  // Update task pin status
+  updateTaskPin: (
+    listId: number,
+    collectionId: number,
+    taskId: number,
+    isPinned: boolean
+  ): void => {
+    const list = sampleData.lists[listId];
+    if (list && list.collections) {
+      list.collections.forEach((collection) => {
+        if (collection.id === collectionId && collection.tasks) {
+          collection.tasks = collection.tasks.map((task) =>
+            task.id === taskId ? { ...task, is_pinned: isPinned } : task
+          );
+        }
+      });
+    }
   },
 
   // Update note pin status
   updateNotePin: (
-    list: List,
-    collectionId: string,
+    listId: number,
+    collectionId: number,
     noteId: number,
     isPinned: boolean
-  ): List => {
-    return {
-      ...list,
-      collections: list.collections.map((collection) =>
-        collection.id === collectionId && collection.notes
-          ? {
-              ...collection,
-              notes: collection.notes.map((note) =>
-                note.note_id === noteId
-                  ? { ...note, is_pinned: isPinned }
-                  : note
-              ),
-            }
-          : collection
-      ),
-    };
+  ): void => {
+    const list = sampleData.lists[listId];
+    if (list && list.collections) {
+      list.collections.forEach((collection) => {
+        if (collection.id === collectionId && collection.notes) {
+          collection.notes = collection.notes.map((note) =>
+            note.id === noteId ? { ...note, is_pinned: isPinned } : note
+          );
+        }
+      });
+    }
   },
 
   // Add a new task to a collection
-  addTask: (list: List, collectionId: string, task: Task): List => {
-    return {
-      ...list,
-      collections: list.collections.map((collection) =>
-        collection.id === collectionId
-          ? {
-              ...collection,
-              tasks: [...collection.tasks, task],
-              content_count: collection.content_count + 1,
-            }
-          : collection
-      ),
-    };
+  addTask: (collectionId: number, task: Task): void => {
+    Object.values(sampleData.lists).forEach((list) => {
+      if (list.collections) {
+        list.collections.forEach((collection) => {
+          if (collection.id === collectionId) {
+            if (!collection.tasks) collection.tasks = [];
+            collection.tasks.push(task);
+            collection.content_count = (collection.content_count || 0) + 1;
+          }
+        });
+      }
+    });
   },
 
   // Add a new note to a collection
-  addNote: (list: List, collectionId: string, note: Note): List => {
-    return {
-      ...list,
-      collections: list.collections.map((collection) =>
-        collection.id === collectionId
-          ? {
-              ...collection,
-              notes: collection.notes ? [...collection.notes, note] : [note],
-              content_count: collection.content_count + 1,
-            }
-          : collection
-      ),
-    };
-  },
-
-  // Ensure a list has a General collection
-  ensureGeneralCollection: (list: List): List => {
-    // Check if there's already a General collection
-    const hasGeneral = list.collections.some(
-      (collection) =>
-        collection.collection_name === "General" && collection.is_default
-    );
-
-    if (hasGeneral) {
-      return list; // Already has a General collection
-    }
-
-    // Create a new General collection
-    const generalCollection: Collection = {
-      id: `${list.id}-general`,
-      collection_name: "General",
-      background_color: list.background_color,
-      date_created: new Date(),
-      is_default: true,
-      content_count: 0,
-      tasks: [],
-      notes: [],
-    };
-
-    // Add the General collection and make sure no other collection is default
-    return {
-      ...list,
-      collections: [
-        generalCollection,
-        ...list.collections.map((collection) => ({
-          ...collection,
-          is_default: false, // Make sure no other collection is default
-        })),
-      ],
-    };
+  addNote: (collectionId: number, note: Note): void => {
+    Object.values(sampleData.lists).forEach((list) => {
+      if (list.collections) {
+        list.collections.forEach((collection) => {
+          if (collection.id === collectionId) {
+            if (!collection.notes) collection.notes = [];
+            collection.notes.push(note);
+            collection.content_count = (collection.content_count || 0) + 1;
+          }
+        });
+      }
+    });
   },
 };

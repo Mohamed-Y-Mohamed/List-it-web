@@ -27,17 +27,18 @@ import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 import CreateListModal from "@/components/popupModels/ListPopup"; // Import the CreateListModal component
 
-type List = {
-  id: string;
-  name: string;
-  background_color: string;
-  date_created: Date;
-  is_default: boolean;
+// Updated interface to match schema
+interface List {
+  id: number;
+  created_at: Date;
+  list_name: string;
+  bg_color_hex: string;
+  is_default?: boolean;
   is_pinned?: boolean;
-  tasks: any[];
-  notes: any[];
-  collections: any[];
-};
+  tasks?: any[];
+  notes?: any[];
+  collections?: any[];
+}
 
 // Main navigation component that should wrap the page content
 const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
@@ -53,15 +54,15 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [isCreateListModalOpen, setIsCreateListModalOpen] = useState(false);
   const [isDeleteListModalOpen, setIsDeleteListModalOpen] = useState(false);
-  const [listToDelete, setListToDelete] = useState<string | null>(null);
+  const [listToDelete, setListToDelete] = useState<number | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [isTablet, setIsTablet] = useState(false);
   const [lists, setLists] = useState<List[]>([
     {
-      id: "1",
-      name: "Work",
-      background_color: "#3b82f6", // blue-500
-      date_created: new Date(),
+      id: 1,
+      list_name: "Work",
+      bg_color_hex: "#3b82f6", // blue-500
+      created_at: new Date(),
       is_default: false,
       is_pinned: false,
       tasks: [],
@@ -69,10 +70,10 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
       collections: [],
     },
     {
-      id: "2",
-      name: "Personal",
-      background_color: "#10b981", // emerald-500
-      date_created: new Date(),
+      id: 2,
+      list_name: "Personal",
+      bg_color_hex: "#10b981", // emerald-500
+      created_at: new Date(),
       is_default: false,
       is_pinned: false,
       tasks: [],
@@ -80,10 +81,10 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
       collections: [],
     },
     {
-      id: "3",
-      name: "Shopping",
-      background_color: "#f59e0b", // amber-500
-      date_created: new Date(),
+      id: 3,
+      list_name: "Shopping",
+      bg_color_hex: "#f59e0b", // amber-500
+      created_at: new Date(),
       is_default: false,
       is_pinned: false,
       tasks: [],
@@ -116,11 +117,11 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
     }
   };
 
-  const handleListClick = (listId: string) => {
+  const handleListClick = (listId: number) => {
     navigateTo(`/List/${listId}`);
   };
 
-  const handleTogglePinList = (listId: string) => {
+  const handleTogglePinList = (listId: number) => {
     setLists((prevLists) =>
       prevLists.map((list) =>
         list.id === listId ? { ...list, is_pinned: !list.is_pinned } : list
@@ -131,18 +132,17 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
   const handleCreateList = (
     listData: Omit<
       List,
-      "id" | "date_created" | "tasks" | "notes" | "collections" | "is_pinned"
+      "id" | "created_at" | "tasks" | "notes" | "collections" | "is_pinned"
     >
   ) => {
     const lastId = lists.reduce((max, list) => {
-      const num = parseInt(list.id, 10);
-      return num > max ? num : max;
+      return list.id > max ? list.id : max;
     }, 0);
 
     const newList: List = {
       ...listData,
-      id: (lastId + 1).toString(),
-      date_created: new Date(),
+      id: lastId + 1,
+      created_at: new Date(),
       is_pinned: false,
       tasks: [],
       notes: [],
@@ -155,7 +155,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
     navigateTo(`/List/${newList.id}`);
   };
 
-  const handleDeleteList = (listId: string) => {
+  const handleDeleteList = (listId: number) => {
     // Find the list to delete
     const listToDelete = lists.find((list) => list.id === listId);
     if (!listToDelete) return;
@@ -164,7 +164,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
     setLists((prev) => prev.filter((list) => list.id !== listId));
 
     // If we deleted the current list, navigate to another list or dashboard
-    if (currentListId === listId) {
+    if (currentListId === listId.toString()) {
       // If there are other lists, navigate to the first one
       if (lists.length > 1) {
         const nextList = lists.find((list) => list.id !== listId);
@@ -661,7 +661,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                   <div
                     key={list.id}
                     className={`flex items-center w-full rounded-md ${
-                      currentListId === list.id
+                      currentListId === list.id.toString()
                         ? isDark
                           ? "bg-gray-800"
                           : "bg-gray-100"
@@ -681,14 +681,14 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                       <ListTodo
                         className="h-5 w-5 flex-shrink-0"
                         style={{
-                          color: list.background_color,
-                          fill: list.background_color,
+                          color: list.bg_color_hex,
+                          fill: list.bg_color_hex,
                           fillOpacity: 0.2,
                         }}
                       />
                       {sidebarOpen && (
                         <span className="ml-3 text-sm font-medium truncate">
-                          {list.name}
+                          {list.list_name}
                         </span>
                       )}
                     </button>
@@ -722,7 +722,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                             xmlns="http://www.w3.org/2000/svg"
                             style={{
                               color: list.is_pinned
-                                ? list.background_color
+                                ? list.bg_color_hex
                                 : "currentColor",
                             }}
                           >
@@ -757,8 +757,8 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                               ? "text-gray-500 hover:text-red-500"
                               : "text-gray-400 hover:text-red-500"
                           } transition-colors`}
-                          aria-label={`Delete ${list.name} list`}
-                          title={`Delete ${list.name}`}
+                          aria-label={`Delete ${list.list_name} list`}
+                          title={`Delete ${list.list_name}`}
                         >
                           <Trash2 size={16} />
                         </button>
