@@ -1,15 +1,219 @@
 "use client";
 
-import React from "react";
-import { LogIn, Mail, Lock } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { LogIn, Mail, Lock, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { FaApple } from "react-icons/fa";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
+import { supabase } from "@/utils/client";
+
+// Import for secure storage
+import { AES, enc } from "crypto-js";
 
 const Login = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Get redirectTo from URL if present
+  const redirectTo = searchParams?.get("redirectTo") || "/dashboard";
+
+  // Form state
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // UI state
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Secret key for encryption (in a real app, use a more secure approach)
+  const STORAGE_KEY = "list_it_credentials";
+  const ENCRYPTION_KEY = "list_it_secure_key_2025"; // This would ideally be environment variable
+
+  // Check for active session
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        router.push(redirectTo);
+      }
+    };
+
+    checkSession();
+  }, [router, redirectTo]);
+
+  // Load saved credentials on mount if they exist (just to fill the form)
+  useEffect(() => {
+    const loadSavedCredentials = () => {
+      try {
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        if (savedData) {
+          // Decrypt the saved data
+          const decrypted = AES.decrypt(savedData, ENCRYPTION_KEY).toString(
+            enc.Utf8
+          );
+
+          if (decrypted) {
+            const credentials = JSON.parse(decrypted);
+            setEmail(credentials.email || "");
+            setPassword(credentials.password || "");
+            setRememberMe(true);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading saved credentials:", err);
+        // If there's an error, clear the stored credentials
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    };
+
+    loadSavedCredentials();
+  }, []);
+
+  // Save or remove credentials based on remember me state
+  const handleRememberCredentials = () => {
+    if (rememberMe && email && password) {
+      try {
+        // Encrypt the credentials before storing
+        const credentials = JSON.stringify({ email, password });
+        const encrypted = AES.encrypt(credentials, ENCRYPTION_KEY).toString();
+        localStorage.setItem(STORAGE_KEY, encrypted);
+      } catch (err) {
+        console.error("Error saving credentials:", err);
+      }
+    } else {
+      // If remember me is unchecked, remove saved credentials
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  };
+
+  // Handle login form submission
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    // Validate form
+    if (!email.trim()) {
+      setError("Email is required");
+      return;
+    }
+    if (!password) {
+      setError("Password is required");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Sign in with Supabase Auth
+      const { data, error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+
+      if (signInError) throw signInError;
+
+      // Save credentials if remember me is checked
+      if (rememberMe) {
+        handleRememberCredentials();
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+
+      // Set authentication cookies
+      if (data.session?.access_token) {
+        const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24; // 30 days or 1 day
+        document.cookie = `auth_token=${data.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        document.cookie = `isLoggedIn=true; path=/; max-age=${maxAge}; SameSite=Lax`;
+      }
+
+      // Redirect to dashboard or the original requested URL
+      router.push(redirectTo);
+    } catch (err: any) {
+      console.error("Login error:", err);
+
+      if (err?.message) {
+        // Provide user-friendly error messages
+        if (err.message.includes("Invalid login credentials")) {
+          setError("Invalid email or password. Please try again.");
+        } else if (err.message.includes("Email not confirmed")) {
+          setError("Please confirm your email address before logging in.");
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError("Failed to log in. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle login with Google
+  const handleGoogleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
+    } catch (err: any) {
+      console.error("Google login error:", err);
+      setError(err.message || "Failed to log in with Google");
+    }
+  };
+
+  // Handle login with Apple
+  const handleAppleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
+    } catch (err: any) {
+      console.error("Apple login error:", err);
+      setError(err.message || "Failed to log in with Apple");
+    }
+  };
+
+  // Handle forgot password
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setError("Please enter your email address first");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        email.trim(),
+        {
+          redirectTo: `${window.location.origin}/reset-password`,
+        }
+      );
+
+      if (error) throw error;
+
+      alert("Password reset link sent to your email");
+    } catch (err: any) {
+      console.error("Password reset error:", err);
+      setError(err.message || "Failed to send reset link");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div
@@ -40,14 +244,30 @@ const Login = () => {
             >
               Log in to your account
             </h1>
+
+            {/* Error message display */}
+            {error && (
+              <div
+                className={`mt-4 w-full max-w-xs bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative`}
+                role="alert"
+              >
+                <div className="flex items-center">
+                  <AlertCircle className="w-5 h-5 mr-2" />
+                  <span>{error}</span>
+                </div>
+              </div>
+            )}
+
             <div className="w-full flex-1 mt-8">
               <div className="flex flex-col items-center">
                 <button
+                  onClick={handleGoogleLogin}
+                  disabled={loading}
                   className={`w-full max-w-xs font-bold shadow-sm rounded-lg py-3 ${
                     isDark
                       ? "bg-orange-900 text-gray-200"
                       : "bg-orange-100 text-gray-800"
-                  } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline`}
+                  } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
                 >
                   <div
                     className={`${
@@ -77,11 +297,13 @@ const Login = () => {
                 </button>
 
                 <button
+                  onClick={handleAppleLogin}
+                  disabled={loading}
                   className={`w-full max-w-xs font-bold shadow-sm rounded-lg py-3 ${
                     isDark
                       ? "bg-sky-900 text-gray-200"
                       : "bg-sky-100 text-gray-800"
-                  } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline mt-5`}
+                  } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline mt-5 ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
                 >
                   <div
                     className={`${
@@ -110,7 +332,7 @@ const Login = () => {
                 </div>
               </div>
 
-              <div className="mx-auto max-w-xs">
+              <form onSubmit={handleLogin} className="mx-auto max-w-xs">
                 <div className="relative">
                   <Mail
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -124,6 +346,10 @@ const Login = () => {
                     } border text-sm focus:outline-none`}
                     type="email"
                     placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                    required
                   />
                 </div>
                 <div className="relative mt-5">
@@ -139,6 +365,10 @@ const Login = () => {
                     } border text-sm focus:outline-none`}
                     type="password"
                     placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                    required
                   />
                 </div>
                 <div className="flex justify-between items-center mt-2">
@@ -147,6 +377,8 @@ const Login = () => {
                       id="remember-me"
                       name="remember-me"
                       type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
                       className={`h-4 w-4 ${
                         isDark
                           ? "text-sky-400 border-gray-600"
@@ -162,8 +394,9 @@ const Login = () => {
                       Remember me
                     </label>
                   </div>
-                  <a
-                    href="#"
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
                     className={`text-sm ${
                       isDark
                         ? "text-sky-400 hover:text-sky-300"
@@ -171,17 +404,25 @@ const Login = () => {
                     }`}
                   >
                     Forgot password?
-                  </a>
+                  </button>
                 </div>
                 <button
+                  type="submit"
+                  disabled={loading}
                   className={`mt-5 tracking-wide font-semibold ${
                     isDark
                       ? "bg-sky-600 hover:bg-sky-700"
                       : "bg-sky-500 hover:bg-sky-600"
-                  } text-white w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center focus:shadow-outline focus:outline-none`}
+                  } text-white w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center focus:shadow-outline focus:outline-none ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
                 >
-                  <LogIn className="w-6 h-6 -ml-2" />
-                  <span className="ml-3">Log In</span>
+                  {loading ? (
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  ) : (
+                    <LogIn className="w-6 h-6 -ml-2" />
+                  )}
+                  <span className="ml-3">
+                    {loading ? "Logging In..." : "Log In"}
+                  </span>
                 </button>
                 <p
                   className={`mt-6 text-sm ${
@@ -190,17 +431,17 @@ const Login = () => {
                 >
                   Don&apos;t have an account?{" "}
                   <Link
-                    href="/register"
+                    href="/signup"
                     className={`${
                       isDark
                         ? "text-sky-400 hover:text-sky-300"
                         : "text-sky-500 hover:text-sky-600"
-                    } text-bold`}
+                    } font-bold`}
                   >
                     Sign up
                   </Link>
                 </p>
-              </div>
+              </form>
             </div>
           </div>
         </div>

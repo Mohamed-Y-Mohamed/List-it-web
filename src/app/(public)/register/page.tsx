@@ -1,15 +1,168 @@
 "use client";
 
-import React from "react";
-import { UserPlus, Mail, Lock, User } from "lucide-react";
+import React, { useState } from "react";
+import { UserPlus, Mail, Lock, User, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { FaApple } from "react-icons/fa";
+import { useRouter } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
+import { supabase } from "@/utils/client";
 
 const Signup = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const router = useRouter();
+
+  // Form state
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const trimmedEmail = email.trim();
+
+  // Loading and error states
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Form validation
+  const isFormValid = () => {
+    if (!fullName.trim()) {
+      setError("Full name is required");
+      return false;
+    }
+    if (!email.trim()) {
+      setError("Email is required");
+      return false;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setError("Please enter a valid email address");
+      return false;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return false;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return false;
+    }
+    return true;
+  };
+
+  // Handle signup with email/password
+  // Handle signup with email/password - Simplified approach
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setError(null);
+
+    if (!isFormValid()) return;
+
+    setLoading(true);
+
+    try {
+      // 1. Sign up with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
+
+      if (authError) throw authError;
+
+      // 2. Insert user into 'users' table WITHOUT waiting for authentication
+      if (authData.user) {
+        const { error: profileError } = await supabase.from("users").insert([
+          {
+            id: authData.user.id,
+            full_name: fullName,
+            email: trimmedEmail,
+            lists: null,
+          },
+        ]);
+
+        if (profileError) {
+          // If insertion fails, add a more user-friendly error message
+          console.error("Profile error:", profileError);
+          throw new Error(
+            "Account created, but profile setup failed. Please contact support."
+          );
+        }
+      }
+
+      // 3. Set authentication cookies
+      if (authData.session?.access_token) {
+        document.cookie = `auth_token=${authData.session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+        document.cookie = `isLoggedIn=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+
+        // 4. Redirect to dashboard
+        router.push("/dashboard");
+      } else {
+        // If we don't have a session yet, show email confirmation message
+        setError(null); // Clear any previous errors
+        alert(
+          "Signup successful! Please check your email to confirm your account."
+        );
+      }
+    } catch (err: any) {
+      console.error("Signup error:", err);
+
+      // Provide user-friendly error messages
+      if (err?.message?.includes("row level security")) {
+        setError(
+          "Account created but profile setup failed. Please try logging in instead."
+        );
+      } else if (err?.message?.includes("already registered")) {
+        setError("This email is already registered. Please log in instead.");
+      } else if (err?.message) {
+        setError(err.message);
+      } else if (err?.details) {
+        setError(err.details);
+      } else {
+        setError("Failed to sign up. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+  // Handle signup with Google
+  const handleGoogleSignup = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
+    } catch (err: any) {
+      console.error("Google signup error:", err);
+      setError(err.message || "Failed to sign up with Google");
+    }
+  };
+
+  // Handle signup with Apple
+  const handleAppleSignup = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
+    } catch (err: any) {
+      console.error("Apple signup error:", err);
+      setError(err.message || "Failed to sign up with Apple");
+    }
+  };
 
   return (
     <div
@@ -48,14 +201,30 @@ const Signup = () => {
             >
               Create your account
             </h1>
+
+            {/* Error message display */}
+            {error && (
+              <div
+                className={`mt-4 w-full max-w-xs bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative`}
+                role="alert"
+              >
+                <div className="flex items-center">
+                  <AlertCircle className="w-5 h-5 mr-2" />
+                  <span>{error}</span>
+                </div>
+              </div>
+            )}
+
             <div className="w-full flex-1 mt-8">
               <div className="flex flex-col items-center">
                 <button
+                  onClick={handleGoogleSignup}
+                  disabled={loading}
                   className={`w-full max-w-xs font-bold shadow-sm rounded-lg py-3 ${
                     isDark
                       ? "bg-orange-900 text-gray-200"
                       : "bg-orange-100 text-gray-800"
-                  } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline`}
+                  } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
                 >
                   <div
                     className={`${
@@ -85,11 +254,13 @@ const Signup = () => {
                 </button>
 
                 <button
+                  onClick={handleAppleSignup}
+                  disabled={loading}
                   className={`w-full max-w-xs font-bold shadow-sm rounded-lg py-3 ${
                     isDark
                       ? "bg-sky-900 text-gray-200"
                       : "bg-sky-100 text-gray-800"
-                  } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline mt-5`}
+                  } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline mt-5 ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
                 >
                   <div
                     className={`${
@@ -118,7 +289,7 @@ const Signup = () => {
                 </div>
               </div>
 
-              <div className="mx-auto max-w-xs">
+              <form onSubmit={handleSignup} className="mx-auto max-w-xs">
                 <div className="relative">
                   <User
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -132,6 +303,9 @@ const Signup = () => {
                     } border text-sm focus:outline-none`}
                     type="text"
                     placeholder="Full Name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
                   />
                 </div>
                 <div className="relative mt-5">
@@ -143,10 +317,13 @@ const Signup = () => {
                     className={`w-full pl-10 pr-3 py-4 rounded-lg font-medium ${
                       isDark
                         ? "bg-gray-700 border-gray-600 placeholder-gray-400 text-gray-200 focus:border-orange-400 focus:bg-gray-600"
-                        : "bg-gray-100 border-gray-200 placeholder-gray-500 text-sm focus:border-orange-500 focus:bg-white"
+                        : "bg-gray-100 border-gray-200 placeholder-gray-500 text-gray-800 focus:border-orange-500 focus:bg-white"
                     } border text-sm focus:outline-none`}
                     type="email"
                     placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
                   />
                 </div>
                 <div className="relative mt-5">
@@ -162,6 +339,10 @@ const Signup = () => {
                     } border text-sm focus:outline-none`}
                     type="password"
                     placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
                   />
                 </div>
                 <div className="relative mt-5">
@@ -177,17 +358,28 @@ const Signup = () => {
                     } border text-sm focus:outline-none`}
                     type="password"
                     placeholder="Confirm Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
                   />
                 </div>
                 <button
+                  type="submit"
+                  disabled={loading}
                   className={`mt-5 tracking-wide font-semibold ${
                     isDark
                       ? "bg-orange-600 hover:bg-orange-700"
                       : "bg-orange-500 hover:bg-orange-600"
-                  } text-white w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center focus:shadow-outline focus:outline-none`}
+                  } text-white w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center focus:shadow-outline focus:outline-none ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
                 >
-                  <UserPlus className="w-6 h-6 -ml-2" />
-                  <span className="ml-3">Sign Up</span>
+                  {loading ? (
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  ) : (
+                    <UserPlus className="w-6 h-6 -ml-2" />
+                  )}
+                  <span className="ml-3">
+                    {loading ? "Signing Up..." : "Sign Up"}
+                  </span>
                 </button>
                 <p
                   className={`mt-6 text-xs ${
@@ -234,7 +426,7 @@ const Signup = () => {
                     Login
                   </Link>
                 </p>
-              </div>
+              </form>
             </div>
           </div>
         </div>
