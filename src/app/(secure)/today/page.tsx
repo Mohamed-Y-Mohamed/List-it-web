@@ -8,15 +8,15 @@ import { Task, Collection } from "@/types/schema";
 
 // Define interfaces for our extended task
 interface ExtendedTask extends Task {
-  collectionId: string;
-  collectionName: string;
-  listId: string;
-  listName: string;
+  collection_id: number;
+  collection_name: string;
+  list_id: number;
+  list_name: string;
 }
 
 interface ExtendedCollection extends Collection {
-  listId: string;
-  listName: string;
+  list_id: number;
+  list_name: string;
 }
 
 export default function TodayPage() {
@@ -37,6 +37,8 @@ export default function TodayPage() {
 
   // Function to get tasks due today that are not completed
   const fetchTasksDueToday = useCallback(() => {
+    setIsLoading(true);
+
     // Simulate API call with timeout
     setTimeout(() => {
       const allLists = dataUtils
@@ -49,20 +51,20 @@ export default function TodayPage() {
 
       // First, collect all collections in one pass
       allLists.forEach((list) => {
-        list.collections.forEach((collection) => {
+        list.collections?.forEach((collection) => {
           collections.push({
             ...collection,
-            listId: list.id,
-            listName: list.name,
+            list_id: list.id,
+            list_name: list.list_name,
           });
         });
       });
 
       // Then process tasks in a separate pass for clarity
       allLists.forEach((list) => {
-        list.collections.forEach((collection) => {
+        list.collections?.forEach((collection) => {
           collection.tasks
-            .filter((task) => {
+            ?.filter((task) => {
               if (!task.due_date || task.is_completed) return false;
 
               const dueDate = new Date(task.due_date);
@@ -72,10 +74,10 @@ export default function TodayPage() {
             .forEach((task) => {
               dueTodayTasks.push({
                 ...task,
-                collectionId: collection.id,
-                collectionName: collection.collection_name,
-                listId: list.id,
-                listName: list.name,
+                collection_id: collection.id,
+                collection_name: collection.collection_name,
+                list_id: list.id,
+                list_name: list.list_name,
               });
             });
         });
@@ -94,21 +96,19 @@ export default function TodayPage() {
 
   // Task handlers
   const handleTaskComplete = useCallback(
-    (taskId: string, isCompleted: boolean) => {
+    (taskId: number, isCompleted: boolean) => {
       // Skip if the task is now completed - it will disappear from the view
       if (isCompleted) {
         // Find task details to update in data store
         const task = todayTasks.find((t) => t.id === taskId);
         if (task) {
-          const list = dataUtils.getList(task.listId);
-          if (list) {
-            dataUtils.updateTaskCompletion(
-              list,
-              task.collectionId,
-              taskId,
-              true
-            );
-          }
+          // Update the task directly with the utility function
+          dataUtils.updateTaskCompletion(
+            task.list_id,
+            task.collection_id,
+            taskId,
+            true
+          );
         }
 
         // Remove from local state
@@ -119,26 +119,23 @@ export default function TodayPage() {
   );
 
   const handleTaskPriority = useCallback(
-    (taskId: string, isPriority: boolean) => {
+    (taskId: number, isPinned: boolean) => {
       // Find which collection and list this task belongs to
       const task = todayTasks.find((t) => t.id === taskId);
       if (!task) return;
 
       // Update in the data store
-      const list = dataUtils.getList(task.listId);
-      if (list) {
-        dataUtils.updateTaskPriority(
-          list,
-          task.collectionId,
-          taskId,
-          isPriority
-        );
-      }
+      dataUtils.updateTaskPin(
+        task.list_id,
+        task.collection_id,
+        taskId,
+        isPinned
+      );
 
       // Update in local state
       setTodayTasks((prevTasks) =>
         prevTasks.map((t) =>
-          t.id === taskId ? { ...t, is_priority: isPriority } : t
+          t.id === taskId ? { ...t, is_pinned: isPinned } : t
         )
       );
     },
@@ -147,12 +144,12 @@ export default function TodayPage() {
 
   const handleTaskUpdate = useCallback(
     (
-      taskId: string,
+      taskId: number,
       taskData: {
         text: string;
         description?: string;
         due_date?: Date;
-        is_priority: boolean;
+        is_pinned: boolean;
       }
     ) => {
       // If due date has changed and is no longer today, remove task from view
@@ -161,6 +158,11 @@ export default function TodayPage() {
         updatedDueDate.setHours(0, 0, 0, 0);
 
         if (updatedDueDate.getTime() !== today.getTime()) {
+          const task = todayTasks.find((t) => t.id === taskId);
+          if (task) {
+            dataUtils.updateTask(taskId, task.collection_id, taskData);
+          }
+
           setTodayTasks((prevTasks) =>
             prevTasks.filter((t) => t.id !== taskId)
           );
@@ -168,9 +170,26 @@ export default function TodayPage() {
         }
       }
 
-      // Otherwise update normally
+      // Find the task to update
+      const task = todayTasks.find((t) => t.id === taskId);
+      if (task) {
+        // Update in the data store
+        dataUtils.updateTask(taskId, task.collection_id, taskData);
+      }
+
+      // Update in local state
       setTodayTasks((prevTasks) =>
-        prevTasks.map((t) => (t.id === taskId ? { ...t, ...taskData } : t))
+        prevTasks.map((t) =>
+          t.id === taskId
+            ? {
+                ...t,
+                text: taskData.text,
+                description: taskData.description,
+                due_date: taskData.due_date,
+                is_pinned: taskData.is_pinned,
+              }
+            : t
+        )
       );
     },
     [todayTasks, today]
@@ -180,16 +199,12 @@ export default function TodayPage() {
   const sortedTasks = useMemo(() => {
     return [...todayTasks].sort((a, b) => {
       // Sort by pin status first (pinned items at top)
-      if (a.is_priority && !b.is_priority) return -1;
-      if (!a.is_priority && b.is_priority) return 1;
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
 
       // Then by due date (if available)
-      const aDate = a.due_date
-        ? new Date(a.due_date)
-        : new Date(a.date_created);
-      const bDate = b.due_date
-        ? new Date(b.due_date)
-        : new Date(b.date_created);
+      const aDate = a.due_date ? new Date(a.due_date) : new Date(a.created_at);
+      const bDate = b.due_date ? new Date(b.due_date) : new Date(b.created_at);
       return aDate.getTime() - bDate.getTime();
     });
   }, [todayTasks]);
@@ -197,9 +212,7 @@ export default function TodayPage() {
   // Background styles - memoized to prevent recreation on each render
   const backgroundStyle = useMemo(
     () => ({
-      background: isDark
-        ? "linear-gradient(135deg, #1a202c 0%, #2d3748 100%)"
-        : "linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%)",
+      background: isDark ? "#2d3748" : "#FAF9F6",
     }),
     [isDark]
   );
@@ -222,7 +235,8 @@ export default function TodayPage() {
             <p
               className={`text-sm mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}
             >
-              {sortedTasks.length} incomplete tasks due today
+              {sortedTasks.length} incomplete task
+              {sortedTasks.length !== 1 && "s"} due today
             </p>
           </div>
 
@@ -262,7 +276,7 @@ export default function TodayPage() {
                     id={task.id}
                     text={task.text}
                     description={task.description}
-                    date_created={new Date(task.date_created)}
+                    created_at={new Date(task.created_at)}
                     due_date={
                       task.due_date ? new Date(task.due_date) : undefined
                     }
@@ -272,7 +286,7 @@ export default function TodayPage() {
                         ? new Date(task.date_completed)
                         : undefined
                     }
-                    is_priority={task.is_priority}
+                    is_pinned={task.is_pinned || false}
                     onComplete={handleTaskComplete}
                     onPriorityChange={handleTaskPriority}
                     onTaskUpdate={handleTaskUpdate}

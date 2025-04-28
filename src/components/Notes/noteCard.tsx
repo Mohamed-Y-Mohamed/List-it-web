@@ -6,11 +6,11 @@ import { useTheme } from "@/context/ThemeContext";
 import NoteSidebar from "@/components/popupModels/notedetail";
 
 interface NoteCardProps {
-  note_id: number;
-  text: string;
-  date_created: Date;
+  id: number; // Changed from note_id to id
+  title: string; // Changed from text to title
+  created_at: Date; // Changed from date_created to created_at
   is_deleted?: boolean;
-  background_color?: string;
+  bg_color_hex?: string; // Changed from background_color to bg_color_hex
   is_pinned?: boolean;
   onPinChange?: (noteId: number, isPinned: boolean) => void;
   onColorChange?: (noteId: number, color: string) => void;
@@ -19,11 +19,11 @@ interface NoteCardProps {
 }
 
 const NoteCard = ({
-  note_id,
-  text,
-  date_created,
+  id, // Changed from note_id to id
+  title, // Changed from text to title
+  created_at, // Changed from date_created to created_at
   is_deleted = false,
-  background_color,
+  bg_color_hex, // Changed from background_color to bg_color_hex
   is_pinned = false,
   onPinChange,
   onColorChange,
@@ -33,17 +33,16 @@ const NoteCard = ({
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [noteText, setNoteText] = useState(text);
-  const [noteBackgroundColor, setNoteBackgroundColor] =
-    useState(background_color);
+  const [noteText, setNoteText] = useState(title); // Changed from text to title
+  const [noteBackgroundColor, setNoteBackgroundColor] = useState(bg_color_hex); // Changed from background_color to bg_color_hex
 
   useEffect(() => {
-    setNoteText(text);
-    setNoteBackgroundColor(background_color);
-  }, [text, background_color]);
+    setNoteText(title); // Changed from text to title
+    setNoteBackgroundColor(bg_color_hex); // Changed from background_color to bg_color_hex
+  }, [title, bg_color_hex]); // Changed dependencies
 
   const parts = noteText.split(/:\s(.+)/);
-  const title = parts.length > 1 ? parts[0] : noteText;
+  const displayTitle = parts.length > 1 ? parts[0] : noteText;
 
   const cardStyle = noteBackgroundColor
     ? { backgroundColor: noteBackgroundColor }
@@ -63,20 +62,20 @@ const NoteCard = ({
   const handlePinClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    onPinChange?.(note_id, !is_pinned);
+    onPinChange?.(id, !is_pinned); // Changed from note_id to id
   };
 
   const openSidebar = () => setIsSidebarOpen(true);
   const closeSidebar = () => setIsSidebarOpen(false);
 
-  const updateNoteColor = (id: number, color: string) => {
+  const updateNoteColor = (noteId: number, color: string) => {
     setNoteBackgroundColor(color);
-    onColorChange?.(id, color);
+    onColorChange?.(noteId, color);
   };
 
-  const updateNoteText = (id: number, updatedText: string) => {
+  const updateNoteText = (noteId: number, updatedText: string) => {
     setNoteText(updatedText);
-    onNoteUpdate?.(id, updatedText);
+    onNoteUpdate?.(noteId, updatedText);
   };
 
   return (
@@ -110,7 +109,7 @@ const NoteCard = ({
         </button>
 
         <div className="absolute bottom-0 left-0 right-0 p-2">
-          <h4 className={`font-semibold ${textColor}`}>{title}</h4>
+          <h4 className={`font-semibold ${textColor}`}>{displayTitle}</h4>
         </div>
       </div>
 
@@ -118,10 +117,10 @@ const NoteCard = ({
         isOpen={isSidebarOpen}
         onClose={closeSidebar}
         note={{
-          note_id,
-          text: noteText,
-          background_color: noteBackgroundColor,
-          date_created,
+          id, // Changed from note_id to id
+          title: noteText, // Changed from text to title
+          bg_color_hex: noteBackgroundColor, // Changed from background_color to bg_color_hex
+          created_at, // Changed from date_created to created_at
         }}
         onColorChange={updateNoteColor}
         onNoteUpdate={updateNoteText}

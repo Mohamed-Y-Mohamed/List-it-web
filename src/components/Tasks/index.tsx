@@ -7,27 +7,27 @@ import TaskSidebar from "@/components/popupModels/TasksDetails";
 import { Collection } from "@/types/schema";
 
 interface TaskCardProps {
-  id: string;
+  id: number;
   text: string;
   description?: string;
-  date_created: Date;
-  due_date?: Date;
+  created_at: Date | string | null;
+  due_date?: Date | string | null;
   is_completed: boolean;
-  date_completed?: Date;
-  is_priority: boolean;
-  onComplete: (id: string, is_completed: boolean) => void;
-  onPriorityChange: (id: string, is_priority: boolean) => void;
+  date_completed?: Date | string | null;
+  is_pinned?: boolean;
+  onComplete: (id: number, is_completed: boolean) => void;
+  onPriorityChange: (id: number, is_pinned: boolean) => void;
   onTaskUpdate?: (
-    taskId: string,
+    taskId: number,
     taskData: {
       text: string;
       description?: string;
       due_date?: Date;
-      is_priority: boolean;
+      is_pinned: boolean;
     }
   ) => void;
   collections?: Collection[];
-  onCollectionChange?: (taskId: string, collectionId: string) => void;
+  onCollectionChange?: (taskId: number, collectionId: number) => void;
   className?: string;
 }
 
@@ -35,11 +35,11 @@ const TaskCard = ({
   id,
   text,
   description,
-  date_created,
+  created_at,
   due_date,
   is_completed,
   date_completed,
-  is_priority,
+  is_pinned = false,
   onComplete,
   onPriorityChange,
   onTaskUpdate,
@@ -48,7 +48,7 @@ const TaskCard = ({
   className = "",
 }: TaskCardProps) => {
   const [isCompleted, setIsCompleted] = useState(is_completed);
-  const [isPriority, setIsPriority] = useState(is_priority);
+  const [isPinned, setIsPinned] = useState(is_pinned);
   const [taskText, setTaskText] = useState(text);
   const [taskDescription, setTaskDescription] = useState(description);
   const [taskDueDate, setTaskDueDate] = useState(due_date);
@@ -59,14 +59,25 @@ const TaskCard = ({
 
   useEffect(() => {
     setIsCompleted(is_completed);
-    setIsPriority(is_priority);
+    setIsPinned(is_pinned);
     setTaskText(text);
     setTaskDescription(description);
     setTaskDueDate(due_date);
-  }, [is_completed, is_priority, text, description, due_date]);
+  }, [is_completed, is_pinned, text, description, due_date]);
 
-  const formatDate = useCallback((date: Date) => date.toLocaleDateString(), []);
-  const createdDateFormatted = formatDate(date_created);
+  // Improved date formatting with proper null/undefined handling
+  const formatDate = useCallback((date: Date | string | null | undefined) => {
+    if (!date) return "No date";
+    try {
+      const dateObj = date instanceof Date ? date : new Date(date);
+      return dateObj.toLocaleDateString();
+    } catch (error) {
+      console.error("Invalid date:", date);
+      return "Invalid date";
+    }
+  }, []);
+
+  const createdDateFormatted = formatDate(created_at);
   const dueDateFormatted = taskDueDate
     ? formatDate(taskDueDate)
     : "No due date";
@@ -80,8 +91,8 @@ const TaskCard = ({
 
   const handlePriorityToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const newState = !isPriority;
-    setIsPriority(newState);
+    const newState = !isPinned;
+    setIsPinned(newState);
     onPriorityChange?.(id, newState);
   };
 
@@ -89,20 +100,61 @@ const TaskCard = ({
   const handleCloseSidebar = () => setIsSidebarOpen(false);
 
   const handleTaskUpdate = (
-    taskId: string,
+    taskId: number,
     taskData: {
       text: string;
       description?: string;
       due_date?: Date;
-      is_priority: boolean;
+      is_pinned: boolean;
     }
   ) => {
     setTaskText(taskData.text);
     setTaskDescription(taskData.description);
     setTaskDueDate(taskData.due_date);
-    setIsPriority(taskData.is_priority);
+    setIsPinned(taskData.is_pinned);
     onTaskUpdate?.(taskId, taskData);
   };
+
+  // Ensure we have a valid Date object for TaskSidebar
+  const getDateObject = (date: Date | string | null | undefined) => {
+    if (!date) return null;
+    try {
+      return date instanceof Date ? date : new Date(date);
+    } catch (error) {
+      console.error("Invalid date:", date);
+      return null;
+    }
+  };
+
+  const createdAtDate = getDateObject(created_at);
+  const dueDateObject = getDateObject(due_date);
+  const dateCompletedObject = getDateObject(date_completed);
+
+  // Portal container for the sidebar
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
+    null
+  );
+
+  useEffect(() => {
+    // Create or find portal container
+    let container = document.getElementById("sidebar-portal-container");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "sidebar-portal-container";
+      document.body.appendChild(container);
+    }
+    setPortalContainer(container);
+
+    // Clean up
+    return () => {
+      if (
+        document.getElementById("sidebar-portal-container") &&
+        !document.getElementById("sidebar-portal-container")?.hasChildNodes()
+      ) {
+        document.getElementById("sidebar-portal-container")?.remove();
+      }
+    };
+  }, []);
 
   return (
     <>
@@ -153,16 +205,16 @@ const TaskCard = ({
             onClick={handlePriorityToggle}
             className={`flex-shrink-0 transition-colors ${
               isDark
-                ? isPriority
+                ? isPinned
                   ? "text-orange-400"
                   : "text-gray-500 hover:text-gray-300"
-                : isPriority
+                : isPinned
                   ? "text-orange-500"
                   : "text-gray-400 hover:text-gray-600"
             }`}
-            aria-label={isPriority ? "Unpin task" : "Pin task"}
+            aria-label={isPinned ? "Unpin task" : "Pin task"}
           >
-            <Pin className={`h-5 w-5 ${isPriority ? "fill-current" : ""}`} />
+            <Pin className={`h-5 w-5 ${isPinned ? "fill-current" : ""}`} />
           </button>
         </div>
 
@@ -197,25 +249,27 @@ const TaskCard = ({
         </div>
       </div>
 
-      <TaskSidebar
-        isOpen={isSidebarOpen}
-        onClose={handleCloseSidebar}
-        task={{
-          id,
-          text: taskText,
-          description: taskDescription,
-          date_created,
-          due_date: taskDueDate,
-          is_completed: isCompleted,
-          date_completed,
-          is_priority: isPriority,
-        }}
-        onComplete={onComplete}
-        onPriorityChange={onPriorityChange}
-        onTaskUpdate={handleTaskUpdate}
-        collections={collections}
-        onCollectionChange={onCollectionChange}
-      />
+      {isSidebarOpen && portalContainer && createdAtDate && (
+        <TaskSidebar
+          isOpen={isSidebarOpen}
+          onClose={handleCloseSidebar}
+          task={{
+            id,
+            text: taskText,
+            description: taskDescription,
+            created_at: createdAtDate,
+            due_date: dueDateObject || undefined,
+            is_completed: isCompleted,
+            date_completed: dateCompletedObject || undefined,
+            is_pinned: isPinned,
+          }}
+          onComplete={onComplete}
+          onPriorityChange={onPriorityChange}
+          onTaskUpdate={handleTaskUpdate}
+          collections={collections}
+          onCollectionChange={onCollectionChange}
+        />
+      )}
     </>
   );
 };

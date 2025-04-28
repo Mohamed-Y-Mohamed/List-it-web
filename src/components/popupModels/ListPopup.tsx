@@ -12,7 +12,7 @@ interface CreateListModalProps {
   onSubmit: (
     listData: Omit<
       List,
-      "id" | "date_created" | "tasks" | "notes" | "collections"
+      "id" | "created_at" | "tasks" | "notes" | "collections"
     >
   ) => void;
 }
@@ -59,9 +59,10 @@ const CreateListModal = ({
     e.preventDefault();
     if (listName.trim()) {
       onSubmit({
-        name: listName.trim(),
-        background_color: selectedColor,
+        list_name: listName.trim(), // Changed from name to list_name
+        bg_color_hex: selectedColor, // Changed from background_color to bg_color_hex
         is_default: false,
+        is_pinned: false, // Added new field from database schema
       });
       onClose();
     }

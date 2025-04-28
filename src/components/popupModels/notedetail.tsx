@@ -9,10 +9,10 @@ interface NoteSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   note: {
-    note_id: number;
-    text: string;
-    background_color?: string;
-    date_created: Date;
+    id: number; // Changed from note_id to id
+    title: string; // Changed from text to title
+    bg_color_hex?: string; // Changed from background_color to bg_color_hex
+    created_at: Date; // Changed from date_created to created_at
   };
   onColorChange: (noteId: number, color: string) => void;
   onNoteUpdate?: (noteId: number, updatedText: string) => void;
@@ -29,33 +29,33 @@ const NoteDetails = ({
   const isDark = theme === "dark";
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  const [title, setTitle] = useState("");
+  const [noteTitle, setNoteTitle] = useState("");
   const [content, setContent] = useState("");
 
   useEffect(() => {
-    const parts = note.text.split(/:\s(.+)/);
-    setTitle(parts.length > 1 ? parts[0] : note.text);
+    const parts = note.title.split(/:\s(.+)/);
+    setNoteTitle(parts.length > 1 ? parts[0] : note.title);
     setContent(parts.length > 1 ? parts[1] : "");
-  }, [note.text]);
+  }, [note.title]);
 
   const handleSaveNote = () => {
-    const updatedText = content ? `${title}: ${content}` : title;
+    const updatedText = content ? `${noteTitle}: ${content}` : noteTitle;
 
-    if (updatedText !== note.text && onNoteUpdate) {
-      onNoteUpdate(note.note_id, updatedText);
+    if (updatedText !== note.title && onNoteUpdate) {
+      onNoteUpdate(note.id, updatedText);
     }
 
     onClose();
   };
 
   const handleColorSelect = (color: string) => {
-    onColorChange(note.note_id, color);
+    onColorChange(note.id, color);
   };
 
   if (!isOpen) return null;
 
-  const useWhiteText = note.background_color
-    ? !["#FFD60A", "#34C759", "#00C7BE"].includes(note.background_color)
+  const useWhiteText = note.bg_color_hex
+    ? !["#FFD60A", "#34C759", "#00C7BE"].includes(note.bg_color_hex)
     : isDark;
 
   const textInputBase =
@@ -70,8 +70,8 @@ const NoteDetails = ({
     ? "bg-gray-800 text-white"
     : "bg-white text-gray-800";
 
-  const formattedDate = note.date_created
-    ? new Date(note.date_created).toLocaleDateString(undefined, {
+  const formattedDate = note.created_at
+    ? new Date(note.created_at).toLocaleDateString(undefined, {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -136,8 +136,8 @@ const NoteDetails = ({
             <input
               id="note-title"
               type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={noteTitle}
+              onChange={(e) => setNoteTitle(e.target.value)}
               className={`${textInputBase} ${textInputStyle}`}
             />
           </div>
@@ -168,7 +168,7 @@ const NoteDetails = ({
                   key={color}
                   onClick={() => handleColorSelect(color)}
                   className={`h-10 w-10 rounded-full relative shadow-md hover:shadow-lg transition-shadow border-2 ${
-                    color === note.background_color
+                    color === note.bg_color_hex
                       ? isDark
                         ? "border-orange-500"
                         : "border-sky-500"
@@ -177,7 +177,7 @@ const NoteDetails = ({
                   style={{ backgroundColor: color }}
                   aria-label={`Select color ${color}`}
                 >
-                  {color === note.background_color && (
+                  {color === note.bg_color_hex && (
                     <Check className="absolute top-2 left-2 h-5 w-5 text-white drop-shadow-md" />
                   )}
                 </button>
