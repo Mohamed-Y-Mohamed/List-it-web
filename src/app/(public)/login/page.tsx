@@ -159,10 +159,10 @@ const Login = () => {
 
   const handleGoogleLogin = async () => {
     try {
-      // Don't specify a redirectTo - let Supabase handle it with its defaults
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
+          redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
           queryParams: {
             access_type: "offline",
             prompt: "consent",
