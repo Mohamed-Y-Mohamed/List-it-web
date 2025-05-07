@@ -65,7 +65,6 @@ export async function middleware(request: NextRequest) {
       sameSite: "lax",
       httpOnly: false, // Allow JavaScript access for client-side auth context
     });
-
     response.cookies.set("isLoggedIn", "true", {
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 1 week
@@ -79,7 +78,6 @@ export async function middleware(request: NextRequest) {
       maxAge: 0,
       sameSite: "lax",
     });
-
     response.cookies.set("isLoggedIn", "", {
       path: "/",
       maxAge: 0,
@@ -90,9 +88,6 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-// Configure which routes the middleware should run on
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/|auth/callback|images/).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|auth/callback).*)"],
 };

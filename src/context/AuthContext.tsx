@@ -63,10 +63,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // We have a valid session
           setIsLoggedIn(true);
           setUser(data.session.user);
-
-          // Set cookies for middleware
-          document.cookie = `auth_token=${data.session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-          document.cookie = `isLoggedIn=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
         } else {
           setIsLoggedIn(false);
           setUser(null);
@@ -83,6 +79,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up auth state listener
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.email);
+
         if (event === "SIGNED_IN" && session) {
           setIsLoggedIn(true);
           setUser(session.user);
@@ -90,6 +88,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Set cookies for middleware
           document.cookie = `auth_token=${session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
           document.cookie = `isLoggedIn=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+
+          // Navigate to dashboard after sign in
+          router.push("/dashboard");
         } else if (event === "SIGNED_OUT") {
           setIsLoggedIn(false);
           setUser(null);
@@ -106,7 +107,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [router]);
+
+  // Updated Google OAuth login method
+  const loginWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          // Remove any redirectTo parameter
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Google login error:", error);
+      throw error;
+    }
+  };
+
+  // Updated Apple OAuth login method
+  const loginWithApple = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        // Don't specify redirectTo for Apple either to maintain consistency
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Apple login error:", error);
+      throw error;
+    }
+  };
 
   // Login function
   const login = async (email: string, password: string) => {
@@ -133,34 +170,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       console.error("Login error:", error);
       return { success: false, error };
-    }
-  };
-
-  // Login with Google
-  const loginWithGoogle = async () => {
-    try {
-      await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-    } catch (error) {
-      console.error("Google login error:", error);
-    }
-  };
-
-  // Login with Apple
-  const loginWithApple = async () => {
-    try {
-      await supabase.auth.signInWithOAuth({
-        provider: "apple",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-    } catch (error) {
-      console.error("Apple login error:", error);
     }
   };
 

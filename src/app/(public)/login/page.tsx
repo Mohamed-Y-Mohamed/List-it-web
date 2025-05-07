@@ -155,12 +155,18 @@ const Login = () => {
   };
 
   // Handle login with Google
+  // In Login.tsx - just update these functions, leave everything else as is
+
   const handleGoogleLogin = async () => {
     try {
+      // Don't specify a redirectTo - let Supabase handle it with its defaults
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
         },
       });
 
@@ -171,13 +177,12 @@ const Login = () => {
     }
   };
 
-  // Handle login with Apple
   const handleAppleLogin = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "apple",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `http://localhost:3000/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
         },
       });
 
@@ -200,7 +205,7 @@ const Login = () => {
       const { error } = await supabase.auth.resetPasswordForEmail(
         email.trim(),
         {
-          redirectTo: `${window.location.origin}/reset-password`,
+          redirectTo: `$http://localhost:3000/reset-password`,
         }
       );
 

@@ -1,3 +1,5 @@
+// types/schema.ts
+
 // Note Interface
 export interface Note {
   id: number;
@@ -13,32 +15,29 @@ export interface Note {
 // Task Interface
 export interface Task {
   id: number;
-  created_at: Date;
-  collection_id?: number;
   text: string;
-  list_id: number;
-  description?: string;
-  due_date?: Date;
+  description?: string | null; // Changed from string | undefined
+  created_at: Date;
+  due_date?: Date | null; // Changed from Date | undefined
   is_completed: boolean;
-  date_completed?: Date;
+  date_completed?: Date | null; // Changed from Date | undefined
   is_deleted: boolean;
-  is_pinned?: boolean;
+  collection_id?: number | null;
+  list_id: number;
+  is_pinned: boolean;
+  user_id?: string;
 }
-
 // Collection Interface
 export interface Collection {
   id: number;
-  list_id?: number;
-  created_at: Date;
   collection_name: string;
   bg_color_hex: string;
+  created_at: Date;
   is_default?: boolean;
-  content_count?: number;
-  tasks?: Task[];
-  notes?: Note[];
+  tasks: Task[];
+  notes: Note[];
   isPinned?: boolean;
 }
-
 // List Interface
 export interface List {
   id: number;
@@ -49,6 +48,7 @@ export interface List {
   bg_color_hex: string;
   type?: string;
   is_pinned?: boolean;
+  user_id?: string;
   tasks?: Task[];
   notes?: Note[];
   collections?: Collection[];

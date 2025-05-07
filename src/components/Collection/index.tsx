@@ -25,12 +25,13 @@ interface CollectionComponentProps {
   allCollections?: Collection[];
   onTaskComplete: (taskId: number, is_completed: boolean) => void;
   onTaskPriority: (taskId: number, is_pinned: boolean) => void;
+  onTaskDelete?: (taskId: number) => void;
   onTaskUpdate?: (
     taskId: number,
     taskData: {
       text: string;
-      description?: string;
-      due_date?: Date;
+      description?: string | null;
+      due_date?: Date | null;
       is_pinned: boolean;
     }
   ) => void;
@@ -55,6 +56,8 @@ const CollectionComponent = ({
   notes = [],
   onTaskComplete,
   onTaskPriority,
+  onTaskUpdate,
+  onTaskDelete,
   onNotePin,
   onNoteColorChange,
   onNoteUpdate,
@@ -229,6 +232,8 @@ const CollectionComponent = ({
                         {...task}
                         onComplete={onTaskComplete}
                         onPriorityChange={onTaskPriority}
+                        onTaskUpdate={onTaskUpdate}
+                        onTaskDelete={onTaskDelete}
                       />
                     ))}
                   </div>
@@ -247,6 +252,8 @@ const CollectionComponent = ({
                       {...task}
                       onComplete={onTaskComplete}
                       onPriorityChange={onTaskPriority}
+                      onTaskUpdate={onTaskUpdate}
+                      onTaskDelete={onTaskDelete}
                     />
                   ))}
                 </div>

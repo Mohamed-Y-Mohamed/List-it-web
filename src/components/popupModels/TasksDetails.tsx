@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { X, Check, Calendar } from "lucide-react";
+import { X, Check, Calendar, AlertTriangle, Trash2 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Collection } from "@/types/schema";
 import { createPortal } from "react-dom";
+import { supabase } from "@/utils/client";
 
 interface TaskSidebarProps {
   isOpen: boolean;
@@ -12,11 +13,11 @@ interface TaskSidebarProps {
   task: {
     id: number;
     text: string;
-    description?: string;
+    description?: string | null;
     created_at: Date;
-    due_date?: Date;
+    due_date?: Date | null;
     is_completed: boolean;
-    date_completed?: Date;
+    date_completed?: Date | null;
     is_pinned: boolean;
   };
   onComplete: (taskId: number, is_completed: boolean) => void;
@@ -25,13 +26,14 @@ interface TaskSidebarProps {
     taskId: number,
     taskData: {
       text: string;
-      description?: string;
-      due_date?: Date;
+      description?: string | null;
+      due_date?: Date | null;
       is_pinned: boolean;
     }
   ) => void;
   collections?: Collection[];
   onCollectionChange?: (taskId: number, collectionId: number) => void;
+  onTaskDelete?: (taskId: number) => void;
 }
 
 const TaskSidebar = ({
@@ -43,6 +45,7 @@ const TaskSidebar = ({
   onTaskUpdate,
   collections,
   onCollectionChange,
+  onTaskDelete,
 }: TaskSidebarProps) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -54,11 +57,13 @@ const TaskSidebar = ({
   );
   const [isPinned, setIsPinned] = useState(task.is_pinned);
   const [dueDate, setDueDate] = useState(
-    task.due_date ? new Date(task.due_date).toISOString().split("T")[0] : ""
+    task.due_date ? formatDateForInput(task.due_date) : ""
   );
   const [selectedCollectionId, setSelectedCollectionId] = useState<
     number | null
   >(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setTaskName(task.text);
@@ -67,9 +72,7 @@ const TaskSidebar = ({
     setDueDate(task.due_date ? formatDateForInput(task.due_date) : "");
   }, [task]);
 
-  const formatDateForInput = (
-    date: Date | string | null | undefined
-  ): string => {
+  function formatDateForInput(date: Date | string | null | undefined): string {
     if (!date) return "";
     try {
       const dateObj = date instanceof Date ? date : new Date(date);
@@ -78,7 +81,7 @@ const TaskSidebar = ({
       console.error("Invalid date for input:", date);
       return "";
     }
-  };
+  }
 
   // Format date safely for display
   const formatDateForDisplay = (
@@ -98,7 +101,11 @@ const TaskSidebar = ({
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
-        handleClose();
+        if (showDeleteConfirmation) {
+          setShowDeleteConfirmation(false);
+        } else {
+          handleClose();
+        }
       }
     };
 
@@ -111,35 +118,99 @@ const TaskSidebar = ({
       window.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = ""; // Restore scrolling
     };
-  }, [isOpen]);
+  }, [isOpen, showDeleteConfirmation]);
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     // Close without saving when clicking outside
     if (e.target === e.currentTarget) {
-      handleClose();
+      if (showDeleteConfirmation) {
+        setShowDeleteConfirmation(false);
+      } else {
+        handleClose();
+      }
     }
   };
 
   const handleSave = () => {
+    // First, properly parse the date value for comparison
+    const oldDueDate = task.due_date
+      ? new Date(task.due_date).toISOString().split("T")[0]
+      : "";
+    const newDueDate = dueDate
+      ? new Date(dueDate).toISOString().split("T")[0]
+      : "";
+
+    // Check if anything has changed
     const hasChanged =
       taskName !== task.text ||
       taskDescription !== (task.description || "") ||
       isPinned !== task.is_pinned ||
-      (dueDate && new Date(dueDate).toDateString()) !==
-        (task.due_date && new Date(task.due_date).toDateString());
+      newDueDate !== oldDueDate; // Compare formatted dates
 
     if (hasChanged && onTaskUpdate) {
-      onTaskUpdate(task.id, {
+      // Prepare the task data for update
+      const updateData = {
         text: taskName,
-        description: taskDescription || undefined,
+        description: taskDescription || null, // Use null for the database
+        due_date: dueDate ? new Date(dueDate) : null, // Convert to Date object or null
         is_pinned: isPinned,
-        due_date: dueDate ? new Date(dueDate) : undefined,
-      });
+      };
+
+      // Log what we're sending to make sure the data is correct
+      console.log("Updating task with data from sidebar:", updateData);
+
+      // Call the update function with the properly formatted data
+      onTaskUpdate(task.id, updateData);
     }
 
     onClose();
   };
 
+  // With this function:
+  const handleTaskDelete = async (taskId: number) => {
+    try {
+      // Hard delete - completely remove the task from the database
+      const { error } = await supabase.from("task").delete().eq("id", taskId);
+
+      if (error) throw error;
+
+      return { success: true };
+    } catch (err) {
+      console.error("Error deleting task:", err);
+      return { success: false, error: err };
+    }
+  };
+
+  // 2. Then, update the handleConfirmDelete function in TaskSidebar.tsx:
+
+  const handleConfirmDelete = async () => {
+    if (isDeleting) return; // Prevent multiple clicks
+
+    setIsDeleting(true);
+
+    try {
+      // Hard delete the task from the database
+      const { error } = await supabase.from("task").delete().eq("id", task.id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Call the onTaskDelete callback if provided
+      if (onTaskDelete) {
+        onTaskDelete(task.id);
+      }
+
+      // Close the sidebar
+      onClose();
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      // Show an error message to the user (you could add state for this)
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirmation(false);
+    }
+  };
   // Close without saving when clicking outside
   const handleClose = () => {
     onClose();
@@ -157,6 +228,14 @@ const TaskSidebar = ({
     if (onCollectionChange && !isNaN(collectionId)) {
       onCollectionChange(task.id, collectionId);
     }
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirmation(true);
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirmation(false);
   };
 
   const today = new Date().toISOString().split("T")[0];
@@ -312,7 +391,82 @@ const TaskSidebar = ({
               </p>
             )}
           </div>
+
+          {/* Delete Task Section */}
+          <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+            <button
+              onClick={handleDeleteClick}
+              className={`w-full flex items-center justify-center space-x-2 p-3 rounded-md ${
+                isDark
+                  ? "bg-red-900/30 text-red-300 hover:bg-red-900/50"
+                  : "bg-red-50 text-red-600 hover:bg-red-100"
+              }`}
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Delete Task</span>
+            </button>
+          </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirmation && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={handleCancelDelete}
+            ></div>
+            <div
+              className={`relative w-full max-w-sm p-6 rounded-lg shadow-xl ${
+                isDark ? "bg-gray-800" : "bg-white"
+              }`}
+            >
+              <div className="flex items-center space-x-3 mb-4">
+                <div
+                  className={`p-2 rounded-full ${
+                    isDark ? "bg-red-900/30" : "bg-red-100"
+                  }`}
+                >
+                  <AlertTriangle
+                    className={`w-6 h-6 ${
+                      isDark ? "text-red-300" : "text-red-600"
+                    }`}
+                  />
+                </div>
+                <h3 className="text-lg font-semibold">Delete Task</h3>
+              </div>
+
+              <p className={`mb-6 ${textColor}`}>
+                Are you sure you want to delete "{task.text}"? This action
+                cannot be undone.
+              </p>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={handleCancelDelete}
+                  className={`px-4 py-2 rounded-md ${
+                    isDark
+                      ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                      : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                  }`}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  className={`px-4 py-2 rounded-md ${
+                    isDark
+                      ? "bg-red-700 hover:bg-red-600 text-white"
+                      : "bg-red-600 hover:bg-red-700 text-white"
+                  } ${isDeleting ? "opacity-70 cursor-not-allowed" : ""}`}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>,
     document.body

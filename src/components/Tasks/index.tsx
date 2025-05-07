@@ -9,7 +9,7 @@ import { Collection } from "@/types/schema";
 interface TaskCardProps {
   id: number;
   text: string;
-  description?: string;
+  description?: string | null;
   created_at: Date | string | null;
   due_date?: Date | string | null;
   is_completed: boolean;
@@ -21,16 +21,16 @@ interface TaskCardProps {
     taskId: number,
     taskData: {
       text: string;
-      description?: string;
-      due_date?: Date;
+      description?: string | null;
+      due_date?: Date | null;
       is_pinned: boolean;
     }
   ) => void;
+  onTaskDelete?: (taskId: number) => void;
   collections?: Collection[];
   onCollectionChange?: (taskId: number, collectionId: number) => void;
   className?: string;
 }
-
 const TaskCard = ({
   id,
   text,
@@ -43,6 +43,7 @@ const TaskCard = ({
   onComplete,
   onPriorityChange,
   onTaskUpdate,
+  onTaskDelete,
   collections,
   onCollectionChange,
   className = "",
@@ -103,8 +104,8 @@ const TaskCard = ({
     taskId: number,
     taskData: {
       text: string;
-      description?: string;
-      due_date?: Date;
+      description?: string | null;
+      due_date?: Date | null;
       is_pinned: boolean;
     }
   ) => {
@@ -258,14 +259,15 @@ const TaskCard = ({
             text: taskText,
             description: taskDescription,
             created_at: createdAtDate,
-            due_date: dueDateObject || undefined,
+            due_date: dueDateObject,
             is_completed: isCompleted,
-            date_completed: dateCompletedObject || undefined,
+            date_completed: dateCompletedObject,
             is_pinned: isPinned,
           }}
           onComplete={onComplete}
           onPriorityChange={onPriorityChange}
           onTaskUpdate={handleTaskUpdate}
+          onTaskDelete={onTaskDelete}
           collections={collections}
           onCollectionChange={onCollectionChange}
         />

@@ -10,7 +10,7 @@ interface CreateCollectionModalProps {
   onClose: () => void;
   onSubmit: (collectionData: {
     collection_name: string;
-    bg_color_hex: string; // Changed from background_color to bg_color_hex
+    bg_color_hex: string;
   }) => void;
 }
 
@@ -25,6 +25,8 @@ const CreateCollectionModal = ({
   const [selectedColor, setSelectedColor] = useState<
     (typeof LIST_COLORS)[number]
   >(LIST_COLORS[0]); // Default to first color
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -60,17 +62,33 @@ const CreateCollectionModal = ({
     if (!isOpen) {
       setCollectionName("");
       setSelectedColor(LIST_COLORS[0]);
+      setError(null);
     }
   }, [isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (collectionName.trim()) {
-      onSubmit({
-        collection_name: collectionName,
-        bg_color_hex: selectedColor, // Changed from background_color to bg_color_hex
+    if (!collectionName.trim()) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Pass the collection data to parent component
+      await onSubmit({
+        collection_name: collectionName.trim(),
+        bg_color_hex: selectedColor,
       });
+
+      // Close the modal
       onClose();
+    } catch (err) {
+      console.error("Error submitting collection:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to create collection"
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -79,8 +97,7 @@ const CreateCollectionModal = ({
   return (
     <>
       <div
-        className="fixed inset-0 z-40 backdrop-blur-md"
-        style={{ backgroundColor: "rgba(0, 0, 0, 0.25)" }}
+        className="fixed inset-0 z-40 backdrop-blur-md bg-black bg-opacity-50"
         onClick={onClose}
       />
 
@@ -108,10 +125,17 @@ const CreateCollectionModal = ({
                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
               }`}
               aria-label="Close"
+              disabled={isLoading}
             >
               <X className="h-5 w-5" />
             </button>
           </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 rounded-md">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
@@ -138,6 +162,8 @@ const CreateCollectionModal = ({
                   isDark ? "focus:border-orange-500" : "focus:border-sky-500"
                 }`}
                 required
+                maxLength={50}
+                disabled={isLoading}
               />
             </div>
 
@@ -162,6 +188,7 @@ const CreateCollectionModal = ({
                     }`}
                     onClick={() => setSelectedColor(color)}
                     aria-label={`Select ${color} color`}
+                    disabled={isLoading}
                   >
                     {selectedColor === color && (
                       <Check className="h-4 w-4 text-white" />
@@ -180,6 +207,7 @@ const CreateCollectionModal = ({
                     ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                 }`}
+                disabled={isLoading}
               >
                 Cancel
               </button>
@@ -189,10 +217,33 @@ const CreateCollectionModal = ({
                   isDark
                     ? "bg-orange-600 text-white hover:bg-orange-700"
                     : "bg-sky-500 text-white hover:bg-sky-600"
-                }`}
-                disabled={!collectionName.trim()}
+                } flex items-center justify-center min-w-[80px]`}
+                disabled={isLoading || !collectionName.trim()}
               >
-                Create
+                {isLoading ? (
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                ) : (
+                  "Create"
+                )}
               </button>
             </div>
           </form>
