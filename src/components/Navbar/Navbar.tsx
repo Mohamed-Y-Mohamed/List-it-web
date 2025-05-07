@@ -25,29 +25,18 @@ import {
   CalendarPlus2,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { useAuth } from "@/context/AuthContext"; // Import useAuth hook
+import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
-import CreateListModal from "@/components/popupModels/ListPopup"; // Import the CreateListModal component
-
-// Updated interface to match schema
-interface List {
-  id: number;
-  created_at: Date;
-  list_name: string;
-  bg_color_hex: string;
-  is_default?: boolean;
-  is_pinned?: boolean;
-  tasks?: any[];
-  notes?: any[];
-  collections?: any[];
-}
+import CreateListModal from "@/components/popupModels/ListPopup";
+import { supabase } from "@/utils/client";
+import { List, Collection, Task, Note } from "@/types/schema";
 
 // Main navigation component that should wrap the page content
 const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
-  const { isLoggedIn, user, logout } = useAuth(); // Use the auth context
+  const { isLoggedIn, user, logout } = useAuth();
   const isDark = theme === "dark";
   const currentPath = pathname;
 
@@ -59,43 +48,38 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
   const [isDeleteListModalOpen, setIsDeleteListModalOpen] = useState(false);
   const [listToDelete, setListToDelete] = useState<number | null>(null);
   const [isTablet, setIsTablet] = useState(false);
-  const [lists, setLists] = useState<List[]>([
-    {
-      id: 1,
-      list_name: "Work",
-      bg_color_hex: "#3b82f6", // blue-500
-      created_at: new Date(),
-      is_default: false,
-      is_pinned: false,
-      tasks: [],
-      notes: [],
-      collections: [],
-    },
-    {
-      id: 2,
-      list_name: "Personal",
-      bg_color_hex: "#10b981", // emerald-500
-      created_at: new Date(),
-      is_default: false,
-      is_pinned: false,
-      tasks: [],
-      notes: [],
-      collections: [],
-    },
-    {
-      id: 3,
-      list_name: "Shopping",
-      bg_color_hex: "#f59e0b", // amber-500
-      created_at: new Date(),
-      is_default: false,
-      is_pinned: false,
-      tasks: [],
-      notes: [],
-      collections: [],
-    },
-  ]);
+  const [lists, setLists] = useState<List[]>([]);
+  const [isLoadingLists, setIsLoadingLists] = useState(true);
 
-  // Sort lists with pinned lists at the top
+  useEffect(() => {
+    const fetchLists = async () => {
+      if (!isLoggedIn || !user) {
+        setLists([]);
+        setIsLoadingLists(false);
+        return;
+      }
+
+      try {
+        setIsLoadingLists(true);
+        const { data, error } = await supabase
+          .from("list")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        setLists(data || []);
+      } catch (error) {
+        console.error("Error fetching lists:", error);
+      } finally {
+        setIsLoadingLists(false);
+      }
+    };
+
+    fetchLists();
+  }, [isLoggedIn, user]);
+
   const sortedLists = useMemo(() => {
     return [...lists].sort((a, b) => {
       if (a.is_pinned && !b.is_pinned) return -1;
@@ -112,7 +96,6 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
 
   const navigateTo = (path: string) => {
     router.push(path);
-    // Close sidebar on all mobile and tablet devices
     if (window.innerWidth < 1024) {
       setSidebarOpen(false);
       setIsMobileMenuOpen(false);
@@ -123,7 +106,23 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
     navigateTo(`/List/${listId}`);
   };
 
-  const handleTogglePinList = (listId: number) => {
+  const handleTogglePinList = async (listId: number) => {
+    if (!user) return;
+
+    const currentList = lists.find((list) => list.id === listId);
+    if (!currentList) return;
+
+    const { error } = await supabase
+      .from("list")
+      .update({ is_pinned: !currentList.is_pinned })
+      .eq("id", listId)
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("Error updating list pin status:", error);
+      return;
+    }
+
     setLists((prevLists) =>
       prevLists.map((list) =>
         list.id === listId ? { ...list, is_pinned: !list.is_pinned } : list
@@ -131,66 +130,264 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
     );
   };
 
-  const handleCreateList = (
+  const handleCreateList = async (
     listData: Omit<
       List,
-      "id" | "created_at" | "tasks" | "notes" | "collections" | "is_pinned"
+      "id" | "created_at" | "tasks" | "notes" | "collections"
     >
   ) => {
-    const lastId = lists.reduce((max, list) => {
-      return list.id > max ? list.id : max;
-    }, 0);
+    try {
+      setIsLoadingLists(true);
 
-    const newList: List = {
-      ...listData,
-      id: lastId + 1,
-      created_at: new Date(),
-      is_pinned: false,
-      tasks: [],
-      notes: [],
-      collections: [],
-    };
+      if (!user) {
+        console.error("No user found when creating list");
+        setIsLoadingLists(false);
+        return;
+      }
 
-    setLists((prev) => [...prev, newList]);
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Navigate to the newly created list
-    navigateTo(`/List/${newList.id}`);
+      const { data: listByName, error: nameError } = await supabase
+        .from("list")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("list_name", listData.list_name)
+        .order("created_at", { ascending: false });
+
+      if (!nameError && listByName && listByName.length > 0) {
+        const createdList = listByName[0];
+
+        const { data: collections, error: collectionsError } = await supabase
+          .from("collection")
+          .select("*")
+          .eq("list_id", createdList.id);
+
+        if (!collectionsError && (!collections || collections.length === 0)) {
+          const { error: createCollectionError } = await supabase
+            .from("collection")
+            .insert([
+              {
+                list_id: createdList.id,
+                collection_name: "General",
+                bg_color_hex: createdList.bg_color_hex,
+                is_default: true,
+              },
+            ]);
+
+          if (createCollectionError) {
+            console.error(
+              "Error creating General collection:",
+              createCollectionError
+            );
+          }
+        }
+
+        const { data: allLists } = await supabase
+          .from("list")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (allLists) {
+          setLists(allLists);
+        }
+
+        navigateTo(`/List/${createdList.id}`);
+        setIsLoadingLists(false);
+        return;
+      }
+
+      const { data: recentLists, error: recentError } = await supabase
+        .from("list")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (!recentError && recentLists && recentLists.length > 0) {
+        const recentList = recentLists[0];
+
+        const { data: collections, error: collectionsError } = await supabase
+          .from("collection")
+          .select("*")
+          .eq("list_id", recentList.id);
+
+        if (!collectionsError && (!collections || collections.length === 0)) {
+          const { error: createCollectionError } = await supabase
+            .from("collection")
+            .insert([
+              {
+                list_id: recentList.id,
+                collection_name: "General",
+                bg_color_hex: recentList.bg_color_hex,
+                is_default: true,
+              },
+            ]);
+
+          if (createCollectionError) {
+            console.error(
+              "Error creating General collection:",
+              createCollectionError
+            );
+          }
+        }
+
+        const { data: allLists } = await supabase
+          .from("list")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (allLists) {
+          setLists(allLists);
+        }
+
+        // Navigate to the most recent list
+        navigateTo(`/List/${recentList.id}`);
+        setIsLoadingLists(false);
+        return;
+      }
+
+      // If both approaches failed, just get all lists and refresh the state
+      const { data: allLists } = await supabase
+        .from("list")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (allLists && allLists.length > 0) {
+        setLists(allLists);
+
+        // Check the first list for collections
+        const firstList = allLists[0];
+
+        // Check if this list has any collections
+        const { data: collections, error: collectionsError } = await supabase
+          .from("collection")
+          .select("*")
+          .eq("list_id", firstList.id);
+
+        if (!collectionsError && (!collections || collections.length === 0)) {
+          // No collections found, create a General collection
+          const { error: createCollectionError } = await supabase
+            .from("collection")
+            .insert([
+              {
+                list_id: firstList.id,
+                collection_name: "General",
+                bg_color_hex: firstList.bg_color_hex,
+                is_default: true,
+              },
+            ]);
+
+          if (createCollectionError) {
+            console.error(
+              "Error creating General collection:",
+              createCollectionError
+            );
+          }
+        }
+
+        // Navigate to the first list
+        navigateTo(`/List/${firstList.id}`);
+      }
+    } catch (err) {
+      console.error("Error handling list creation:", err);
+    } finally {
+      setIsLoadingLists(false);
+    }
   };
 
-  const handleDeleteList = (listId: number) => {
-    // Find the list to delete
-    const listToDelete = lists.find((list) => list.id === listId);
-    if (!listToDelete) return;
+  const handleDeleteList = async (listId: number) => {
+    if (!user) return;
 
-    // Remove the list from the lists array
-    setLists((prev) => prev.filter((list) => list.id !== listId));
+    try {
+      // First, get all collections for this list
+      const { data: collections, error: collectionsQueryError } = await supabase
+        .from("collection")
+        .select("id")
+        .eq("list_id", listId);
 
-    // If we deleted the current list, navigate to another list or dashboard
-    if (currentListId === listId.toString()) {
-      // If there are other lists, navigate to the first one
-      if (lists.length > 1) {
-        const nextList = lists.find((list) => list.id !== listId);
-        if (nextList) {
-          navigateTo(`/List/${nextList.id}`);
+      if (collectionsQueryError) throw collectionsQueryError;
+
+      // If there are collections, delete their associated tasks and notes
+      if (collections && collections.length > 0) {
+        const collectionIds = collections.map((c) => c.id);
+
+        // Delete tasks associated with these collections
+        const { error: tasksError } = await supabase
+          .from("task")
+          .delete()
+          .in("collection_id", collectionIds);
+
+        if (tasksError) throw tasksError;
+
+        // Delete notes associated with these collections
+        const { error: notesError } = await supabase
+          .from("note")
+          .delete()
+          .in("collection_id", collectionIds);
+
+        if (notesError) throw notesError;
+      }
+
+      // Delete tasks associated directly with the list (not through a collection)
+      const { error: listTasksError } = await supabase
+        .from("task")
+        .delete()
+        .eq("list_id", listId);
+
+      if (listTasksError) throw listTasksError;
+
+      // Then delete all collections for this list
+      const { error: collectionsError } = await supabase
+        .from("collection")
+        .delete()
+        .eq("list_id", listId);
+
+      if (collectionsError) throw collectionsError;
+
+      // Finally delete the list itself
+      const { error: listError } = await supabase
+        .from("list")
+        .delete()
+        .eq("id", listId)
+        .eq("user_id", user.id);
+
+      if (listError) throw listError;
+
+      // Update local state
+      setLists((prevLists) => prevLists.filter((list) => list.id !== listId));
+
+      // If we deleted the current list, navigate to another list or dashboard
+      if (currentListId === listId.toString()) {
+        // If there are other lists, navigate to the first one
+        if (lists.length > 1) {
+          const nextList = lists.find((list) => list.id !== listId);
+          if (nextList) {
+            navigateTo(`/List/${nextList.id}`);
+          } else {
+            navigateTo("/dashboard");
+          }
         } else {
+          // If this was the last list, navigate to dashboard
           navigateTo("/dashboard");
         }
-      } else {
-        // If this was the last list, navigate to dashboard
-        navigateTo("/dashboard");
       }
+    } catch (error) {
+      console.error("Error deleting list:", error);
+    } finally {
+      // Close the modal
+      setListToDelete(null);
+      setIsDeleteListModalOpen(false);
     }
-
-    // Close the modal
-    setListToDelete(null);
-    setIsDeleteListModalOpen(false);
   };
 
   // Handle logout using auth context
   const handleLogout = async () => {
     try {
       await logout();
-      navigateTo("/");
+      // Navigation to home is already handled in your auth context
     } catch (error) {
       console.error("Logout error:", error);
     }
@@ -628,7 +825,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                     Priority
                   </span>
                 )}
-              </button>{" "}
+              </button>
               <button
                 onClick={() => navigateTo("/notcomplete")}
                 className={`flex w-full items-center px-3 py-2 rounded-md ${
@@ -714,115 +911,134 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                   !sidebarOpen ? "flex flex-col items-center" : ""
                 }`}
               >
-                {sortedLists.map((list) => (
+                {isLoadingLists ? (
+                  <div className="flex justify-center py-4">
+                    <div
+                      className={`animate-spin rounded-full h-5 w-5 border-b-2 ${isDark ? "border-orange-400" : "border-sky-500"}`}
+                    ></div>
+                  </div>
+                ) : sortedLists.length === 0 ? (
                   <div
-                    key={list.id}
-                    className={`flex items-center w-full rounded-md ${
-                      currentListId === list.id.toString()
-                        ? isDark
-                          ? "bg-gray-800"
-                          : "bg-gray-100"
-                        : ""
-                    } ${
-                      isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-                    } transition-colors`}
+                    className={`text-center py-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}
                   >
-                    <button
-                      onClick={() => handleListClick(list.id)}
-                      className={`flex-grow ${
-                        sidebarOpen
-                          ? "flex items-center px-3 py-2 text-left"
-                          : "p-2 flex justify-center"
-                      }`}
-                    >
-                      <ListTodo
-                        className="h-5 w-5 flex-shrink-0"
-                        style={{
-                          color: list.bg_color_hex,
-                          fill: list.bg_color_hex,
-                          fillOpacity: 0.2,
-                        }}
-                      />
-                      {sidebarOpen && (
-                        <span className="ml-3 text-sm font-medium truncate">
-                          {list.list_name}
-                        </span>
-                      )}
-                    </button>
+                    <p className="text-sm">No lists yet</p>
                     {sidebarOpen && (
-                      <div className="flex mr-1">
-                        {/* Pin Button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleTogglePinList(list.id);
-                          }}
-                          className={`p-1.5 ${
-                            list.is_pinned
-                              ? isDark
-                                ? "text-orange-400"
-                                : "text-orange-500"
-                              : isDark
-                                ? "text-gray-500 hover:text-gray-400"
-                                : "text-gray-400 hover:text-gray-500"
-                          } transition-colors`}
-                          aria-label={
-                            list.is_pinned ? "Unpin list" : "Pin list"
-                          }
-                          title={list.is_pinned ? "Unpin list" : "Pin list"}
-                        >
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                            style={{
-                              color: list.is_pinned
-                                ? list.bg_color_hex
-                                : "currentColor",
-                            }}
-                          >
-                            <path
-                              d={
-                                list.is_pinned
-                                  ? "M16 2H8C7.448 2 7 2.448 7 3V7.5C7 8.328 7.672 9 8.5 9H9l1 5H6v2h12v-2h-4l1-5h0.5c0.828 0 1.5-0.672 1.5-1.5V3C17 2.448 16.552 2 16 2Z"
-                                  : "M16 2H8C7.448 2 7 2.448 7 3V7.5C7 8.328 7.672 9 8.5 9H9l1 5H6v2h12v-2h-4l1-5h0.5c0.828 0 1.5-0.672 1.5-1.5V3C17 2.448 16.552 2 16 2ZM15 7.5c0 0.276-0.224 0.5-0.5 0.5h-5C9.224 8 9 7.776 9 7.5V4h6v3.5Z"
-                              }
-                              fill="currentColor"
-                            />
-                            <path
-                              d="M12 22L9 16H15L12 22Z"
-                              fill={list.is_pinned ? "currentColor" : "none"}
-                              stroke={list.is_pinned ? "none" : "currentColor"}
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-
-                        {/* Delete Button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setListToDelete(list.id);
-                            setIsDeleteListModalOpen(true);
-                          }}
-                          className={`p-1.5 ${
-                            isDark
-                              ? "text-gray-500 hover:text-red-500"
-                              : "text-gray-400 hover:text-red-500"
-                          } transition-colors`}
-                          aria-label={`Delete ${list.list_name} list`}
-                          title={`Delete ${list.list_name}`}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                      <p className="text-xs mt-1">Create your first list</p>
                     )}
                   </div>
-                ))}
+                ) : (
+                  sortedLists.map((list) => (
+                    <div
+                      key={list.id}
+                      className={`flex items-center w-full rounded-md ${
+                        currentListId === list.id.toString()
+                          ? isDark
+                            ? "bg-gray-800"
+                            : "bg-gray-100"
+                          : ""
+                      } ${
+                        isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
+                      } transition-colors`}
+                    >
+                      <button
+                        onClick={() => handleListClick(list.id)}
+                        className={`flex-grow ${
+                          sidebarOpen
+                            ? "flex items-center px-3 py-2 text-left"
+                            : "p-2 flex justify-center"
+                        }`}
+                      >
+                        <ListTodo
+                          className="h-5 w-5 flex-shrink-0"
+                          style={{
+                            color: list.bg_color_hex,
+                            fill: list.bg_color_hex,
+                            fillOpacity: 0.2,
+                          }}
+                        />
+                        {sidebarOpen && (
+                          <span className="ml-3 text-sm font-medium truncate">
+                            {list.list_name}
+                          </span>
+                        )}
+                      </button>
+                      {sidebarOpen && (
+                        <div className="flex mr-1">
+                          {/* Pin Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTogglePinList(list.id);
+                            }}
+                            className={`p-1.5 ${
+                              list.is_pinned
+                                ? isDark
+                                  ? "text-orange-400"
+                                  : "text-orange-500"
+                                : isDark
+                                  ? "text-gray-500 hover:text-gray-400"
+                                  : "text-gray-400 hover:text-gray-500"
+                            } transition-colors`}
+                            aria-label={
+                              list.is_pinned ? "Unpin list" : "Pin list"
+                            }
+                            title={list.is_pinned ? "Unpin list" : "Pin list"}
+                          >
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                              style={{
+                                color: list.is_pinned
+                                  ? list.bg_color_hex
+                                  : "currentColor",
+                              }}
+                            >
+                              <path
+                                d={
+                                  list.is_pinned
+                                    ? "M16 2H8C7.448 2 7 2.448 7 3V7.5C7 8.328 7.672 9 8.5 9H9l1 5H6v2h12v-2h-4l1-5h0.5c0.828 0 1.5-0.672 1.5-1.5V3C17 2.448 16.552 2 16 2Z"
+                                    : "M16 2H8C7.448 2 7 2.448 7 3V7.5C7 8.328 7.672 9 8.5 9H9l1 5H6v2h12v-2h-4l1-5h0.5c0.828 0 1.5-0.672 1.5-1.5V3C17 2.448 16.552 2 16 2ZM15 7.5c0 0.276-0.224 0.5-0.5 0.5h-5C9.224 8 9 7.776 9 7.5V4h6v3.5Z"
+                                }
+                                fill="currentColor"
+                              />
+                              <path
+                                d="M12 22L9 16H15L12 22Z"
+                                fill={list.is_pinned ? "currentColor" : "none"}
+                                stroke={
+                                  list.is_pinned ? "none" : "currentColor"
+                                }
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </button>
+
+                          {/* Delete Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setListToDelete(list.id);
+                              setIsDeleteListModalOpen(true);
+                            }}
+                            className={`p-1.5 ${
+                              isDark
+                                ? "text-gray-500 hover:text-red-500"
+                                : "text-gray-400 hover:text-red-500"
+                            } transition-colors`}
+                            aria-label={`Delete ${list.list_name} list`}
+                            title={`Delete ${list.list_name}`}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -840,7 +1056,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
       {isDeleteListModalOpen && listToDelete && (
         <>
           <div
-            className="fixed inset-0 z-40 backdrop-blur-md bg-blue-md"
+            className="fixed inset-0 z-40 backdrop-blur-md bg-blur-50"
             onClick={() => setIsDeleteListModalOpen(false)}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
@@ -895,7 +1111,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
       )}
 
       {/* Main content */}
-      <div className={`${isLoggedIn ? "lg:pl-16" : ""}`}>{children}</div>
+      <div className={`${isLoggedIn ? "lg:pl-16" : ""} pt-16`}>{children}</div>
     </div>
   );
 };

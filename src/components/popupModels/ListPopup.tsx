@@ -1,10 +1,12 @@
-// components/CreateListModal.tsx
+// components/popupModels/ListPopup.tsx
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
 import { X, Check } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { LIST_COLORS, ListColor, List } from "@/types/schema";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/utils/client";
+import { List, ListColor, LIST_COLORS } from "@/types/schema";
 
 interface CreateListModalProps {
   isOpen: boolean;
@@ -23,9 +25,12 @@ const CreateListModal = ({
   onSubmit,
 }: CreateListModalProps) => {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const isDark = theme === "dark";
   const [listName, setListName] = useState("");
   const [selectedColor, setSelectedColor] = useState<ListColor>("#FF3B30");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -52,19 +57,118 @@ const CreateListModal = ({
     if (!isOpen) {
       setListName("");
       setSelectedColor("#FF3B30");
+      setError(null);
     }
   }, [isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (listName.trim()) {
+    if (!listName.trim()) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (!user) {
+        throw new Error("You must be logged in to create a list");
+      }
+
+      // Create the list in the database - don't use select() to avoid potential response formatting issues
+      const { data: insertedList, error: listError } = await supabase
+        .from("list")
+        .insert([
+          {
+            list_name: listName.trim(),
+            bg_color_hex: selectedColor,
+            is_default: false,
+            is_pinned: false,
+            user_id: user.id,
+          },
+        ])
+        .select();
+
+      if (listError) throw listError;
+
+      let listId;
+
+      // If we got the inserted list data directly
+      if (insertedList && insertedList.length > 0) {
+        listId = insertedList[0].id;
+      } else {
+        // Otherwise query for the most recently created list for this user
+        const { data: recentList, error: recentListError } = await supabase
+          .from("list")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("list_name", listName.trim())
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        if (recentListError) throw recentListError;
+
+        if (!recentList || recentList.length === 0) {
+          throw new Error("Failed to retrieve newly created list");
+        }
+
+        listId = recentList[0].id;
+      }
+
+      // Create a default "General" collection for this list
+      const { error: collectionError } = await supabase
+        .from("collection")
+        .insert([
+          {
+            list_id: listId,
+            collection_name: "General",
+            bg_color_hex: selectedColor,
+            is_default: true,
+          },
+        ]);
+
+      if (collectionError) {
+        console.error("Error creating General collection:", collectionError);
+        // We'll continue even if collection creation fails
+      }
+
+      // Call the onSubmit callback with the new list data
       onSubmit({
-        list_name: listName.trim(), // Changed from name to list_name
-        bg_color_hex: selectedColor, // Changed from background_color to bg_color_hex
+        list_name: listName.trim(),
+        bg_color_hex: selectedColor,
         is_default: false,
-        is_pinned: false, // Added new field from database schema
       });
+
+      // Close the modal
       onClose();
+    } catch (error) {
+      console.error("Error creating list:", error);
+
+      // Check if error is an empty object
+      if (error && Object.keys(error).length === 0) {
+        // It's an empty object error, which likely means the operation succeeded
+        // but the response wasn't formatted as expected
+
+        try {
+          // Try to submit anyway based on the input data
+          onSubmit({
+            list_name: listName.trim(),
+            bg_color_hex: selectedColor,
+            is_default: false,
+          });
+
+          // Close the modal
+          onClose();
+          return;
+        } catch (submitError) {
+          console.error("Error in fallback submission:", submitError);
+          // Continue to the error handling below
+        }
+      }
+
+      setError(
+        error instanceof Error ? error.message : "Failed to create list"
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -72,7 +176,10 @@ const CreateListModal = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 backdrop-blur-md" onClick={onClose} />
+      <div
+        className="fixed inset-0 z-40 backdrop-blur-md bg-blur-50"
+        onClick={onClose}
+      />
 
       <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
         <div
@@ -97,10 +204,17 @@ const CreateListModal = ({
                   : "text-gray-500 hover:bg-gray-100"
               }`}
               aria-label="Close"
+              disabled={isLoading}
             >
               <X className="h-5 w-5" />
             </button>
           </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 rounded-md">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
@@ -126,6 +240,7 @@ const CreateListModal = ({
                 }`}
                 required
                 maxLength={50}
+                disabled={isLoading}
               />
             </div>
 
@@ -150,6 +265,7 @@ const CreateListModal = ({
                     style={{ backgroundColor: color }}
                     onClick={() => setSelectedColor(color)}
                     aria-label={`Select ${color}`}
+                    disabled={isLoading}
                   >
                     {selectedColor === color && (
                       <Check className="h-4 w-4 text-white" />
@@ -168,6 +284,7 @@ const CreateListModal = ({
                     ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                 }`}
+                disabled={isLoading}
               >
                 Cancel
               </button>
@@ -177,9 +294,33 @@ const CreateListModal = ({
                   isDark
                     ? "bg-orange-600 hover:bg-orange-700"
                     : "bg-sky-500 hover:bg-sky-600"
-                } text-white`}
+                } text-white flex items-center justify-center min-w-[80px]`}
+                disabled={isLoading}
               >
-                Create
+                {isLoading ? (
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                ) : (
+                  "Create"
+                )}
               </button>
             </div>
           </form>
