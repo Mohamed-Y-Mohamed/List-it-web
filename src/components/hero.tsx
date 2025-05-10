@@ -1,37 +1,14 @@
 "use client";
 
 import React from "react";
-import { ArrowRight, Clock, ClipboardList } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
-import TaskCard from "@/components/Tasks/index";
 
 const Hero = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-
-  // Sample task data for the hero display
-  const sampleTasks = [
-    {
-      id: "sample1",
-      text: "Website Redesign",
-      description:
-        "Update the company website with new branding and improve user experience.",
-      date_created: new Date("2025-04-01"),
-      due_date: new Date("2025-04-15"),
-      is_completed: false,
-      is_priority: true,
-    },
-    {
-      id: "sample2",
-      text: "Product Launch",
-      description: "Coordinate marketing efforts for the new product launch.",
-      date_created: new Date("2025-04-10"),
-      due_date: new Date("2025-04-25"),
-      is_completed: false,
-      is_priority: false,
-    },
-  ];
 
   return (
     <section
@@ -93,83 +70,14 @@ const Hero = () => {
                 isDark ? "bg-gray-800" : "bg-white"
               } p-2 shadow-2xl`}
             >
-              {/* Mockup of the app interface */}
-              <div className="flex flex-col rounded-lg">
-                <div
-                  className={`flex items-center justify-between rounded-t-lg ${
-                    isDark ? "bg-orange-700" : "bg-orange-500"
-                  } p-4 text-white`}
-                >
-                  <div className="flex items-center space-x-2">
-                    <ClipboardList className="h-5 w-5" />
-                    <span className="font-semibold">My Tasks</span>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Clock className="h-5 w-5" />
-                  </div>
-                </div>
-                <div
-                  className={`space-y-4 ${
-                    isDark ? "bg-gray-800" : "bg-gray-50"
-                  } p-6`}
-                >
-                  {/* Sample Tasks Inside */}
-                  {sampleTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      id={task.id}
-                      text={task.text}
-                      description={task.description}
-                      date_created={task.date_created}
-                      due_date={task.due_date}
-                      is_completed={task.is_completed}
-                      is_priority={task.is_priority}
-                      onComplete={() => {}}
-                      onPriorityChange={() => {}}
-                    />
-                  ))}
-
-                  {/* Notes Section - Simplified for Hero */}
-                  <div
-                    className={`mt-6 border-t ${
-                      isDark ? "border-gray-700" : "border-gray-200"
-                    } pt-4`}
-                  >
-                    <h4
-                      className={`mb-3 font-semibold ${
-                        isDark ? "text-gray-200" : "text-gray-800"
-                      }`}
-                    >
-                      Notes
-                    </h4>
-                    <div
-                      className={`rounded-lg p-4 ${
-                        isDark ? "bg-gray-750" : "bg-yellow-50"
-                      }`}
-                    >
-                      <h5
-                        className={`font-medium ${
-                          isDark ? "text-gray-200" : "text-gray-800"
-                        } mb-2`}
-                      >
-                        Website Redesign Notes
-                      </h5>
-                      <p
-                        className={`text-sm ${
-                          isDark ? "text-gray-400" : "text-gray-600"
-                        }`}
-                      >
-                        Remember to update the color scheme and typography based
-                        on the new brand guidelines. Schedule meeting with
-                        marketing team for feedback.
-                      </p>
-                      <div className="mt-2 text-xs text-gray-500">
-                        2 hours ago
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <Image
+                src="/images/heroimage.png"
+                alt="Task manager preview"
+                width={600}
+                height={500}
+                className="rounded-lg w-full h-auto  object-cover"
+                priority
+              />
             </div>
           </div>
         </div>

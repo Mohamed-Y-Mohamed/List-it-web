@@ -1,10 +1,16 @@
+// TaskPopup.tsx (CreateTaskModal)
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Calendar, AlertCircle, Pin } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Collection } from "@/types/schema";
-import { useAuth } from "@/context/AuthContext";
+
+// Define a proper result type for submission
+interface SubmissionResult {
+  success: boolean;
+  error?: unknown;
+}
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -15,7 +21,7 @@ interface CreateTaskModalProps {
     is_pinned: boolean;
     due_date?: Date;
     collection_id?: string;
-  }) => Promise<{ success: boolean; error?: any }> | void;
+  }) => Promise<SubmissionResult> | void;
   collections: Collection[];
   selectedCollectionId?: string;
 }
@@ -28,7 +34,6 @@ const CreateTaskModal = ({
   selectedCollectionId: initialCollectionId,
 }: CreateTaskModalProps) => {
   const { theme } = useTheme();
-  const { user } = useAuth();
   const isDark = theme === "dark";
 
   // Form state
@@ -212,7 +217,7 @@ const CreateTaskModal = ({
     [autoResizeTextarea]
   );
 
-  // Handle form submission
+  // Handle form submission - Let parent handle the database operations
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -229,28 +234,36 @@ const CreateTaskModal = ({
     setError(null);
 
     try {
-      // Create task data
+      // Create task data with properly formatted due date
       const taskData = {
         text: taskName.trim(),
         description: taskDescription.trim(),
         is_pinned: isPinned,
-        due_date: dueDate ? new Date(dueDate) : undefined,
+        due_date: dueDate
+          ? (() => {
+              // Parse the date at noon to avoid timezone issues
+              const dueDateObj = new Date(dueDate + "T12:00:00");
+              return dueDateObj;
+            })()
+          : undefined,
         collection_id: getCollectionId(),
       };
 
-      // Submit the task
+      // Submit the task to the parent component
       const result = await onSubmit(taskData);
 
       // Check for errors
       if (result && !result.success) {
-        throw new Error(result.error || "Failed to create task");
+        throw new Error(
+          result.error ? String(result.error) : "Failed to create task"
+        );
       }
 
       // If successful, close the modal
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error creating task:", err);
-      showError(err.message || "Failed to create task");
+      showError(err instanceof Error ? err.message : "Failed to create task");
       setIsSubmitting(false);
     }
   };
@@ -265,7 +278,7 @@ const CreateTaskModal = ({
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const dateToCheck = new Date(selectedDate);
+        const dateToCheck = new Date(selectedDate + "T12:00:00"); // Parse at noon
 
         if (dateToCheck < today) {
           showError("Due date cannot be in the past");
@@ -484,11 +497,7 @@ const CreateTaskModal = ({
                   <>
                     <option value="">Select a collection</option>
                     {collections.map((collection) => (
-                      <option
-                        key={collection.id}
-                        value={collection.id}
-                        selected={collection.is_default ?? false}
-                      >
+                      <option key={collection.id} value={collection.id}>
                         {collection.is_default
                           ? `${collection.collection_name || "General"} (Default)`
                           : collection.collection_name || "Unnamed Collection"}

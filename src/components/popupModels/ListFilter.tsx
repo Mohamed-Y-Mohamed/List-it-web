@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   PlusCircle,
-  BookOpen,
   CheckCircle,
   ClipboardList,
   StickyNote,

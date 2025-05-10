@@ -7,6 +7,10 @@ import Link from "next/link";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 
+interface ErrorObject {
+  message?: string;
+}
+
 const ForgotPassword = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -40,11 +44,17 @@ const ForgotPassword = () => {
       }
 
       setSuccess(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Password reset error:", err);
 
-      if (typeof err === "object" && err?.message) {
+      if (err instanceof Error) {
         setError(err.message);
+      } else if (
+        typeof err === "object" &&
+        err !== null &&
+        (err as ErrorObject).message
+      ) {
+        setError((err as ErrorObject).message!);
       } else {
         setError("Failed to send reset link. Please try again.");
       }
@@ -86,8 +96,8 @@ const ForgotPassword = () => {
             <p
               className={`mt-4 text-center ${isDark ? "text-gray-300" : "text-gray-600"}`}
             >
-              Enter your email address and we'll send you a link to reset your
-              password.
+              Enter your email address and we&apos;ll send you a link to reset
+              your password.
             </p>
 
             {/* Error message display */}
@@ -162,8 +172,8 @@ const ForgotPassword = () => {
                   <p
                     className={`${isDark ? "text-gray-300" : "text-gray-600"} mb-4`}
                   >
-                    Check your email for the reset link. If you don't see it,
-                    please check your spam folder.
+                    Check your email for the reset link. If you don&apos;t see
+                    it, please check your spam folder.
                   </p>
                   <button
                     onClick={() => {

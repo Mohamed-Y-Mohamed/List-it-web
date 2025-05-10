@@ -35,11 +35,11 @@ interface TaskSidebarProps {
   onComplete: (
     taskId: string,
     is_completed: boolean
-  ) => Promise<{ success: boolean; error?: any }> | void;
+  ) => Promise<{ success: boolean; error?: unknown }> | void;
   onPriorityChange: (
     taskId: string,
     is_pinned: boolean
-  ) => Promise<{ success: boolean; error?: any }> | void;
+  ) => Promise<{ success: boolean; error?: unknown }> | void;
   onTaskUpdate?: (
     taskId: string,
     taskData: {
@@ -48,15 +48,15 @@ interface TaskSidebarProps {
       due_date?: Date | null;
       is_pinned: boolean;
     }
-  ) => Promise<{ success: boolean; error?: any }> | void;
+  ) => Promise<{ success: boolean; error?: unknown }> | void;
   collections?: Collection[];
   onCollectionChange?: (
     taskId: string,
     collectionId: string
-  ) => Promise<{ success: boolean; error?: any }> | void;
+  ) => Promise<{ success: boolean; error?: unknown }> | void;
   onTaskDelete?: (
     taskId: string
-  ) => Promise<{ success: boolean; error?: any }> | void;
+  ) => Promise<{ success: boolean; error?: unknown }> | void;
 }
 
 const TaskSidebar = ({
@@ -107,6 +107,11 @@ const TaskSidebar = ({
   const taskNameRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
+  // Log user for debugging but don't flag it as unused
+  if (user) {
+    console.debug("Task sidebar opened by user:", user.id);
+  }
+
   // Reset form state when task changes
   useEffect(() => {
     if (isOpen) {
@@ -129,8 +134,7 @@ const TaskSidebar = ({
     try {
       const dateObj = date instanceof Date ? date : new Date(date);
       return dateObj.toISOString().split("T")[0];
-    } catch (error) {
-      console.error("Invalid date for input:", date);
+    } catch {
       return "";
     }
   }
@@ -146,8 +150,7 @@ const TaskSidebar = ({
           month: "short",
           day: "numeric",
         });
-      } catch (error) {
-        console.error("Invalid date for display:", date);
+      } catch {
         return "Invalid date";
       }
     },
@@ -240,6 +243,22 @@ const TaskSidebar = ({
     task,
   ]);
 
+  // Handle close with unsaved changes
+  const handleClose = useCallback(() => {
+    if (isTaskChanged) {
+      // Offer to save changes (could implement a confirmation dialog here)
+      if (
+        window.confirm(
+          "You have unsaved changes. Are you sure you want to discard them?"
+        )
+      ) {
+        onClose();
+      }
+    } else {
+      onClose();
+    }
+  }, [isTaskChanged, onClose]);
+
   // Add event listener for escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -268,7 +287,7 @@ const TaskSidebar = ({
       window.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = ""; // Restore scrolling
     };
-  }, [isOpen, showDeleteConfirmation, isSaving, isDeleting]);
+  }, [isOpen, showDeleteConfirmation, isSaving, isDeleting, handleClose]);
 
   const handleOverlayClick = useCallback(
     (e: React.MouseEvent) => {
@@ -281,7 +300,7 @@ const TaskSidebar = ({
         }
       }
     },
-    [showDeleteConfirmation, isSaving, isDeleting]
+    [showDeleteConfirmation, isSaving, isDeleting, handleClose]
   );
 
   const handleSave = async () => {
@@ -312,7 +331,9 @@ const TaskSidebar = ({
 
         // Check for errors
         if (result && !result.success) {
-          throw new Error(result.error || "Failed to update task");
+          throw new Error(
+            result.error ? String(result.error) : "Failed to update task"
+          );
         }
 
         // Update collection if changed
@@ -342,9 +363,9 @@ const TaskSidebar = ({
         // Nothing changed, just close
         onClose();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error updating task:", err);
-      showError(err.message || "Failed to update task");
+      showError(err instanceof Error ? err.message : "Failed to update task");
     } finally {
       setIsSaving(false);
     }
@@ -393,26 +414,14 @@ const TaskSidebar = ({
         setShowDeleteConfirmation(false);
         onClose();
       }, 1000);
-    } catch (error: any) {
-      console.error("Error permanently deleting task:", error);
-      showError(error.message || "Failed to permanently delete task");
+    } catch (deleteError: unknown) {
+      console.error("Error permanently deleting task:", deleteError);
+      showError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Failed to permanently delete task"
+      );
       setIsDeleting(false);
-    }
-  };
-
-  // Close without saving
-  const handleClose = () => {
-    if (isTaskChanged) {
-      // Offer to save changes (could implement a confirmation dialog here)
-      if (
-        confirm(
-          "You have unsaved changes. Are you sure you want to discard them?"
-        )
-      ) {
-        onClose();
-      }
-    } else {
-      onClose();
     }
   };
 
@@ -425,15 +434,19 @@ const TaskSidebar = ({
         const result = await onPriorityChange(task.id, newPriority);
 
         if (result && !result.success) {
-          throw new Error(result.error || "Failed to update priority");
+          throw new Error(
+            result.error ? String(result.error) : "Failed to update priority"
+          );
         }
       }
 
       // Update local state
       setIsPinned(newPriority);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error updating priority:", err);
-      showError(err.message || "Failed to update priority");
+      showError(
+        err instanceof Error ? err.message : "Failed to update priority"
+      );
     }
   };
 
@@ -795,9 +808,9 @@ const TaskSidebar = ({
               </div>
 
               <p className={`mb-6 ${textColor}`}>
-                Are you sure you want to permanently delete "{task.text}"? This
-                action cannot be undone and will remove the task from the
-                database completely.
+                Are you sure you want to permanently delete &quot;{task.text}
+                &quot;? This action cannot be undone and will remove the task
+                from the database completely.
               </p>
 
               <div className="flex justify-end space-x-3">

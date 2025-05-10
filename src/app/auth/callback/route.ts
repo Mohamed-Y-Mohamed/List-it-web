@@ -54,7 +54,6 @@ export async function GET(request: NextRequest) {
             if (insertError) {
               console.error("Error inserting user data:", insertError);
             } else {
-              console.log("New user created in database");
             }
           }
         } catch (err) {

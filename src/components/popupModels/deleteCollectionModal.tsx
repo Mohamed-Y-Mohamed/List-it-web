@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { X, Trash2, AlertTriangle, Check } from "lucide-react";
+import { X, Trash2, AlertTriangle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Collection } from "@/types/schema";
 import { supabase } from "@/utils/client";

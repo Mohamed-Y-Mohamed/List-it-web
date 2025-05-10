@@ -3,9 +3,17 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { X, Check, Trash2, AlertTriangle, AlertCircle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { LIST_COLORS, Note } from "@/types/schema";
+import { LIST_COLORS } from "@/types/schema";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
+
+// Define proper types for operation results
+interface OperationResult {
+  success: boolean;
+  error?: unknown;
+  data?: unknown;
+  warning?: string;
+}
 
 interface NoteSidebarProps {
   isOpen: boolean;
@@ -20,16 +28,13 @@ interface NoteSidebarProps {
     is_pinned?: boolean | null;
     is_deleted?: boolean | null;
   };
-  onColorChange?: (
-    noteId: string,
-    color: string
-  ) => Promise<{ success: boolean; error?: any }>;
+  onColorChange?: (noteId: string, color: string) => Promise<OperationResult>;
   onNoteUpdate?: (
     noteId: string,
     updatedTitle: string,
     updatedDescription?: string
-  ) => Promise<{ success: boolean; error?: any }>;
-  onNoteDelete?: (noteId: string) => Promise<{ success: boolean; error?: any }>;
+  ) => Promise<OperationResult>;
+  onNoteDelete?: (noteId: string) => Promise<OperationResult>;
   isProcessing?: boolean;
 }
 
@@ -113,6 +118,21 @@ const NoteDetails = ({
     setIsNoteChanged(hasChanged);
   }, [noteTitle, noteDescription, selectedColor, note]);
 
+  // Handle close with unsaved changes
+  const handleClose = useCallback(() => {
+    if (isNoteChanged) {
+      if (
+        window.confirm(
+          "You have unsaved changes. Are you sure you want to discard them?"
+        )
+      ) {
+        onClose();
+      }
+    } else {
+      onClose();
+    }
+  }, [isNoteChanged, onClose]);
+
   // Handle keyboard events
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -134,22 +154,7 @@ const NoteDetails = ({
       window.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = ""; // Restore scrolling
     };
-  }, [isOpen, showDeleteConfirmation, isProcessing]);
-
-  // Handle close with unsaved changes
-  const handleClose = () => {
-    if (isNoteChanged) {
-      if (
-        confirm(
-          "You have unsaved changes. Are you sure you want to discard them?"
-        )
-      ) {
-        onClose();
-      }
-    } else {
-      onClose();
-    }
-  };
+  }, [isOpen, showDeleteConfirmation, isProcessing, handleClose]);
 
   // Helper function to display error with auto-dismiss
   const showError = useCallback(
@@ -188,7 +193,7 @@ const NoteDetails = ({
   );
 
   // Update note in database
-  const updateNoteInDatabase = async () => {
+  const updateNoteInDatabase = async (): Promise<OperationResult> => {
     if (!noteTitle.trim()) {
       showError("Title is required");
       return { success: false, error: "Title is required" };
@@ -243,7 +248,11 @@ const NoteDetails = ({
             noteDescription
           );
           if (!updateResult.success) {
-            throw new Error(updateResult.error || "Failed to update note");
+            throw new Error(
+              updateResult.error
+                ? String(updateResult.error)
+                : "Failed to update note"
+            );
           }
         }
 
@@ -251,23 +260,36 @@ const NoteDetails = ({
         if (onColorChange && selectedColor !== note.bg_color_hex) {
           const colorResult = await onColorChange(note.id, selectedColor);
           if (!colorResult.success) {
-            throw new Error(colorResult.error || "Failed to update note color");
+            throw new Error(
+              colorResult.error
+                ? String(colorResult.error)
+                : "Failed to update note color"
+            );
           }
         }
 
         showSuccess("Note updated successfully");
         setIsNoteChanged(false);
         return { success: true, data };
-      } catch (callbackErr: any) {
+      } catch (callbackErr: unknown) {
         console.error("Error in update callbacks:", callbackErr);
         // Even if callbacks fail, the database update succeeded
         showSuccess("Note updated in database");
         setIsNoteChanged(false);
-        return { success: true, data, warning: callbackErr.message };
+        return {
+          success: true,
+          data,
+          warning:
+            callbackErr instanceof Error
+              ? callbackErr.message
+              : "Callback failed",
+        };
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error updating note:", err);
-      showError(err.message || "Failed to update note");
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update note";
+      showError(errorMessage);
       return { success: false, error: err };
     } finally {
       setIsSaving(false);
@@ -275,7 +297,7 @@ const NoteDetails = ({
   };
 
   // Delete note from database - FIXED VERSION
-  const deleteNoteFromDatabase = async () => {
+  const deleteNoteFromDatabase = async (): Promise<OperationResult> => {
     if (!user || !user.id) {
       showError("You must be logged in to delete a note");
       return { success: false, error: "Authentication required" };
@@ -318,9 +340,11 @@ const NoteDetails = ({
       }, 1000);
 
       return { success: true };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error deleting note:", err);
-      showError(err.message || "Failed to delete note");
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to delete note";
+      showError(errorMessage);
       return { success: false, error: err };
     } finally {
       setIsDeleting(false);
@@ -371,16 +395,6 @@ const NoteDetails = ({
     }
   };
 
-  const handleDescriptionChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const value = e.target.value;
-      setNoteDescription(value);
-      setDescriptionCharCount(value.length);
-      autoResizeTextarea(e.target as HTMLTextAreaElement);
-    },
-    []
-  );
-
   // Auto-resize height of textarea based on content
   const autoResizeTextarea = useCallback((element: HTMLTextAreaElement) => {
     if (!element) return;
@@ -390,6 +404,16 @@ const NoteDetails = ({
     // Set height to scrollHeight to expand to content
     element.style.height = element.scrollHeight + "px";
   }, []);
+
+  const handleDescriptionChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const value = e.target.value;
+      setNoteDescription(value);
+      setDescriptionCharCount(value.length);
+      autoResizeTextarea(e.target as HTMLTextAreaElement);
+    },
+    [autoResizeTextarea]
+  );
 
   useEffect(() => {
     const textarea = document.getElementById(
@@ -401,11 +425,6 @@ const NoteDetails = ({
   }, [noteDescription, autoResizeTextarea]);
 
   if (!isOpen) return null;
-
-  // Determine if light text should be used based on background color
-  const useWhiteText = selectedColor
-    ? !["#FFD60A", "#34C759", "#00C7BE"].includes(selectedColor)
-    : isDark;
 
   // Style variables for better readability
   const textInputBase =
