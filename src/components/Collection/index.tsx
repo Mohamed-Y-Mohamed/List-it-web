@@ -13,6 +13,12 @@ import NoteCard from "@/components/Notes/noteCard";
 import { Task, Note, Collection } from "@/types/schema";
 import { useTheme } from "@/context/ThemeContext";
 
+// Define types for operation results
+interface OperationResult {
+  success: boolean;
+  error?: unknown;
+}
+
 interface CollectionComponentProps {
   id: string;
   collection_name: string;
@@ -26,12 +32,12 @@ interface CollectionComponentProps {
   onTaskComplete: (
     taskId: string,
     is_completed: boolean
-  ) => Promise<{ success: boolean; error?: any }>;
+  ) => Promise<OperationResult>;
   onTaskPriority: (
     taskId: string,
     is_pinned: boolean
-  ) => Promise<{ success: boolean; error?: any }>;
-  onTaskDelete?: (taskId: string) => Promise<{ success: boolean; error?: any }>;
+  ) => Promise<OperationResult>;
+  onTaskDelete?: (taskId: string) => Promise<OperationResult>;
   onTaskUpdate?: (
     taskId: string,
     taskData: {
@@ -40,25 +46,22 @@ interface CollectionComponentProps {
       due_date?: Date | null;
       is_pinned: boolean;
     }
-  ) => Promise<{ success: boolean; error?: any }>;
+  ) => Promise<OperationResult>;
   onTaskCollectionChange?: (
     taskId: string,
     collectionId: string
-  ) => Promise<{ success: boolean; error?: any }>;
-  onNotePin?: (
-    noteId: string,
-    isPinned: boolean
-  ) => Promise<{ success: boolean; error?: any }>;
+  ) => Promise<OperationResult>;
+  onNotePin?: (noteId: string, isPinned: boolean) => Promise<OperationResult>;
   onNoteColorChange?: (
     noteId: string,
     color: string
-  ) => Promise<{ success: boolean; error?: any }>;
+  ) => Promise<OperationResult>;
   onNoteUpdate?: (
     noteId: string,
     updatedTitle: string,
     updatedDescription?: string
-  ) => Promise<{ success: boolean; error?: any }>;
-  onNoteDelete?: (noteId: string) => Promise<{ success: boolean; error?: any }>;
+  ) => Promise<OperationResult>;
+  onNoteDelete?: (noteId: string) => Promise<OperationResult>;
   onAddTask?: () => void;
   onAddNote?: () => void;
   className?: string;
@@ -66,15 +69,13 @@ interface CollectionComponentProps {
   onCollectionPin?: (
     collectionId: string,
     isPinned: boolean
-  ) => Promise<{ success: boolean; error?: any }>;
+  ) => Promise<OperationResult>;
 }
 
 const CollectionComponent = ({
   id,
   collection_name,
   bg_color_hex,
-  created_at,
-  is_default = false,
   tasks = [],
   notes = [],
   onTaskComplete,
@@ -104,7 +105,6 @@ const CollectionComponent = ({
 
   // Enhanced color utilities for better light/dark mode appearance
   const bgColor = isDark ? "bg-gray-900" : "bg-white";
-  const bgHoverColor = isDark ? "bg-gray-800" : "bg-gray-50";
   const headerBgColor = isDark ? "bg-gray-850" : "bg-gray-50";
   const textColor = isDark ? "text-gray-100" : "text-gray-800";
   const subtextColor = isDark ? "text-gray-400" : "text-gray-600";
@@ -194,7 +194,7 @@ const CollectionComponent = ({
         clearTimeout(errorTimeout);
       }
     };
-  }, [error]);
+  }, [error, errorTimeout]);
 
   // Calculate content counts
   const taskCount =
@@ -209,13 +209,13 @@ const CollectionComponent = ({
    * @returns The result of the operation or { success: false } on failure
    */
   const safelyHandleOperation = async (
-    operation: () => Promise<{ success: boolean; error?: any }>,
+    operation: () => Promise<OperationResult>,
     errorMessage: string
-  ): Promise<{ success: boolean; error?: any }> => {
+  ): Promise<OperationResult> => {
     try {
       const result = await operation();
       if (!result.success) {
-        throw new Error(result.error || errorMessage);
+        throw new Error(result.error ? String(result.error) : errorMessage);
       }
       return { success: true };
     } catch (err) {
@@ -236,12 +236,12 @@ const CollectionComponent = ({
     );
   };
 
-  // Task handlers
+  // Task handlers with the correct return types
   const handleTaskCompleteWithErrorHandling = async (
     taskId: string,
     isCompleted: boolean
-  ) => {
-    await safelyHandleOperation(
+  ): Promise<{ success: boolean; error?: unknown }> => {
+    return safelyHandleOperation(
       () => onTaskComplete(taskId, isCompleted),
       "Failed to update task status"
     );
@@ -250,8 +250,8 @@ const CollectionComponent = ({
   const handleTaskPriorityWithErrorHandling = async (
     taskId: string,
     isPinned: boolean
-  ) => {
-    await safelyHandleOperation(
+  ): Promise<{ success: boolean; error?: unknown }> => {
+    return safelyHandleOperation(
       () => onTaskPriority(taskId, isPinned),
       "Failed to update task priority"
     );
@@ -265,17 +265,23 @@ const CollectionComponent = ({
       due_date?: Date | null;
       is_pinned: boolean;
     }
-  ) => {
-    if (!onTaskUpdate) return;
+  ): Promise<{ success: boolean; error?: unknown }> => {
+    if (!onTaskUpdate) {
+      return { success: false, error: "Task update handler not available" };
+    }
 
-    await safelyHandleOperation(
+    return safelyHandleOperation(
       () => onTaskUpdate(taskId, taskData),
       "Failed to update task"
     );
   };
 
-  const handleTaskDeleteWithErrorHandling = async (taskId: string) => {
-    if (!onTaskDelete) return;
+  const handleTaskDeleteWithErrorHandling = async (
+    taskId: string
+  ): Promise<{ success: boolean; error?: unknown }> => {
+    if (!onTaskDelete) {
+      return { success: false, error: "Task delete handler not available" };
+    }
 
     const result = await safelyHandleOperation(
       () => onTaskDelete(taskId),
@@ -290,13 +296,15 @@ const CollectionComponent = ({
       setPriorityTasks(priority);
       setRegularTasks(regular);
     }
+
+    return result;
   };
 
   // Note handlers with improved deletion handling
   const handleNotePinWithErrorHandling = async (
     noteId: string,
     isPinned: boolean
-  ): Promise<{ success: boolean; error?: any }> => {
+  ): Promise<OperationResult> => {
     if (!onNotePin) {
       return { success: false, error: "Pin handler not available" };
     }
@@ -317,7 +325,7 @@ const CollectionComponent = ({
   const handleNoteColorChangeWithErrorHandling = async (
     noteId: string,
     color: string
-  ): Promise<{ success: boolean; error?: any }> => {
+  ): Promise<OperationResult> => {
     if (!onNoteColorChange) {
       return { success: false, error: "Color change handler not available" };
     }
@@ -332,7 +340,7 @@ const CollectionComponent = ({
     noteId: string,
     updatedTitle: string,
     updatedDescription?: string
-  ): Promise<{ success: boolean; error?: any }> => {
+  ): Promise<OperationResult> => {
     if (!onNoteUpdate) {
       return { success: false, error: "Update handler not available" };
     }
@@ -346,7 +354,7 @@ const CollectionComponent = ({
   // Key improvement: Better note deletion handling
   const handleNoteDeleteWithErrorHandling = async (
     noteId: string
-  ): Promise<{ success: boolean; error?: any }> => {
+  ): Promise<OperationResult> => {
     if (!onNoteDelete) {
       return { success: false, error: "Delete handler not available" };
     }

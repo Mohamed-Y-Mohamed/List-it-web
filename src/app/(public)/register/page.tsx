@@ -4,10 +4,15 @@ import React, { useState } from "react";
 import { UserPlus, Mail, Lock, User, AlertCircle, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { FaApple } from "react-icons/fa";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
+
+interface ErrorWithMessage {
+  message?: string;
+  details?: string;
+  status?: number;
+}
 
 const Signup = () => {
   const { theme } = useTheme();
@@ -132,23 +137,26 @@ const Signup = () => {
           "Signup successful! Please check your email to confirm your account."
         );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Signup error:", err);
+
+      // Type guard to check if error has message property
+      const error = err as ErrorWithMessage;
 
       // Specific handler for rate limiting
       if (
-        err?.message?.includes("For security purposes") ||
-        err?.status === 429
+        error?.message?.includes("For security purposes") ||
+        error?.status === 429
       ) {
         setError("Please wait a few seconds before trying again");
       }
       // Provide other user-friendly error messages
-      else if (err?.message?.includes("already registered")) {
+      else if (error?.message?.includes("already registered")) {
         setError("This email is already registered. Please log in instead.");
-      } else if (err?.message) {
-        setError(err.message);
-      } else if (err?.details) {
-        setError(err.details);
+      } else if (error?.message) {
+        setError(error.message);
+      } else if (error?.details) {
+        setError(error.details);
       } else {
         setError("Failed to sign up. Please try again.");
       }
@@ -163,7 +171,7 @@ const Signup = () => {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
@@ -175,35 +183,16 @@ const Signup = () => {
       });
 
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Google login error:", err);
-      setError(err.message || "Failed to log in with Google");
+      const error = err as ErrorWithMessage;
+      setError(error.message || "Failed to log in with Google");
     } finally {
       setLoading(false);
     }
   };
 
   // Handle signup with Apple
-  const handleAppleSignup = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "apple",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
-        },
-      });
-
-      if (error) throw error;
-    } catch (err: any) {
-      console.error("Apple signup error:", err);
-      setError(err.message || "Failed to sign up with Apple");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div
@@ -305,29 +294,6 @@ const Signup = () => {
                     </svg>
                   </div>
                   <span className="ml-4">Sign up with Google</span>
-                </button>
-
-                <button
-                  onClick={handleAppleSignup}
-                  disabled={loading}
-                  className={`w-full max-w-xs font-bold shadow-sm rounded-lg py-3 ${
-                    isDark
-                      ? "bg-sky-900 text-gray-200"
-                      : "bg-sky-100 text-gray-800"
-                  } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline mt-5 ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
-                >
-                  <div
-                    className={`${
-                      isDark ? "bg-gray-800" : "bg-white"
-                    } p-1 rounded-full`}
-                  >
-                    <FaApple
-                      className={`w-6 h-6 ${
-                        isDark ? "text-gray-300" : "text-black"
-                      }`}
-                    />
-                  </div>
-                  <span className="ml-4">Sign up with Apple</span>
                 </button>
               </div>
 

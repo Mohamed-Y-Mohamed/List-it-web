@@ -5,12 +5,36 @@ import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
 import TodayTaskCard from "@/components/Tasks/customcard"; // Reusing the same card component
-import { AlertCircle, RefreshCw, Clock } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import EmptyState from "@/components/popupModels/emptystate";
+import { Collection as SchemaCollection } from "@/types/schema"; // Import the schema type
+
+// Define types for better type safety
+interface Task {
+  id: string;
+  text: string;
+  description: string | null;
+  created_at: string;
+  due_date: string | null;
+  is_completed: boolean;
+  date_completed: string | null;
+  is_pinned: boolean;
+  collection_id: string | null;
+  list_id: string | null;
+  user_id: string;
+  collection_name?: string;
+  list_name?: string;
+}
+
+interface TaskGrouped {
+  critical: Task[];
+  high: Task[];
+  medium: Task[];
+}
 
 export default function OverduePage() {
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [collections, setCollections] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [collections, setCollections] = useState<SchemaCollection[]>([]); // Use the correct Collection type
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { theme } = useTheme();
@@ -49,11 +73,23 @@ export default function OverduePage() {
         .select("*");
 
       if (collectionsData) {
-        setCollections(collectionsData);
+        // Convert to the correct type with all required properties
+        const schemaCollections: SchemaCollection[] = collectionsData.map(
+          (collection) => ({
+            id: collection.id,
+            collection_name: collection.collection_name,
+            bg_color_hex: collection.bg_color_hex || "#000000", // Provide default if null
+            list_id: collection.list_id,
+            user_id: collection.user_id,
+            created_at: collection.created_at,
+            list_name: null, // Will be updated below
+          })
+        );
+
+        setCollections(schemaCollections);
       }
 
       // Create lookup objects for collection names and list names
-      const collectionIds = collectionsData?.map((c) => c.id) || [];
       const listIds: string[] = [];
 
       // Get unique list IDs from collections
@@ -77,14 +113,18 @@ export default function OverduePage() {
             listMap.set(list.id, list);
           });
 
-          const collectionsWithListNames = collectionsData.map(
-            (collection) => ({
-              ...collection,
+          const collectionsWithListNames: SchemaCollection[] =
+            collectionsData.map((collection) => ({
+              id: collection.id,
+              collection_name: collection.collection_name,
+              bg_color_hex: collection.bg_color_hex || "#000000",
+              list_id: collection.list_id,
+              user_id: collection.user_id,
+              created_at: collection.created_at,
               list_name: collection.list_id
                 ? listMap.get(collection.list_id)?.list_name || null
                 : null,
-            })
-          );
+            }));
 
           setCollections(collectionsWithListNames);
         }
@@ -305,7 +345,7 @@ export default function OverduePage() {
                 ? {
                     ...t,
                     text: taskData.text,
-                    description: taskData.description,
+                    description: taskData.description ?? null, // Add null check here
                     due_date: taskData.due_date
                       ? taskData.due_date.toISOString()
                       : null,
@@ -353,7 +393,7 @@ export default function OverduePage() {
               ? {
                   ...t,
                   collection_id: collectionId,
-                  collection_name: collectionName,
+                  collection_name: collectionName ?? undefined,
                 }
               : t
           )
@@ -398,8 +438,8 @@ export default function OverduePage() {
   );
 
   // Group tasks by how overdue they are
-  const groupedTasks = useMemo(() => {
-    const groups: { [key: string]: any[] } = {
+  const groupedTasks = useMemo((): TaskGrouped => {
+    const groups: TaskGrouped = {
       critical: [], // More than 7 days overdue
       high: [], // 3-7 days overdue
       medium: [], // 1-2 days overdue
@@ -421,31 +461,6 @@ export default function OverduePage() {
 
     return groups;
   }, [tasks, getDaysOverdue]);
-
-  // Memoized sorted tasks to prevent re-sorting on every render
-  const sortedTasks = useMemo(() => {
-    return [...tasks].sort((a, b) => {
-      // Sort by pin status first (pinned items at top)
-      if (a.is_pinned && !b.is_pinned) return -1;
-      if (!a.is_pinned && b.is_pinned) return 1;
-
-      // Then by due date (oldest/most overdue first)
-      const aDate = a.due_date ? new Date(a.due_date) : new Date(a.created_at);
-      const bDate = b.due_date ? new Date(b.due_date) : new Date(b.created_at);
-      return aDate.getTime() - bDate.getTime();
-    });
-  }, [tasks]);
-
-  // Calculate urgency level for display
-  const getUrgencyLevel = useCallback(
-    (dueDate: string) => {
-      const daysOverdue = getDaysOverdue(dueDate);
-      if (daysOverdue > 7) return "critical";
-      if (daysOverdue >= 3) return "high";
-      return "medium";
-    },
-    [getDaysOverdue]
-  );
 
   // Get human readable overdue text
   const getOverdueText = useCallback(
@@ -546,7 +561,7 @@ export default function OverduePage() {
                         <div className="relative">
                           {/* Overdue badge */}
                           <div className="absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold bg-red-600 text-white shadow-md z-10">
-                            {getOverdueText(task.due_date)}
+                            {getOverdueText(task.due_date ?? "")}{" "}
                           </div>
                           <TodayTaskCard
                             id={task.id}
@@ -594,7 +609,7 @@ export default function OverduePage() {
                         <div className="relative">
                           {/* Overdue badge */}
                           <div className="absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold bg-orange-500 text-white shadow-md z-10">
-                            {getOverdueText(task.due_date)}
+                            {getOverdueText(task.due_date ?? "")}{" "}
                           </div>
                           <TodayTaskCard
                             id={task.id}
@@ -642,7 +657,7 @@ export default function OverduePage() {
                         <div className="relative">
                           {/* Overdue badge */}
                           <div className="absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold bg-yellow-500 text-white shadow-md z-10">
-                            {getOverdueText(task.due_date)}
+                            {getOverdueText(task.due_date ?? "")}{" "}
                           </div>
                           <TodayTaskCard
                             id={task.id}

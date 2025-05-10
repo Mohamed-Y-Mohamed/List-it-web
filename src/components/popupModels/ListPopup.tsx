@@ -7,6 +7,12 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/client";
 import { List, ListColor, LIST_COLORS } from "@/types/schema";
 
+// Define a proper result type for submission
+interface SubmissionResult {
+  success: boolean;
+  error?: unknown;
+}
+
 interface CreateListModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -15,8 +21,20 @@ interface CreateListModalProps {
       List,
       "id" | "created_at" | "tasks" | "notes" | "collections"
     >
-  ) => Promise<{ success: boolean; error?: any }> | void;
+  ) => Promise<SubmissionResult> | void;
 }
+
+// Format date to yyyy-MM-dd'T'HH:mm:ss
+const formatDateToISOString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+};
 
 /**
  * Modal component for creating a new list
@@ -145,6 +163,7 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
             is_pinned: false,
             user_id: user.id,
             list_icon: "checklist",
+            created_at: formatDateToISOString(new Date()),
           },
         ])
         .select();
@@ -169,7 +188,8 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
             list_id: newListId,
             collection_name: "General",
             bg_color_hex: selectedColor,
-            user_id: user.id, // Critical for RLS policy
+            user_id: user.id,
+            created_at: formatDateToISOString(new Date()),
           },
         ]);
 

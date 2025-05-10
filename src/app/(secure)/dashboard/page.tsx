@@ -535,31 +535,9 @@ const NewUserWelcome: React.FC<{ isDark: boolean }> = ({ isDark }) => {
       <p
         className={`mt-2 max-w-md mx-auto ${isDark ? "text-gray-400" : "text-gray-500"}`}
       >
-        It looks like you're new here. Start by creating tasks to track your
-        work, set priorities, and meet your deadlines.
+        It looks like you&apos;re new here. Start by creating tasks to track
+        your work, set priorities, and meet your deadlines.
       </p>
-      <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-        <Link
-          href="/today"
-          className={`px-4 py-2 rounded-lg font-medium ${
-            isDark
-              ? "bg-blue-600 hover:bg-blue-700 text-white"
-              : "bg-blue-500 hover:bg-blue-600 text-white"
-          } transition-colors`}
-        >
-          Get Started
-        </Link>
-        <Link
-          href="/not-completed"
-          className={`px-4 py-2 rounded-lg font-medium ${
-            isDark
-              ? "bg-gray-700 hover:bg-gray-600 text-gray-200"
-              : "bg-gray-200 hover:bg-gray-300 text-gray-800"
-          } transition-colors`}
-        >
-          View All Tasks
-        </Link>
-      </div>
     </div>
   );
 };

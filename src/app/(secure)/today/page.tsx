@@ -5,13 +5,30 @@ import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@utils/client";
 import { useAuth } from "@/context/AuthContext";
 import TodayTaskCard from "@/components/Tasks/customcard";
-import { CalendarClock, Check, RefreshCw } from "lucide-react";
-
+import { CalendarClock, RefreshCw } from "lucide-react";
 import EmptyState from "@/components/popupModels/emptystate";
+import { Collection as SchemaCollection } from "@/types/schema"; // Import the schema type
+
+// Define types for better type safety
+interface Task {
+  id: string;
+  text: string;
+  description: string | null;
+  created_at: string;
+  due_date: string | null;
+  is_completed: boolean;
+  date_completed: string | null;
+  is_pinned: boolean;
+  collection_id: string | null;
+  list_id: string | null;
+  user_id: string;
+  collection_name?: string;
+  list_name?: string;
+}
 
 export default function TodayPage() {
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [collections, setCollections] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [collections, setCollections] = useState<SchemaCollection[]>([]); // Use the correct Collection type
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { theme } = useTheme();
@@ -50,11 +67,23 @@ export default function TodayPage() {
         .select("*");
 
       if (collectionsData) {
-        setCollections(collectionsData);
+        // Convert to the correct type with all required properties
+        const schemaCollections: SchemaCollection[] = collectionsData.map(
+          (collection) => ({
+            id: collection.id,
+            collection_name: collection.collection_name,
+            bg_color_hex: collection.bg_color_hex || "#000000", // Provide default if null
+            list_id: collection.list_id,
+            user_id: collection.user_id,
+            created_at: collection.created_at,
+            list_name: null, // Will be updated below
+          })
+        );
+
+        setCollections(schemaCollections);
       }
 
       // Create lookup objects for collection names and list names
-      const collectionIds = collectionsData?.map((c) => c.id) || [];
       const listIds: string[] = [];
 
       // Get unique list IDs from collections
@@ -78,14 +107,18 @@ export default function TodayPage() {
             listMap.set(list.id, list);
           });
 
-          const collectionsWithListNames = collectionsData.map(
-            (collection) => ({
-              ...collection,
+          const collectionsWithListNames: SchemaCollection[] =
+            collectionsData.map((collection) => ({
+              id: collection.id,
+              collection_name: collection.collection_name,
+              bg_color_hex: collection.bg_color_hex || "#000000",
+              list_id: collection.list_id,
+              user_id: collection.user_id,
+              created_at: collection.created_at,
               list_name: collection.list_id
                 ? listMap.get(collection.list_id)?.list_name || null
                 : null,
-            })
-          );
+            }));
 
           setCollections(collectionsWithListNames);
         }
@@ -97,6 +130,7 @@ export default function TodayPage() {
       return { collectionsData: [], listIds: [] };
     }
   }, []);
+
   // Handle task deletion
   const handleTaskDelete = useCallback(
     async (taskId: string) => {
@@ -113,6 +147,7 @@ export default function TodayPage() {
     },
     [user]
   );
+
   // Function to fetch tasks due today
   const fetchTasksDueToday = useCallback(async () => {
     if (!user) return;
@@ -122,7 +157,7 @@ export default function TodayPage() {
 
     try {
       // Get today's date in the format that PostgreSQL expects (YYYY-MM-DD)
-      const todayFormatted = formatDateForPostgres(today);
+      formatDateForPostgres(today);
 
       // Get all tasks
       const { data: allTasks, error: tasksError } = await supabase
@@ -198,7 +233,7 @@ export default function TodayPage() {
       });
 
       // Add collection and list names to tasks
-      const tasksWithNames = todaysTasks.map((task) => {
+      const tasksWithNames: Task[] = todaysTasks.map((task) => {
         const collection = task.collection_id
           ? collectionMap.get(task.collection_id)
           : null;
@@ -342,7 +377,7 @@ export default function TodayPage() {
                 ? {
                     ...t,
                     text: taskData.text,
-                    description: taskData.description,
+                    description: taskData.description ?? null,
                     due_date: taskData.due_date
                       ? taskData.due_date.toISOString()
                       : null,
@@ -390,7 +425,7 @@ export default function TodayPage() {
               ? {
                   ...t,
                   collection_id: collectionId,
-                  collection_name: collectionName,
+                  collection_name: collectionName ?? undefined,
                 }
               : t
           )
@@ -478,7 +513,9 @@ export default function TodayPage() {
                   <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
                   <div className="absolute inset-0 animate-pulse bg-blue-500 rounded-full opacity-20"></div>
                 </div>
-                <p className="text-lg font-medium">Loading today's tasks...</p>
+                <p className="text-lg font-medium">
+                  Loading today&apos;s tasks...
+                </p>
               </div>
             </div>
           ) : sortedTasks.length === 0 ? (

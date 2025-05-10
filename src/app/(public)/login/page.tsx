@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { LogIn, Mail, Lock, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { FaApple } from "react-icons/fa";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
@@ -149,25 +148,6 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleAppleLogin = async () => {
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "apple",
-        options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
-        },
-      });
-
-      if (error) throw error;
-    } catch (err) {
-      console.error("Apple login error:", err);
-      const error = err as AuthError;
-      setError(error.message || "Failed to log in with Apple");
-      setLoading(false);
-    }
-  };
-
   // Handle forgot password
   const handleForgotPassword = async () => {
     if (!email.trim()) {
@@ -306,31 +286,6 @@ const Login: React.FC = () => {
                     </svg>
                   </div>
                   <span className="ml-4">Log in with Google</span>
-                </button>
-
-                <button
-                  onClick={handleAppleLogin}
-                  disabled={loading}
-                  className={`w-full max-w-xs font-bold shadow-sm rounded-lg py-3 ${
-                    isDark
-                      ? "bg-sky-900 text-gray-200"
-                      : "bg-sky-100 text-gray-800"
-                  } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline mt-5 ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
-                  aria-label="Login with Apple"
-                  type="button"
-                >
-                  <div
-                    className={`${
-                      isDark ? "bg-gray-800" : "bg-white"
-                    } p-1 rounded-full`}
-                  >
-                    <FaApple
-                      className={`w-6 h-6 ${
-                        isDark ? "text-gray-300" : "text-black"
-                      }`}
-                    />
-                  </div>
-                  <span className="ml-4">Log in with Apple</span>
                 </button>
               </div>
 

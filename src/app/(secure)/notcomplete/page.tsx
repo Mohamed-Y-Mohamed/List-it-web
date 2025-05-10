@@ -5,12 +5,37 @@ import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
 import TodayTaskCard from "@/components/Tasks/customcard"; // Reusing the same card component
-import { ClipboardCheck, RefreshCw, CheckCircle2 } from "lucide-react";
+import { ClipboardCheck, RefreshCw } from "lucide-react";
 import EmptyState from "@/components/popupModels/emptystate"; // Reusing the same empty state component
+import { Collection as SchemaCollection } from "@/types/schema"; // Import the schema type
+
+// Define types for better type safety
+interface Task {
+  id: string;
+  text: string;
+  description: string | null;
+  created_at: string;
+  due_date: string | null;
+  is_completed: boolean;
+  date_completed: string | null;
+  is_pinned: boolean;
+  collection_id: string | null;
+  list_id: string | null;
+  user_id: string;
+  collection_name?: string;
+  list_name?: string;
+}
+
+interface TaskGroups {
+  today: Task[];
+  tomorrow: Task[];
+  future: Task[];
+  no_date: Task[];
+}
 
 export default function NotCompletedPage() {
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [collections, setCollections] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [collections, setCollections] = useState<SchemaCollection[]>([]); // Use the correct Collection type
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { theme } = useTheme();
@@ -49,11 +74,23 @@ export default function NotCompletedPage() {
         .select("*");
 
       if (collectionsData) {
-        setCollections(collectionsData);
+        // Convert to the correct type with all required properties
+        const schemaCollections: SchemaCollection[] = collectionsData.map(
+          (collection) => ({
+            id: collection.id,
+            collection_name: collection.collection_name,
+            bg_color_hex: collection.bg_color_hex || "#000000", // Provide default if null
+            list_id: collection.list_id,
+            user_id: collection.user_id,
+            created_at: collection.created_at,
+            list_name: null, // Will be updated below
+          })
+        );
+
+        setCollections(schemaCollections);
       }
 
       // Create lookup objects for collection names and list names
-      const collectionIds = collectionsData?.map((c) => c.id) || [];
       const listIds: string[] = [];
 
       // Get unique list IDs from collections
@@ -77,14 +114,18 @@ export default function NotCompletedPage() {
             listMap.set(list.id, list);
           });
 
-          const collectionsWithListNames = collectionsData.map(
-            (collection) => ({
-              ...collection,
+          const collectionsWithListNames: SchemaCollection[] =
+            collectionsData.map((collection) => ({
+              id: collection.id,
+              collection_name: collection.collection_name,
+              bg_color_hex: collection.bg_color_hex || "#000000",
+              list_id: collection.list_id,
+              user_id: collection.user_id,
+              created_at: collection.created_at,
               list_name: collection.list_id
                 ? listMap.get(collection.list_id)?.list_name || null
                 : null,
-            })
-          );
+            }));
 
           setCollections(collectionsWithListNames);
         }
@@ -106,7 +147,7 @@ export default function NotCompletedPage() {
 
     try {
       // Get today's date in the format that PostgreSQL expects (YYYY-MM-DD)
-      const todayFormatted = formatDateForPostgres(today);
+      formatDateForPostgres(today);
 
       // First, get all incomplete tasks
       const { data: allTasks, error: tasksError } = await supabase
@@ -177,7 +218,7 @@ export default function NotCompletedPage() {
       });
 
       // Add collection and list names to tasks
-      const tasksWithNames = validTasks.map((task) => {
+      const tasksWithNames: Task[] = validTasks.map((task) => {
         const collection = task.collection_id
           ? collectionMap.get(task.collection_id)
           : null;
@@ -322,7 +363,7 @@ export default function NotCompletedPage() {
                 ? {
                     ...t,
                     text: taskData.text,
-                    description: taskData.description,
+                    description: taskData.description ?? null, // Add null check and default value
                     due_date: taskData.due_date
                       ? taskData.due_date.toISOString()
                       : null,
@@ -359,9 +400,7 @@ export default function NotCompletedPage() {
 
         // Find the collection in our collections array
         const collection = collections.find((c) => c.id === collectionId);
-        const collectionName = collection
-          ? collection.collection_name
-          : "Uncategorized";
+        const collectionName = collection?.collection_name ?? undefined;
 
         // Update in local state
         setTasks((prevTasks) =>
@@ -419,9 +458,15 @@ export default function NotCompletedPage() {
 
       // Then sort by due date if both have due dates (earliest first)
       if (aHasDueDate && bHasDueDate) {
-        const aDate = new Date(a.due_date);
-        const bDate = new Date(b.due_date);
-        return aDate.getTime() - bDate.getTime();
+        const aDate = a.due_date ? new Date(a.due_date) : null;
+        const bDate = b.due_date ? new Date(b.due_date) : null;
+
+        if (aDate && bDate) {
+          return aDate.getTime() - bDate.getTime();
+        } else {
+          // If either date is null, consider it as a later date
+          return aDate ? -1 : 1;
+        }
       }
 
       // Finally, sort by creation date if neither has due date
@@ -432,8 +477,8 @@ export default function NotCompletedPage() {
   }, [tasks]);
 
   // Group tasks by due date for better organization
-  const groupedTasks = useMemo(() => {
-    const groups: { [key: string]: any[] } = {
+  const groupedTasks = useMemo((): TaskGroups => {
+    const groups: TaskGroups = {
       today: [],
       tomorrow: [],
       future: [],

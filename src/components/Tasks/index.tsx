@@ -7,7 +7,7 @@ import TaskSidebar from "@/components/popupModels/TasksDetails";
 import { Collection } from "@/types/schema";
 
 interface TaskCardProps {
-  id: string; // Changed from number to string
+  id: string;
   text: string | null;
   description?: string | null;
   created_at: Date | string | null;
@@ -15,23 +15,34 @@ interface TaskCardProps {
   is_completed: boolean | null;
   date_completed?: Date | string | null;
   is_pinned?: boolean | null;
-  collection_id?: string | null; // Added for context
-  list_id?: string | null; // Added for context
-  user_id?: string | null; // Added for context
-  onComplete: (id: string, is_completed: boolean) => void; // Changed from number to string
-  onPriorityChange: (id: string, is_pinned: boolean) => void; // Changed from number to string
+  collection_id?: string | null;
+  list_id?: string | null;
+  user_id?: string | null;
+  onComplete: (
+    id: string,
+    is_completed: boolean
+  ) => Promise<{ success: boolean; error?: unknown }>;
+  onPriorityChange: (
+    id: string,
+    is_pinned: boolean
+  ) => Promise<{ success: boolean; error?: unknown }>;
   onTaskUpdate?: (
-    taskId: string, // Changed from number to string
+    taskId: string,
     taskData: {
       text: string;
       description?: string | null;
       due_date?: Date | null;
       is_pinned: boolean;
     }
-  ) => void;
-  onTaskDelete?: (taskId: string) => void; // Changed from number to string
+  ) => Promise<{ success: boolean; error?: unknown }>;
+  onTaskDelete?: (
+    taskId: string
+  ) => Promise<{ success: boolean; error?: unknown }>;
   collections?: Collection[];
-  onCollectionChange?: (taskId: string, collectionId: string) => void; // Changed from number to string
+  onCollectionChange?: (
+    taskId: string,
+    collectionId: string
+  ) => Promise<{ success: boolean; error?: unknown }>;
   className?: string;
 }
 
@@ -65,6 +76,7 @@ const TaskCard = ({
     Date | string | null | undefined
   >(due_date);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -83,7 +95,7 @@ const TaskCard = ({
     try {
       const dateObj = date instanceof Date ? date : new Date(date);
       return dateObj.toLocaleDateString();
-    } catch (error) {
+    } catch {
       console.error("Invalid date:", date);
       return "Invalid date";
     }
@@ -94,24 +106,60 @@ const TaskCard = ({
     ? formatDate(taskDueDate)
     : "No due date";
 
-  const handleCompletionToggle = (e: React.MouseEvent) => {
+  const handleCompletionToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
+
+    if (isUpdating) return;
+    setIsUpdating(true);
+
     const newState = !isCompleted;
+    const previousState = isCompleted;
     setIsCompleted(newState);
-    onComplete?.(id, newState);
+
+    try {
+      const result = await onComplete(id, newState);
+      // If there was an error, revert the state
+      if (!result.success) {
+        setIsCompleted(previousState);
+        console.error("Failed to update completion status:", result.error);
+      }
+    } catch (error) {
+      console.error("Error in completion toggle:", error);
+      setIsCompleted(previousState); // Revert on error
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
-  const handlePriorityToggle = (e: React.MouseEvent) => {
+  const handlePriorityToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
+
+    if (isUpdating) return;
+    setIsUpdating(true);
+
     const newState = !isPinned;
+    const previousState = isPinned;
     setIsPinned(newState);
-    onPriorityChange?.(id, newState);
+
+    try {
+      const result = await onPriorityChange(id, newState);
+      // If there was an error, revert the state
+      if (!result.success) {
+        setIsPinned(previousState);
+        console.error("Failed to update priority status:", result.error);
+      }
+    } catch (error) {
+      console.error("Error in priority toggle:", error);
+      setIsPinned(previousState); // Revert on error
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleCardClick = () => setIsSidebarOpen(true);
   const handleCloseSidebar = () => setIsSidebarOpen(false);
 
-  const handleTaskUpdate = (
+  const handleTaskUpdate = async (
     taskId: string,
     taskData: {
       text: string;
@@ -119,12 +167,45 @@ const TaskCard = ({
       due_date?: Date | null;
       is_pinned: boolean;
     }
-  ) => {
+  ): Promise<{ success: boolean; error?: unknown }> => {
+    if (!onTaskUpdate) {
+      return { success: false, error: "Update handler not available" };
+    }
+
+    // Store current state for potential rollback
+    const previousState = {
+      text: taskText,
+      description: taskDescription,
+      due_date: taskDueDate,
+      is_pinned: isPinned,
+    };
+
+    // Update UI optimistically
     setTaskText(taskData.text);
     setTaskDescription(taskData.description);
     setTaskDueDate(taskData.due_date);
     setIsPinned(taskData.is_pinned);
-    onTaskUpdate?.(taskId, taskData);
+
+    try {
+      const result = await onTaskUpdate(taskId, taskData);
+      if (!result.success) {
+        // Revert to previous state on error
+        setTaskText(previousState.text);
+        setTaskDescription(previousState.description);
+        setTaskDueDate(previousState.due_date);
+        setIsPinned(previousState.is_pinned);
+        console.error("Failed to update task:", result.error);
+      }
+      return result;
+    } catch (error) {
+      console.error("Error updating task:", error);
+      // Revert to previous state on error
+      setTaskText(previousState.text);
+      setTaskDescription(previousState.description);
+      setTaskDueDate(previousState.due_date);
+      setIsPinned(previousState.is_pinned);
+      return { success: false, error };
+    }
   };
 
   // Ensure we have a valid Date object for TaskSidebar
@@ -132,7 +213,7 @@ const TaskCard = ({
     if (!date) return null;
     try {
       return date instanceof Date ? date : new Date(date);
-    } catch (error) {
+    } catch {
       console.error("Invalid date:", date);
       return null;
     }
@@ -182,6 +263,7 @@ const TaskCard = ({
           <div className="flex items-center space-x-3 overflow-hidden">
             <button
               onClick={handleCompletionToggle}
+              disabled={isUpdating}
               className={`flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-sm border transition-colors ${
                 isDark
                   ? isCompleted
@@ -190,7 +272,7 @@ const TaskCard = ({
                   : isCompleted
                     ? "border-green-500 bg-green-500 text-white"
                     : "border-gray-300 bg-white hover:border-green-500"
-              }`}
+              } ${isUpdating ? "opacity-50" : ""}`}
               aria-label={
                 isCompleted ? "Mark as incomplete" : "Mark as complete"
               }
@@ -215,6 +297,7 @@ const TaskCard = ({
 
           <button
             onClick={handlePriorityToggle}
+            disabled={isUpdating}
             className={`flex-shrink-0 transition-colors ${
               isDark
                 ? isPinned
@@ -223,7 +306,7 @@ const TaskCard = ({
                 : isPinned
                   ? "text-orange-500"
                   : "text-gray-400 hover:text-gray-600"
-            }`}
+            } ${isUpdating ? "opacity-50" : ""}`}
             aria-label={isPinned ? "Unpin task" : "Pin task"}
           >
             <Pin className={`h-5 w-5 ${isPinned ? "fill-current" : ""}`} />

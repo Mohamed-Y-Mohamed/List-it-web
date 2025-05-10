@@ -15,6 +15,19 @@ import CreateTaskModal from "@/components/popupModels/TaskPopup";
 import CreateNoteModal from "@/components/popupModels/notepopup";
 import DeleteCollectionModal from "@/components/popupModels/deleteCollectionModal";
 
+// Format date to yyyy-MM-dd'T'HH:mm:ss
+const formatDateForPostgres = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+
+  // Return format without 'T': YYYY-MM-DD HH:mm:ss
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
 // Add a handler for task deletion
 const handleTaskDelete = async (taskId: string) => {
   try {
@@ -40,7 +53,6 @@ export default function ListPage() {
   const { theme } = useTheme();
   const { user } = useAuth();
   const isDark = theme === "dark";
-  const [isMobile, setIsMobile] = useState(false);
 
   // State for modals
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
@@ -63,17 +75,6 @@ export default function ListPage() {
 
   // Add a refresh trigger to force re-fetch of data
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-
-  // Check if we're on mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
 
   // Function to trigger a data refresh
   const refreshData = useCallback(() => {
@@ -267,7 +268,7 @@ export default function ListPage() {
       }
 
       try {
-        // Insert the new collection
+        // Insert the new collection with created_at
         const { data, error } = await supabase
           .from("collection")
           .insert([
@@ -276,6 +277,7 @@ export default function ListPage() {
               collection_name: collectionData.collection_name,
               bg_color_hex: collectionData.bg_color_hex,
               user_id: user.id, // Include user_id for RLS policy
+              created_at: formatDateForPostgres(new Date()), // Add this line
             },
           ])
           .select();
@@ -336,7 +338,7 @@ export default function ListPage() {
         const collectionId =
           taskData.collection_id || selectedCollectionId || defaultCollectionId;
 
-        // Create the task in the database
+        // Create the task in the database with all required fields
         const { data, error } = await supabase
           .from("task")
           .insert([
@@ -344,12 +346,15 @@ export default function ListPage() {
               text: taskData.text,
               description: taskData.description || null,
               is_pinned: taskData.is_pinned || false,
-              due_date: taskData.due_date || null,
+              due_date: taskData.due_date
+                ? formatDateForPostgres(taskData.due_date)
+                : null,
               collection_id: collectionId,
-              list_id: listData.id,
+              list_id: listData.id, // Make sure this is included
               is_completed: false,
               is_deleted: false,
               user_id: user.id,
+              created_at: formatDateForPostgres(new Date()), // Add this required field
             },
           ])
           .select();
@@ -398,7 +403,9 @@ export default function ListPage() {
           .from("task")
           .update({
             is_completed: isCompleted,
-            date_completed: isCompleted ? new Date() : null,
+            date_completed: isCompleted
+              ? formatDateForPostgres(new Date())
+              : null,
           })
           .eq("id", taskId)
           .select();
@@ -504,7 +511,9 @@ export default function ListPage() {
           .update({
             text: taskData.text,
             description: taskData.description ?? null,
-            due_date: taskData.due_date ?? null,
+            due_date: taskData.due_date
+              ? formatDateForPostgres(taskData.due_date)
+              : null,
             is_pinned: taskData.is_pinned,
           })
           .eq("id", taskId)

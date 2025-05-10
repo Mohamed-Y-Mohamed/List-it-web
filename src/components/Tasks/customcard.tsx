@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Calendar, Check, Pin, ListTodo, Folder, Clock } from "lucide-react";
+import { Check, Pin, ListTodo, Folder, Clock } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import TaskSidebar from "@/components/popupModels/TasksDetails"; // Using the existing TaskSidebar
+import { Collection } from "@/types/schema";
 
 interface TodayTaskCardProps {
   id: string;
@@ -22,11 +23,11 @@ interface TodayTaskCardProps {
   onComplete: (
     id: string,
     is_completed: boolean
-  ) => Promise<{ success: boolean; error?: any }> | void;
+  ) => Promise<{ success: boolean; error?: unknown }> | void;
   onPriorityChange: (
     id: string,
     is_pinned: boolean
-  ) => Promise<{ success: boolean; error?: any }> | void;
+  ) => Promise<{ success: boolean; error?: unknown }> | void;
   onTaskUpdate?: (
     taskId: string,
     taskData: {
@@ -35,15 +36,15 @@ interface TodayTaskCardProps {
       due_date?: Date | null;
       is_pinned: boolean;
     }
-  ) => Promise<{ success: boolean; error?: any }> | void;
+  ) => Promise<{ success: boolean; error?: unknown }> | void;
   onTaskDelete?: (
     taskId: string
-  ) => Promise<{ success: boolean; error?: any }> | void;
-  collections?: any[];
+  ) => Promise<{ success: boolean; error?: unknown }> | void;
+  collections?: Collection[];
   onCollectionChange?: (
     taskId: string,
     collectionId: string
-  ) => Promise<{ success: boolean; error?: any }> | void;
+  ) => Promise<{ success: boolean; error?: unknown }> | void;
   className?: string;
 }
 
@@ -101,8 +102,7 @@ const TodayTaskCard = ({
             ? "numeric"
             : undefined,
       });
-    } catch (error) {
-      console.error("Invalid date:", date);
+    } catch {
       return "Invalid date";
     }
   }, []);
@@ -116,13 +116,11 @@ const TodayTaskCard = ({
         hour: "2-digit",
         minute: "2-digit",
       });
-    } catch (error) {
-      console.error("Invalid time:", date);
+    } catch {
       return "";
     }
   }, []);
 
-  const createdDateFormatted = formatDate(created_at);
   const dueDateFormatted = due_date ? formatDate(due_date) : null;
   const dueTimeFormatted = due_date ? formatTime(due_date) : null;
 
@@ -195,8 +193,7 @@ const TodayTaskCard = ({
     if (!date) return null;
     try {
       return date instanceof Date ? date : new Date(date);
-    } catch (error) {
-      console.error("Invalid date:", date);
+    } catch {
       return null;
     }
   };

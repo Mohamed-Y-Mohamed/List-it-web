@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Circle,
   CalendarCheck,
   CheckCircle,
   Star,
@@ -16,7 +15,6 @@ import {
   Moon,
   User,
   LogOut,
-  Settings,
   ChevronRight,
   ListTodo,
   Trash2,
@@ -30,7 +28,7 @@ import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
 import CreateListModal from "@/components/popupModels/ListPopup";
 import { supabase } from "@/utils/client";
-import { List, Collection, Task, Note } from "@/types/schema";
+import { List } from "@/types/schema";
 
 // Main navigation component that should wrap the page content
 const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
@@ -52,46 +50,58 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
   const [lists, setLists] = useState<List[]>([]);
   const [isLoadingLists, setIsLoadingLists] = useState(true);
   const [isDeletingList, setIsDeletingList] = useState(false);
+  const formatDateForPostgres = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
 
-  // Helper function to fetch lists
-  const fetchLists = async (forceFetch = false) => {
-    if (!isLoggedIn || !user) {
-      setLists([]);
-      setIsLoadingLists(false);
-      return;
-    }
-
-    try {
-      // Only set loading if this isn't a background refresh
-      if (forceFetch || lists.length === 0) {
-        setIsLoadingLists(true);
-      }
-
-      // Request lists with proper ordering for consistent display
-      const { data, error } = await supabase
-        .from("list")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("is_pinned", { ascending: false }) // Pinned first
-        .order("created_at", { ascending: false }); // Then newest first
-
-      if (error) {
-        throw error;
-      }
-
-      // Update the lists state with the fresh data
-      setLists(data || []);
-    } catch (error) {
-      console.error("Error fetching lists:", error);
-      // Don't clear lists on error to preserve user experience
-    } finally {
-      setIsLoadingLists(false);
-    }
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   };
+  // Helper function to fetch lists
+  const fetchLists = useCallback(
+    async (forceFetch = false) => {
+      if (!isLoggedIn || !user) {
+        setLists([]);
+        setIsLoadingLists(false);
+        return;
+      }
+
+      try {
+        // Only set loading if this isn't a background refresh
+        if (forceFetch || lists.length === 0) {
+          setIsLoadingLists(true);
+        }
+
+        // Request lists with proper ordering for consistent display
+        const { data, error } = await supabase
+          .from("list")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("is_pinned", { ascending: false }) // Pinned first
+          .order("created_at", { ascending: false }); // Then newest first
+
+        if (error) {
+          throw error;
+        }
+
+        // Update the lists state with the fresh data
+        setLists(data || []);
+      } catch (error) {
+        console.error("Error fetching lists:", error);
+        // Don't clear lists on error to preserve user experience
+      } finally {
+        setIsLoadingLists(false);
+      }
+    },
+    [isLoggedIn, user, lists.length]
+  ); // Include lists.length in dependencies
 
   useEffect(() => {
     fetchLists();
-  }, [isLoggedIn, user]);
+  }, [fetchLists]);
 
   const sortedLists = useMemo(() => {
     return [...lists].sort((a, b) => {
@@ -177,10 +187,16 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
         return { success: true };
       }
 
-      // If no existing list was found, create a new one
+      // If no existing list was found, create a new one with created_at
       const { data: newList, error: createListError } = await supabase
         .from("list")
-        .insert([{ ...listData, user_id: user.id }])
+        .insert([
+          {
+            ...listData,
+            user_id: user.id,
+            created_at: formatDateForPostgres(new Date()), // Add this line
+          },
+        ])
         .select();
 
       if (createListError) {
@@ -197,8 +213,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
 
       const createdList = newList[0];
 
-      // Create a default collection for the new list
-      // REMOVED is_default since it doesn't exist in the database
+      // Create a default collection for the new list with created_at
       const { error: createCollectionError } = await supabase
         .from("collection")
         .insert([
@@ -207,6 +222,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
             collection_name: "General",
             bg_color_hex: createdList.bg_color_hex,
             user_id: user.id,
+            created_at: formatDateForPostgres(new Date()), // Add this line
           },
         ]);
 
@@ -237,7 +253,6 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
       setIsLoadingLists(false);
     }
   };
-
   // FIXED: Enhanced delete functionality to properly delete all related items
   const handleDeleteList = async (listId: string) => {
     if (!user || isDeletingList) return;

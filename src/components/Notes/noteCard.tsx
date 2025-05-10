@@ -6,6 +6,12 @@ import { useTheme } from "@/context/ThemeContext";
 import NoteSidebar from "@/components/popupModels/notedetail";
 import { Note } from "@/types/schema";
 
+// Define a proper result type for operations
+interface OperationResult {
+  success: boolean;
+  error?: unknown;
+}
+
 interface NoteCardProps {
   id: string;
   title: string | null;
@@ -17,20 +23,14 @@ interface NoteCardProps {
   collection_id?: string | null;
   list_id?: string | null; // Add this to match the schema
   user_id?: string | null; // Add this to match the schema
-  onPinChange?: (
-    noteId: string,
-    isPinned: boolean
-  ) => Promise<{ success: boolean; error?: any }>;
-  onColorChange?: (
-    noteId: string,
-    color: string
-  ) => Promise<{ success: boolean; error?: any }>;
+  onPinChange?: (noteId: string, isPinned: boolean) => Promise<OperationResult>;
+  onColorChange?: (noteId: string, color: string) => Promise<OperationResult>;
   onNoteUpdate?: (
     noteId: string,
     updatedTitle: string,
     updatedDescription?: string
-  ) => Promise<{ success: boolean; error?: any }>;
-  onNoteDelete?: (noteId: string) => Promise<{ success: boolean; error?: any }>;
+  ) => Promise<OperationResult>;
+  onNoteDelete?: (noteId: string) => Promise<OperationResult>;
   className?: string;
 }
 
@@ -125,7 +125,9 @@ const NoteCard = ({
       const result = await onPinChange(id, newPinState);
 
       if (!result.success) {
-        throw new Error(result.error || "Failed to update pin status");
+        throw new Error(
+          result.error ? String(result.error) : "Failed to update pin status"
+        );
       }
 
       // Local state will be updated via props when the parent component re-renders
@@ -159,7 +161,9 @@ const NoteCard = ({
       const result = await onColorChange(noteId, color);
 
       if (!result.success) {
-        throw new Error(result.error || "Failed to update note color");
+        throw new Error(
+          result.error ? String(result.error) : "Failed to update note color"
+        );
       }
 
       setNoteBackgroundColor(color);
@@ -195,7 +199,9 @@ const NoteCard = ({
       );
 
       if (!result.success) {
-        throw new Error(result.error || "Failed to update note");
+        throw new Error(
+          result.error ? String(result.error) : "Failed to update note"
+        );
       }
 
       setNoteTitle(updatedTitle);
@@ -226,7 +232,9 @@ const NoteCard = ({
       const result = await onNoteDelete(noteId);
 
       if (!result.success) {
-        throw new Error(result.error || "Failed to delete note");
+        throw new Error(
+          result.error ? String(result.error) : "Failed to delete note"
+        );
       }
 
       // Close the sidebar immediately without waiting for parent update
