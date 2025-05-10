@@ -3,7 +3,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowRight, Clock, Folder, ListTodo, StickyNote } from "lucide-react";
+import { Clock, Folder, ListTodo, StickyNote } from "lucide-react";
 import Hero from "@components/hero";
 import FeatureCard from "@components/Landing/FeatureCard";
 import HowItWorksCard from "@components/Landing/HowItWorksCard";
