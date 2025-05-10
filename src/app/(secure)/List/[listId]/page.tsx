@@ -791,29 +791,72 @@ export default function ListPage() {
   );
 
   // Handler for note deletion
-  const handleNoteDelete = useCallback(async (noteId: string) => {
-    try {
-      // Update is_deleted flag rather than hard delete
-      const { error } = await supabase
-        .from("note")
-        .update({ is_deleted: true })
-        .eq("id", noteId);
+  // Replace the current handleNoteDelete function in paste-4.txt with this improved version:
+  // In ListPage component (paste-4.txt), update the handleNoteDelete function:
+  const handleNoteDelete = useCallback(
+    async (noteId: string) => {
+      try {
+        // First, find which collection contains this note
+        let noteCollectionId = null;
+        let foundNote = null;
 
-      if (error) throw error;
+        // Find the note and its collection
+        for (const collection of collections) {
+          foundNote = collection.notes?.find((note) => note.id === noteId);
+          if (foundNote) {
+            noteCollectionId = collection.id;
+            break;
+          }
+        }
 
-      // Update UI by removing the deleted note from all collections
-      setCollections((prevCollections) =>
-        prevCollections.map((collection) => ({
-          ...collection,
-          notes: (collection.notes || []).filter((note) => note.id !== noteId),
-        }))
-      );
-      return { success: true };
-    } catch (err) {
-      console.error("Error deleting note:", err);
-      return { success: false, error: err };
-    }
-  }, []);
+        // Update is_deleted flag in the database
+        const { error } = await supabase
+          .from("note")
+          .update({ is_deleted: true })
+          .eq("id", noteId);
+
+        if (error) throw error;
+
+        // Immediately update the UI to remove the note
+        if (noteCollectionId) {
+          setCollections((prevCollections) =>
+            prevCollections.map((collection) => {
+              if (collection.id === noteCollectionId) {
+                return {
+                  ...collection,
+                  notes: (collection.notes || []).filter(
+                    (note) => note.id !== noteId
+                  ),
+                };
+              }
+              return collection;
+            })
+          );
+        } else {
+          // If we can't find the specific collection, update all collections
+          setCollections((prevCollections) =>
+            prevCollections.map((collection) => ({
+              ...collection,
+              notes: (collection.notes || []).filter(
+                (note) => note.id !== noteId
+              ),
+            }))
+          );
+        }
+
+        // Finally, force a refresh after a short delay to ensure DB and UI are synced
+        setTimeout(() => {
+          refreshData();
+        }, 500);
+
+        return { success: true };
+      } catch (err) {
+        console.error("Error deleting note:", err);
+        return { success: false, error: err };
+      }
+    },
+    [collections, refreshData]
+  );
 
   // Handler for collection pinning
   const handleCollectionPin = useCallback(

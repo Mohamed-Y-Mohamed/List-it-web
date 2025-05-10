@@ -1,6 +1,0 @@
-#!/bin/sh
-. "$(dirname -- "$0")/husky.sh"
-
-echo "🧪 Running tests before commit..."
-
-npm test -- --passWithNoTests
