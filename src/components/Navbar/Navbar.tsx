@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   CircleMinus,
   CalendarPlus2,
+  ClockAlert,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -46,10 +47,11 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [isCreateListModalOpen, setIsCreateListModalOpen] = useState(false);
   const [isDeleteListModalOpen, setIsDeleteListModalOpen] = useState(false);
-  const [listToDelete, setListToDelete] = useState<number | null>(null);
+  const [listToDelete, setListToDelete] = useState<string | null>(null);
   const [isTablet, setIsTablet] = useState(false);
   const [lists, setLists] = useState<List[]>([]);
   const [isLoadingLists, setIsLoadingLists] = useState(true);
+  const [isDeletingList, setIsDeletingList] = useState(false);
 
   useEffect(() => {
     const fetchLists = async () => {
@@ -102,11 +104,11 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
     }
   };
 
-  const handleListClick = (listId: number) => {
+  const handleListClick = (listId: string) => {
     navigateTo(`/List/${listId}`);
   };
 
-  const handleTogglePinList = async (listId: number) => {
+  const handleTogglePinList = async (listId: string) => {
     if (!user) return;
 
     const currentList = lists.find((list) => list.id === listId);
@@ -130,6 +132,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
     );
   };
 
+  // FIXED: This method no longer creates duplicate lists
   const handleCreateList = async (
     listData: Omit<
       List,
@@ -142,210 +145,188 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
       if (!user) {
         console.error("No user found when creating list");
         setIsLoadingLists(false);
-        return;
+        return { success: false, error: "No authenticated user" };
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      const { data: listByName, error: nameError } = await supabase
+      // First, check if a list with the same name already exists
+      const { data: existingLists, error: checkError } = await supabase
         .from("list")
-        .select("*")
+        .select("id")
         .eq("user_id", user.id)
-        .eq("list_name", listData.list_name)
-        .order("created_at", { ascending: false });
-
-      if (!nameError && listByName && listByName.length > 0) {
-        const createdList = listByName[0];
-
-        const { data: collections, error: collectionsError } = await supabase
-          .from("collection")
-          .select("*")
-          .eq("list_id", createdList.id);
-
-        if (!collectionsError && (!collections || collections.length === 0)) {
-          const { error: createCollectionError } = await supabase
-            .from("collection")
-            .insert([
-              {
-                list_id: createdList.id,
-                collection_name: "General",
-                bg_color_hex: createdList.bg_color_hex,
-                is_default: true,
-              },
-            ]);
-
-          if (createCollectionError) {
-            console.error(
-              "Error creating General collection:",
-              createCollectionError
-            );
-          }
-        }
-
-        const { data: allLists } = await supabase
-          .from("list")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (allLists) {
-          setLists(allLists);
-        }
-
-        navigateTo(`/List/${createdList.id}`);
-        setIsLoadingLists(false);
-        return;
-      }
-
-      const { data: recentLists, error: recentError } = await supabase
-        .from("list")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
+        .eq("list_name", listData.list_name?.trim())
         .limit(1);
 
-      if (!recentError && recentLists && recentLists.length > 0) {
-        const recentList = recentLists[0];
+      if (checkError) {
+        console.error("Error checking existing lists:", checkError);
+      } else if (existingLists && existingLists.length > 0) {
+        // If a list with this name already exists, navigate to it instead of creating a duplicate
 
-        const { data: collections, error: collectionsError } = await supabase
-          .from("collection")
-          .select("*")
-          .eq("list_id", recentList.id);
+        // Make sure lists are updated to reflect current state
+        await fetchLists();
 
-        if (!collectionsError && (!collections || collections.length === 0)) {
-          const { error: createCollectionError } = await supabase
-            .from("collection")
-            .insert([
-              {
-                list_id: recentList.id,
-                collection_name: "General",
-                bg_color_hex: recentList.bg_color_hex,
-                is_default: true,
-              },
-            ]);
-
-          if (createCollectionError) {
-            console.error(
-              "Error creating General collection:",
-              createCollectionError
-            );
-          }
-        }
-
-        const { data: allLists } = await supabase
-          .from("list")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (allLists) {
-          setLists(allLists);
-        }
-
-        // Navigate to the most recent list
-        navigateTo(`/List/${recentList.id}`);
+        navigateTo(`/List/${existingLists[0].id}`);
         setIsLoadingLists(false);
-        return;
+        return { success: true };
       }
 
-      // If both approaches failed, just get all lists and refresh the state
-      const { data: allLists } = await supabase
+      // If no existing list was found, create a new one
+      const { data: newList, error: createListError } = await supabase
         .from("list")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .insert([{ ...listData, user_id: user.id }])
+        .select();
 
-      if (allLists && allLists.length > 0) {
-        setLists(allLists);
-
-        // Check the first list for collections
-        const firstList = allLists[0];
-
-        // Check if this list has any collections
-        const { data: collections, error: collectionsError } = await supabase
-          .from("collection")
-          .select("*")
-          .eq("list_id", firstList.id);
-
-        if (!collectionsError && (!collections || collections.length === 0)) {
-          // No collections found, create a General collection
-          const { error: createCollectionError } = await supabase
-            .from("collection")
-            .insert([
-              {
-                list_id: firstList.id,
-                collection_name: "General",
-                bg_color_hex: firstList.bg_color_hex,
-                is_default: true,
-              },
-            ]);
-
-          if (createCollectionError) {
-            console.error(
-              "Error creating General collection:",
-              createCollectionError
-            );
-          }
-        }
-
-        // Navigate to the first list
-        navigateTo(`/List/${firstList.id}`);
+      if (createListError) {
+        console.error("Error creating list:", createListError);
+        setIsLoadingLists(false);
+        return { success: false, error: createListError };
       }
+
+      if (!newList || newList.length === 0) {
+        console.error("No list created");
+        setIsLoadingLists(false);
+        return { success: false, error: "No list created" };
+      }
+
+      const createdList = newList[0];
+
+      // Create a default collection for the new list
+      const { error: createCollectionError } = await supabase
+        .from("collection")
+        .insert([
+          {
+            list_id: createdList.id,
+            collection_name: "General",
+            bg_color_hex: createdList.bg_color_hex,
+            is_default: true,
+            user_id: user.id,
+          },
+        ]);
+
+      if (createCollectionError) {
+        console.error(
+          "Error creating General collection:",
+          createCollectionError
+        );
+      }
+
+      // Update the local lists state immediately to show the new list
+      // This ensures the nav updates without waiting for fetchLists
+      setLists((prevLists) => [createdList, ...prevLists]);
+
+      // Also refresh lists from the server to ensure complete data
+      await fetchLists();
+
+      // Close the create list modal
+      setIsCreateListModalOpen(false);
+
+      // Navigate to the new list
+      navigateTo(`/List/${createdList.id}`);
+      return { success: true };
     } catch (err) {
       console.error("Error handling list creation:", err);
+      return { success: false, error: err };
     } finally {
       setIsLoadingLists(false);
     }
   };
 
-  const handleDeleteList = async (listId: number) => {
-    if (!user) return;
+  // Helper function to fetch lists
+  const fetchLists = async (forceFetch = false) => {
+    if (!isLoggedIn || !user) {
+      setLists([]);
+      setIsLoadingLists(false);
+      return;
+    }
 
     try {
-      // First, get all collections for this list
+      // Only set loading if this isn't a background refresh
+      if (forceFetch || lists.length === 0) {
+        setIsLoadingLists(true);
+      }
+
+      // Request lists with proper ordering for consistent display
+      const { data, error } = await supabase
+        .from("list")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("is_pinned", { ascending: false }) // Pinned first
+        .order("created_at", { ascending: false }); // Then newest first
+
+      if (error) {
+        throw error;
+      }
+
+      // Update the lists state with the fresh data
+      setLists(data || []);
+    } catch (error) {
+      console.error("Error fetching lists:", error);
+      // Don't clear lists on error to preserve user experience
+    } finally {
+      setIsLoadingLists(false);
+    }
+  };
+
+  // FIXED: Enhanced delete functionality to properly delete all related items
+  const handleDeleteList = async (listId: string) => {
+    if (!user || isDeletingList) return;
+
+    try {
+      setIsDeletingList(true);
+
+      // Get all collections for this list
       const { data: collections, error: collectionsQueryError } = await supabase
         .from("collection")
         .select("id")
         .eq("list_id", listId);
 
-      if (collectionsQueryError) throw collectionsQueryError;
+      if (collectionsQueryError) {
+        throw collectionsQueryError;
+      }
 
-      // If there are collections, delete their associated tasks and notes
-      if (collections && collections.length > 0) {
-        const collectionIds = collections.map((c) => c.id);
+      const collectionIds = collections?.map((c) => c.id) || [];
 
-        // Delete tasks associated with these collections
+      // Delete tasks related to collections in this list
+      if (collectionIds.length > 0) {
+        // Use 'in' filter for multiple collection IDs
         const { error: tasksError } = await supabase
           .from("task")
           .delete()
           .in("collection_id", collectionIds);
 
-        if (tasksError) throw tasksError;
+        if (tasksError) {
+          console.error("Error deleting tasks from collections:", tasksError);
+        }
 
-        // Delete notes associated with these collections
+        // Delete notes related to collections in this list
         const { error: notesError } = await supabase
           .from("note")
           .delete()
           .in("collection_id", collectionIds);
 
-        if (notesError) throw notesError;
+        if (notesError) {
+          console.error("Error deleting notes from collections:", notesError);
+        }
       }
 
-      // Delete tasks associated directly with the list (not through a collection)
+      // Also delete any tasks directly associated with the list (not via collection)
       const { error: listTasksError } = await supabase
         .from("task")
         .delete()
         .eq("list_id", listId);
 
-      if (listTasksError) throw listTasksError;
+      if (listTasksError) {
+        console.error("Error deleting list tasks:", listTasksError);
+      }
 
-      // Then delete all collections for this list
+      // Delete all collections for this list
       const { error: collectionsError } = await supabase
         .from("collection")
         .delete()
         .eq("list_id", listId);
 
-      if (collectionsError) throw collectionsError;
+      if (collectionsError) {
+        console.error("Error deleting collections:", collectionsError);
+      }
 
       // Finally delete the list itself
       const { error: listError } = await supabase
@@ -354,13 +335,15 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
         .eq("id", listId)
         .eq("user_id", user.id);
 
-      if (listError) throw listError;
+      if (listError) {
+        throw listError;
+      }
 
-      // Update local state
+      navigateTo("/dashboard"); // Update local state
       setLists((prevLists) => prevLists.filter((list) => list.id !== listId));
 
       // If we deleted the current list, navigate to another list or dashboard
-      if (currentListId === listId.toString()) {
+      if (currentListId === listId) {
         // If there are other lists, navigate to the first one
         if (lists.length > 1) {
           const nextList = lists.find((list) => list.id !== listId);
@@ -377,9 +360,10 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
     } catch (error) {
       console.error("Error deleting list:", error);
     } finally {
-      // Close the modal
+      // Close the modal and reset state
       setListToDelete(null);
       setIsDeleteListModalOpen(false);
+      setIsDeletingList(false);
     }
   };
 
@@ -440,11 +424,12 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
               <div className="flex items-center">
                 <div className="h-8 w-8 bg-orange-500 rounded-md mr-2 flex items-center justify-center text-white font-bold">
                   <Image
-                    src={"/app-icon.jpeg"}
+                    src="/app-icon.jpeg"
                     alt="App Icon"
                     width={32}
                     height={32}
                     className="rounded-md"
+                    priority
                   />
                 </div>
                 <div
@@ -529,26 +514,6 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                         </div>
                       )}
                       <div className="py-1">
-                        <button
-                          onClick={() => navigateTo("/profile")}
-                          className={`flex w-full items-center px-4 py-2 text-sm text-left ${
-                            isDark
-                              ? "text-gray-300 hover:bg-gray-700"
-                              : "text-gray-700 hover:bg-gray-100"
-                          }`}
-                        >
-                          <User size={16} className="mr-2" /> Your Profile
-                        </button>
-                        <button
-                          onClick={() => navigateTo("/settings")}
-                          className={`flex w-full items-center px-4 py-2 text-sm text-left ${
-                            isDark
-                              ? "text-gray-300 hover:bg-gray-700"
-                              : "text-gray-700 hover:bg-gray-100"
-                          }`}
-                        >
-                          <Settings size={16} className="mr-2" /> Settings
-                        </button>
                         <button
                           onClick={handleLogout}
                           className={`flex w-full items-center px-4 py-2 text-sm text-left ${
@@ -852,6 +817,31 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                 )}
               </button>
               <button
+                onClick={() => navigateTo("/overdue")}
+                className={`flex w-full items-center px-3 py-2 rounded-md ${
+                  currentPath === "/overdue"
+                    ? isDark
+                      ? "bg-gray-800"
+                      : "bg-gray-100"
+                    : ""
+                } ${
+                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
+                } transition-colors group`}
+              >
+                <ClockAlert
+                  className={`h-5 w-5 ${
+                    isDark
+                      ? "text-gray-400 group-hover:text-orange-400"
+                      : "text-gray-500 group-hover:text-orange-500"
+                  }`}
+                />
+                {sidebarOpen && (
+                  <span className="ml-3 text-sm font-medium text-left">
+                    Overdue Tasks
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => navigateTo("/completed")}
                 className={`flex w-full items-center px-3 py-2 rounded-md ${
                   currentPath === "/completed"
@@ -902,6 +892,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                   }`}
                   aria-label="Add new list"
                   title="Add new list"
+                  disabled={isLoadingLists}
                 >
                   <Plus className="h-4 w-4" />
                 </button>
@@ -951,8 +942,14 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                         <ListTodo
                           className="h-5 w-5 flex-shrink-0"
                           style={{
-                            color: list.bg_color_hex,
-                            fill: list.bg_color_hex,
+                            color:
+                              list.bg_color_hex !== null
+                                ? list.bg_color_hex
+                                : "",
+                            fill:
+                              list.bg_color_hex !== null
+                                ? list.bg_color_hex
+                                : "",
                             fillOpacity: 0.2,
                           }}
                         />
@@ -983,6 +980,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                               list.is_pinned ? "Unpin list" : "Pin list"
                             }
                             title={list.is_pinned ? "Unpin list" : "Pin list"}
+                            disabled={isDeletingList}
                           >
                             <svg
                               width="16"
@@ -992,7 +990,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                               xmlns="http://www.w3.org/2000/svg"
                               style={{
                                 color: list.is_pinned
-                                  ? list.bg_color_hex
+                                  ? (list.bg_color_hex ?? "currentColor")
                                   : "currentColor",
                               }}
                             >
@@ -1031,6 +1029,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                             } transition-colors`}
                             aria-label={`Delete ${list.list_name} list`}
                             title={`Delete ${list.list_name}`}
+                            disabled={isDeletingList}
                           >
                             <Trash2 size={16} />
                           </button>
@@ -1056,8 +1055,8 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
       {isDeleteListModalOpen && listToDelete && (
         <>
           <div
-            className="fixed inset-0 z-40 backdrop-blur-md bg-blur-50"
-            onClick={() => setIsDeleteListModalOpen(false)}
+            className="fixed inset-0 z-40 backdrop-blur-md bg-black bg-opacity-50"
+            onClick={() => !isDeletingList && setIsDeleteListModalOpen(false)}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
             <div
@@ -1094,15 +1093,47 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                     isDark
                       ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
                       : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
+                  } ${isDeletingList ? "opacity-50 cursor-not-allowed" : ""}`}
+                  disabled={isDeletingList}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => handleDeleteList(listToDelete)}
-                  className="px-4 py-2 rounded-md bg-red-500 hover:bg-red-600 text-white"
+                  className={`px-4 py-2 rounded-md ${
+                    isDark ? "bg-red-600" : "bg-red-500"
+                  } hover:bg-red-600 text-white ${
+                    isDeletingList ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                  disabled={isDeletingList}
                 >
-                  Delete
+                  {isDeletingList ? (
+                    <span className="flex items-center">
+                      <svg
+                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Deleting...
+                    </span>
+                  ) : (
+                    "Delete"
+                  )}
                 </button>
               </div>
             </div>
@@ -1110,8 +1141,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
         </>
       )}
 
-      {/* Main content */}
-      <div className={`${isLoggedIn ? "lg:pl-16" : ""} pt-16`}>{children}</div>
+      {children}
     </div>
   );
 };

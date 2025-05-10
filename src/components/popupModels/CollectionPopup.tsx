@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
-import { X, Check } from "lucide-react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { X, Check, AlertCircle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { LIST_COLORS } from "@/types/schema";
 
@@ -11,41 +11,68 @@ interface CreateCollectionModalProps {
   onSubmit: (collectionData: {
     collection_name: string;
     bg_color_hex: string;
-  }) => void;
+  }) => Promise<{ success: boolean; error?: any }> | void;
+  initialName?: string;
+  initialColor?: string;
 }
 
-const CreateCollectionModal = ({
+/**
+ * Modal for creating a new collection
+ */
+const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
-}: CreateCollectionModalProps) => {
+  initialName = "",
+  initialColor = LIST_COLORS[0],
+}) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const [collectionName, setCollectionName] = useState("");
+
+  // Form state
+  const [collectionName, setCollectionName] = useState(initialName);
   const [selectedColor, setSelectedColor] = useState<
     (typeof LIST_COLORS)[number]
-  >(LIST_COLORS[0]); // Default to first color
+  >(
+    LIST_COLORS.includes(initialColor as any)
+      ? (initialColor as any)
+      : LIST_COLORS[0]
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Refs for UI interactions
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus input when modal opens
+  // Reset form when modal opens or props change
   useEffect(() => {
-    if (isOpen && inputRef.current) {
+    if (isOpen) {
+      setCollectionName(initialName);
+      setSelectedColor(
+        LIST_COLORS.includes(initialColor as any)
+          ? (initialColor as any)
+          : LIST_COLORS[0]
+      );
+      setError(null);
+      setIsSubmitting(false);
+
+      // Focus the input field with a slight delay to ensure the modal is rendered
       setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
     }
-  }, [isOpen]);
+  }, [isOpen, initialName, initialColor]);
 
-  // Handle click outside to close
+  // Handle click outside to close the modal
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
         isOpen &&
         modalRef.current &&
-        !modalRef.current.contains(event.target as Node)
+        !modalRef.current.contains(event.target as Node) &&
+        !isLoading
       ) {
         onClose();
       }
@@ -55,50 +82,81 @@ const CreateCollectionModal = ({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isLoading]);
 
-  // Reset form when modal closes
+  // Handle escape key to close modal
   useEffect(() => {
-    if (!isOpen) {
-      setCollectionName("");
-      setSelectedColor(LIST_COLORS[0]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen && !isLoading) {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose, isLoading]);
+
+  // Handle form submission
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+
+      // Validate input
+      if (!collectionName.trim()) {
+        setError("Collection name is required");
+        return;
+      }
+
+      // Prevent duplicate submissions
+      if (isSubmitting || isLoading) {
+        return;
+      }
+
+      setIsLoading(true);
+      setIsSubmitting(true);
       setError(null);
-    }
-  }, [isOpen]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!collectionName.trim()) return;
+      try {
+        // Pass the collection data to parent component
+        const result = await onSubmit({
+          collection_name: collectionName.trim(),
+          bg_color_hex: selectedColor,
+        });
 
-    setIsLoading(true);
-    setError(null);
+        // Check if result has properties (it's a Promise result)
+        if (result && typeof result === "object" && "success" in result) {
+          if (!result.success) {
+            throw new Error(result.error || "Failed to create collection");
+          }
+        }
 
-    try {
-      // Pass the collection data to parent component
-      await onSubmit({
-        collection_name: collectionName.trim(),
-        bg_color_hex: selectedColor,
-      });
+        // Close the modal on success
+        onClose();
+      } catch (err) {
+        console.error("Error submitting collection:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to create collection"
+        );
+      } finally {
+        setIsLoading(false);
+        // Note: Don't reset isSubmitting here to prevent duplicate submissions
+      }
+    },
+    [collectionName, selectedColor, isSubmitting, isLoading, onSubmit, onClose]
+  );
 
-      // Close the modal
-      onClose();
-    } catch (err) {
-      console.error("Error submitting collection:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to create collection"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Don't render anything if the modal is not open
   if (!isOpen) return null;
 
   return (
     <>
+      {/* Backdrop overlay */}
       <div
-        className="fixed inset-0 z-40 backdrop-blur-md bg-black bg-opacity-50"
-        onClick={onClose}
+        className="fixed inset-0 z-40 backdrop-blur-md bg-black/30"
+        onClick={!isLoading ? onClose : undefined}
+        aria-hidden="true"
       />
 
       {/* Modal container */}
@@ -108,9 +166,13 @@ const CreateCollectionModal = ({
           className={`w-full max-w-md rounded-lg ${
             isDark ? "bg-gray-800" : "bg-white"
           } shadow-xl transition-all p-6 mx-4 pointer-events-auto`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
         >
           <div className="flex items-center justify-between mb-4">
             <h2
+              id="modal-title"
               className={`text-xl font-semibold ${
                 isDark ? "text-gray-100" : "text-gray-800"
               }`}
@@ -118,26 +180,31 @@ const CreateCollectionModal = ({
               Create New Collection
             </h2>
             <button
-              onClick={onClose}
+              onClick={!isLoading ? onClose : undefined}
               className={`p-1 rounded-full ${
                 isDark
                   ? "text-gray-400 hover:text-gray-200 hover:bg-gray-700"
                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-              }`}
+              } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
               aria-label="Close"
               disabled={isLoading}
+              type="button"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 rounded-md">
-              {error}
+            <div
+              className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-md flex items-start"
+              role="alert"
+            >
+              <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <div className="mb-4">
               <label
                 htmlFor="collection-name"
@@ -145,7 +212,7 @@ const CreateCollectionModal = ({
                   isDark ? "text-gray-300" : "text-gray-700"
                 }`}
               >
-                Collection Name
+                Collection Name <span className="text-red-500">*</span>
               </label>
               <input
                 ref={inputRef}
@@ -164,6 +231,8 @@ const CreateCollectionModal = ({
                 required
                 maxLength={50}
                 disabled={isLoading}
+                aria-required="true"
+                aria-invalid={error ? "true" : "false"}
               />
             </div>
 
@@ -173,9 +242,13 @@ const CreateCollectionModal = ({
                   isDark ? "text-gray-300" : "text-gray-700"
                 }`}
               >
-                Collection Color
+                Collection Color <span className="text-red-500">*</span>
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div
+                className="flex flex-wrap gap-2"
+                role="radiogroup"
+                aria-label="Collection color"
+              >
                 {LIST_COLORS.map((color) => (
                   <button
                     key={color}
@@ -183,11 +256,14 @@ const CreateCollectionModal = ({
                     style={{ backgroundColor: color }}
                     className={`h-8 w-8 rounded-full flex items-center justify-center ${
                       selectedColor === color
-                        ? "ring-2 ring-offset-2 ring-offset-gray-100"
+                        ? isDark
+                          ? "ring-2 ring-offset-2 ring-offset-gray-800 ring-white"
+                          : "ring-2 ring-offset-2 ring-offset-gray-100 ring-gray-800"
                         : ""
-                    }`}
-                    onClick={() => setSelectedColor(color)}
+                    } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    onClick={() => !isLoading && setSelectedColor(color)}
                     aria-label={`Select ${color} color`}
+                    aria-pressed={selectedColor === color}
                     disabled={isLoading}
                   >
                     {selectedColor === color && (
@@ -201,12 +277,12 @@ const CreateCollectionModal = ({
             <div className="flex justify-end space-x-3">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={!isLoading ? onClose : undefined}
                 className={`px-4 py-2 rounded-md ${
                   isDark
                     ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
+                } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                 disabled={isLoading}
               >
                 Cancel
@@ -215,10 +291,14 @@ const CreateCollectionModal = ({
                 type="submit"
                 className={`px-4 py-2 rounded-md ${
                   isDark
-                    ? "bg-orange-600 text-white hover:bg-orange-700"
-                    : "bg-sky-500 text-white hover:bg-sky-600"
-                } flex items-center justify-center min-w-[80px]`}
-                disabled={isLoading || !collectionName.trim()}
+                    ? "bg-orange-600 text-white hover:bg-orange-700 disabled:bg-orange-600/50"
+                    : "bg-sky-500 text-white hover:bg-sky-600 disabled:bg-sky-500/50"
+                } flex items-center justify-center min-w-[80px] ${
+                  isLoading || !collectionName.trim() || isSubmitting
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
+                disabled={isLoading || !collectionName.trim() || isSubmitting}
               >
                 {isLoading ? (
                   <svg
@@ -226,6 +306,7 @@ const CreateCollectionModal = ({
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
+                    aria-hidden="true"
                   >
                     <circle
                       className="opacity-25"

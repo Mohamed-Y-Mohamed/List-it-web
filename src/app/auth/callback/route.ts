@@ -5,23 +5,96 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const next = requestUrl.searchParams.get("next") ?? "/dashboard";
+
+  // Get the redirectTo parameter from the URL
+  const redirectTo = requestUrl.searchParams.get("redirectTo") || "/dashboard";
 
   if (code) {
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-    // Exchange code for session
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    try {
+      // Exchange code for session
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
-    if (!error) {
-      // Redirect to the destination
-      return NextResponse.redirect(new URL(next, request.url));
+      if (error) {
+        console.error("Auth exchange error:", error);
+        return NextResponse.redirect(
+          new URL("/login?error=auth_callback_error", request.url)
+        );
+      }
+
+      if (data.session) {
+        const { user } = data.session;
+
+        try {
+          // Check if user exists in users table
+          const { data: existingUser, error: checkError } = await supabase
+            .from("users")
+            .select()
+            .eq("id", user.id)
+            .single();
+
+          if (checkError && checkError.code !== "PGRST116") {
+            console.error("Error checking for existing user:", checkError);
+          }
+
+          if (!existingUser) {
+            // Only create a new user record if one doesn't exist
+            const userData = {
+              id: user.id,
+              email: user.email || "",
+              full_name: user.user_metadata?.full_name || "",
+            };
+
+            const { error: insertError } = await supabase
+              .from("users")
+              .insert([userData]);
+
+            if (insertError) {
+              console.error("Error inserting user data:", insertError);
+            } else {
+              console.log("New user created in database");
+            }
+          }
+        } catch (err) {
+          console.error("Error processing user data:", err);
+          // Continue with the redirect even if there was an error creating the user
+          // since the authentication was successful
+        }
+
+        // Create the final redirect URL
+        // First, decode the redirectTo parameter if it contains encoded slashes
+        const decodedRedirectTo = decodeURIComponent(redirectTo);
+
+        // Create a new URL object for the redirect destination
+        // If redirectTo starts with '/', it's a relative path on your site
+        const finalRedirectUrl = decodedRedirectTo.startsWith("/")
+          ? new URL(decodedRedirectTo, request.url)
+          : new URL(decodedRedirectTo);
+
+        // Set a cookie to prevent page reload loops
+        // This is a more reliable approach than using URL parameters
+        const response = NextResponse.redirect(finalRedirectUrl);
+        response.cookies.set("auth_redirect_completed", "true", {
+          path: "/",
+          maxAge: 30, // Short-lived cookie - 30 seconds
+          httpOnly: true,
+          sameSite: "lax",
+        });
+
+        return response;
+      }
+    } catch (err) {
+      console.error("Unexpected error in auth callback:", err);
+      return NextResponse.redirect(
+        new URL("/login?error=auth_callback_error", request.url)
+      );
     }
   }
 
-  // Return the user to an error page with instructions
+  // Fallback if code is missing
   return NextResponse.redirect(
-    new URL("/login?error=auth_callback_error", request.url)
+    new URL("/login?error=missing_code", request.url)
   );
 }

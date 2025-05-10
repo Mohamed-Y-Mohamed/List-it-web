@@ -1,8 +1,7 @@
-// components/popupModels/ListPopup.tsx
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { X, Check } from "lucide-react";
+import { X, Check, AlertCircle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/client";
@@ -16,64 +15,126 @@ interface CreateListModalProps {
       List,
       "id" | "created_at" | "tasks" | "notes" | "collections"
     >
-  ) => void;
+  ) => Promise<{ success: boolean; error?: any }> | void;
 }
 
-const CreateListModal = ({
+/**
+ * Modal component for creating a new list
+ */
+const CreateListModal: React.FC<CreateListModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
-}: CreateListModalProps) => {
+}) => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const isDark = theme === "dark";
+
+  // Form state
   const [listName, setListName] = useState("");
   const [selectedColor, setSelectedColor] = useState<ListColor>("#FF3B30");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Refs for UI interactions
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Focus input when modal opens
   useEffect(() => {
     if (isOpen) setTimeout(() => inputRef.current?.focus(), 100);
   }, [isOpen]);
 
+  // Click outside to close
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
         isOpen &&
         modalRef.current &&
-        !modalRef.current.contains(event.target as Node)
+        !modalRef.current.contains(event.target as Node) &&
+        !isLoading
       ) {
         onClose();
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isLoading]);
 
+  // Reset form when modal closes
   useEffect(() => {
     if (!isOpen) {
       setListName("");
       setSelectedColor("#FF3B30");
       setError(null);
+      setSuccessMessage(null);
+      setIsSubmitting(false);
     }
   }, [isOpen]);
 
+  // Handle the escape key to close the modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen && !isLoading) {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose, isLoading]);
+
+  // Create a new list - with fixed duplicate creation issue
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!listName.trim()) return;
+
+    // Validation
+    if (!listName.trim()) {
+      setError("List name is required");
+      return;
+    }
+
+    // Prevent duplicate submissions
+    if (isSubmitting || isLoading) {
+      return;
+    }
 
     setIsLoading(true);
+    setIsSubmitting(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       if (!user) {
         throw new Error("You must be logged in to create a list");
       }
 
-      // Create the list in the database - don't use select() to avoid potential response formatting issues
+      if (!user.id) {
+        throw new Error("User ID is missing");
+      }
+
+      // Check if a list with the same name already exists
+      const { data: existingLists, error: checkError } = await supabase
+        .from("list")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("list_name", listName.trim())
+        .limit(1);
+
+      if (checkError) {
+        console.error("Error checking existing lists:", checkError);
+      } else if (existingLists && existingLists.length > 0) {
+        setError(
+          "A list with this name already exists. Please choose a different name."
+        );
+        setIsLoading(false);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Step 1: Create the list
       const { data: insertedList, error: listError } = await supabase
         .from("list")
         .insert([
@@ -83,92 +144,69 @@ const CreateListModal = ({
             is_default: false,
             is_pinned: false,
             user_id: user.id,
+            list_icon: "checklist",
           },
         ])
         .select();
 
-      if (listError) throw listError;
-
-      let listId;
-
-      // If we got the inserted list data directly
-      if (insertedList && insertedList.length > 0) {
-        listId = insertedList[0].id;
-      } else {
-        // Otherwise query for the most recently created list for this user
-        const { data: recentList, error: recentListError } = await supabase
-          .from("list")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("list_name", listName.trim())
-          .order("created_at", { ascending: false })
-          .limit(1);
-
-        if (recentListError) throw recentListError;
-
-        if (!recentList || recentList.length === 0) {
-          throw new Error("Failed to retrieve newly created list");
-        }
-
-        listId = recentList[0].id;
+      if (listError) {
+        console.error("Error inserting list:", listError);
+        throw new Error(listError.message || "Failed to create list");
       }
 
-      // Create a default "General" collection for this list
+      if (!insertedList || insertedList.length === 0) {
+        throw new Error("No list data returned after creation");
+      }
+
+      const newListId = insertedList[0].id;
+
+      // Step 2: Create a default collection linked to the list
       const { error: collectionError } = await supabase
         .from("collection")
         .insert([
           {
-            list_id: listId,
+            list_id: newListId,
             collection_name: "General",
             bg_color_hex: selectedColor,
             is_default: true,
+            user_id: user.id, // Critical for RLS policy
           },
         ]);
 
       if (collectionError) {
-        console.error("Error creating General collection:", collectionError);
-        // We'll continue even if collection creation fails
+        console.error("Error creating collection:", collectionError);
+        // Continue anyway since the list was created
+      } else {
+        setSuccessMessage("List and collection created successfully!");
       }
 
-      // Call the onSubmit callback with the new list data
+      // Step 3: Call the onSubmit callback once with the list data
+      // Important: We're not waiting for this to finish to prevent duplicate calls
       onSubmit({
         list_name: listName.trim(),
         bg_color_hex: selectedColor,
         is_default: false,
+        user_id: user.id,
+        is_pinned: false,
+        list_icon: null,
       });
 
-      // Close the modal
-      onClose();
-    } catch (error) {
-      console.error("Error creating list:", error);
+      // Add a slight delay to show success message
+      setTimeout(() => {
+        onClose();
+      }, 500);
+    } catch (err: unknown) {
+      console.error("Error in list creation process:", err);
 
-      // Check if error is an empty object
-      if (error && Object.keys(error).length === 0) {
-        // It's an empty object error, which likely means the operation succeeded
-        // but the response wasn't formatted as expected
-
-        try {
-          // Try to submit anyway based on the input data
-          onSubmit({
-            list_name: listName.trim(),
-            bg_color_hex: selectedColor,
-            is_default: false,
-          });
-
-          // Close the modal
-          onClose();
-          return;
-        } catch (submitError) {
-          console.error("Error in fallback submission:", submitError);
-          // Continue to the error handling below
-        }
+      // Error handling
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to create list");
       }
-
-      setError(
-        error instanceof Error ? error.message : "Failed to create list"
-      );
     } finally {
       setIsLoading(false);
+      // Note: We're not resetting isSubmitting here to prevent multiple submissions
     }
   };
 
@@ -177,22 +215,24 @@ const CreateListModal = ({
   return (
     <>
       <div
-        className="fixed inset-0 z-40 backdrop-blur-md bg-blur-50"
-        onClick={onClose}
+        className="fixed inset-0 z-40 backdrop-blur-md bg-black/30"
+        onClick={!isLoading ? onClose : undefined}
+        aria-hidden="true"
       />
-
       <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
         <div
           ref={modalRef}
           className={`w-full max-w-md pointer-events-auto p-6 rounded-lg shadow-xl mx-4 ${
             isDark ? "bg-gray-800" : "bg-white"
           }`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
         >
           <div className="flex items-center justify-between mb-4">
             <h2
-              className={`text-xl font-semibold ${
-                isDark ? "text-gray-100" : "text-gray-800"
-              }`}
+              id="modal-title"
+              className={`text-xl font-semibold ${isDark ? "text-gray-100" : "text-gray-800"}`}
             >
               Create New List
             </h2>
@@ -205,28 +245,45 @@ const CreateListModal = ({
               }`}
               aria-label="Close"
               disabled={isLoading}
+              type="button"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 rounded-md">
-              {error}
+            <div
+              className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-md flex items-start"
+              role="alert"
+            >
+              <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {successMessage && (
+            <div
+              className="mb-4 p-3 bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 rounded-md"
+              role="status"
+            >
+              <Check className="h-5 w-5 mr-2 inline-block" />
+              <span>{successMessage}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
               <label
+                htmlFor="list-name"
                 className={`block mb-2 text-sm font-medium ${
                   isDark ? "text-gray-300" : "text-gray-700"
                 }`}
               >
-                List Name
+                List Name <span className="text-red-500">*</span>
               </label>
               <input
                 ref={inputRef}
+                id="list-name"
                 type="text"
                 placeholder="Enter list name"
                 value={listName}
@@ -241,6 +298,7 @@ const CreateListModal = ({
                 required
                 maxLength={50}
                 disabled={isLoading}
+                aria-required="true"
               />
             </div>
 
@@ -250,21 +308,28 @@ const CreateListModal = ({
                   isDark ? "text-gray-300" : "text-gray-700"
                 }`}
               >
-                List Color
+                List Color <span className="text-red-500">*</span>
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div
+                className="flex flex-wrap gap-2"
+                role="radiogroup"
+                aria-label="List color"
+              >
                 {LIST_COLORS.map((color) => (
                   <button
                     key={color}
                     type="button"
                     className={`h-8 w-8 rounded-full flex items-center justify-center ${
                       selectedColor === color
-                        ? "ring-2 ring-offset-2 ring-white"
+                        ? isDark
+                          ? "ring-2 ring-offset-2 ring-offset-gray-800 ring-white"
+                          : "ring-2 ring-offset-2 ring-offset-gray-100 ring-gray-800"
                         : ""
                     }`}
                     style={{ backgroundColor: color }}
                     onClick={() => setSelectedColor(color)}
-                    aria-label={`Select ${color}`}
+                    aria-label={`Select ${color} color`}
+                    aria-pressed={selectedColor === color}
                     disabled={isLoading}
                   >
                     {selectedColor === color && (
@@ -292,10 +357,10 @@ const CreateListModal = ({
                 type="submit"
                 className={`px-4 py-2 rounded-md ${
                   isDark
-                    ? "bg-orange-600 hover:bg-orange-700"
-                    : "bg-sky-500 hover:bg-sky-600"
-                } text-white flex items-center justify-center min-w-[80px]`}
-                disabled={isLoading}
+                    ? "bg-orange-600 hover:bg-orange-700 disabled:bg-orange-600/50"
+                    : "bg-sky-500 hover:bg-sky-600 disabled:bg-sky-500/50"
+                } text-white flex items-center justify-center min-w-[80px] disabled:cursor-not-allowed`}
+                disabled={isLoading || !listName.trim() || isSubmitting}
               >
                 {isLoading ? (
                   <svg
@@ -303,6 +368,7 @@ const CreateListModal = ({
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
+                    aria-hidden="true"
                   >
                     <circle
                       className="opacity-25"

@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { supabase } from "@/utils/client";
 import { useRouter } from "next/navigation";
-import { User } from "@supabase/supabase-js";
+import { User, AuthError } from "@supabase/supabase-js";
 
 // Define the shape of our auth context
 interface AuthContextType {
@@ -19,11 +19,13 @@ interface AuthContextType {
   login: (
     email: string,
     password: string
-  ) => Promise<{ success: boolean; error?: any }>;
+  ) => Promise<{ success: boolean; error?: AuthError | null }>;
   loginWithGoogle: () => Promise<void>;
   loginWithApple: () => Promise<void>;
   logout: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ success: boolean; error?: any }>;
+  resetPassword: (
+    email: string
+  ) => Promise<{ success: boolean; error?: AuthError | null }>;
 }
 
 // Create the context with a default value
@@ -38,6 +40,49 @@ const AuthContext = createContext<AuthContextType>({
   resetPassword: async () => ({ success: false }),
 });
 
+// Helper to clear all Supabase authentication data from local storage
+const clearSupabaseLocalStorage = () => {
+  // Remove the specific Supabase auth keys from localStorage
+  try {
+    // Get all keys from localStorage
+    const keys = Object.keys(localStorage);
+
+    // Remove any keys that start with 'supabase.auth.' or are related to auth
+    keys.forEach((key) => {
+      if (
+        key.startsWith("supabase.auth.") ||
+        key.includes("supabase") ||
+        key.includes("auth")
+      ) {
+        localStorage.removeItem(key);
+      }
+    });
+  } catch (err) {
+    console.error("Error clearing localStorage:", err);
+  }
+};
+
+// Helper to clear all auth cookies
+const clearAllAuthCookies = () => {
+  // List of all cookies we might have set
+  const cookiesToClear = [
+    "auth_token",
+    "isLoggedIn",
+    "supabase-auth-token", // Supabase may set this one
+    "sb-access-token", // Supabase browser storage keys
+    "sb-refresh-token",
+    "sb:token", // Legacy Supabase cookie
+  ];
+
+  // Clear each cookie by setting expiry in the past with various paths
+  cookiesToClear.forEach((cookieName) => {
+    document.cookie = `${cookieName}=; path=/; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    // Also try with different paths in case they were set differently
+    document.cookie = `${cookieName}=; path=/api; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    document.cookie = `${cookieName}=; path=/auth; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  });
+};
+
 // Hook for child components to get the auth context
 export const useAuth = () => useContext(AuthContext);
 
@@ -47,79 +92,67 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const [initialized, setInitialized] = useState(false);
 
+  // Initialize auth state on first load
   useEffect(() => {
-    // Check for auth state on component mount
-    const checkAuthStatus = async () => {
+    const initializeAuth = async () => {
       try {
-        // Get session from Supabase
+        // Get the current session first
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
-          console.error("Error getting session:", error);
-          setIsLoggedIn(false);
-          setUser(null);
-        } else if (data.session) {
-          // We have a valid session
-          setIsLoggedIn(true);
-          setUser(data.session.user);
-        } else {
-          setIsLoggedIn(false);
-          setUser(null);
+          console.error("Session error:", error);
+          return;
         }
-      } catch (err) {
-        console.error("Error in auth check:", err);
-        setIsLoggedIn(false);
-        setUser(null);
+
+        if (data.session) {
+          setUser(data.session.user);
+          setIsLoggedIn(true);
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
       } finally {
         setLoading(false);
+        setInitialized(true);
       }
     };
 
-    // Set up auth state listener
+    initializeAuth();
+  }, []);
+
+  // Set up auth state listener after initial load
+  useEffect(() => {
+    if (!initialized) return;
+
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log("Auth state changed:", event, session?.user?.email);
-
         if (event === "SIGNED_IN" && session) {
           setIsLoggedIn(true);
           setUser(session.user);
-
-          // Set cookies for middleware
-          document.cookie = `auth_token=${session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-          document.cookie = `isLoggedIn=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-
-          // Navigate to dashboard after sign in
-          router.push("/dashboard");
         } else if (event === "SIGNED_OUT") {
           setIsLoggedIn(false);
           setUser(null);
-
-          // Clear cookies
-          document.cookie = "auth_token=; path=/; max-age=0; SameSite=Lax";
-          document.cookie = "isLoggedIn=; path=/; max-age=0; SameSite=Lax";
         }
       }
     );
 
-    checkAuthStatus();
-
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [router]);
+  }, [initialized]);
 
-  // Updated Google OAuth login method
+  // Google OAuth login method
   const loginWithGoogle = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          // Remove any redirectTo parameter
           queryParams: {
             access_type: "offline",
             prompt: "consent",
           },
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
         },
       });
 
@@ -130,12 +163,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Updated Apple OAuth login method
+  // Apple OAuth login method
   const loginWithApple = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "apple",
-        // Don't specify redirectTo for Apple either to maintain consistency
+        options: {
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
+        },
       });
 
       if (error) throw error;
@@ -159,33 +194,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsLoggedIn(true);
         setUser(data.session.user);
 
-        // Set cookies for middleware
-        document.cookie = `auth_token=${data.session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-        document.cookie = `isLoggedIn=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+        // Navigate to dashboard
+        router.push("/dashboard");
 
         return { success: true };
       }
 
-      return { success: false, error: "No session returned" };
-    } catch (error: any) {
+      return {
+        success: false,
+        error: new Error("No session returned") as unknown as AuthError,
+      };
+    } catch (error) {
       console.error("Login error:", error);
-      return { success: false, error };
+      return { success: false, error: error as AuthError };
     }
   };
 
-  // Logout function
+  // Complete logout function that ensures full session cleanup
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
+      // 1. First update state for immediate UI response
+      setIsLoggedIn(false);
+      setUser(null);
 
-      // Clear cookies
-      document.cookie = "auth_token=; path=/; max-age=0; SameSite=Lax";
-      document.cookie = "isLoggedIn=; path=/; max-age=0; SameSite=Lax";
+      // 2. Clear all auth cookies first
+      clearAllAuthCookies();
 
-      // Redirect to home page
-      router.push("/");
+      // 3. Clear Supabase data from localStorage
+      clearSupabaseLocalStorage();
+
+      // 4. Call Supabase signOut with global scope
+      const { error } = await supabase.auth.signOut({
+        scope: "global",
+      });
+
+      if (error) {
+        console.error("Error during Supabase signOut:", error);
+      }
+
+      // 5. Force a complete page reload to clear any in-memory state
+
+      // Set a flag in sessionStorage to show we're in the middle of logging out
+      // This prevents redirect loops if middleware tries to restore the session
+      sessionStorage.setItem("logging_out", "true");
+
+      // Use direct window location for a full page refresh
+      window.location.href = "/login?logout=true";
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error("Logout process error:", error);
+
+      // Still try to force clear everything and redirect even if there was an error
+      clearAllAuthCookies();
+      clearSupabaseLocalStorage();
+
+      // Force redirect
+      window.location.href = "/login?logout=true&error=true";
     }
   };
 
@@ -193,7 +256,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const resetPassword = async (email: string) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/reset-password`,
       });
 
       if (error) throw error;
@@ -201,7 +264,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { success: true };
     } catch (error) {
       console.error("Reset password error:", error);
-      return { success: false, error };
+      return { success: false, error: error as AuthError };
     }
   };
 

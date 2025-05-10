@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { UserPlus, Mail, Lock, User, AlertCircle } from "lucide-react";
+import { UserPlus, Mail, Lock, User, AlertCircle, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { FaApple } from "react-icons/fa";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
 
@@ -13,6 +13,7 @@ const Signup = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Form state
   const [fullName, setFullName] = useState("");
@@ -20,10 +21,12 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const trimmedEmail = email.trim();
+  const redirectTo = searchParams?.get("redirectTo") || "/dashboard";
 
   // Loading and error states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   // Form validation
   const isFormValid = () => {
@@ -51,13 +54,16 @@ const Signup = () => {
   };
 
   // Handle signup with email/password
-  // Handle signup with email/password - Simplified approach
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
 
     setError(null);
+    setSuccess(null);
 
     if (!isFormValid()) return;
+
+    // Prevent rapid fire requests (429 errors)
+    if (loading) return;
 
     setLoading(true);
 
@@ -77,21 +83,34 @@ const Signup = () => {
 
       // 2. Insert user into 'users' table WITHOUT waiting for authentication
       if (authData.user) {
-        const { error: profileError } = await supabase.from("users").insert([
-          {
-            id: authData.user.id,
-            full_name: fullName,
-            email: trimmedEmail,
-            lists: null,
-          },
-        ]);
+        // Corrected: only include fields that actually exist in your users table
+        try {
+          const { error: profileError } = await supabase.from("users").insert([
+            {
+              id: authData.user.id,
+              full_name: fullName,
+              email: trimmedEmail,
+              // Removed the 'lists' field since it doesn't exist in your schema
+            },
+          ]);
 
-        if (profileError) {
-          // If insertion fails, add a more user-friendly error message
-          console.error("Profile error:", profileError);
-          throw new Error(
-            "Account created, but profile setup failed. Please contact support."
-          );
+          if (profileError) {
+            console.error("Profile error:", profileError);
+            // Continue even if profile setup fails, but log the error
+
+            // Check for specific schema errors
+            if (
+              profileError.message?.includes("column") &&
+              profileError.message?.includes("schema cache")
+            ) {
+              console.warn(
+                "Schema mismatch detected. Check your users table schema."
+              );
+            }
+          }
+        } catch (profileErr) {
+          console.error("Error inserting user profile:", profileErr);
+          // Continue with auth flow even if profile insertion fails
         }
       }
 
@@ -101,23 +120,30 @@ const Signup = () => {
         document.cookie = `isLoggedIn=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
 
         // 4. Redirect to dashboard
-        router.push("/dashboard");
+        setSuccess("Account created successfully! Redirecting to dashboard...");
+
+        // Add a slight delay for the success message to be seen
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 1500);
       } else {
         // If we don't have a session yet, show email confirmation message
-        setError(null); // Clear any previous errors
-        alert(
+        setSuccess(
           "Signup successful! Please check your email to confirm your account."
         );
       }
     } catch (err: any) {
       console.error("Signup error:", err);
 
-      // Provide user-friendly error messages
-      if (err?.message?.includes("row level security")) {
-        setError(
-          "Account created but profile setup failed. Please try logging in instead."
-        );
-      } else if (err?.message?.includes("already registered")) {
+      // Specific handler for rate limiting
+      if (
+        err?.message?.includes("For security purposes") ||
+        err?.status === 429
+      ) {
+        setError("Please wait a few seconds before trying again");
+      }
+      // Provide other user-friendly error messages
+      else if (err?.message?.includes("already registered")) {
         setError("This email is already registered. Please log in instead.");
       } else if (err?.message) {
         setError(err.message);
@@ -130,30 +156,43 @@ const Signup = () => {
       setLoading(false);
     }
   };
+
   // Handle signup with Google
   const handleGoogleSignup = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
         },
       });
 
       if (error) throw error;
     } catch (err: any) {
-      console.error("Google signup error:", err);
-      setError(err.message || "Failed to sign up with Google");
+      console.error("Google login error:", err);
+      setError(err.message || "Failed to log in with Google");
+    } finally {
+      setLoading(false);
     }
   };
 
   // Handle signup with Apple
   const handleAppleSignup = async () => {
     try {
+      setLoading(true);
+      setError(null);
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "apple",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
         },
       });
 
@@ -161,6 +200,8 @@ const Signup = () => {
     } catch (err: any) {
       console.error("Apple signup error:", err);
       setError(err.message || "Failed to sign up with Apple");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -202,10 +243,23 @@ const Signup = () => {
               Create your account
             </h1>
 
+            {/* Success message display */}
+            {success && (
+              <div
+                className="mt-4 w-full max-w-xs bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
+                role="alert"
+              >
+                <div className="flex items-center">
+                  <Check className="w-5 h-5 mr-2" />
+                  <span>{success}</span>
+                </div>
+              </div>
+            )}
+
             {/* Error message display */}
             {error && (
               <div
-                className={`mt-4 w-full max-w-xs bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative`}
+                className="mt-4 w-full max-w-xs bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
                 role="alert"
               >
                 <div className="flex items-center">

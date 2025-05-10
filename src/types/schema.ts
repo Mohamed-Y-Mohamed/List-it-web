@@ -2,56 +2,66 @@
 
 // Note Interface
 export interface Note {
-  id: number;
+  id: string; // Changed from number to string (UUID)
   created_at: Date;
-  collection_id?: number;
-  title: string; // Represents 'text' in your frontend
-  description?: string;
-  is_deleted: boolean;
-  bg_color_hex?: string;
-  is_pinned?: boolean;
+  title: string | null; // Changed from string to string | null
+  description: string | null; // Changed from string? to string | null
+  is_deleted: boolean | null; // Changed from boolean to boolean | null
+  bg_color_hex: string | null; // Changed from string? to string | null
+  is_pinned: boolean | null; // Changed from boolean? to boolean | null
+  collection_id: string | null; // Changed from number? to string | null (UUID)
 }
 
 // Task Interface
 export interface Task {
-  id: number;
-  text: string;
-  description?: string | null; // Changed from string | undefined
+  id: string;
+  text: string | null; // Changed from string to string | null
+  description: string | null;
   created_at: Date;
-  due_date?: Date | null; // Changed from Date | undefined
-  is_completed: boolean;
-  date_completed?: Date | null; // Changed from Date | undefined
-  is_deleted: boolean;
-  collection_id?: number | null;
-  list_id: number;
-  is_pinned: boolean;
-  user_id?: string;
+  due_date: Date | null;
+  is_completed: boolean | null; // Changed from boolean to boolean | null
+  date_completed: Date | null;
+  is_deleted: boolean | null; // Changed from boolean to boolean | null
+  collection_id: string | null; // Changed from number? to string | null (UUID)
+  list_id: string | null; // Changed from number to string | null (UUID)
+  is_pinned: boolean | null; // Changed from boolean to boolean | null
+  user_id: string | null; // Changed from string? to string | null (UUID)
 }
+
 // Collection Interface
 export interface Collection {
-  id: number;
-  collection_name: string;
-  bg_color_hex: string;
+  id: string; // Changed from number to string (UUID)
+  collection_name: string | null; // Changed from string to string | null
+  bg_color_hex: string | null; // Changed from string to string | null
   created_at: Date;
-  is_default?: boolean;
-  tasks: Task[];
-  notes: Note[];
-  isPinned?: boolean;
+  is_default: boolean | null; // Changed from boolean? to boolean | null
+  list_id: string | null; // Added list_id field from the database
+  tasks?: Task[]; // Kept as optional array for frontend usage
+  notes?: Note[]; // Kept as optional array for frontend usage
+  isPinned?: boolean; // Kept for frontend usage
 }
+
 // List Interface
 export interface List {
-  id: number;
+  id: string; // Changed from number to string (UUID)
   created_at: Date;
-  list_icon?: string;
-  list_name: string;
-  is_default?: boolean;
-  bg_color_hex: string;
-  type?: string;
-  is_pinned?: boolean;
-  user_id?: string;
-  tasks?: Task[];
-  notes?: Note[];
-  collections?: Collection[];
+  list_icon: string | null; // Changed from string? to string | null
+  list_name: string | null; // Changed from string to string | null
+  is_default: boolean | null; // Changed from boolean? to boolean | null
+  bg_color_hex: string | null; // Changed from string to string | null
+  is_pinned: boolean | null; // Changed from boolean? to string | null
+  user_id: string | null; // Changed from string? to string | null (UUID)
+  tasks?: Task[]; // Kept as optional array for frontend usage
+  notes?: Note[]; // Kept as optional array for frontend usage
+  collections?: Collection[]; // Kept as optional array for frontend usage
+}
+
+// User Interface (Added based on the database schema)
+export interface User {
+  id: string; // UUID
+  created_at: Date;
+  full_name: string | null;
+  email: string;
 }
 
 // Color Constants
