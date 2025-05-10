@@ -7,18 +7,21 @@ import TaskSidebar from "@/components/popupModels/TasksDetails";
 import { Collection } from "@/types/schema";
 
 interface TaskCardProps {
-  id: number;
-  text: string;
+  id: string; // Changed from number to string
+  text: string | null;
   description?: string | null;
   created_at: Date | string | null;
   due_date?: Date | string | null;
-  is_completed: boolean;
+  is_completed: boolean | null;
   date_completed?: Date | string | null;
-  is_pinned?: boolean;
-  onComplete: (id: number, is_completed: boolean) => void;
-  onPriorityChange: (id: number, is_pinned: boolean) => void;
+  is_pinned?: boolean | null;
+  collection_id?: string | null; // Added for context
+  list_id?: string | null; // Added for context
+  user_id?: string | null; // Added for context
+  onComplete: (id: string, is_completed: boolean) => void; // Changed from number to string
+  onPriorityChange: (id: string, is_pinned: boolean) => void; // Changed from number to string
   onTaskUpdate?: (
-    taskId: number,
+    taskId: string, // Changed from number to string
     taskData: {
       text: string;
       description?: string | null;
@@ -26,11 +29,12 @@ interface TaskCardProps {
       is_pinned: boolean;
     }
   ) => void;
-  onTaskDelete?: (taskId: number) => void;
+  onTaskDelete?: (taskId: string) => void; // Changed from number to string
   collections?: Collection[];
-  onCollectionChange?: (taskId: number, collectionId: number) => void;
+  onCollectionChange?: (taskId: string, collectionId: string) => void; // Changed from number to string
   className?: string;
 }
+
 const TaskCard = ({
   id,
   text,
@@ -40,6 +44,9 @@ const TaskCard = ({
   is_completed,
   date_completed,
   is_pinned = false,
+  collection_id,
+  list_id,
+  user_id,
   onComplete,
   onPriorityChange,
   onTaskUpdate,
@@ -48,20 +55,24 @@ const TaskCard = ({
   onCollectionChange,
   className = "",
 }: TaskCardProps) => {
-  const [isCompleted, setIsCompleted] = useState(is_completed);
-  const [isPinned, setIsPinned] = useState(is_pinned);
-  const [taskText, setTaskText] = useState(text);
-  const [taskDescription, setTaskDescription] = useState(description);
-  const [taskDueDate, setTaskDueDate] = useState(due_date);
+  const [isCompleted, setIsCompleted] = useState<boolean>(!!is_completed);
+  const [isPinned, setIsPinned] = useState<boolean>(!!is_pinned);
+  const [taskText, setTaskText] = useState<string>(text || "");
+  const [taskDescription, setTaskDescription] = useState<
+    string | null | undefined
+  >(description);
+  const [taskDueDate, setTaskDueDate] = useState<
+    Date | string | null | undefined
+  >(due_date);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   useEffect(() => {
-    setIsCompleted(is_completed);
-    setIsPinned(is_pinned);
-    setTaskText(text);
+    setIsCompleted(!!is_completed);
+    setIsPinned(!!is_pinned);
+    setTaskText(text || "");
     setTaskDescription(description);
     setTaskDueDate(due_date);
   }, [is_completed, is_pinned, text, description, due_date]);
@@ -101,7 +112,7 @@ const TaskCard = ({
   const handleCloseSidebar = () => setIsSidebarOpen(false);
 
   const handleTaskUpdate = (
-    taskId: number,
+    taskId: string,
     taskData: {
       text: string;
       description?: string | null;
@@ -263,6 +274,9 @@ const TaskCard = ({
             is_completed: isCompleted,
             date_completed: dateCompletedObject,
             is_pinned: isPinned,
+            collection_id,
+            list_id,
+            user_id,
           }}
           onComplete={onComplete}
           onPriorityChange={onPriorityChange}

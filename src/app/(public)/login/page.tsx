@@ -8,18 +8,16 @@ import { FaApple } from "react-icons/fa";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
+import { AuthError } from "@supabase/supabase-js";
 
-// Import for secure storage
-import { AES, enc } from "crypto-js";
-
-const Login = () => {
+const Login: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Get redirectTo from URL if present
-  const redirectTo = searchParams?.get("redirectTo") || "/dashboard";
+  // Always redirect to dashboard after login
+  const redirectTo = "/dashboard";
 
   // Form state
   const [email, setEmail] = useState("");
@@ -29,65 +27,41 @@ const Login = () => {
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [passwordResetSent, setPasswordResetSent] = useState(false);
+  const [logoutSuccess, setLogoutSuccess] = useState(false);
 
-  // Secret key for encryption (in a real app, use a more secure approach)
-  const STORAGE_KEY = "list_it_credentials";
-  const ENCRYPTION_KEY = "list_it_secure_key_2025"; // This would ideally be environment variable
-
-  // Check for active session
+  // Check for logout success message
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        router.push(redirectTo);
-      }
-    };
+    if (searchParams && searchParams.get("logout") === "true") {
+      setLogoutSuccess(true);
+    }
+  }, [searchParams]);
 
-    checkSession();
-  }, [router, redirectTo]);
-
-  // Load saved credentials on mount if they exist (just to fill the form)
+  // Load saved email on mount if it exists (just to fill the form)
   useEffect(() => {
-    const loadSavedCredentials = () => {
-      try {
-        const savedData = localStorage.getItem(STORAGE_KEY);
-        if (savedData) {
-          // Decrypt the saved data
-          const decrypted = AES.decrypt(savedData, ENCRYPTION_KEY).toString(
-            enc.Utf8
-          );
-
-          if (decrypted) {
-            const credentials = JSON.parse(decrypted);
-            setEmail(credentials.email || "");
-            setPassword(credentials.password || "");
-            setRememberMe(true);
-          }
-        }
-      } catch (err) {
-        console.error("Error loading saved credentials:", err);
-        // If there's an error, clear the stored credentials
-        localStorage.removeItem(STORAGE_KEY);
+    try {
+      const savedEmail = localStorage.getItem("list_it_email");
+      if (savedEmail) {
+        setEmail(savedEmail);
+        setRememberMe(true);
       }
-    };
-
-    loadSavedCredentials();
+    } catch (err) {
+      console.error("Error loading saved email:", err);
+      // Silent fail - local storage might be unavailable in some browsers/modes
+    }
   }, []);
 
-  // Save or remove credentials based on remember me state
+  // Remember email only, not password
   const handleRememberCredentials = () => {
-    if (rememberMe && email && password) {
-      try {
-        // Encrypt the credentials before storing
-        const credentials = JSON.stringify({ email, password });
-        const encrypted = AES.encrypt(credentials, ENCRYPTION_KEY).toString();
-        localStorage.setItem(STORAGE_KEY, encrypted);
-      } catch (err) {
-        console.error("Error saving credentials:", err);
+    try {
+      if (rememberMe && email) {
+        localStorage.setItem("list_it_email", email);
+      } else {
+        localStorage.removeItem("list_it_email");
       }
-    } else {
-      // If remember me is unchecked, remove saved credentials
-      localStorage.removeItem(STORAGE_KEY);
+    } catch (err) {
+      console.error("Error saving email preference:", err);
+      // Silent fail - local storage might be unavailable
     }
   };
 
@@ -118,33 +92,30 @@ const Login = () => {
 
       if (signInError) throw signInError;
 
-      // Save credentials if remember me is checked
-      if (rememberMe) {
-        handleRememberCredentials();
+      // Save email if remember me is checked
+      handleRememberCredentials();
+
+      // Handle successful login
+      if (data.session) {
+        // Redirect to dashboard
+        router.push(redirectTo);
       } else {
-        localStorage.removeItem(STORAGE_KEY);
+        // This should rarely happen - no session but no error
+        throw new Error("Authentication successful but no session returned");
       }
-
-      // Set authentication cookies
-      if (data.session?.access_token) {
-        const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24; // 30 days or 1 day
-        document.cookie = `auth_token=${data.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax`;
-        document.cookie = `isLoggedIn=true; path=/; max-age=${maxAge}; SameSite=Lax`;
-      }
-
-      // Redirect to dashboard or the original requested URL
-      router.push(redirectTo);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Login error:", err);
 
-      if (err?.message) {
+      const error = err as AuthError;
+
+      if (error?.message) {
         // Provide user-friendly error messages
-        if (err.message.includes("Invalid login credentials")) {
+        if (error.message.includes("Invalid login credentials")) {
           setError("Invalid email or password. Please try again.");
-        } else if (err.message.includes("Email not confirmed")) {
+        } else if (error.message.includes("Email not confirmed")) {
           setError("Please confirm your email address before logging in.");
         } else {
-          setError(err.message);
+          setError(error.message);
         }
       } else {
         setError("Failed to log in. Please try again.");
@@ -155,14 +126,13 @@ const Login = () => {
   };
 
   // Handle login with Google
-  // In Login.tsx - just update these functions, leave everything else as is
-
   const handleGoogleLogin = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -171,25 +141,30 @@ const Login = () => {
       });
 
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err) {
       console.error("Google login error:", err);
-      setError(err.message || "Failed to log in with Google");
+      const error = err as AuthError;
+      setError(error.message || "Failed to log in with Google");
+      setLoading(false);
     }
   };
 
   const handleAppleLogin = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "apple",
         options: {
-          redirectTo: `http://localhost:3000/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
         },
       });
 
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err) {
       console.error("Apple login error:", err);
-      setError(err.message || "Failed to log in with Apple");
+      const error = err as AuthError;
+      setError(error.message || "Failed to log in with Apple");
+      setLoading(false);
     }
   };
 
@@ -205,16 +180,17 @@ const Login = () => {
       const { error } = await supabase.auth.resetPasswordForEmail(
         email.trim(),
         {
-          redirectTo: `$http://localhost:3000/reset-password`,
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/reset-password`,
         }
       );
 
       if (error) throw error;
 
-      alert("Password reset link sent to your email");
-    } catch (err: any) {
+      setPasswordResetSent(true);
+    } catch (err) {
       console.error("Password reset error:", err);
-      setError(err.message || "Failed to send reset link");
+      const error = err as AuthError;
+      setError(error.message || "Failed to send reset link");
     } finally {
       setLoading(false);
     }
@@ -239,6 +215,7 @@ const Login = () => {
               height={128}
               alt="LIST IT Logo"
               className="w-32 mx-auto rounded-full"
+              priority
             />
           </div>
           <div className="mt-12 flex flex-col items-center">
@@ -250,14 +227,38 @@ const Login = () => {
               Log in to your account
             </h1>
 
-            {/* Error message display */}
-            {error && (
+            {/* Logout success message */}
+            {logoutSuccess && (
               <div
-                className={`mt-4 w-full max-w-xs bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative`}
+                className="mt-4 w-full max-w-xs bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
                 role="alert"
               >
                 <div className="flex items-center">
-                  <AlertCircle className="w-5 h-5 mr-2" />
+                  <span>You have been successfully logged out</span>
+                </div>
+              </div>
+            )}
+
+            {/* Success message for password reset */}
+            {passwordResetSent && (
+              <div
+                className="mt-4 w-full max-w-xs bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
+                role="alert"
+              >
+                <div className="flex items-center">
+                  <span>Password reset link sent to your email</span>
+                </div>
+              </div>
+            )}
+
+            {/* Error message display */}
+            {error && (
+              <div
+                className="mt-4 w-full max-w-xs bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+                role="alert"
+              >
+                <div className="flex items-center">
+                  <AlertCircle className="w-5 h-5 mr-2" aria-hidden="true" />
                   <span>{error}</span>
                 </div>
               </div>
@@ -273,13 +274,19 @@ const Login = () => {
                       ? "bg-orange-900 text-gray-200"
                       : "bg-orange-100 text-gray-800"
                   } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+                  aria-label="Login with Google"
+                  type="button"
                 >
                   <div
                     className={`${
                       isDark ? "bg-gray-800" : "bg-white"
                     } p-2 rounded-full`}
                   >
-                    <svg className="w-4" viewBox="0 0 533.5 544.3">
+                    <svg
+                      className="w-4"
+                      viewBox="0 0 533.5 544.3"
+                      aria-hidden="true"
+                    >
                       <path
                         d="M533.5 278.4c0-18.5-1.5-37.1-4.7-55.3H272.1v104.8h147c-6.1 33.8-25.7 63.7-54.4 82.7v68h87.7c51.5-47.4 81.1-117.4 81.1-200.2z"
                         fill="#4285f4"
@@ -309,6 +316,8 @@ const Login = () => {
                       ? "bg-sky-900 text-gray-200"
                       : "bg-sky-100 text-gray-800"
                   } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline mt-5 ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+                  aria-label="Login with Apple"
+                  type="button"
                 >
                   <div
                     className={`${
@@ -342,6 +351,7 @@ const Login = () => {
                   <Mail
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                     size={18}
+                    aria-hidden="true"
                   />
                   <input
                     className={`w-full pl-10 pr-3 py-4 rounded-lg font-medium ${
@@ -355,12 +365,16 @@ const Login = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={loading}
                     required
+                    name="email"
+                    id="email"
+                    autoComplete="email"
                   />
                 </div>
                 <div className="relative mt-5">
                   <Lock
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                     size={18}
+                    aria-hidden="true"
                   />
                   <input
                     className={`w-full pl-10 pr-3 py-4 rounded-lg font-medium ${
@@ -374,6 +388,9 @@ const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
                     required
+                    name="password"
+                    id="password"
+                    autoComplete="current-password"
                   />
                 </div>
                 <div className="flex justify-between items-center mt-2">
@@ -421,9 +438,12 @@ const Login = () => {
                   } text-white w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center focus:shadow-outline focus:outline-none ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
                 >
                   {loading ? (
-                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    <div
+                      className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
+                      aria-hidden="true"
+                    ></div>
                   ) : (
-                    <LogIn className="w-6 h-6 -ml-2" />
+                    <LogIn className="w-6 h-6 -ml-2" aria-hidden="true" />
                   )}
                   <span className="ml-3">
                     {loading ? "Logging In..." : "Log In"}
@@ -436,7 +456,7 @@ const Login = () => {
                 >
                   Don&apos;t have an account?{" "}
                   <Link
-                    href="/signup"
+                    href="/register"
                     className={`${
                       isDark
                         ? "text-sky-400 hover:text-sky-300"
@@ -456,6 +476,7 @@ const Login = () => {
             style={{
               backgroundImage: "url('/images/login.png')",
             }}
+            aria-hidden="true"
           ></div>
         </div>
       </div>

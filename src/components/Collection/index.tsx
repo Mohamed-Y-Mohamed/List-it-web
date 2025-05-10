@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -14,7 +14,7 @@ import { Task, Note, Collection } from "@/types/schema";
 import { useTheme } from "@/context/ThemeContext";
 
 interface CollectionComponentProps {
-  id: number;
+  id: string;
   collection_name: string;
   bg_color_hex: string;
   created_at: Date;
@@ -23,27 +23,50 @@ interface CollectionComponentProps {
   tasks?: Task[];
   notes?: Note[];
   allCollections?: Collection[];
-  onTaskComplete: (taskId: number, is_completed: boolean) => void;
-  onTaskPriority: (taskId: number, is_pinned: boolean) => void;
-  onTaskDelete?: (taskId: number) => void;
+  onTaskComplete: (
+    taskId: string,
+    is_completed: boolean
+  ) => Promise<{ success: boolean; error?: any }>;
+  onTaskPriority: (
+    taskId: string,
+    is_pinned: boolean
+  ) => Promise<{ success: boolean; error?: any }>;
+  onTaskDelete?: (taskId: string) => Promise<{ success: boolean; error?: any }>;
   onTaskUpdate?: (
-    taskId: number,
+    taskId: string,
     taskData: {
       text: string;
       description?: string | null;
       due_date?: Date | null;
       is_pinned: boolean;
     }
-  ) => void;
-  onTaskCollectionChange?: (taskId: number, collectionId: number) => void;
-  onNotePin?: (noteId: number, isPinned: boolean) => void;
-  onNoteColorChange?: (noteId: number, color: string) => void;
-  onNoteUpdate?: (noteId: number, updatedText: string) => void;
+  ) => Promise<{ success: boolean; error?: any }>;
+  onTaskCollectionChange?: (
+    taskId: string,
+    collectionId: string
+  ) => Promise<{ success: boolean; error?: any }>;
+  onNotePin?: (
+    noteId: string,
+    isPinned: boolean
+  ) => Promise<{ success: boolean; error?: any }>;
+  onNoteColorChange?: (
+    noteId: string,
+    color: string
+  ) => Promise<{ success: boolean; error?: any }>;
+  onNoteUpdate?: (
+    noteId: string,
+    updatedTitle: string,
+    updatedDescription?: string
+  ) => Promise<{ success: boolean; error?: any }>;
+  onNoteDelete?: (noteId: string) => Promise<{ success: boolean; error?: any }>;
   onAddTask?: () => void;
   onAddNote?: () => void;
   className?: string;
   isPinned?: boolean;
-  onCollectionPin?: (collectionId: number, isPinned: boolean) => void;
+  onCollectionPin?: (
+    collectionId: string,
+    isPinned: boolean
+  ) => Promise<{ success: boolean; error?: any }>;
 }
 
 const CollectionComponent = ({
@@ -61,6 +84,7 @@ const CollectionComponent = ({
   onNotePin,
   onNoteColorChange,
   onNoteUpdate,
+  onNoteDelete,
   onAddTask,
   onAddNote,
   className = "",
@@ -75,58 +99,277 @@ const CollectionComponent = ({
   const [priorityTasks, setPriorityTasks] = useState<Task[]>([]);
   const [regularTasks, setRegularTasks] = useState<Task[]>([]);
   const [sortedNotes, setSortedNotes] = useState<Note[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [errorTimeout, setErrorTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  // Color utilities
-  const bgColor = isDark ? "bg-gray-800" : "bg-white";
-  const textColor = isDark ? "text-white" : "text-gray-800";
+  // Enhanced color utilities for better light/dark mode appearance
+  const bgColor = isDark ? "bg-gray-900" : "bg-white";
+  const bgHoverColor = isDark ? "bg-gray-800" : "bg-gray-50";
+  const headerBgColor = isDark ? "bg-gray-850" : "bg-gray-50";
+  const textColor = isDark ? "text-gray-100" : "text-gray-800";
   const subtextColor = isDark ? "text-gray-400" : "text-gray-600";
   const borderColor = isDark ? "border-gray-700" : "border-gray-200";
-  const hoverColor = isDark ? "hover:bg-gray-700" : "hover:bg-gray-50";
+  const hoverColor = isDark ? "hover:bg-gray-800" : "hover:bg-gray-100";
+  const errorColor = isDark ? "text-red-400" : "text-red-600";
+  const errorBgColor = isDark ? "bg-red-900/30" : "bg-red-50";
+  const tabHoverColor = isDark ? "hover:bg-gray-800" : "hover:bg-gray-100";
+  const activeTabBgColor = isDark ? "bg-gray-800" : "bg-gray-100";
+  const buttonBgColor = isDark
+    ? "bg-gray-800 hover:bg-gray-700 text-gray-200"
+    : "bg-gray-100 hover:bg-gray-200 text-gray-700";
+
+  // Memoized sorting functions to avoid unnecessary re-computations
+  const sortTasks = useCallback((taskList: Task[] = []) => {
+    try {
+      // Filter out null/undefined tasks and already deleted ones
+      const validTasks =
+        taskList?.filter((task) => task && !task.is_deleted) || [];
+
+      // Split into priority and regular tasks
+      const priority = validTasks.filter((task) => Boolean(task.is_pinned));
+      const regular = validTasks.filter((task) => !task.is_pinned);
+
+      return { priority, regular };
+    } catch (err) {
+      console.error("Error sorting tasks:", err);
+      setError("Failed to process tasks");
+      return { priority: [], regular: [] };
+    }
+  }, []);
+
+  const sortNotes = useCallback((noteList: Note[] = []) => {
+    try {
+      // Filter out null/undefined notes and already deleted ones
+      const validNotes =
+        noteList?.filter((note) => note && !note.is_deleted) || [];
+
+      // Sort by pinned status, then by creation date (newest first)
+      return [...validNotes].sort((a, b) => {
+        // Handle pinned notes first
+        if (Boolean(a.is_pinned) && !Boolean(b.is_pinned)) return -1;
+        if (!Boolean(a.is_pinned) && Boolean(b.is_pinned)) return 1;
+
+        // Then sort by creation date
+        const dateA =
+          a.created_at instanceof Date ? a.created_at : new Date(a.created_at);
+
+        const dateB =
+          b.created_at instanceof Date ? b.created_at : new Date(b.created_at);
+
+        return dateB.getTime() - dateA.getTime();
+      });
+    } catch (err) {
+      console.error("Error sorting notes:", err);
+      setError("Failed to process notes");
+      return [];
+    }
+  }, []);
+
+  // Apply sorting when tasks or notes change
+  useEffect(() => {
+    const { priority, regular } = sortTasks(tasks);
+    setPriorityTasks(priority);
+    setRegularTasks(regular);
+  }, [tasks, sortTasks]);
 
   useEffect(() => {
-    // Sort tasks
-    setPriorityTasks(tasks.filter((task) => task.is_pinned));
-    setRegularTasks(tasks.filter((task) => !task.is_pinned));
-  }, [tasks]);
-
-  useEffect(() => {
-    // Sort notes
-    const activeNotes = notes?.filter((note) => !note.is_deleted) || [];
-    const sorted = [...activeNotes].sort((a, b) => {
-      if (a.is_pinned && !b.is_pinned) return -1;
-      if (!a.is_pinned && b.is_pinned) return 1;
-      return (
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-    });
+    const sorted = sortNotes(notes);
     setSortedNotes(sorted);
-  }, [notes]);
+  }, [notes, sortNotes]);
 
-  // Calculate task and note counts
-  const taskCount = tasks?.length || 0;
-  const noteCount = notes?.filter((note) => !note.is_deleted).length || 0;
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (error) {
+      if (errorTimeout) {
+        clearTimeout(errorTimeout);
+      }
+      const timeout = setTimeout(() => {
+        setError(null);
+      }, 5000);
+      setErrorTimeout(timeout);
+    }
 
-  const handlePinToggle = () => {
-    if (onCollectionPin) {
-      onCollectionPin(id, !isPinned);
+    return () => {
+      if (errorTimeout) {
+        clearTimeout(errorTimeout);
+      }
+    };
+  }, [error]);
+
+  // Calculate content counts
+  const taskCount =
+    tasks?.filter((task) => task && !task.is_deleted).length || 0;
+  const noteCount =
+    notes?.filter((note) => note && !note.is_deleted).length || 0;
+
+  /**
+   * Safely handle API operations with error handling
+   * @param operation The async operation to perform
+   * @param errorMessage The error message to show if the operation fails
+   * @returns The result of the operation or { success: false } on failure
+   */
+  const safelyHandleOperation = async (
+    operation: () => Promise<{ success: boolean; error?: any }>,
+    errorMessage: string
+  ): Promise<{ success: boolean; error?: any }> => {
+    try {
+      const result = await operation();
+      if (!result.success) {
+        throw new Error(result.error || errorMessage);
+      }
+      return { success: true };
+    } catch (err) {
+      console.error(`${errorMessage}:`, err);
+      setError(errorMessage);
+      return { success: false, error: err };
+    }
+  };
+
+  // Collection pin handler
+  const handlePinToggle = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!onCollectionPin) return;
+
+    await safelyHandleOperation(
+      () => onCollectionPin(id, !isPinned),
+      "Failed to pin collection"
+    );
+  };
+
+  // Task handlers
+  const handleTaskCompleteWithErrorHandling = async (
+    taskId: string,
+    isCompleted: boolean
+  ) => {
+    await safelyHandleOperation(
+      () => onTaskComplete(taskId, isCompleted),
+      "Failed to update task status"
+    );
+  };
+
+  const handleTaskPriorityWithErrorHandling = async (
+    taskId: string,
+    isPinned: boolean
+  ) => {
+    await safelyHandleOperation(
+      () => onTaskPriority(taskId, isPinned),
+      "Failed to update task priority"
+    );
+  };
+
+  const handleTaskUpdateWithErrorHandling = async (
+    taskId: string,
+    taskData: {
+      text: string;
+      description?: string | null;
+      due_date?: Date | null;
+      is_pinned: boolean;
+    }
+  ) => {
+    if (!onTaskUpdate) return;
+
+    await safelyHandleOperation(
+      () => onTaskUpdate(taskId, taskData),
+      "Failed to update task"
+    );
+  };
+
+  const handleTaskDeleteWithErrorHandling = async (taskId: string) => {
+    if (!onTaskDelete) return;
+
+    await safelyHandleOperation(
+      () => onTaskDelete(taskId),
+      "Failed to delete task"
+    );
+  };
+
+  // Note handlers
+  const handleNotePinWithErrorHandling = async (
+    noteId: string,
+    isPinned: boolean
+  ): Promise<{ success: boolean; error?: any }> => {
+    if (!onNotePin) {
+      return { success: false, error: "Pin handler not available" };
+    }
+
+    return safelyHandleOperation(
+      () => onNotePin(noteId, isPinned),
+      "Failed to pin note"
+    );
+  };
+
+  const handleNoteColorChangeWithErrorHandling = async (
+    noteId: string,
+    color: string
+  ): Promise<{ success: boolean; error?: any }> => {
+    if (!onNoteColorChange) {
+      return { success: false, error: "Color change handler not available" };
+    }
+
+    return safelyHandleOperation(
+      () => onNoteColorChange(noteId, color),
+      "Failed to change note color"
+    );
+  };
+
+  const handleNoteUpdateWithErrorHandling = async (
+    noteId: string,
+    updatedTitle: string,
+    updatedDescription?: string
+  ): Promise<{ success: boolean; error?: any }> => {
+    if (!onNoteUpdate) {
+      return { success: false, error: "Update handler not available" };
+    }
+
+    return safelyHandleOperation(
+      () => onNoteUpdate(noteId, updatedTitle, updatedDescription),
+      "Failed to update note"
+    );
+  };
+
+  const handleNoteDeleteWithErrorHandling = async (
+    noteId: string
+  ): Promise<{ success: boolean; error?: any }> => {
+    if (!onNoteDelete) {
+      return { success: false, error: "Delete handler not available" };
+    }
+
+    return safelyHandleOperation(
+      () => onNoteDelete(noteId),
+      "Failed to delete note"
+    );
+  };
+
+  // Clear any displayed errors
+  const clearError = () => {
+    setError(null);
+    if (errorTimeout) {
+      clearTimeout(errorTimeout);
+      setErrorTimeout(null);
     }
   };
 
   return (
-    <div className={`${className} rounded-lg overflow-hidden shadow-md`}>
+    <div
+      className={`${className} rounded-lg overflow-hidden shadow-lg transition-shadow duration-300 hover:shadow-xl ${bgColor}`}
+    >
       {/* Collection Header */}
       <div
-        className={`${bgColor} border-l-4`}
-        style={{ borderLeftColor: bg_color_hex }}
+        className={`${headerBgColor} border-l-4 transition-colors duration-300`}
+        style={{ borderLeftColor: bg_color_hex || "#cccccc" }}
       >
         <div
-          className="flex items-center p-4 cursor-pointer"
+          className={`flex items-center p-4 cursor-pointer ${hoverColor} transition-colors duration-200`}
           onClick={() => setIsExpanded(!isExpanded)}
+          role="button"
+          aria-expanded={isExpanded}
+          aria-label={`${collection_name || "Unnamed Collection"} collection`}
         >
           {/* Icon with collection color */}
           <div
-            className="w-8 h-8 rounded-full flex items-center justify-center mr-3"
-            style={{ backgroundColor: bg_color_hex }}
+            className="w-8 h-8 rounded-full flex items-center justify-center mr-3 shadow-sm"
+            style={{ backgroundColor: bg_color_hex || "#cccccc" }}
+            aria-hidden="true"
           >
             <ClipboardList className="h-4 w-4 text-white" />
           </div>
@@ -134,7 +377,7 @@ const CollectionComponent = ({
           {/* Collection title and info */}
           <div className="flex-1 min-w-0">
             <h3 className={`font-medium ${textColor} truncate`}>
-              {collection_name}
+              {collection_name || "Unnamed Collection"}
             </h3>
             <p className={`text-xs ${subtextColor}`}>
               {taskCount > 0
@@ -149,21 +392,19 @@ const CollectionComponent = ({
           <div className="flex items-center space-x-2">
             {onCollectionPin && (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlePinToggle();
-                }}
-                className={`p-1.5 rounded-full ${hoverColor}`}
+                onClick={handlePinToggle}
+                className={`p-1.5 rounded-full ${hoverColor} transition-colors duration-200`}
+                aria-label={isPinned ? "Unpin collection" : "Pin collection"}
               >
                 <Pin
-                  className={`h-4 w-4 ${isPinned ? "text-orange-500" : subtextColor}`}
+                  className={`h-4 w-4 ${isPinned ? "text-orange-500" : subtextColor} transition-colors duration-200`}
                   fill={isPinned ? "currentColor" : "none"}
                 />
               </button>
             )}
 
             <button
-              className={`p-1.5 rounded-full ${subtextColor} ${hoverColor}`}
+              className={`p-1.5 rounded-full ${subtextColor} ${hoverColor} transition-colors duration-200`}
               aria-label={isExpanded ? "Collapse" : "Expand"}
             >
               {isExpanded ? (
@@ -175,14 +416,37 @@ const CollectionComponent = ({
           </div>
         </div>
 
+        {/* Error message */}
+        {error && (
+          <div
+            className={`px-4 py-2 ${errorBgColor} ${errorColor} text-sm flex justify-between items-center`}
+            role="alert"
+          >
+            <span>{error}</span>
+            <button
+              onClick={clearError}
+              className="ml-2 text-xs font-medium hover:underline"
+              aria-label="Dismiss error"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Tabs */}
         {isExpanded && (
-          <div className={`flex border-t ${borderColor}`}>
+          <div className={`flex border-t ${borderColor}`} role="tablist">
             <button
               className={`flex-1 py-2.5 px-4 text-sm font-medium transition-all relative ${
-                activeTab === "tasks" ? textColor : `${subtextColor}`
+                activeTab === "tasks"
+                  ? `${textColor} ${activeTabBgColor}`
+                  : `${subtextColor} ${tabHoverColor}`
               }`}
               onClick={() => setActiveTab("tasks")}
+              role="tab"
+              aria-selected={activeTab === "tasks"}
+              aria-controls="tasks-panel"
+              id="tasks-tab"
             >
               <div className="flex items-center justify-center space-x-1">
                 <ClipboardList className="h-4 w-4" />
@@ -190,17 +454,24 @@ const CollectionComponent = ({
               </div>
               {activeTab === "tasks" && (
                 <div
-                  className="absolute bottom-0 left-0 right-0 h-0.5"
-                  style={{ backgroundColor: bg_color_hex }}
+                  className="absolute bottom-0 left-0 right-0 h-0.5 transition-colors duration-300"
+                  style={{ backgroundColor: bg_color_hex || "#cccccc" }}
+                  aria-hidden="true"
                 />
               )}
             </button>
 
             <button
               className={`flex-1 py-2.5 px-4 text-sm font-medium transition-all relative ${
-                activeTab === "notes" ? textColor : `${subtextColor}`
+                activeTab === "notes"
+                  ? `${textColor} ${activeTabBgColor}`
+                  : `${subtextColor} ${tabHoverColor}`
               }`}
               onClick={() => setActiveTab("notes")}
+              role="tab"
+              aria-selected={activeTab === "notes"}
+              aria-controls="notes-panel"
+              id="notes-tab"
             >
               <div className="flex items-center justify-center space-x-1">
                 <StickyNote className="h-4 w-4" />
@@ -208,8 +479,9 @@ const CollectionComponent = ({
               </div>
               {activeTab === "notes" && (
                 <div
-                  className="absolute bottom-0 left-0 right-0 h-0.5"
-                  style={{ backgroundColor: bg_color_hex }}
+                  className="absolute bottom-0 left-0 right-0 h-0.5 transition-colors duration-300"
+                  style={{ backgroundColor: bg_color_hex || "#cccccc" }}
+                  aria-hidden="true"
                 />
               )}
             </button>
@@ -219,7 +491,12 @@ const CollectionComponent = ({
 
       {/* Collection Content */}
       {isExpanded && (
-        <div className={`${bgColor} p-4`}>
+        <div
+          className={`${bgColor} p-4`}
+          role="tabpanel"
+          id={activeTab === "tasks" ? "tasks-panel" : "notes-panel"}
+          aria-labelledby={activeTab === "tasks" ? "tasks-tab" : "notes-tab"}
+        >
           {activeTab === "tasks" && (
             <div className="space-y-3">
               {/* Priority Tasks Section */}
@@ -230,15 +507,18 @@ const CollectionComponent = ({
                       <TaskCard
                         key={task.id}
                         {...task}
-                        onComplete={onTaskComplete}
-                        onPriorityChange={onTaskPriority}
-                        onTaskUpdate={onTaskUpdate}
-                        onTaskDelete={onTaskDelete}
+                        onComplete={handleTaskCompleteWithErrorHandling}
+                        onPriorityChange={handleTaskPriorityWithErrorHandling}
+                        onTaskUpdate={handleTaskUpdateWithErrorHandling}
+                        onTaskDelete={handleTaskDeleteWithErrorHandling}
                       />
                     ))}
                   </div>
                   {regularTasks.length > 0 && (
-                    <div className={`border-t ${borderColor} pt-2 my-3`}></div>
+                    <div
+                      className={`border-t ${borderColor} pt-2 my-3`}
+                      aria-hidden="true"
+                    ></div>
                   )}
                 </>
               )}
@@ -250,10 +530,10 @@ const CollectionComponent = ({
                     <TaskCard
                       key={task.id}
                       {...task}
-                      onComplete={onTaskComplete}
-                      onPriorityChange={onTaskPriority}
-                      onTaskUpdate={onTaskUpdate}
-                      onTaskDelete={onTaskDelete}
+                      onComplete={handleTaskCompleteWithErrorHandling}
+                      onPriorityChange={handleTaskPriorityWithErrorHandling}
+                      onTaskUpdate={handleTaskUpdateWithErrorHandling}
+                      onTaskDelete={handleTaskDeleteWithErrorHandling}
                     />
                   ))}
                 </div>
@@ -263,6 +543,20 @@ const CollectionComponent = ({
                     No tasks in this collection
                   </div>
                 )
+              )}
+
+              {/* Add Task Button */}
+              {onAddTask && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    onClick={onAddTask}
+                    className={`px-4 py-2 rounded-md text-sm font-medium 
+                      ${buttonBgColor} transition-colors duration-200`}
+                    aria-label="Add new task"
+                  >
+                    Add Task
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -276,19 +570,35 @@ const CollectionComponent = ({
                       key={note.id}
                       id={note.id}
                       title={note.title}
+                      description={note.description}
                       created_at={note.created_at}
                       is_deleted={note.is_deleted}
                       bg_color_hex={note.bg_color_hex}
                       is_pinned={note.is_pinned}
-                      onPinChange={onNotePin}
-                      onColorChange={onNoteColorChange}
-                      onNoteUpdate={onNoteUpdate}
+                      onPinChange={handleNotePinWithErrorHandling}
+                      onColorChange={handleNoteColorChangeWithErrorHandling}
+                      onNoteUpdate={handleNoteUpdateWithErrorHandling}
+                      onNoteDelete={handleNoteDeleteWithErrorHandling}
                     />
                   ))}
                 </div>
               ) : (
                 <div className={`text-center py-6 ${subtextColor} text-sm`}>
                   No notes in this collection
+                </div>
+              )}
+
+              {/* Add Note Button */}
+              {onAddNote && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    onClick={onAddNote}
+                    className={`px-4 py-2 rounded-md text-sm font-medium 
+                      ${buttonBgColor} transition-colors duration-200`}
+                    aria-label="Add new note"
+                  >
+                    Add Note
+                  </button>
                 </div>
               )}
             </>

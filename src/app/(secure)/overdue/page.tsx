@@ -5,10 +5,10 @@ import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
 import TodayTaskCard from "@/components/Tasks/customcard"; // Reusing the same card component
-import { ClipboardCheck, RefreshCw, CheckCircle2 } from "lucide-react";
-import EmptyState from "@/components/popupModels/emptystate"; // Reusing the same empty state component
+import { AlertCircle, RefreshCw, Clock } from "lucide-react";
+import EmptyState from "@/components/popupModels/emptystate";
 
-export default function NotCompletedPage() {
+export default function OverduePage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [collections, setCollections] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -97,8 +97,8 @@ export default function NotCompletedPage() {
     }
   }, []);
 
-  // Function to fetch all incomplete tasks that are not past their due date
-  const fetchNotCompletedTasks = useCallback(async () => {
+  // Function to fetch all overdue tasks
+  const fetchOverdueTasks = useCallback(async () => {
     if (!user) return;
 
     setIsLoading(true);
@@ -108,42 +108,25 @@ export default function NotCompletedPage() {
       // Get today's date in the format that PostgreSQL expects (YYYY-MM-DD)
       const todayFormatted = formatDateForPostgres(today);
 
-      // First, get all incomplete tasks
-      const { data: allTasks, error: tasksError } = await supabase
+      // Get all tasks that are:
+      // 1. Not completed
+      // 2. Not deleted
+      // 3. Have a due date that is earlier than today
+      const { data: overdueTasks, error: tasksError } = await supabase
         .from("task")
         .select("*")
         .eq("is_completed", false)
-        .eq("is_deleted", false);
+        .eq("is_deleted", false)
+        .lt("due_date", todayFormatted);
 
       if (tasksError) {
-        console.error("Error fetching tasks:", tasksError);
+        console.error("Error fetching overdue tasks:", tasksError);
         setIsLoading(false);
         setIsRefreshing(false);
         return;
       }
 
-      // Filter tasks based on due date criteria:
-      // 1. Tasks with no due date (ongoing tasks)
-      // 2. Tasks with a due date >= today (not past due)
-      const validTasks =
-        allTasks?.filter((task) => {
-          // Include tasks with no due date
-          if (!task.due_date) return true;
-
-          // Filter out tasks with past due dates
-          try {
-            const taskDate = new Date(task.due_date);
-            taskDate.setHours(0, 0, 0, 0);
-
-            // Include if due date is today or in the future
-            return taskDate.getTime() >= today.getTime();
-          } catch (e) {
-            console.error("Error parsing date:", task.due_date, e);
-            return false;
-          }
-        }) || [];
-
-      if (validTasks.length === 0) {
+      if (!overdueTasks || overdueTasks.length === 0) {
         setTasks([]);
         setIsLoading(false);
         setIsRefreshing(false);
@@ -160,7 +143,7 @@ export default function NotCompletedPage() {
       });
 
       // Get list IDs from tasks
-      const taskListIds = validTasks
+      const taskListIds = overdueTasks
         .map((task) => task.list_id)
         .filter((id) => id !== null) as string[];
 
@@ -177,7 +160,7 @@ export default function NotCompletedPage() {
       });
 
       // Add collection and list names to tasks
-      const tasksWithNames = validTasks.map((task) => {
+      const tasksWithNames = overdueTasks.map((task) => {
         const collection = task.collection_id
           ? collectionMap.get(task.collection_id)
           : null;
@@ -194,7 +177,7 @@ export default function NotCompletedPage() {
 
       setTasks(tasksWithNames);
     } catch (error) {
-      console.error("Unexpected error fetching incomplete tasks:", error);
+      console.error("Unexpected error fetching overdue tasks:", error);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -203,8 +186,8 @@ export default function NotCompletedPage() {
 
   // Load tasks on initial render
   useEffect(() => {
-    fetchNotCompletedTasks();
-  }, [fetchNotCompletedTasks]);
+    fetchOverdueTasks();
+  }, [fetchOverdueTasks]);
 
   // Task handlers
   const handleTaskComplete = useCallback(
@@ -303,16 +286,16 @@ export default function NotCompletedPage() {
           return { success: false, error };
         }
 
-        // Check if the updated task now has a past due date
+        // Check if the updated date is no longer overdue
         let shouldRemove = false;
         if (taskData.due_date) {
           const updatedDueDate = new Date(taskData.due_date);
           updatedDueDate.setHours(0, 0, 0, 0);
-          shouldRemove = updatedDueDate.getTime() < today.getTime();
+          shouldRemove = updatedDueDate.getTime() >= today.getTime();
         }
 
         if (shouldRemove) {
-          // Remove task if it now has a past due date
+          // If due date is updated to today or future, remove from overdue view
           setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId));
         } else {
           // Update in local state
@@ -402,6 +385,43 @@ export default function NotCompletedPage() {
     [user]
   );
 
+  // Calculate how many days overdue each task is
+  const getDaysOverdue = useCallback(
+    (dueDate: string) => {
+      const due = new Date(dueDate);
+      due.setHours(0, 0, 0, 0);
+      const diffTime = today.getTime() - due.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays;
+    },
+    [today]
+  );
+
+  // Group tasks by how overdue they are
+  const groupedTasks = useMemo(() => {
+    const groups: { [key: string]: any[] } = {
+      critical: [], // More than 7 days overdue
+      high: [], // 3-7 days overdue
+      medium: [], // 1-2 days overdue
+    };
+
+    tasks.forEach((task) => {
+      if (!task.due_date) return;
+
+      const daysOverdue = getDaysOverdue(task.due_date);
+
+      if (daysOverdue > 7) {
+        groups.critical.push(task);
+      } else if (daysOverdue >= 3) {
+        groups.high.push(task);
+      } else {
+        groups.medium.push(task);
+      }
+    });
+
+    return groups;
+  }, [tasks, getDaysOverdue]);
+
   // Memoized sorted tasks to prevent re-sorting on every render
   const sortedTasks = useMemo(() => {
     return [...tasks].sort((a, b) => {
@@ -409,59 +429,33 @@ export default function NotCompletedPage() {
       if (a.is_pinned && !b.is_pinned) return -1;
       if (!a.is_pinned && b.is_pinned) return 1;
 
-      // Then by due date - tasks with due dates first,
-      // followed by tasks without due dates
-      const aHasDueDate = !!a.due_date;
-      const bHasDueDate = !!b.due_date;
-
-      if (aHasDueDate && !bHasDueDate) return -1;
-      if (!aHasDueDate && bHasDueDate) return 1;
-
-      // Then sort by due date if both have due dates (earliest first)
-      if (aHasDueDate && bHasDueDate) {
-        const aDate = new Date(a.due_date);
-        const bDate = new Date(b.due_date);
-        return aDate.getTime() - bDate.getTime();
-      }
-
-      // Finally, sort by creation date if neither has due date
-      return (
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      );
+      // Then by due date (oldest/most overdue first)
+      const aDate = a.due_date ? new Date(a.due_date) : new Date(a.created_at);
+      const bDate = b.due_date ? new Date(b.due_date) : new Date(b.created_at);
+      return aDate.getTime() - bDate.getTime();
     });
   }, [tasks]);
 
-  // Group tasks by due date for better organization
-  const groupedTasks = useMemo(() => {
-    const groups: { [key: string]: any[] } = {
-      today: [],
-      tomorrow: [],
-      future: [],
-      no_date: [],
-    };
+  // Calculate urgency level for display
+  const getUrgencyLevel = useCallback(
+    (dueDate: string) => {
+      const daysOverdue = getDaysOverdue(dueDate);
+      if (daysOverdue > 7) return "critical";
+      if (daysOverdue >= 3) return "high";
+      return "medium";
+    },
+    [getDaysOverdue]
+  );
 
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-
-    sortedTasks.forEach((task) => {
-      if (!task.due_date) {
-        groups.no_date.push(task);
-      } else {
-        const dueDate = new Date(task.due_date);
-        dueDate.setHours(0, 0, 0, 0);
-
-        if (dueDate.getTime() === today.getTime()) {
-          groups.today.push(task);
-        } else if (dueDate.getTime() === tomorrow.getTime()) {
-          groups.tomorrow.push(task);
-        } else {
-          groups.future.push(task);
-        }
-      }
-    });
-
-    return groups;
-  }, [sortedTasks, today]);
+  // Get human readable overdue text
+  const getOverdueText = useCallback(
+    (dueDate: string) => {
+      const daysOverdue = getDaysOverdue(dueDate);
+      if (daysOverdue === 1) return "1 day overdue";
+      return `${daysOverdue} days overdue`;
+    },
+    [getDaysOverdue]
+  );
 
   return (
     <main
@@ -477,22 +471,22 @@ export default function NotCompletedPage() {
             <div className="flex justify-between items-center">
               <div>
                 <div className="flex items-center mb-1">
-                  <ClipboardCheck className="h-6 w-6 mr-2 text-teal-500" />
+                  <AlertCircle className="h-6 w-6 mr-2 text-red-500" />
                   <h1
                     className={`text-2xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}
                   >
-                    Not Completed
+                    Overdue Tasks
                   </h1>
                 </div>
                 <p
                   className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}
                 >
-                  {tasks.length} task{tasks.length !== 1 && "s"} to complete •
-                  Organized by due date
+                  {tasks.length} overdue task{tasks.length !== 1 && "s"} • Needs
+                  your attention
                 </p>
               </div>
               <button
-                onClick={fetchNotCompletedTasks}
+                onClick={fetchOverdueTasks}
                 disabled={isRefreshing}
                 className={`p-2 rounded-full transition-all duration-200 ${
                   isDark
@@ -515,200 +509,164 @@ export default function NotCompletedPage() {
                 isDark
                   ? "bg-gray-800/80 text-gray-300"
                   : "bg-white text-gray-500"
-              } shadow-lg border-l-4 border-teal-500 transition-all duration-300`}
+              } shadow-lg border-l-4 border-red-500 transition-all duration-300`}
             >
               <div className="flex flex-col items-center justify-center space-y-3">
                 <div className="relative">
-                  <RefreshCw className="h-8 w-8 animate-spin text-teal-500" />
-                  <div className="absolute inset-0 animate-pulse bg-teal-500 rounded-full opacity-20"></div>
+                  <RefreshCw className="h-8 w-8 animate-spin text-red-500" />
+                  <div className="absolute inset-0 animate-pulse bg-red-500 rounded-full opacity-20"></div>
                 </div>
-                <p className="text-lg font-medium">Loading your tasks...</p>
+                <p className="text-lg font-medium">Loading overdue tasks...</p>
               </div>
             </div>
           ) : tasks.length === 0 ? (
             // Empty state
             <EmptyState
-              title="All caught up!"
-              message="You don't have any incomplete tasks at the moment. Enjoy your free time or add new tasks."
+              title="No overdue tasks"
+              message="You're all caught up! You don't have any overdue tasks."
               icon="check"
             />
           ) : (
-            // Tasks list grouped by due date
             <div className="space-y-6">
-              {/* Today's tasks */}
-              {groupedTasks.today.length > 0 && (
+              {/* Display tasks grouped by urgency level */}
+              {groupedTasks.critical.length > 0 && (
                 <div>
                   <h2
-                    className={`text-lg font-medium mb-3 px-1 flex items-center ${
-                      isDark ? "text-blue-300" : "text-blue-600"
-                    }`}
+                    className={`text-lg font-medium mb-3 px-1 flex items-center text-red-600`}
                   >
-                    <span className="flex h-2 w-2 mr-2 rounded-full bg-blue-500"></span>
-                    Due Today
+                    <span className="flex h-2 w-2 mr-2 rounded-full bg-red-600"></span>
+                    Critical ({groupedTasks.critical.length})
                   </h2>
                   <div className="space-y-3">
-                    {groupedTasks.today.map((task) => (
+                    {groupedTasks.critical.map((task) => (
                       <div
                         key={task.id}
                         className="transform transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
                       >
-                        <TodayTaskCard
-                          id={task.id}
-                          text={task.text}
-                          description={task.description}
-                          created_at={task.created_at}
-                          due_date={task.due_date}
-                          is_completed={task.is_completed}
-                          date_completed={task.date_completed}
-                          is_pinned={task.is_pinned}
-                          collection_id={task.collection_id}
-                          list_id={task.list_id}
-                          user_id={task.user_id}
-                          collection_name={task.collection_name}
-                          list_name={task.list_name}
-                          onComplete={handleTaskComplete}
-                          onPriorityChange={handleTaskPriority}
-                          onTaskUpdate={handleTaskUpdate}
-                          onTaskDelete={handleTaskDelete}
-                          collections={collections}
-                          onCollectionChange={handleCollectionChange}
-                          className="border-l-4"
-                        />
+                        <div className="relative">
+                          {/* Overdue badge */}
+                          <div className="absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold bg-red-600 text-white shadow-md z-10">
+                            {getOverdueText(task.due_date)}
+                          </div>
+                          <TodayTaskCard
+                            id={task.id}
+                            text={task.text}
+                            description={task.description}
+                            created_at={task.created_at}
+                            due_date={task.due_date}
+                            is_completed={task.is_completed}
+                            date_completed={task.date_completed}
+                            is_pinned={task.is_pinned}
+                            collection_id={task.collection_id}
+                            list_id={task.list_id}
+                            user_id={task.user_id}
+                            collection_name={task.collection_name}
+                            list_name={task.list_name}
+                            onComplete={handleTaskComplete}
+                            onPriorityChange={handleTaskPriority}
+                            onTaskUpdate={handleTaskUpdate}
+                            onTaskDelete={handleTaskDelete}
+                            collections={collections}
+                            onCollectionChange={handleCollectionChange}
+                            className="border-l-4 border-red-600"
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Tomorrow's tasks */}
-              {groupedTasks.tomorrow.length > 0 && (
+              {groupedTasks.high.length > 0 && (
                 <div>
                   <h2
-                    className={`text-lg font-medium mb-3 px-1 flex items-center ${
-                      isDark ? "text-purple-300" : "text-purple-600"
-                    }`}
+                    className={`text-lg font-medium mb-3 px-1 flex items-center text-orange-600`}
                   >
-                    <span className="flex h-2 w-2 mr-2 rounded-full bg-purple-500"></span>
-                    Due Tomorrow
+                    <span className="flex h-2 w-2 mr-2 rounded-full bg-orange-500"></span>
+                    High Priority ({groupedTasks.high.length})
                   </h2>
                   <div className="space-y-3">
-                    {groupedTasks.tomorrow.map((task) => (
+                    {groupedTasks.high.map((task) => (
                       <div
                         key={task.id}
                         className="transform transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
                       >
-                        <TodayTaskCard
-                          id={task.id}
-                          text={task.text}
-                          description={task.description}
-                          created_at={task.created_at}
-                          due_date={task.due_date}
-                          is_completed={task.is_completed}
-                          date_completed={task.date_completed}
-                          is_pinned={task.is_pinned}
-                          collection_id={task.collection_id}
-                          list_id={task.list_id}
-                          user_id={task.user_id}
-                          collection_name={task.collection_name}
-                          list_name={task.list_name}
-                          onComplete={handleTaskComplete}
-                          onPriorityChange={handleTaskPriority}
-                          onTaskUpdate={handleTaskUpdate}
-                          onTaskDelete={handleTaskDelete}
-                          collections={collections}
-                          onCollectionChange={handleCollectionChange}
-                          className="border-l-4"
-                        />
+                        <div className="relative">
+                          {/* Overdue badge */}
+                          <div className="absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold bg-orange-500 text-white shadow-md z-10">
+                            {getOverdueText(task.due_date)}
+                          </div>
+                          <TodayTaskCard
+                            id={task.id}
+                            text={task.text}
+                            description={task.description}
+                            created_at={task.created_at}
+                            due_date={task.due_date}
+                            is_completed={task.is_completed}
+                            date_completed={task.date_completed}
+                            is_pinned={task.is_pinned}
+                            collection_id={task.collection_id}
+                            list_id={task.list_id}
+                            user_id={task.user_id}
+                            collection_name={task.collection_name}
+                            list_name={task.list_name}
+                            onComplete={handleTaskComplete}
+                            onPriorityChange={handleTaskPriority}
+                            onTaskUpdate={handleTaskUpdate}
+                            onTaskDelete={handleTaskDelete}
+                            collections={collections}
+                            onCollectionChange={handleCollectionChange}
+                            className="border-l-4 border-orange-500"
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Future tasks */}
-              {groupedTasks.future.length > 0 && (
+              {groupedTasks.medium.length > 0 && (
                 <div>
                   <h2
-                    className={`text-lg font-medium mb-3 px-1 flex items-center ${
-                      isDark ? "text-green-300" : "text-green-600"
-                    }`}
+                    className={`text-lg font-medium mb-3 px-1 flex items-center text-yellow-600`}
                   >
-                    <span className="flex h-2 w-2 mr-2 rounded-full bg-green-500"></span>
-                    Upcoming
+                    <span className="flex h-2 w-2 mr-2 rounded-full bg-yellow-500"></span>
+                    Recently Overdue ({groupedTasks.medium.length})
                   </h2>
                   <div className="space-y-3">
-                    {groupedTasks.future.map((task) => (
+                    {groupedTasks.medium.map((task) => (
                       <div
                         key={task.id}
                         className="transform transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
                       >
-                        <TodayTaskCard
-                          id={task.id}
-                          text={task.text}
-                          description={task.description}
-                          created_at={task.created_at}
-                          due_date={task.due_date}
-                          is_completed={task.is_completed}
-                          date_completed={task.date_completed}
-                          is_pinned={task.is_pinned}
-                          collection_id={task.collection_id}
-                          list_id={task.list_id}
-                          user_id={task.user_id}
-                          collection_name={task.collection_name}
-                          list_name={task.list_name}
-                          onComplete={handleTaskComplete}
-                          onPriorityChange={handleTaskPriority}
-                          onTaskUpdate={handleTaskUpdate}
-                          onTaskDelete={handleTaskDelete}
-                          collections={collections}
-                          onCollectionChange={handleCollectionChange}
-                          className="border-l-4"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* No due date tasks */}
-              {groupedTasks.no_date.length > 0 && (
-                <div>
-                  <h2
-                    className={`text-lg font-medium mb-3 px-1 flex items-center ${
-                      isDark ? "text-gray-300" : "text-gray-600"
-                    }`}
-                  >
-                    <span className="flex h-2 w-2 mr-2 rounded-full bg-gray-500"></span>
-                    No Due Date
-                  </h2>
-                  <div className="space-y-3">
-                    {groupedTasks.no_date.map((task) => (
-                      <div
-                        key={task.id}
-                        className="transform transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
-                      >
-                        <TodayTaskCard
-                          id={task.id}
-                          text={task.text}
-                          description={task.description}
-                          created_at={task.created_at}
-                          due_date={task.due_date}
-                          is_completed={task.is_completed}
-                          date_completed={task.date_completed}
-                          is_pinned={task.is_pinned}
-                          collection_id={task.collection_id}
-                          list_id={task.list_id}
-                          user_id={task.user_id}
-                          collection_name={task.collection_name}
-                          list_name={task.list_name}
-                          onComplete={handleTaskComplete}
-                          onPriorityChange={handleTaskPriority}
-                          onTaskUpdate={handleTaskUpdate}
-                          onTaskDelete={handleTaskDelete}
-                          collections={collections}
-                          onCollectionChange={handleCollectionChange}
-                          className="border-l-4"
-                        />
+                        <div className="relative">
+                          {/* Overdue badge */}
+                          <div className="absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs font-bold bg-yellow-500 text-white shadow-md z-10">
+                            {getOverdueText(task.due_date)}
+                          </div>
+                          <TodayTaskCard
+                            id={task.id}
+                            text={task.text}
+                            description={task.description}
+                            created_at={task.created_at}
+                            due_date={task.due_date}
+                            is_completed={task.is_completed}
+                            date_completed={task.date_completed}
+                            is_pinned={task.is_pinned}
+                            collection_id={task.collection_id}
+                            list_id={task.list_id}
+                            user_id={task.user_id}
+                            collection_name={task.collection_name}
+                            list_name={task.list_name}
+                            onComplete={handleTaskComplete}
+                            onPriorityChange={handleTaskPriority}
+                            onTaskUpdate={handleTaskUpdate}
+                            onTaskDelete={handleTaskDelete}
+                            collections={collections}
+                            onCollectionChange={handleCollectionChange}
+                            className="border-l-4 border-yellow-500"
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
