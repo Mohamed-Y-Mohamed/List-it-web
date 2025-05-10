@@ -277,13 +277,22 @@ const CollectionComponent = ({
   const handleTaskDeleteWithErrorHandling = async (taskId: string) => {
     if (!onTaskDelete) return;
 
-    await safelyHandleOperation(
+    const result = await safelyHandleOperation(
       () => onTaskDelete(taskId),
       "Failed to delete task"
     );
+
+    // Re-run sorting after successful deletion
+    if (result.success) {
+      const { priority, regular } = sortTasks(
+        tasks.filter((t) => t.id !== taskId)
+      );
+      setPriorityTasks(priority);
+      setRegularTasks(regular);
+    }
   };
 
-  // Note handlers
+  // Note handlers with improved deletion handling
   const handleNotePinWithErrorHandling = async (
     noteId: string,
     isPinned: boolean
@@ -292,10 +301,17 @@ const CollectionComponent = ({
       return { success: false, error: "Pin handler not available" };
     }
 
-    return safelyHandleOperation(
+    const result = await safelyHandleOperation(
       () => onNotePin(noteId, isPinned),
       "Failed to pin note"
     );
+
+    // Re-run sorting after successful pin change
+    if (result.success) {
+      setSortedNotes(sortNotes(notes));
+    }
+
+    return result;
   };
 
   const handleNoteColorChangeWithErrorHandling = async (
@@ -327,6 +343,7 @@ const CollectionComponent = ({
     );
   };
 
+  // Key improvement: Better note deletion handling
   const handleNoteDeleteWithErrorHandling = async (
     noteId: string
   ): Promise<{ success: boolean; error?: any }> => {
@@ -334,10 +351,19 @@ const CollectionComponent = ({
       return { success: false, error: "Delete handler not available" };
     }
 
-    return safelyHandleOperation(
+    const result = await safelyHandleOperation(
       () => onNoteDelete(noteId),
       "Failed to delete note"
     );
+
+    // Force re-sort after successful deletion
+    if (result.success) {
+      // Filter out the deleted note and re-sort
+      const updatedNotes = notes.filter((note) => note.id !== noteId);
+      setSortedNotes(sortNotes(updatedNotes));
+    }
+
+    return result;
   };
 
   // Clear any displayed errors

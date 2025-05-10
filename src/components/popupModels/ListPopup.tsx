@@ -161,6 +161,7 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
       const newListId = insertedList[0].id;
 
       // Step 2: Create a default collection linked to the list
+      // REMOVED is_default since it doesn't exist in the database
       const { error: collectionError } = await supabase
         .from("collection")
         .insert([
@@ -168,7 +169,6 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
             list_id: newListId,
             collection_name: "General",
             bg_color_hex: selectedColor,
-            is_default: true,
             user_id: user.id, // Critical for RLS policy
           },
         ]);

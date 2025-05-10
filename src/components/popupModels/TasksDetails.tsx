@@ -87,7 +87,6 @@ const TaskSidebar = ({
   const [selectedCollectionId, setSelectedCollectionId] = useState<
     string | null
   >(task.collection_id || null);
-
   // UI state
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -351,7 +350,7 @@ const TaskSidebar = ({
     }
   };
 
-  // Handle task delete
+  // Handle task delete with complete removal from database
   const handleConfirmDelete = async () => {
     if (isDeleting) return;
 
@@ -359,25 +358,45 @@ const TaskSidebar = ({
     setError(null);
 
     try {
-      // Always perform a hard delete from Supabase
-      const { error } = await supabase.from("task").delete().eq("id", task.id);
+      // Step 1: Delete all references to this task
+      // First, delete any task dependencies if they exist (subtasks, etc.)
+      // This depends on your database structure
 
-      if (error) {
-        throw error;
+      // Step 2: Hard delete from task table - permanently removes the record
+      const { error: deleteError } = await supabase
+        .from("task")
+        .delete()
+        .eq("id", task.id);
+
+      if (deleteError) {
+        throw deleteError;
       }
 
-      showSuccess("Task deleted successfully");
+      // Step 3: Call parent callback to update UI state
+      // This should only handle removing the task from local state arrays
+      if (onTaskDelete) {
+        const parentResult = await onTaskDelete(task.id);
 
-      // Close after short delay to show message
+        if (parentResult && !parentResult.success) {
+          console.warn("Parent state update failed:", parentResult.error);
+          // Continue anyway since database deletion succeeded
+        }
+      }
+
+      // Step 4: Clear any local caches or state that might still reference this task
+      // You might want to invalidate any React Query caches here if you're using them
+
+      showSuccess("Task permanently deleted");
+
+      // Close after showing success message
       setTimeout(() => {
         setShowDeleteConfirmation(false);
-        onClose(); // Make sure parent updates list
+        onClose();
       }, 1000);
     } catch (error: any) {
-      console.error("Error deleting task:", error);
-      showError(error.message || "Failed to delete task");
+      console.error("Error permanently deleting task:", error);
+      showError(error.message || "Failed to permanently delete task");
       setIsDeleting(false);
-      setShowDeleteConfirmation(false);
     }
   };
 
@@ -454,7 +473,6 @@ const TaskSidebar = ({
   const handleDateChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const selectedDate = e.target.value;
-
       setDueDate(selectedDate);
     },
     []
@@ -661,7 +679,8 @@ const TaskSidebar = ({
                 <option value="">None</option>
                 {collections.map((collection) => (
                   <option key={collection.id} value={collection.id}>
-                    {collection.is_default
+                    {collection.collection_name?.toLowerCase().trim() ===
+                    "general"
                       ? `${collection.collection_name || "General"} (Default)`
                       : collection.collection_name || "Unnamed Collection"}
                   </option>
@@ -770,12 +789,15 @@ const TaskSidebar = ({
                     }`}
                   />
                 </div>
-                <h3 className="text-lg font-semibold">Delete Task</h3>
+                <h3 className="text-lg font-semibold">
+                  Permanently Delete Task
+                </h3>
               </div>
 
               <p className={`mb-6 ${textColor}`}>
-                Are you sure you want to delete "{task.text}"? This action
-                cannot be undone.
+                Are you sure you want to permanently delete "{task.text}"? This
+                action cannot be undone and will remove the task from the
+                database completely.
               </p>
 
               <div className="flex justify-end space-x-3">
@@ -793,7 +815,7 @@ const TaskSidebar = ({
                 </button>
                 <button
                   onClick={handleConfirmDelete}
-                  className={`px-4 py-2 rounded-md flex items-center justify-center min-w-[90px] ${
+                  className={`px-4 py-2 rounded-md flex items-center justify-center min-w-[150px] ${
                     isDark
                       ? "bg-red-700 hover:bg-red-600 text-white"
                       : "bg-red-600 hover:bg-red-700 text-white"
@@ -824,7 +846,7 @@ const TaskSidebar = ({
                       ></path>
                     </svg>
                   ) : (
-                    "Delete"
+                    "Permanently Delete"
                   )}
                 </button>
               </div>

@@ -15,6 +15,8 @@ interface NoteCardProps {
   is_pinned?: boolean | null;
   description?: string | null;
   collection_id?: string | null;
+  list_id?: string | null; // Add this to match the schema
+  user_id?: string | null; // Add this to match the schema
   onPinChange?: (
     noteId: string,
     isPinned: boolean
@@ -41,6 +43,8 @@ const NoteCard = ({
   is_pinned = false,
   description,
   collection_id,
+  list_id, // Add this prop
+  user_id, // Add this prop
   onPinChange,
   onColorChange,
   onNoteUpdate,
@@ -225,8 +229,11 @@ const NoteCard = ({
         throw new Error(result.error || "Failed to delete note");
       }
 
-      // The parent component will handle removing this note from the UI
+      // Close the sidebar immediately without waiting for parent update
       closeSidebar();
+
+      // The parent component will handle removing this note from the UI
+      // No need to update local state here since the component will be unmounted
       return { success: true };
     } catch (err) {
       console.error("Error deleting note:", err);
@@ -246,9 +253,16 @@ const NoteCard = ({
     created_at:
       typeof created_at === "string" ? new Date(created_at) : created_at,
     collection_id: collection_id || null,
+    list_id: list_id || null, // Add this
+    user_id: user_id || null, // Add this
     is_pinned: is_pinned || false,
     is_deleted: is_deleted || false,
   };
+
+  // Don't render if note is deleted
+  if (is_deleted) {
+    return null;
+  }
 
   return (
     <>

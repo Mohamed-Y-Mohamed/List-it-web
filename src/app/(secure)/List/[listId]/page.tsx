@@ -50,7 +50,7 @@ export default function ListPage() {
     useState(false);
   const [selectedCollectionId, setSelectedCollectionId] = useState<
     string | null
-  >(null);
+  >();
 
   // Local state for the current list
   const [listData, setListData] = useState<List | null>(null);
@@ -80,14 +80,28 @@ export default function ListPage() {
     setRefreshTrigger((prev) => prev + 1);
   }, []);
 
-  // Get default collection ID
+  // Function to check if a collection name is "General"
+  const isGeneralCollection = useCallback(
+    (collectionName: string | null): boolean => {
+      if (!collectionName) return false;
+      return collectionName.trim().toLowerCase() === "general";
+    },
+    []
+  );
+
+  // Get default collection ID (prioritize "General" collection)
   const defaultCollectionId = useMemo(() => {
-    const defaultCollection = collections.find((c) => c.is_default === true);
-    return (
-      defaultCollection?.id ||
-      (collections.length > 0 ? collections[0].id : null)
+    // First try to find "General" collection
+    const generalCollection = collections.find((c) =>
+      isGeneralCollection(c.collection_name)
     );
-  }, [collections]);
+    if (generalCollection) {
+      return generalCollection.id;
+    }
+
+    // If no General collection, return the first collection
+    return collections.length > 0 ? collections[0].id : null;
+  }, [collections, isGeneralCollection]);
 
   // Effect to fetch list data
   useEffect(() => {
@@ -132,13 +146,11 @@ export default function ListPage() {
               collection_name,
               bg_color_hex,
               created_at,
-              is_default,
               list_id,
               user_id
             `
             )
             .eq("list_id", listId)
-            .order("is_default", { ascending: false })
             .order("collection_name", { ascending: true });
 
         if (collectionsError) {
@@ -151,6 +163,8 @@ export default function ListPage() {
           tasks: [] as Task[],
           notes: [] as Note[],
           isPinned: false,
+          // Mark if this is a General collection (replacing is_default)
+          is_default: isGeneralCollection(collection.collection_name),
         }));
 
         setCollections(collectionsWithData as Collection[]);
@@ -237,7 +251,7 @@ export default function ListPage() {
     };
 
     fetchListData();
-  }, [listId, user, refreshTrigger]);
+  }, [listId, user, refreshTrigger, isGeneralCollection]);
 
   // Handler for creating a new collection
   const handleCreateCollection = useCallback(
@@ -261,7 +275,6 @@ export default function ListPage() {
               list_id: listData.id,
               collection_name: collectionData.collection_name,
               bg_color_hex: collectionData.bg_color_hex,
-              is_default: false, // Regular collections are not default
               user_id: user.id, // Include user_id for RLS policy
             },
           ])
@@ -276,6 +289,8 @@ export default function ListPage() {
             tasks: [],
             notes: [],
             isPinned: false,
+            // Check if the new collection is "General"
+            is_default: isGeneralCollection(collectionData.collection_name),
           };
 
           setCollections((prev) => [...prev, newCollection]);
@@ -287,7 +302,7 @@ export default function ListPage() {
         return { success: false, error: err };
       }
     },
-    [listData, user]
+    [listData, user, isGeneralCollection]
   );
 
   // Open task modal with specific collection pre-selected
@@ -603,6 +618,7 @@ export default function ListPage() {
               description: noteData.description || null,
               bg_color_hex: noteData.bg_color_hex,
               collection_id: collectionId,
+              list_id: listData.id, // Include list_id
               is_deleted: false,
               is_pinned: false,
               user_id: user.id, // Include user_id for RLS policy
@@ -791,8 +807,6 @@ export default function ListPage() {
   );
 
   // Handler for note deletion
-  // Replace the current handleNoteDelete function in paste-4.txt with this improved version:
-  // In ListPage component (paste-4.txt), update the handleNoteDelete function:
   const handleNoteDelete = useCallback(
     async (noteId: string) => {
       try {
@@ -912,14 +926,17 @@ export default function ListPage() {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
 
-      // Then sort by default status
-      if (a.is_default && !b.is_default) return -1;
-      if (!a.is_default && b.is_default) return 1;
+      // Then sort by default status (General collection first)
+      const aIsGeneral = isGeneralCollection(a.collection_name);
+      const bIsGeneral = isGeneralCollection(b.collection_name);
+
+      if (aIsGeneral && !bIsGeneral) return -1;
+      if (!aIsGeneral && bIsGeneral) return 1;
 
       // Finally sort by name
       return (a.collection_name || "").localeCompare(b.collection_name || "");
     });
-  }, [collections]);
+  }, [collections, isGeneralCollection]);
 
   // Close modal handlers with proper cleanup
   const handleCloseCollectionModal = useCallback(() => {
@@ -968,7 +985,7 @@ export default function ListPage() {
           ) : error ? (
             <div
               className={`text-center py-10 rounded-xl ${
-                isDark ? "bg-gray-800 text-red-300" : "bg-white/90 text-red-500"
+                isDark ? "bg-gray-800 text-red-300" : "bg-white/90 text-red-700"
               } shadow-md border-l-4 border-red-500`}
             >
               <p className="text-lg">{error}</p>
