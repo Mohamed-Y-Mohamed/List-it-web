@@ -53,32 +53,43 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
   const [isLoadingLists, setIsLoadingLists] = useState(true);
   const [isDeletingList, setIsDeletingList] = useState(false);
 
-  useEffect(() => {
-    const fetchLists = async () => {
-      if (!isLoggedIn || !user) {
-        setLists([]);
-        setIsLoadingLists(false);
-        return;
-      }
+  // Helper function to fetch lists
+  const fetchLists = async (forceFetch = false) => {
+    if (!isLoggedIn || !user) {
+      setLists([]);
+      setIsLoadingLists(false);
+      return;
+    }
 
-      try {
+    try {
+      // Only set loading if this isn't a background refresh
+      if (forceFetch || lists.length === 0) {
         setIsLoadingLists(true);
-        const { data, error } = await supabase
-          .from("list")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (error) throw error;
-
-        setLists(data || []);
-      } catch (error) {
-        console.error("Error fetching lists:", error);
-      } finally {
-        setIsLoadingLists(false);
       }
-    };
 
+      // Request lists with proper ordering for consistent display
+      const { data, error } = await supabase
+        .from("list")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("is_pinned", { ascending: false }) // Pinned first
+        .order("created_at", { ascending: false }); // Then newest first
+
+      if (error) {
+        throw error;
+      }
+
+      // Update the lists state with the fresh data
+      setLists(data || []);
+    } catch (error) {
+      console.error("Error fetching lists:", error);
+      // Don't clear lists on error to preserve user experience
+    } finally {
+      setIsLoadingLists(false);
+    }
+  };
+
+  useEffect(() => {
     fetchLists();
   }, [isLoggedIn, user]);
 
@@ -132,12 +143,9 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
     );
   };
 
-  // FIXED: This method no longer creates duplicate lists
+  // FIXED: This method no longer creates duplicate lists and handles is_default properly
   const handleCreateList = async (
-    listData: Omit<
-      List,
-      "id" | "created_at" | "tasks" | "notes" | "collections"
-    >
+    listData: Omit<List, "id" | "created_at">
   ) => {
     try {
       setIsLoadingLists(true);
@@ -190,6 +198,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
       const createdList = newList[0];
 
       // Create a default collection for the new list
+      // REMOVED is_default since it doesn't exist in the database
       const { error: createCollectionError } = await supabase
         .from("collection")
         .insert([
@@ -197,7 +206,6 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
             list_id: createdList.id,
             collection_name: "General",
             bg_color_hex: createdList.bg_color_hex,
-            is_default: true,
             user_id: user.id,
           },
         ]);
@@ -225,42 +233,6 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
     } catch (err) {
       console.error("Error handling list creation:", err);
       return { success: false, error: err };
-    } finally {
-      setIsLoadingLists(false);
-    }
-  };
-
-  // Helper function to fetch lists
-  const fetchLists = async (forceFetch = false) => {
-    if (!isLoggedIn || !user) {
-      setLists([]);
-      setIsLoadingLists(false);
-      return;
-    }
-
-    try {
-      // Only set loading if this isn't a background refresh
-      if (forceFetch || lists.length === 0) {
-        setIsLoadingLists(true);
-      }
-
-      // Request lists with proper ordering for consistent display
-      const { data, error } = await supabase
-        .from("list")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("is_pinned", { ascending: false }) // Pinned first
-        .order("created_at", { ascending: false }); // Then newest first
-
-      if (error) {
-        throw error;
-      }
-
-      // Update the lists state with the fresh data
-      setLists(data || []);
-    } catch (error) {
-      console.error("Error fetching lists:", error);
-      // Don't clear lists on error to preserve user experience
     } finally {
       setIsLoadingLists(false);
     }
@@ -316,6 +288,16 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
 
       if (listTasksError) {
         console.error("Error deleting list tasks:", listTasksError);
+      }
+
+      // Also delete any notes directly associated with the list (not via collection)
+      const { error: listNotesError } = await supabase
+        .from("note")
+        .delete()
+        .eq("list_id", listId);
+
+      if (listNotesError) {
+        console.error("Error deleting list notes:", listNotesError);
       }
 
       // Delete all collections for this list

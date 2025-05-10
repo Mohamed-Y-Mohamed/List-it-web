@@ -39,9 +39,7 @@ const CreateNoteModal = ({
   // Form state
   const [noteTitle, setNoteTitle] = useState("");
   const [noteDescription, setNoteDescription] = useState("");
-  const [selectedColor, setSelectedColor] = useState<
-    (typeof LIST_COLORS)[number]
-  >(LIST_COLORS[0]);
+  const [selectedColor, setSelectedColor] = useState<string>("");
   const [selectedCollection, setSelectedCollection] = useState<string>("");
 
   // UI state
@@ -54,12 +52,15 @@ const CreateNoteModal = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Memoized function to find default collection
+  // Updated to look for "General" collection instead of is_default flag
   const getDefaultCollection = useCallback(() => {
-    // First try to find a collection marked as default
-    const defaultCol = collections.find((c) => c.is_default === true);
-    if (defaultCol) return defaultCol;
+    // First try to find "General" collection (case-insensitive)
+    const generalCollection = collections.find(
+      (c) => c.collection_name?.toLowerCase().trim() === "general"
+    );
+    if (generalCollection) return generalCollection;
 
-    // If no default, check if there's a collection with the provided listId
+    // If no General collection, check if there's a collection with the provided listId
     if (listId) {
       const listCollection = collections.find((c) => c.list_id === listId);
       if (listCollection) return listCollection;
@@ -217,6 +218,7 @@ const CreateNoteModal = ({
         description: noteData.description?.trim() || null,
         bg_color_hex: noteData.bg_color_hex || null,
         collection_id: noteData.collection_id || null,
+        list_id: currentListId || null, // Add list_id to match schema
         is_deleted: false,
         is_pinned: false,
         user_id: user.id,
@@ -505,7 +507,8 @@ const CreateNoteModal = ({
                     <option value="">Select a collection</option>
                     {collections.map((collection) => (
                       <option key={collection.id} value={collection.id}>
-                        {collection.is_default
+                        {collection.collection_name?.toLowerCase().trim() ===
+                        "general"
                           ? `${collection.collection_name || "General"} (Default)`
                           : collection.collection_name || "Unnamed Collection"}
                       </option>

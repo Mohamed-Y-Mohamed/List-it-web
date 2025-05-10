@@ -274,8 +274,7 @@ const NoteDetails = ({
     }
   };
 
-  // Delete note from database - HARD DELETE
-  // In NoteDetails component (paste-2.txt), update the deleteNoteFromDatabase function:
+  // Delete note from database - FIXED VERSION
   const deleteNoteFromDatabase = async () => {
     if (!user || !user.id) {
       showError("You must be logged in to delete a note");
@@ -286,15 +285,7 @@ const NoteDetails = ({
       setIsDeleting(true);
       setError(null);
 
-      // First, call the parent component's onNoteDelete callback
-      if (onNoteDelete) {
-        const deleteResult = await onNoteDelete(note.id);
-        if (!deleteResult.success) {
-          throw new Error(deleteResult.error || "Failed to delete note");
-        }
-      }
-
-      // Always perform hard delete directly
+      // Perform hard delete directly first
       const { error } = await supabase.from("note").delete().eq("id", note.id);
 
       if (error) {
@@ -308,6 +299,15 @@ const NoteDetails = ({
         }
 
         throw new Error(error.message || "Failed to delete note from database");
+      }
+
+      // Then call the parent component's onNoteDelete callback
+      if (onNoteDelete) {
+        const deleteResult = await onNoteDelete(note.id);
+        if (!deleteResult.success) {
+          console.warn("Parent callback failed:", deleteResult.error);
+          // Continue anyway since the database deletion succeeded
+        }
       }
 
       showSuccess("Note permanently deleted");
