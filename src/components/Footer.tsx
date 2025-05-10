@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { ArrowUp } from "lucide-react";
-import { FaApple, FaGooglePlay } from "react-icons/fa";
+// import { FaApple, FaGooglePlay } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
 
 const Footer = () => {
@@ -48,7 +48,7 @@ const Footer = () => {
 
             {/* Download links */}
             <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-              <a
+              {/* <a
                 href="https://apps.apple.com/gb/app/opbr-companion/id6737994116"
                 className={`flex items-center justify-center px-4 py-2 rounded-lg transition-all ${
                   isDark
@@ -69,7 +69,7 @@ const Footer = () => {
               >
                 <FaGooglePlay className="mr-2 text-white" size={16} />
                 <span className="font-medium">Google Play</span>
-              </a>
+              </a> */}
             </div>
           </div>
 

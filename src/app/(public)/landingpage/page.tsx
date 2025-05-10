@@ -151,7 +151,7 @@ const LandingPage = () => {
             </p>
             <div className="mt-8 flex flex-col justify-center space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
               <Link
-                href="/signup"
+                href="/register"
                 className={`inline-flex items-center justify-center rounded-md ${
                   isDark
                     ? "bg-gray-800 text-orange-400 hover:bg-gray-700"
@@ -159,15 +159,6 @@ const LandingPage = () => {
                 } px-6 py-3 text-base font-medium transition-colors`}
               >
                 Get Started - It&apos;s Free!
-              </Link>
-              <Link
-                href="/demo"
-                className={`inline-flex items-center justify-center rounded-md border-2 border-white px-6 py-3 text-base font-medium text-white transition-colors ${
-                  isDark ? "hover:bg-orange-700" : "hover:bg-orange-600"
-                }`}
-              >
-                See How It Works
-                <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </div>
           </div>
