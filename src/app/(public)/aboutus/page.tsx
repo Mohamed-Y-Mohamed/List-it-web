@@ -130,38 +130,43 @@ const AboutUs = () => {
         </div>
       </section>
 
-      <div className="flex flex-col items-center space-y-12 md:flex-row md:space-x-8 md:space-y-0">
-        <TeamMemberCard
-          name="Mohamed Yusuf Mohamed"
-          role="Full Stack & Mobile Developer"
-          description="Passionate about creating intuitive user experiences across all platforms. Contributed to both web and all mobile versions of LIST IT with a focus on responsive design and seamless functionality."
-          icon={Code}
-          gradientFrom="from-orange-400"
-          gradientTo="to-orange-600"
-          isDark={isDark}
-          badgeBg={
-            isDark
-              ? "bg-orange-900 text-orange-400"
-              : "bg-orange-100 text-orange-700"
-          }
-          badgeText={isDark ? "text-orange-300" : "text-orange-700"}
-          borderColor={isDark ? "border-orange-600" : "border-orange-500"}
-        />
-        <TeamMemberCard
-          name="Abdul Moiz"
-          role="Full Stack & Mobile Developer"
-          description="Specializes in building scalable applications for both web and mobile platforms. Worked across all versions of LIST IT to create a consistent and powerful experience on every device."
-          icon={Briefcase}
-          gradientFrom="from-sky-400"
-          gradientTo="to-sky-600"
-          isDark={isDark}
-          badgeBg={
-            isDark ? "bg-sky-900 text-sky-400" : "bg-sky-100 text-sky-700"
-          }
-          badgeText={isDark ? "text-sky-300" : "text-sky-700"}
-          borderColor={isDark ? "border-sky-600" : "border-sky-500"}
-        />
-      </div>
+      {/* Fixed team cards section with proper margins */}
+      <section className="py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center gap-8 md:flex-row md:justify-between md:gap-12">
+            <TeamMemberCard
+              name="Mohamed Yusuf Mohamed"
+              role="Full Stack & Mobile Developer"
+              description="Passionate about creating intuitive user experiences across all platforms. Contributed to both web and all mobile versions of LIST IT with a focus on responsive design and seamless functionality."
+              icon={Code}
+              gradientFrom="from-orange-400"
+              gradientTo="to-orange-600"
+              isDark={isDark}
+              badgeBg={
+                isDark
+                  ? "bg-orange-900 text-orange-400"
+                  : "bg-orange-100 text-orange-700"
+              }
+              badgeText={isDark ? "text-orange-300" : "text-orange-700"}
+              borderColor={isDark ? "border-orange-600" : "border-orange-500"}
+            />
+            <TeamMemberCard
+              name="Abdul Moiz"
+              role="Full Stack & Mobile Developer"
+              description="Specializes in building scalable applications for both web and mobile platforms. Worked across all versions of LIST IT to create a consistent and powerful experience on every device."
+              icon={Briefcase}
+              gradientFrom="from-sky-400"
+              gradientTo="to-sky-600"
+              isDark={isDark}
+              badgeBg={
+                isDark ? "bg-sky-900 text-sky-400" : "bg-sky-100 text-sky-700"
+              }
+              badgeText={isDark ? "text-sky-300" : "text-sky-700"}
+              borderColor={isDark ? "border-sky-600" : "border-sky-500"}
+            />
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
