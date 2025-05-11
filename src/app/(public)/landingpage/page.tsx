@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   Clock,
   Folder,
@@ -142,8 +141,15 @@ const initialData: { collections: Collection[] } = {
 };
 
 // Task Card Component
-const TaskCard: React.FC<Task> = ({
-  id,
+interface TaskCardProps {
+  text: string;
+  description?: string;
+  due_date?: Date;
+  is_completed: boolean;
+  is_pinned: boolean;
+}
+
+const TaskCard: React.FC<TaskCardProps> = ({
   text,
   description,
   due_date,
@@ -291,14 +297,18 @@ const TaskCard: React.FC<Task> = ({
 };
 
 // Note Card Component
-const NoteCard: React.FC<Note> = ({
-  id,
+interface NoteCardProps {
+  title: string | null;
+  description: string | null;
+  bg_color_hex: string | null;
+  is_pinned: boolean;
+}
+
+const NoteCard: React.FC<NoteCardProps> = ({
   title,
   description,
   bg_color_hex,
   is_pinned,
-  created_at,
-  is_deleted = false,
 }) => {
   const [isPinned, setIsPinned] = useState<boolean>(!!is_pinned);
   const { theme } = useTheme();
@@ -369,14 +379,20 @@ const NoteCard: React.FC<Note> = ({
 };
 
 // Collection Component
-const CollectionComponent: React.FC<Collection> = ({
-  id,
+interface CollectionComponentProps {
+  collection_name: string;
+  bg_color_hex: string;
+  tasks: Task[];
+  notes: Note[];
+  isPinned: boolean;
+}
+
+const CollectionComponent: React.FC<CollectionComponentProps> = ({
   collection_name,
   bg_color_hex,
   tasks = [],
   notes = [],
   isPinned = false,
-  created_at,
 }) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -535,7 +551,14 @@ const CollectionComponent: React.FC<Collection> = ({
                 <>
                   <div className="space-y-2">
                     {priorityTasks.map((task) => (
-                      <TaskCard key={task.id} {...task} />
+                      <TaskCard
+                        key={task.id}
+                        text={task.text}
+                        description={task.description}
+                        due_date={task.due_date}
+                        is_completed={task.is_completed}
+                        is_pinned={task.is_pinned}
+                      />
                     ))}
                   </div>
                   {regularTasks.length > 0 && (
@@ -551,7 +574,14 @@ const CollectionComponent: React.FC<Collection> = ({
               {regularTasks.length > 0 ? (
                 <div className="space-y-2">
                   {regularTasks.map((task) => (
-                    <TaskCard key={task.id} {...task} />
+                    <TaskCard
+                      key={task.id}
+                      text={task.text}
+                      description={task.description}
+                      due_date={task.due_date}
+                      is_completed={task.is_completed}
+                      is_pinned={task.is_pinned}
+                    />
                   ))}
                 </div>
               ) : (
@@ -569,7 +599,13 @@ const CollectionComponent: React.FC<Collection> = ({
               {sortedNotes.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {sortedNotes.map((note) => (
-                    <NoteCard key={note.id} {...note} />
+                    <NoteCard
+                      key={note.id}
+                      title={note.title}
+                      description={note.description}
+                      bg_color_hex={note.bg_color_hex}
+                      is_pinned={note.is_pinned}
+                    />
                   ))}
                 </div>
               ) : (
@@ -652,7 +688,14 @@ const Hero: React.FC = () => {
               {/* Demo UI preview here */}
               <div className="space-y-4">
                 {initialData.collections.map((collection) => (
-                  <CollectionComponent key={collection.id} {...collection} />
+                  <CollectionComponent
+                    key={collection.id}
+                    collection_name={collection.collection_name}
+                    bg_color_hex={collection.bg_color_hex}
+                    tasks={collection.tasks}
+                    notes={collection.notes}
+                    isPinned={collection.isPinned}
+                  />
                 ))}
               </div>
             </div>
@@ -791,42 +834,39 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
   );
 };
 
-// Testimonial Card Component
-interface TestimonialCardProps {
-  quote: string;
-  author: string;
-  role: string;
+// Benefit Card Component
+interface BenefitCardProps {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
 }
 
-const TestimonialCard: React.FC<TestimonialCardProps> = ({
-  quote,
-  author,
-  role,
+const BenefitCard: React.FC<BenefitCardProps> = ({
+  title,
+  description,
+  icon,
 }) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   return (
     <div
-      className={`rounded-xl p-6 ${isDark ? "bg-gray-800" : "bg-white"} shadow-lg`}
+      className={`flex items-start p-6 ${isDark ? "bg-gray-800" : "bg-white"} rounded-lg shadow-lg`}
     >
       <div
-        className={`mb-4 text-2xl ${isDark ? "text-orange-400" : "text-sky-500"}`}
+        className={`flex-shrink-0 p-3 mr-4 rounded-full ${isDark ? "bg-orange-900/40 text-orange-400" : "bg-sky-100 text-sky-600"}`}
       >
-        "
+        {icon}
       </div>
-      <p
-        className={`mb-6 text-lg italic ${isDark ? "text-gray-300" : "text-gray-700"}`}
-      >
-        {quote}
-      </p>
       <div>
-        <p
-          className={`font-medium ${isDark ? "text-gray-100" : "text-gray-900"}`}
+        <h3
+          className={`text-xl font-semibold mb-2 ${isDark ? "text-gray-100" : "text-gray-900"}`}
         >
-          {author}
+          {title}
+        </h3>
+        <p className={`${isDark ? "text-gray-400" : "text-gray-600"}`}>
+          {description}
         </p>
-        <p className={isDark ? "text-gray-400" : "text-gray-600"}>{role}</p>
       </div>
     </div>
   );
@@ -877,6 +917,27 @@ const LandingPage: React.FC = () => {
       title: "Notes",
       description:
         "Add color-coded, pinnable notes to collections for important information.",
+    },
+  ];
+
+  const benefits = [
+    {
+      icon: <StickyNote className="h-8 w-8" />,
+      title: "Stay Focused",
+      description:
+        "Organize your thoughts and tasks visually to maintain clarity and focus on what matters most.",
+    },
+    {
+      icon: <Clock className="h-8 w-8" />,
+      title: "Save Time",
+      description:
+        "Reduce time spent organizing and searching for information with our intuitive interface.",
+    },
+    {
+      icon: <Folder className="h-8 w-8" />,
+      title: "Flexible Organization",
+      description:
+        "Customize your workflow with collections that adapt to your unique organizational style.",
     },
   ];
 
@@ -968,7 +1029,14 @@ const LandingPage: React.FC = () => {
             <div className={`p-4 ${isDark ? "bg-gray-800" : "bg-white"}`}>
               <div className="space-y-6">
                 {initialData.collections.map((collection) => (
-                  <CollectionComponent key={collection.id} {...collection} />
+                  <CollectionComponent
+                    key={collection.id}
+                    collection_name={collection.collection_name}
+                    bg_color_hex={collection.bg_color_hex}
+                    tasks={collection.tasks}
+                    notes={collection.notes}
+                    isPinned={collection.isPinned}
+                  />
                 ))}
               </div>
             </div>
@@ -976,31 +1044,19 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Testimonials Section */}
+      {/* Benefits Section (replacing Testimonials) */}
       <section className={`py-20 ${isDark ? "bg-gray-850" : "bg-gray-50"}`}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
-            title="What Our Users"
-            highlight="Say"
-            description="Join thousands of satisfied users who have transformed their productivity"
+            title="Work Smarter"
+            highlight="Not Harder"
+            description="Discover how LIST IT can transform your productivity"
           />
 
           <div className="mt-16 grid gap-8 md:grid-cols-3">
-            <TestimonialCard
-              quote="LIST IT has completely changed how I manage my work projects. The color-coded collections make organization so intuitive."
-              author="Sarah J."
-              role="Product Manager"
-            />
-            <TestimonialCard
-              quote="I love how I can create both tasks and notes in the same collection. Perfect for keeping project requirements alongside the actual tasks."
-              author="Michael T."
-              role="Web Developer"
-            />
-            <TestimonialCard
-              quote="The priority pin feature has been a game changer for my daily workflow. I can instantly see what needs attention first."
-              author="Elena R."
-              role="Marketing Director"
-            />
+            {benefits.map((benefit, index) => (
+              <BenefitCard key={index} {...benefit} />
+            ))}
           </div>
         </div>
       </section>
