@@ -52,16 +52,6 @@ const Hero = () => {
                 Get Started Free
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
-              <Link
-                href="/demo"
-                className={`inline-flex items-center justify-center rounded-md border-2 ${
-                  isDark
-                    ? "border-gray-600 bg-gray-800 text-gray-200 hover:border-orange-500 hover:text-orange-400"
-                    : "border-gray-300 bg-white text-gray-700 hover:border-sky-500 hover:text-sky-500"
-                } px-6 py-3 text-base font-medium transition-colors`}
-              >
-                See How It Works
-              </Link>
             </div>
           </div>
           <div className="w-full lg:w-1/2">

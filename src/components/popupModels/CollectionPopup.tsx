@@ -144,9 +144,6 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
           insertData.list_id = listId;
         }
 
-        console.log("Inserting collection data:", insertData);
-        console.log("Created at format:", currentDate);
-
         const { data, error } = await supabase
           .from("collection")
           .insert([insertData])
@@ -161,8 +158,6 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
           console.error("No data returned from insert");
           throw new Error("No data returned");
         }
-
-        console.log("Successfully created collection:", data);
 
         if (onSubmit) {
           const result = await onSubmit({
