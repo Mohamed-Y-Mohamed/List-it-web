@@ -425,7 +425,7 @@ const Login: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="flex-1 bg-[#ffbe6d] text-center hidden lg:flex">
+        <div className="flex-1 bg-[#6b6b6b] text-center hidden lg:flex">
           <div
             className="m-12 xl:m-16 w-full bg-contain bg-center bg-no-repeat"
             style={{

@@ -30,7 +30,7 @@ const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
 }) => {
   return (
     <div
-      className={`flex w-full flex-col items-center rounded-lg ${isDark ? "bg-gray-800" : "bg-white"} ${borderColor} p-8 shadow-md border-t-4 md:w-1/2`}
+      className={`flex w-full  flex-col items-center rounded-lg ${isDark ? "bg-gray-800" : "bg-white"} ${borderColor} p-8 shadow-md border-t-4 md:w-1/2`}
     >
       <div
         className={`mb-4 h-32 w-32 overflow-hidden rounded-full bg-gradient-to-br ${gradientFrom} ${gradientTo} p-1`}
