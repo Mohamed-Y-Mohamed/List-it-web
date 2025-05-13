@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { UserPlus, Mail, Lock, User, AlertCircle, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
 
