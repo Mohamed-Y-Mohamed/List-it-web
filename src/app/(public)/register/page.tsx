@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { UserPlus, Mail, Lock, User, AlertCircle, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
 
@@ -18,7 +18,6 @@ const Signup = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   // Form state
   const [fullName, setFullName] = useState("");
@@ -26,7 +25,6 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const trimmedEmail = email.trim();
-  const redirectTo = searchParams?.get("redirectTo") || "/dashboard";
 
   // Loading and error states
   const [loading, setLoading] = useState(false);
