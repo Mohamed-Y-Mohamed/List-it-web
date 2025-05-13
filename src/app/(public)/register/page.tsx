@@ -171,10 +171,18 @@ const Signup = () => {
       setLoading(true);
       setError(null);
 
+      // Get the site URL from environment variable with a fallback
+      const siteUrl =
+        typeof window !== "undefined" && process.env.NEXT_PUBLIC_SITE_URL
+          ? process.env.NEXT_PUBLIC_SITE_URL
+          : window.location.origin;
+
+      console.log("Using site URL for redirect:", siteUrl); // Debug log
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
+          redirectTo: `${siteUrl}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -191,7 +199,6 @@ const Signup = () => {
       setLoading(false);
     }
   };
-
   // Handle signup with Apple
 
   return (

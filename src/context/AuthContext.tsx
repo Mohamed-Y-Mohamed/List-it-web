@@ -147,7 +147,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Get the site URL from environment variable with a fallback
       const siteUrl =
-        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+        typeof window !== "undefined" && process.env.NEXT_PUBLIC_SITE_URL
+          ? process.env.NEXT_PUBLIC_SITE_URL
+          : window.location.origin;
+
+      console.log("Using site URL for redirect:", siteUrl); // Debug log
 
       const redirectUrl = `${siteUrl}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`;
 
@@ -168,7 +172,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw error;
     }
   };
-
   // Apple OAuth login method
   const loginWithApple = async () => {
     try {
