@@ -151,8 +151,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const redirectUrl = `${siteUrl}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`;
 
-      console.log("Redirecting to:", redirectUrl); // Add this for debugging
-
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {

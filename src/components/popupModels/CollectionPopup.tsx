@@ -5,7 +5,7 @@ import { X, Check, AlertCircle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { LIST_COLORS } from "@/types/schema";
 import { useAuth } from "@/context/AuthContext";
-import { useParams } from "next/navigation";
+// Removed useParams to fix the unused variable error
 
 interface SubmissionResult {
   success: boolean;
@@ -21,6 +21,7 @@ interface CreateCollectionModalProps {
   }) => Promise<SubmissionResult> | void;
   initialName?: string;
   initialColor?: string;
+  listId?: string; // Added as prop instead of using useParams
 }
 
 const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
@@ -29,12 +30,10 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
   onSubmit,
   initialName = "",
   initialColor = LIST_COLORS[0],
+  // We don't need to use listId here, it will be handled by the parent component
 }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
-  const params = useParams();
-  const listId = params?.listId as string;
-
   const isDark = theme === "dark";
 
   const [collectionName, setCollectionName] = useState(initialName);
