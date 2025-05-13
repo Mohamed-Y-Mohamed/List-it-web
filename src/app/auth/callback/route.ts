@@ -1,6 +1,3 @@
-// Fixed route.ts for auth/callback
-// app/auth/callback/route.ts
-
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -8,19 +5,10 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const error = requestUrl.searchParams.get("error");
 
-  // Hard-coded production URL
-  const siteUrl = "https://list-it-dom.netlify.app";
+  // Get the redirectTo parameter from the URL
+  const redirectTo = requestUrl.searchParams.get("redirectTo") || "/dashboard";
 
-  // Handle errors
-  if (error) {
-    console.error("Auth callback error:", error);
-    // Redirect to login with error
-    return NextResponse.redirect(new URL(`/login?error=${error}`, siteUrl));
-  }
-
-  // Process authentication code
   if (code) {
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
@@ -32,7 +20,7 @@ export async function GET(request: NextRequest) {
       if (error) {
         console.error("Auth exchange error:", error);
         return NextResponse.redirect(
-          new URL("/login?error=auth_callback_error", siteUrl)
+          new URL("/login?error=auth_callback_error", request.url)
         );
       }
 
@@ -65,6 +53,7 @@ export async function GET(request: NextRequest) {
 
             if (insertError) {
               console.error("Error inserting user data:", insertError);
+            } else {
             }
           }
         } catch (err) {
@@ -73,17 +62,38 @@ export async function GET(request: NextRequest) {
           // since the authentication was successful
         }
 
-        // Always redirect to dashboard on success
-        return NextResponse.redirect(new URL("/dashboard", siteUrl));
+        // Create the final redirect URL
+        // First, decode the redirectTo parameter if it contains encoded slashes
+        const decodedRedirectTo = decodeURIComponent(redirectTo);
+
+        // Create a new URL object for the redirect destination
+        // If redirectTo starts with '/', it's a relative path on your site
+        const finalRedirectUrl = decodedRedirectTo.startsWith("/")
+          ? new URL(decodedRedirectTo, request.url)
+          : new URL(decodedRedirectTo);
+
+        // Set a cookie to prevent page reload loops
+        // This is a more reliable approach than using URL parameters
+        const response = NextResponse.redirect(finalRedirectUrl);
+        response.cookies.set("auth_redirect_completed", "true", {
+          path: "/",
+          maxAge: 30, // Short-lived cookie - 30 seconds
+          httpOnly: true,
+          sameSite: "lax",
+        });
+
+        return response;
       }
     } catch (err) {
       console.error("Unexpected error in auth callback:", err);
       return NextResponse.redirect(
-        new URL("/login?error=unexpected_error", siteUrl)
+        new URL("/login?error=auth_callback_error", request.url)
       );
     }
   }
 
-  // Default fallback if code is missing
-  return NextResponse.redirect(new URL("/login?error=missing_code", siteUrl));
+  // Fallback if code is missing
+  return NextResponse.redirect(
+    new URL("/login?error=missing_code", request.url)
+  );
 }

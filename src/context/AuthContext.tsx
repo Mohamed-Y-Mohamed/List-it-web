@@ -142,29 +142,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [initialized]);
 
-  // Google OAuth login method - Fixed to use the direct URL
+  // Google OAuth login method
   const loginWithGoogle = async () => {
     try {
-      // Clear any existing auth state that might be corrupted
-      localStorage.clear();
-      sessionStorage.clear();
-
-      // Always use production URL for redirect
-      const siteUrl = "https://list-it-dom.netlify.app";
-
-      // Create a custom redirect URL with origin parameter to ensure proper redirects after auth
-      const fullRedirectUrl = `${siteUrl}/auth/callback?origin=${encodeURIComponent(siteUrl)}`;
-
-      console.log("Using redirect URL:", fullRedirectUrl);
-
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: fullRedirectUrl,
           queryParams: {
             access_type: "offline",
             prompt: "consent",
           },
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
         },
       });
 
@@ -175,23 +163,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Similarly update Apple login if needed
+  // Apple OAuth login method
   const loginWithApple = async () => {
     try {
-      // Clear any existing auth state that might be corrupted
-      localStorage.clear();
-      sessionStorage.clear();
-
-      // Always use production URL for redirect
-      const siteUrl = "https://list-it-dom.netlify.app";
-
-      // Create a custom redirect URL with origin parameter
-      const fullRedirectUrl = `${siteUrl}/auth/callback?origin=${encodeURIComponent(siteUrl)}`;
-
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "apple",
         options: {
-          redirectTo: fullRedirectUrl,
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
         },
       });
 
@@ -278,7 +256,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const resetPassword = async (email: string) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: "https://list-it-dom.netlify.app/reset-password",
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/reset-password`,
       });
 
       if (error) throw error;

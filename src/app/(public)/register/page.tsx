@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { UserPlus, Mail, Lock, User, AlertCircle, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
 
@@ -18,6 +18,7 @@ const Signup = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Form state
   const [fullName, setFullName] = useState("");
@@ -25,6 +26,7 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const trimmedEmail = email.trim();
+  const redirectTo = searchParams?.get("redirectTo") || "/dashboard";
 
   // Loading and error states
   const [loading, setLoading] = useState(false);
@@ -164,34 +166,15 @@ const Signup = () => {
   };
 
   // Handle signup with Google
-  // Updated handleGoogleSignup function for the Signup component
-  // Using hardcoded deployed URL
-
-  // Same simple update for handleGoogleSignup function in Signup component
-  // Use this in your Signup component
-
-  // Updated handleGoogleSignup for Signup.tsx
   const handleGoogleSignup = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Clear any existing auth state
-      localStorage.clear();
-      sessionStorage.clear();
-
-      // Always use production URL for redirect
-      const siteUrl = "https://list-it-dom.netlify.app";
-
-      // Create a custom redirect URL with origin parameter to ensure proper redirects after auth
-      const fullRedirectUrl = `${siteUrl}/auth/callback?origin=${encodeURIComponent(siteUrl)}`;
-
-      console.log("Using redirect URL:", fullRedirectUrl);
-
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: fullRedirectUrl,
+          redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -208,6 +191,8 @@ const Signup = () => {
       setLoading(false);
     }
   };
+
+  // Handle signup with Apple
 
   return (
     <div
