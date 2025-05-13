@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Check, AlertCircle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { supabase } from "@/utils/client";
 import { LIST_COLORS } from "@/types/schema";
 import { useAuth } from "@/context/AuthContext";
 import { useParams } from "next/navigation";
@@ -23,18 +22,6 @@ interface CreateCollectionModalProps {
   initialName?: string;
   initialColor?: string;
 }
-
-// Format date to the exact format your database expects: YYYY-MM-DD HH:mm:ss
-const formatDateForPostgres = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-};
 
 const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
   isOpen,
@@ -124,45 +111,12 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
       try {
         if (!user || !user.id) throw new Error("User not authenticated");
 
-        // Format date properly for PostgreSQL
-        const currentDate = formatDateForPostgres(new Date());
-
-        const insertData: {
-          collection_name: string;
-          bg_color_hex: string;
-          user_id: string;
-          created_at: string;
-          list_id?: string;
-        } = {
-          collection_name: collectionName.trim(),
-          bg_color_hex: selectedColor,
-          user_id: user.id,
-          created_at: currentDate, // Using the properly formatted date
-        };
-
-        if (listId) {
-          insertData.list_id = listId;
-        }
-
-        const { data, error } = await supabase
-          .from("collection")
-          .insert([insertData])
-          .select("*");
-
-        if (error) {
-          console.error("Supabase error:", error);
-          throw error;
-        }
-
-        if (!data || data.length === 0) {
-          console.error("No data returned from insert");
-          throw new Error("No data returned");
-        }
-
+        // FIXED: Don't insert directly here, just call the onSubmit prop
+        // and let the parent component handle the database operation
         if (onSubmit) {
           const result = await onSubmit({
-            collection_name: insertData.collection_name,
-            bg_color_hex: insertData.bg_color_hex,
+            collection_name: collectionName.trim(),
+            bg_color_hex: selectedColor,
           });
 
           // Check if onSubmit returned an error
@@ -195,7 +149,6 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
       onSubmit,
       onClose,
       user,
-      listId,
     ]
   );
 

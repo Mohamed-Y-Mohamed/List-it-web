@@ -1088,8 +1088,6 @@ const LandingPage: React.FC = () => {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
     </div>
   );
 };

@@ -24,16 +24,20 @@ interface CreateNoteModalProps {
   selectedCollectionId?: string;
 }
 
-// Format date to yyyy-MM-dd'T'HH:mm:ss
-const formatDateToISOString = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+// Create a proper UTC Date object for iOS compatibility
+const createUTCDate = (): Date => {
+  const now = new Date();
+  // Create date in UTC to avoid timezone issues
+  return new Date(
+    Date.UTC(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      now.getHours(),
+      now.getMinutes(),
+      now.getSeconds()
+    )
+  );
 };
 
 const CreateNoteModal = ({
@@ -144,6 +148,10 @@ const CreateNoteModal = ({
       if (!user || !user.id) throw new Error("You must be logged in");
 
       const collectionId = selectedCollection || getDefaultCollection()?.id;
+
+      // UPDATED: Create a proper Date object with UTC timezone for iOS compatibility
+      const createDate = createUTCDate();
+
       const notePayload = {
         title: noteTitle.trim(),
         description: noteDescription.trim() || null,
@@ -153,7 +161,8 @@ const CreateNoteModal = ({
         list_id: listId || null,
         is_deleted: false,
         is_pinned: false,
-        created_at: formatDateToISOString(new Date()),
+        // Use the Date object directly instead of formatting it as a string
+        created_at: createDate,
       };
 
       const { data, error } = await supabase

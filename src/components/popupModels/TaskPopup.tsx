@@ -1,4 +1,3 @@
-// TaskPopup.tsx (CreateTaskModal)
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
@@ -229,7 +228,6 @@ const CreateTaskModal = ({
 
     // Prevent multiple submissions
     if (isSubmitting) return;
-
     setIsSubmitting(true);
     setError(null);
 
@@ -241,8 +239,13 @@ const CreateTaskModal = ({
         is_pinned: isPinned,
         due_date: dueDate
           ? (() => {
-              // Parse the date at noon to avoid timezone issues
-              const dueDateObj = new Date(dueDate + "T12:00:00");
+              // Create a Date object using UTC to match iOS format expectations
+              // This creates an ISO8601 date string that the iOS app can parse
+              const [year, month, day] = dueDate.split("-").map(Number);
+              // Create date in UTC to avoid timezone issues
+              const dueDateObj = new Date(
+                Date.UTC(year, month - 1, day, 12, 0, 0)
+              );
               return dueDateObj;
             })()
           : undefined,

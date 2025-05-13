@@ -322,7 +322,13 @@ const TaskSidebar = ({
         const updateData = {
           text: taskName.trim(),
           description: taskDescription.trim() || null,
-          due_date: dueDate ? new Date(dueDate) : null,
+          due_date: dueDate
+            ? (() => {
+                // Ensure date is created in UTC timezone for iOS compatibility
+                const [year, month, day] = dueDate.split("-").map(Number);
+                return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+              })()
+            : null,
           is_pinned: isPinned,
         };
 

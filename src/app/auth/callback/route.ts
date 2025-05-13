@@ -53,7 +53,6 @@ export async function GET(request: NextRequest) {
 
             if (insertError) {
               console.error("Error inserting user data:", insertError);
-            } else {
             }
           }
         } catch (err) {
@@ -66,14 +65,24 @@ export async function GET(request: NextRequest) {
         // First, decode the redirectTo parameter if it contains encoded slashes
         const decodedRedirectTo = decodeURIComponent(redirectTo);
 
+        // Get the site URL from environment variable
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
         // Create a new URL object for the redirect destination
         // If redirectTo starts with '/', it's a relative path on your site
-        const finalRedirectUrl = decodedRedirectTo.startsWith("/")
-          ? new URL(decodedRedirectTo, request.url)
-          : new URL(decodedRedirectTo);
+        let finalRedirectUrl;
+        if (decodedRedirectTo.startsWith("/")) {
+          // Use NEXT_PUBLIC_SITE_URL if available, otherwise fall back to request.url
+          if (siteUrl) {
+            finalRedirectUrl = new URL(decodedRedirectTo, siteUrl);
+          } else {
+            finalRedirectUrl = new URL(decodedRedirectTo, request.url);
+          }
+        } else {
+          finalRedirectUrl = new URL(decodedRedirectTo);
+        }
 
         // Set a cookie to prevent page reload loops
-        // This is a more reliable approach than using URL parameters
         const response = NextResponse.redirect(finalRedirectUrl);
         response.cookies.set("auth_redirect_completed", "true", {
           path: "/",

@@ -145,6 +145,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Google OAuth login method
   const loginWithGoogle = async () => {
     try {
+      // Get the site URL from environment variable with a fallback
+      const siteUrl =
+        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+
+      const redirectUrl = `${siteUrl}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`;
+
+      console.log("Redirecting to:", redirectUrl); // Add this for debugging
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -152,7 +160,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             access_type: "offline",
             prompt: "consent",
           },
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
+          redirectTo: redirectUrl,
         },
       });
 
