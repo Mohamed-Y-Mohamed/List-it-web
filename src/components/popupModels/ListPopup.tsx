@@ -195,7 +195,7 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
           {
             list_id: newListId,
             collection_name: "General",
-            bg_color_hex: "#00C7BE",
+            bg_color_hex: selectedColor,
             user_id: user.id,
             // Use the Date object directly for iOS compatibility
             created_at: createDate,
