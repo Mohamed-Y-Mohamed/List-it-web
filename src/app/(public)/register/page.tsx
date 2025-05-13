@@ -18,7 +18,6 @@ const Signup = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   // Form state
   const [fullName, setFullName] = useState("");
@@ -27,7 +26,6 @@ const Signup = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [googleComingSoon, setGoogleComingSoon] = useState(false);
   const trimmedEmail = email.trim();
-  const redirectTo = searchParams?.get("redirectTo") || "/dashboard";
 
   // Loading and error states
   const [loading, setLoading] = useState(false);

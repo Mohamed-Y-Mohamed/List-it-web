@@ -16,7 +16,6 @@ const Login: React.FC = () => {
   const searchParams = useSearchParams();
 
   // Always redirect to dashboard after login
-  const redirectTo = "/dashboard";
 
   // Form state
   const [email, setEmail] = useState("");
