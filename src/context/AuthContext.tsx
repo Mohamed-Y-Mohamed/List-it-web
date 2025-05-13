@@ -143,13 +143,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [initialized]);
 
   // Google OAuth login method
+  // Updated loginWithGoogle method in AuthContext
+  // Using hardcoded deployed URL
+
   const loginWithGoogle = async () => {
     try {
-      // Get the site URL from environment variable with a fallback
-      const siteUrl =
-        typeof window !== "undefined" && process.env.NEXT_PUBLIC_SITE_URL
-          ? process.env.NEXT_PUBLIC_SITE_URL
-          : window.location.origin;
+      // Use the deployed URL directly
+      const siteUrl = "https://list-it-dom.netlify.app";
 
       console.log("Using site URL for redirect:", siteUrl); // Debug log
 

@@ -1,3 +1,6 @@
+// For route.ts in auth/callback folder
+// Update to use direct URL in callback handler
+
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -65,19 +68,13 @@ export async function GET(request: NextRequest) {
         // First, decode the redirectTo parameter if it contains encoded slashes
         const decodedRedirectTo = decodeURIComponent(redirectTo);
 
-        // Get the site URL from environment variable
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+        // Use the deployed URL directly
+        const siteUrl = "https://list-it-dom.netlify.app";
 
         // Create a new URL object for the redirect destination
-        // If redirectTo starts with '/', it's a relative path on your site
         let finalRedirectUrl;
         if (decodedRedirectTo.startsWith("/")) {
-          // Use NEXT_PUBLIC_SITE_URL if available, otherwise fall back to request.url
-          if (siteUrl) {
-            finalRedirectUrl = new URL(decodedRedirectTo, siteUrl);
-          } else {
-            finalRedirectUrl = new URL(decodedRedirectTo, request.url);
-          }
+          finalRedirectUrl = new URL(decodedRedirectTo, siteUrl);
         } else {
           finalRedirectUrl = new URL(decodedRedirectTo);
         }

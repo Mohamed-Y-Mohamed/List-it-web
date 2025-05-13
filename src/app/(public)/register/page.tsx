@@ -166,16 +166,16 @@ const Signup = () => {
   };
 
   // Handle signup with Google
+  // Updated handleGoogleSignup function for the Signup component
+  // Using hardcoded deployed URL
+
   const handleGoogleSignup = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Get the site URL from environment variable with a fallback
-      const siteUrl =
-        typeof window !== "undefined" && process.env.NEXT_PUBLIC_SITE_URL
-          ? process.env.NEXT_PUBLIC_SITE_URL
-          : window.location.origin;
+      // Use the deployed URL directly
+      const siteUrl = "https://list-it-dom.netlify.app";
 
       console.log("Using site URL for redirect:", siteUrl); // Debug log
 
