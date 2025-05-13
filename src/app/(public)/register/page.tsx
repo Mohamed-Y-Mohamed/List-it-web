@@ -25,6 +25,7 @@ const Signup = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [googleComingSoon, setGoogleComingSoon] = useState(false);
   const trimmedEmail = email.trim();
   const redirectTo = searchParams?.get("redirectTo") || "/dashboard";
 
@@ -165,34 +166,14 @@ const Signup = () => {
     }
   };
 
-  // Handle signup with Google
-  const handleGoogleSignup = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
-        },
-      });
-
-      if (error) throw error;
-    } catch (err: unknown) {
-      console.error("Google login error:", err);
-      const error = err as ErrorWithMessage;
-      setError(error.message || "Failed to log in with Google");
-    } finally {
-      setLoading(false);
-    }
+  // Handle showing "coming soon" message for Google signup
+  const handleGoogleSignup = () => {
+    setError(null);
+    setSuccess(null);
+    setGoogleComingSoon(true);
+    // Hide the message after 3 seconds
+    setTimeout(() => setGoogleComingSoon(false), 3000);
   };
-
-  // Handle signup with Apple
 
   return (
     <div
@@ -258,6 +239,18 @@ const Signup = () => {
               </div>
             )}
 
+            {/* Google "Coming Soon" message */}
+            {googleComingSoon && (
+              <div
+                className="mt-4 w-full max-w-xs bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative"
+                role="alert"
+              >
+                <div className="flex items-center">
+                  <span>Sign up with Google will be available soon!</span>
+                </div>
+              </div>
+            )}
+
             <div className="w-full flex-1 mt-8">
               <div className="flex flex-col items-center">
                 <button
@@ -268,6 +261,7 @@ const Signup = () => {
                       ? "bg-orange-900 text-gray-200"
                       : "bg-orange-100 text-gray-800"
                   } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+                  type="button"
                 >
                   <div
                     className={`${
@@ -293,7 +287,10 @@ const Signup = () => {
                       />
                     </svg>
                   </div>
-                  <span className="ml-4">Sign up with Google</span>
+                  <span className="ml-4">
+                    Sign up with Google{" "}
+                    <span className="text-xs italic">(Coming Soon)</span>
+                  </span>
                 </button>
               </div>
 

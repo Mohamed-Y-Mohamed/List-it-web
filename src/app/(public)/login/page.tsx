@@ -28,6 +28,7 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [passwordResetSent, setPasswordResetSent] = useState(false);
   const [logoutSuccess, setLogoutSuccess] = useState(false);
+  const [googleComingSoon, setGoogleComingSoon] = useState(false);
 
   // Check for logout success message
   useEffect(() => {
@@ -124,28 +125,12 @@ const Login: React.FC = () => {
     }
   };
 
-  // Handle login with Google
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
-        },
-      });
-
-      if (error) throw error;
-    } catch (err) {
-      console.error("Google login error:", err);
-      const error = err as AuthError;
-      setError(error.message || "Failed to log in with Google");
-      setLoading(false);
-    }
+  // Handle Google login "coming soon" message
+  const handleGoogleLogin = () => {
+    setError(null);
+    setGoogleComingSoon(true);
+    // Hide the message after 3 seconds
+    setTimeout(() => setGoogleComingSoon(false), 3000);
   };
 
   // Handle forgot password
@@ -244,6 +229,18 @@ const Login: React.FC = () => {
               </div>
             )}
 
+            {/* Google "Coming Soon" message */}
+            {googleComingSoon && (
+              <div
+                className="mt-4 w-full max-w-xs bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative"
+                role="alert"
+              >
+                <div className="flex items-center">
+                  <span>Sign in with Google will be available soon!</span>
+                </div>
+              </div>
+            )}
+
             <div className="w-full flex-1 mt-8">
               <div className="flex flex-col items-center">
                 <button
@@ -285,7 +282,10 @@ const Login: React.FC = () => {
                       />
                     </svg>
                   </div>
-                  <span className="ml-4">Log in with Google</span>
+                  <span className="ml-4">
+                    Log in with Google{" "}
+                    <span className="text-xs italic">(Coming Soon)</span>
+                  </span>
                 </button>
               </div>
 
