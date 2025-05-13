@@ -140,13 +140,18 @@ const Login: React.FC = () => {
       localStorage.clear();
       sessionStorage.clear();
 
-      // Use hardcoded URL for redirect
+      // Always use production URL for redirect
       const siteUrl = "https://list-it-dom.netlify.app";
+
+      // Create a custom redirect URL with origin parameter to ensure proper redirects after auth
+      const fullRedirectUrl = `${siteUrl}/auth/callback?origin=${encodeURIComponent(siteUrl)}`;
+
+      console.log("Using redirect URL:", fullRedirectUrl);
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${siteUrl}/auth/callback`,
+          redirectTo: fullRedirectUrl,
           queryParams: {
             access_type: "offline",
             prompt: "consent",

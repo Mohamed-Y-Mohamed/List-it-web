@@ -149,14 +149,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.clear();
       sessionStorage.clear();
 
-      // Use the hardcoded production URL
-      const redirectUrl = "https://list-it-dom.netlify.app/auth/callback";
-      console.log("Using redirect URL:", redirectUrl);
+      // Always use production URL for redirect
+      const siteUrl = "https://list-it-dom.netlify.app";
+
+      // Create a custom redirect URL with origin parameter to ensure proper redirects after auth
+      const fullRedirectUrl = `${siteUrl}/auth/callback?origin=${encodeURIComponent(siteUrl)}`;
+
+      console.log("Using redirect URL:", fullRedirectUrl);
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: redirectUrl,
+          redirectTo: fullRedirectUrl,
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -171,20 +175,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Apple OAuth login method
+  // Similarly update Apple login if needed
   const loginWithApple = async () => {
     try {
       // Clear any existing auth state that might be corrupted
       localStorage.clear();
       sessionStorage.clear();
 
-      // Use the hardcoded production URL
-      const redirectUrl = "https://list-it-dom.netlify.app/auth/callback";
+      // Always use production URL for redirect
+      const siteUrl = "https://list-it-dom.netlify.app";
+
+      // Create a custom redirect URL with origin parameter
+      const fullRedirectUrl = `${siteUrl}/auth/callback?origin=${encodeURIComponent(siteUrl)}`;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "apple",
         options: {
-          redirectTo: redirectUrl,
+          redirectTo: fullRedirectUrl,
         },
       });
 
