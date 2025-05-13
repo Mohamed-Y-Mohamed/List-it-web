@@ -1,15 +1,16 @@
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-export const supabase = createClientComponentClient();
+// Fixed Supabase client initialization
+// src/utils/client.ts
 
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
-export const createClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error("Missing Supabase URL or Anon Key");
-  }
-
-  return createSupabaseClient(supabaseUrl, supabaseKey);
-};
+// Create supabase client without the 'site' property that was causing errors
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+});

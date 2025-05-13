@@ -130,18 +130,23 @@ const Login: React.FC = () => {
   // Updated handleGoogleLogin function for the Login component
   // Using hardcoded deployed URL
 
+  // Updated handleGoogleLogin function for the Login component
+  // Use this in your Login component
+
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      // Use the deployed URL directly
-      const siteUrl = "https://list-it-dom.netlify.app";
+      // Clear any existing auth state
+      localStorage.clear();
+      sessionStorage.clear();
 
-      console.log("Using site URL for redirect:", siteUrl); // Debug log
+      // Use hardcoded URL for redirect
+      const siteUrl = "https://list-it-dom.netlify.app";
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${siteUrl}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
+          redirectTo: `${siteUrl}/auth/callback`,
           queryParams: {
             access_type: "offline",
             prompt: "consent",

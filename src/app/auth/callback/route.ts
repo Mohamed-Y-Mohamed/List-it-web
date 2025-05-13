@@ -1,5 +1,5 @@
-// For route.ts in auth/callback folder
-// Update to use direct URL in callback handler
+// Fixed route.ts for auth/callback
+// app/auth/callback/route.ts
 
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
@@ -8,10 +8,19 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const error = requestUrl.searchParams.get("error");
 
-  // Get the redirectTo parameter from the URL
-  const redirectTo = requestUrl.searchParams.get("redirectTo") || "/dashboard";
+  // Hard-coded production URL
+  const siteUrl = "https://list-it-dom.netlify.app";
 
+  // Handle errors
+  if (error) {
+    console.error("Auth callback error:", error);
+    // Redirect to login with error
+    return NextResponse.redirect(new URL(`/login?error=${error}`, siteUrl));
+  }
+
+  // Process authentication code
   if (code) {
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
@@ -23,7 +32,7 @@ export async function GET(request: NextRequest) {
       if (error) {
         console.error("Auth exchange error:", error);
         return NextResponse.redirect(
-          new URL("/login?error=auth_callback_error", request.url)
+          new URL("/login?error=auth_callback_error", siteUrl)
         );
       }
 
@@ -64,42 +73,17 @@ export async function GET(request: NextRequest) {
           // since the authentication was successful
         }
 
-        // Create the final redirect URL
-        // First, decode the redirectTo parameter if it contains encoded slashes
-        const decodedRedirectTo = decodeURIComponent(redirectTo);
-
-        // Use the deployed URL directly
-        const siteUrl = "https://list-it-dom.netlify.app";
-
-        // Create a new URL object for the redirect destination
-        let finalRedirectUrl;
-        if (decodedRedirectTo.startsWith("/")) {
-          finalRedirectUrl = new URL(decodedRedirectTo, siteUrl);
-        } else {
-          finalRedirectUrl = new URL(decodedRedirectTo);
-        }
-
-        // Set a cookie to prevent page reload loops
-        const response = NextResponse.redirect(finalRedirectUrl);
-        response.cookies.set("auth_redirect_completed", "true", {
-          path: "/",
-          maxAge: 30, // Short-lived cookie - 30 seconds
-          httpOnly: true,
-          sameSite: "lax",
-        });
-
-        return response;
+        // Always redirect to dashboard on success
+        return NextResponse.redirect(new URL("/dashboard", siteUrl));
       }
     } catch (err) {
       console.error("Unexpected error in auth callback:", err);
       return NextResponse.redirect(
-        new URL("/login?error=auth_callback_error", request.url)
+        new URL("/login?error=unexpected_error", siteUrl)
       );
     }
   }
 
-  // Fallback if code is missing
-  return NextResponse.redirect(
-    new URL("/login?error=missing_code", request.url)
-  );
+  // Default fallback if code is missing
+  return NextResponse.redirect(new URL("/login?error=missing_code", siteUrl));
 }

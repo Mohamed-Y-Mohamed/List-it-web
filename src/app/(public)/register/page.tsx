@@ -169,20 +169,25 @@ const Signup = () => {
   // Updated handleGoogleSignup function for the Signup component
   // Using hardcoded deployed URL
 
+  // Same simple update for handleGoogleSignup function in Signup component
+  // Use this in your Signup component
+
   const handleGoogleSignup = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Use the deployed URL directly
-      const siteUrl = "https://list-it-dom.netlify.app";
+      // Clear any existing auth state
+      localStorage.clear();
+      sessionStorage.clear();
 
-      console.log("Using site URL for redirect:", siteUrl); // Debug log
+      // Use hardcoded URL for redirect
+      const siteUrl = "https://list-it-dom.netlify.app";
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${siteUrl}/auth/callback?redirectTo=${encodeURIComponent(redirectTo)}`,
+          redirectTo: `${siteUrl}/auth/callback`,
           queryParams: {
             access_type: "offline",
             prompt: "consent",
@@ -199,7 +204,6 @@ const Signup = () => {
       setLoading(false);
     }
   };
-  // Handle signup with Apple
 
   return (
     <div
