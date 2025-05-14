@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { LogIn, Mail, Lock, AlertCircle } from "lucide-react";
+import { LogIn, Mail, Lock, AlertCircle, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -22,11 +22,11 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [passwordResetSent, setPasswordResetSent] = useState(false);
   const [logoutSuccess, setLogoutSuccess] = useState(false);
   const [googleComingSoon, setGoogleComingSoon] = useState(false);
 
@@ -63,6 +63,11 @@ const Login: React.FC = () => {
       console.error("Error saving email preference:", err);
       // Silent fail - local storage might be unavailable
     }
+  };
+
+  // Toggle password visibility
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   // Handle login form submission
@@ -133,32 +138,9 @@ const Login: React.FC = () => {
     setTimeout(() => setGoogleComingSoon(false), 3000);
   };
 
-  // Handle forgot password
-  const handleForgotPassword = async () => {
-    if (!email.trim()) {
-      setError("Please enter your email address first");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        email.trim(),
-        {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/reset-password`,
-        }
-      );
-
-      if (error) throw error;
-
-      setPasswordResetSent(true);
-    } catch (err) {
-      console.error("Password reset error:", err);
-      const error = err as AuthError;
-      setError(error.message || "Failed to send reset link");
-    } finally {
-      setLoading(false);
-    }
+  // Handle forgot password - redirect to the dedicated reset page
+  const handleForgotPassword = () => {
+    router.push("/resetPassword");
   };
 
   return (
@@ -200,18 +182,6 @@ const Login: React.FC = () => {
               >
                 <div className="flex items-center">
                   <span>You have been successfully logged out</span>
-                </div>
-              </div>
-            )}
-
-            {/* Success message for password reset */}
-            {passwordResetSent && (
-              <div
-                className="mt-4 w-full max-w-xs bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
-                role="alert"
-              >
-                <div className="flex items-center">
-                  <span>Password reset link sent to your email</span>
                 </div>
               </div>
             )}
@@ -332,12 +302,12 @@ const Login: React.FC = () => {
                     aria-hidden="true"
                   />
                   <input
-                    className={`w-full pl-10 pr-3 py-4 rounded-lg font-medium ${
+                    className={`w-full pl-10 pr-10 py-4 rounded-lg font-medium ${
                       isDark
                         ? "bg-gray-700 border-gray-600 placeholder-gray-400 text-gray-200 focus:border-sky-400 focus:bg-gray-600"
                         : "bg-gray-100 border-gray-200 placeholder-gray-500 text-sm focus:border-sky-500 focus:bg-white"
                     } border text-sm focus:outline-none`}
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -347,6 +317,20 @@ const Login: React.FC = () => {
                     id="password"
                     autoComplete="current-password"
                   />
+                  <button
+                    type="button"
+                    onClick={togglePasswordVisibility}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-500 focus:outline-none"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff size={18} aria-hidden="true" />
+                    ) : (
+                      <Eye size={18} aria-hidden="true" />
+                    )}
+                  </button>
                 </div>
                 <div className="flex justify-between items-center mt-2">
                   <div className="flex items-center">

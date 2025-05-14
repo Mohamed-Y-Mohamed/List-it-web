@@ -22,6 +22,7 @@ import {
   CircleMinus,
   CalendarPlus2,
   ClockAlert,
+  Pin,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -979,37 +980,20 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                             title={list.is_pinned ? "Unpin list" : "Pin list"}
                             disabled={isDeletingList}
                           >
-                            <svg
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
+                            <Pin
+                              size={16}
+                              fill={
+                                list.is_pinned
+                                  ? (list.bg_color_hex ?? "currentColor")
+                                  : "none"
+                              }
+                              stroke={list.is_pinned ? "none" : "currentColor"}
                               style={{
                                 color: list.is_pinned
                                   ? (list.bg_color_hex ?? "currentColor")
                                   : "currentColor",
                               }}
-                            >
-                              <path
-                                d={
-                                  list.is_pinned
-                                    ? "M16 2H8C7.448 2 7 2.448 7 3V7.5C7 8.328 7.672 9 8.5 9H9l1 5H6v2h12v-2h-4l1-5h0.5c0.828 0 1.5-0.672 1.5-1.5V3C17 2.448 16.552 2 16 2Z"
-                                    : "M16 2H8C7.448 2 7 2.448 7 3V7.5C7 8.328 7.672 9 8.5 9H9l1 5H6v2h12v-2h-4l1-5h0.5c0.828 0 1.5-0.672 1.5-1.5V3C17 2.448 16.552 2 16 2ZM15 7.5c0 0.276-0.224 0.5-0.5 0.5h-5C9.224 8 9 7.776 9 7.5V4h6v3.5Z"
-                                }
-                                fill="currentColor"
-                              />
-                              <path
-                                d="M12 22L9 16H15L12 22Z"
-                                fill={list.is_pinned ? "currentColor" : "none"}
-                                stroke={
-                                  list.is_pinned ? "none" : "currentColor"
-                                }
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
+                            />
                           </button>
 
                           {/* Delete Button */}
