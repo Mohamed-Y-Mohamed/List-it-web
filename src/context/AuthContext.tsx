@@ -145,6 +145,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Google OAuth login method
   const loginWithGoogle = async () => {
     try {
+      // Get base URL without trailing slash
+      const baseUrl = (
+        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+      ).replace(/\/$/, "");
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -152,7 +157,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             access_type: "offline",
             prompt: "consent",
           },
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
+          redirectTo: `${baseUrl}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
         },
       });
 
@@ -166,10 +171,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Apple OAuth login method
   const loginWithApple = async () => {
     try {
+      // Get base URL without trailing slash
+      const baseUrl = (
+        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+      ).replace(/\/$/, "");
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "apple",
         options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
+          redirectTo: `${baseUrl}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
         },
       });
 
@@ -253,10 +263,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Reset password
+  // Reset password
   const resetPassword = async (email: string) => {
     try {
+      // Get base URL without trailing slash
+      const baseUrl = (
+        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+      ).replace(/\/$/, "");
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}resetPassword`,
+        redirectTo: `${baseUrl}/resetPassword`,
       });
 
       if (error) throw error;

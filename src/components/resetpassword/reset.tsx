@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  Mail,
-  AlertCircle,
-  CheckCircle,
-  Eye,
-  EyeOff,
-  Lock,
-} from "lucide-react";
+import { AlertCircle, CheckCircle, Eye, EyeOff, Lock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -27,7 +20,6 @@ const ResetPassword: React.FC = () => {
   const searchParams = useSearchParams();
 
   // Form states
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -38,30 +30,50 @@ const ResetPassword: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [validToken, setValidToken] = useState(false);
 
-  // Mode state
-  const [isResetMode, setIsResetMode] = useState(false);
-
-  // Setup on initial load
+  // Verify token on component mount
   useEffect(() => {
-    // Check for token in query parameters (from email link)
-    const token = searchParams?.get("token");
+    const checkSession = async () => {
+      try {
+        // Get current session
+        const { data, error } = await supabase.auth.getSession();
 
-    if (token) {
-      setIsResetMode(true);
+        if (error) {
+          throw error;
+        }
 
-      // Pre-fill email if provided
-      const email = searchParams?.get("email");
-      if (email) {
-        setEmail(email);
+        // If no session or type is not recovery, redirect to login
+        if (!data.session || data.session?.user?.aud !== "authenticated") {
+          setError(
+            "Invalid or expired reset link. Please request a new one from the login page."
+          );
+          // After 3 seconds, redirect to login
+          setTimeout(() => {
+            router.push("/login");
+          }, 3000);
+        } else {
+          setValidToken(true);
+        }
+      } catch (err) {
+        console.error("Session check error:", err);
+        setError(
+          "Unable to verify reset session. Please try again or request a new reset link."
+        );
       }
-    }
-  }, [searchParams]);
+    };
 
-  // Validate email format
-  const isValidEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    checkSession();
+  }, [router]);
+
+  // Toggle password visibility
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  // Toggle confirm password visibility
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword);
   };
 
   // Validate password strength
@@ -78,73 +90,7 @@ const ResetPassword: React.FC = () => {
     if (!/[0-9]/.test(password)) {
       return "Password must contain at least one number";
     }
-    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
-      return "Password must contain at least one special character";
-    }
     return null;
-  };
-
-  // Toggle password visibility
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-  // Toggle confirm password visibility
-  const toggleConfirmPasswordVisibility = () => {
-    setShowConfirmPassword(!showConfirmPassword);
-  };
-
-  // Handle sending password reset email
-  const handleSendResetEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setMessage(null);
-
-    // Validate email
-    if (!email.trim()) {
-      setError("Email is required");
-      return;
-    }
-
-    if (!isValidEmail(email.trim())) {
-      setError("Please enter a valid email address");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // Send password reset email with the correct reset URL
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        email.trim(),
-        {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/resetPassword`,
-        }
-      );
-
-      if (error) throw error;
-
-      setSuccess(true);
-      setMessage(
-        "Password reset link has been sent to your email. Please check your inbox and spam folders."
-      );
-    } catch (err: unknown) {
-      console.error("Password reset error:", err);
-
-      if (err instanceof Error) {
-        setError(err.message);
-      } else if (
-        typeof err === "object" &&
-        err !== null &&
-        (err as ErrorObject).message
-      ) {
-        setError((err as ErrorObject).message!);
-      } else {
-        setError("Failed to send reset link. Please try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Handle setting new password
@@ -152,17 +98,6 @@ const ResetPassword: React.FC = () => {
     e.preventDefault();
     setError(null);
     setMessage(null);
-
-    // Validate email
-    if (!email.trim()) {
-      setError("Email is required");
-      return;
-    }
-
-    if (!isValidEmail(email.trim())) {
-      setError("Please enter a valid email address");
-      return;
-    }
 
     // Validate password
     const passwordError = validatePassword(password);
@@ -206,7 +141,9 @@ const ResetPassword: React.FC = () => {
       ) {
         setError((err as ErrorObject).message!);
       } else {
-        setError("Failed to update password. Please request a new reset link.");
+        setError(
+          "Failed to update password. Please request a new reset link from the login page."
+        );
       }
     } finally {
       setLoading(false);
@@ -240,15 +177,13 @@ const ResetPassword: React.FC = () => {
                 isDark ? "text-gray-100" : "text-gray-900"
               } text-center`}
             >
-              {isResetMode ? "Set New Password" : "Reset Your Password"}
+              Set New Password
             </h1>
 
             <p
               className={`mt-4 text-center ${isDark ? "text-gray-300" : "text-gray-600"}`}
             >
-              {isResetMode
-                ? "Please enter and confirm your new password below."
-                : "Enter your email address and we'll send you a link to reset your password."}
+              Please enter and confirm your new password below.
             </p>
 
             {/* Error message display */}
@@ -279,36 +214,11 @@ const ResetPassword: React.FC = () => {
 
             <div className="w-full flex-1 mt-8">
               {!success ? (
-                isResetMode ? (
+                validToken ? (
                   <form
                     onSubmit={handleSetNewPassword}
                     className="mx-auto max-w-xs"
                   >
-                    {/* Email is always required */}
-                    <div className="relative">
-                      <Mail
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                        size={18}
-                        aria-hidden="true"
-                      />
-                      <input
-                        className={`w-full pl-10 pr-3 py-4 rounded-lg font-medium ${
-                          isDark
-                            ? "bg-gray-700 border-gray-600 placeholder-gray-400 text-gray-200 focus:border-sky-400 focus:bg-gray-600"
-                            : "bg-gray-100 border-gray-200 placeholder-gray-500 text-sm focus:border-sky-500 focus:bg-white"
-                        } border text-sm focus:outline-none`}
-                        type="email"
-                        placeholder="Email Address"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        disabled={loading}
-                        required
-                        name="email"
-                        id="email"
-                        autoComplete="email"
-                      />
-                    </div>
-
                     {/* New Password Input */}
                     <div className="relative mt-5">
                       <Lock
@@ -396,7 +306,7 @@ const ResetPassword: React.FC = () => {
                       className={`mt-2 text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}
                     >
                       Password must be at least 8 characters with uppercase,
-                      lowercase, numbers, and a special character.
+                      lowercase, and numbers.
                     </p>
 
                     <button
@@ -417,75 +327,22 @@ const ResetPassword: React.FC = () => {
                     </button>
                   </form>
                 ) : (
-                  <form
-                    onSubmit={handleSendResetEmail}
-                    className="mx-auto max-w-xs"
-                  >
-                    <div className="relative">
-                      <Mail
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                        size={18}
-                        aria-hidden="true"
-                      />
-                      <input
-                        className={`w-full pl-10 pr-3 py-4 rounded-lg font-medium ${
-                          isDark
-                            ? "bg-gray-700 border-gray-600 placeholder-gray-400 text-gray-200 focus:border-sky-400 focus:bg-gray-600"
-                            : "bg-gray-100 border-gray-200 placeholder-gray-500 text-sm focus:border-sky-500 focus:bg-white"
-                        } border text-sm focus:outline-none`}
-                        type="email"
-                        placeholder="Email Address"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        disabled={loading}
-                        required
-                        name="email"
-                        id="email"
-                        autoComplete="email"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className={`mt-5 tracking-wide font-semibold ${
-                        isDark
-                          ? "bg-sky-600 hover:bg-sky-700"
-                          : "bg-sky-500 hover:bg-sky-600"
-                      } text-white w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center focus:shadow-outline focus:outline-none ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+                  <div className="text-center mt-6">
+                    <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p
+                      className={`${isDark ? "text-gray-300" : "text-gray-600"}`}
                     >
-                      {loading ? (
-                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      ) : null}
-                      <span>{loading ? "Sending..." : "Send Reset Link"}</span>
-                    </button>
-                  </form>
+                      Verifying reset token...
+                    </p>
+                  </div>
                 )
               ) : (
                 <div className="text-center mt-6">
                   <p
                     className={`${isDark ? "text-gray-300" : "text-gray-600"} mb-4`}
                   >
-                    {isResetMode
-                      ? "You will be redirected to the login page shortly."
-                      : "Check your email for the reset link. If you don't see it, please check your spam folder."}
+                    You will be redirected to the login page shortly.
                   </p>
-                  {!isResetMode && (
-                    <button
-                      onClick={() => {
-                        setEmail("");
-                        setSuccess(false);
-                        setMessage(null);
-                      }}
-                      className={`mt-2 tracking-wide font-semibold ${
-                        isDark
-                          ? "bg-gray-700 hover:bg-gray-600"
-                          : "bg-gray-200 hover:bg-gray-300"
-                      } text-${isDark ? "white" : "gray-800"} px-6 py-2 rounded-lg transition-all duration-300 ease-in-out focus:shadow-outline focus:outline-none`}
-                    >
-                      Try Another Email
-                    </button>
-                  )}
                 </div>
               )}
 
