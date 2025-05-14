@@ -140,7 +140,7 @@ const Login: React.FC = () => {
 
   // Handle forgot password - redirect to the dedicated reset page
   const handleForgotPassword = () => {
-    router.push("/resetpage");
+    router.push("/resetpage"); // This route should match your ForgotPasswordPage
   };
 
   return (

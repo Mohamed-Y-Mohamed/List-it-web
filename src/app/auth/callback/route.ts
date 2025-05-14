@@ -1,3 +1,5 @@
+// app/auth/callback/route.ts
+
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -8,6 +10,10 @@ export async function GET(request: NextRequest) {
 
   // Get the redirectTo parameter from the URL
   const redirectTo = requestUrl.searchParams.get("redirectTo") || "/dashboard";
+
+  // Check if this is a password reset flow
+  const type = requestUrl.searchParams.get("type");
+  const isPasswordReset = type === "recovery";
 
   if (code) {
     const cookieStore = cookies();
@@ -26,6 +32,11 @@ export async function GET(request: NextRequest) {
 
       if (data.session) {
         const { user } = data.session;
+
+        // For password reset, redirect to the reset-password page
+        if (isPasswordReset) {
+          return NextResponse.redirect(new URL("/reset-password", request.url));
+        }
 
         try {
           // Check if user exists in users table
@@ -54,6 +65,7 @@ export async function GET(request: NextRequest) {
             if (insertError) {
               console.error("Error inserting user data:", insertError);
             } else {
+              // User created successfully
             }
           }
         } catch (err) {

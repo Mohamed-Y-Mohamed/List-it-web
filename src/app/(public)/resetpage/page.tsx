@@ -13,7 +13,7 @@ interface ErrorObject {
   message?: string;
 }
 
-const ForgotPassword: React.FC = () => {
+export const ForgotPassword: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const searchParams = useSearchParams();
@@ -59,11 +59,16 @@ const ForgotPassword: React.FC = () => {
     setLoading(true);
 
     try {
-      // Call Supabase API to send password reset email
+      // Get base URL without trailing slash to avoid double slash issues
+      const baseUrl = (
+        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+      ).replace(/\/$/, "");
+
+      // Call Supabase API to send password reset email with correct redirect
       const { error } = await supabase.auth.resetPasswordForEmail(
         email.trim(),
         {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/reset-password`,
+          redirectTo: `${baseUrl}/reset-password`, // Ensure no extra slashes
         }
       );
 
@@ -81,7 +86,7 @@ const ForgotPassword: React.FC = () => {
         err !== null &&
         (err as ErrorObject).message
       ) {
-        setError((err as ErrorObject).message ?? null); // Add null check here
+        setError((err as ErrorObject).message ?? null);
       } else {
         setError("Failed to send reset link. Please try again.");
       }

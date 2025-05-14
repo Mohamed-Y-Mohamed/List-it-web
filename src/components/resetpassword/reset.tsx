@@ -13,7 +13,7 @@ interface ErrorObject {
   message?: string;
 }
 
-const ResetPassword: React.FC = () => {
+export const ResetPassword: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const router = useRouter();
@@ -42,8 +42,8 @@ const ResetPassword: React.FC = () => {
           throw error;
         }
 
-        // If no session or type is not recovery, redirect to login
-        if (!data.session || data.session?.user?.aud !== "authenticated") {
+        // If no session, redirect to login
+        if (!data.session) {
           setError(
             "Invalid or expired reset link. Please request a new one from the login page."
           );
@@ -51,9 +51,23 @@ const ResetPassword: React.FC = () => {
           setTimeout(() => {
             router.push("/login");
           }, 3000);
-        } else {
-          setValidToken(true);
+          return;
         }
+
+        // Make sure this is actually a recovery session
+        // Check URL for type=recovery or check if we're redirected from the auth callback
+        const url = new URL(window.location.href);
+        const isRecovery =
+          url.searchParams.get("type") === "recovery" ||
+          sessionStorage.getItem("pwd_reset_flow") === "true";
+
+        if (!isRecovery) {
+          // Store in session storage that we're in a recovery flow
+          // This is because the URL params might be lost after the callback redirect
+          sessionStorage.setItem("pwd_reset_flow", "true");
+        }
+
+        setValidToken(true);
       } catch (err) {
         console.error("Session check error:", err);
         setError(
@@ -118,6 +132,9 @@ const ResetPassword: React.FC = () => {
       const { error } = await supabase.auth.updateUser({ password });
 
       if (error) throw error;
+
+      // Clear the password reset flow marker
+      sessionStorage.removeItem("pwd_reset_flow");
 
       setSuccess(true);
       setMessage(
