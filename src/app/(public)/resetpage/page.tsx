@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Mail, AlertCircle, CheckCircle, Eye, EyeOff } from "lucide-react";
+import { Mail, AlertCircle, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
 
@@ -16,7 +16,6 @@ interface ErrorObject {
 const ForgotPassword: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   // Get email from URL if present
