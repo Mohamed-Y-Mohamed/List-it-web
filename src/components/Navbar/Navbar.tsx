@@ -981,7 +981,7 @@ const MergedNavigation = ({ children }: { children?: React.ReactNode }) => {
                             disabled={isDeletingList}
                           >
                             <Pin
-                              size={16}
+                              size={18}
                               fill={
                                 list.is_pinned
                                   ? (list.bg_color_hex ?? "currentColor")

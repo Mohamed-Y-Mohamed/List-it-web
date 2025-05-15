@@ -6,7 +6,6 @@ import {
   ChevronRight,
   ClipboardList,
   StickyNote,
-  Pin,
 } from "lucide-react";
 import TaskCard from "@/components/Tasks/index";
 import NoteCard from "@/components/Notes/noteCard";
@@ -429,12 +428,7 @@ const CollectionComponent = ({
                 onClick={handlePinToggle}
                 className={`p-1.5 rounded-full ${hoverColor} transition-colors duration-200`}
                 aria-label={isPinned ? "Unpin collection" : "Pin collection"}
-              >
-                <Pin
-                  className={`h-4 w-4 ${isPinned ? "text-orange-500" : subtextColor} transition-colors duration-200`}
-                  fill={isPinned ? "currentColor" : "none"}
-                />
-              </button>
+              ></button>
             )}
 
             <button
@@ -484,7 +478,7 @@ const CollectionComponent = ({
             >
               <div className="flex items-center justify-center space-x-1">
                 <ClipboardList className="h-4 w-4" />
-                <span>Tasks ({taskCount})</span>
+                <span>Tasks </span>
               </div>
               {activeTab === "tasks" && (
                 <div
@@ -509,7 +503,7 @@ const CollectionComponent = ({
             >
               <div className="flex items-center justify-center space-x-1">
                 <StickyNote className="h-4 w-4" />
-                <span>Notes ({noteCount})</span>
+                <span>Notes </span>
               </div>
               {activeTab === "notes" && (
                 <div
