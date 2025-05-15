@@ -70,7 +70,6 @@ const CollectionComponent = ({
   onNoteDelete,
   className = "",
 }: CollectionComponentProps) => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const collectionId = id; // Store id to satisfy ESLint
   const { theme } = useTheme();
   const isDark = theme === "dark";

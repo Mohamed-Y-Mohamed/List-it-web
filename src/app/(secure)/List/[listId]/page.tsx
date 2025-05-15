@@ -308,16 +308,8 @@ export default function ListPage() {
   );
 
   // Open task modal with specific collection pre-selected
-  const openTaskModalForCollection = useCallback((collectionId: string) => {
-    setSelectedCollectionId(collectionId);
-    setIsTaskModalOpen(true);
-  }, []);
 
   // Open note modal with specific collection pre-selected
-  const openNoteModalForCollection = useCallback((collectionId: string) => {
-    setSelectedCollectionId(collectionId);
-    setIsNoteModalOpen(true);
-  }, []);
 
   // Handler for creating a new task
   const handleTaskSubmit = useCallback(
@@ -882,27 +874,6 @@ export default function ListPage() {
   );
 
   // Handler for collection pinning
-  const handleCollectionPin = useCallback(
-    async (collectionId: string, isPinned: boolean) => {
-      try {
-        // Update local state
-        setCollections((prevCollections) =>
-          prevCollections.map((collection) =>
-            collection.id === collectionId
-              ? { ...collection, isPinned }
-              : collection
-          )
-        );
-
-        // In a real implementation, you'd save this to the database
-        return { success: true };
-      } catch (err) {
-        console.error("Error pinning collection:", err);
-        return { success: false, error: err };
-      }
-    },
-    []
-  );
 
   // Handler for collections deleted from the DeleteCollectionModal
   const handleCollectionsDeleted = useCallback(() => {
@@ -911,20 +882,8 @@ export default function ListPage() {
   }, [refreshData]);
 
   // Open task modal for specific collection
-  const handleAddTask = useCallback(
-    (collectionId: string) => {
-      openTaskModalForCollection(collectionId);
-    },
-    [openTaskModalForCollection]
-  );
 
   // Open note modal for specific collection
-  const handleAddNote = useCallback(
-    (collectionId: string) => {
-      openNoteModalForCollection(collectionId);
-    },
-    [openNoteModalForCollection]
-  );
 
   // Memoized sort function to sort collections by pinned status
   const sortedCollections = useMemo(() => {
@@ -1073,10 +1032,6 @@ export default function ListPage() {
                       onNoteColorChange={handleNoteColorChange}
                       onNoteUpdate={handleNoteUpdate}
                       onNoteDelete={handleNoteDelete}
-                      onAddTask={() => handleAddTask(collection.id)}
-                      onAddNote={() => handleAddNote(collection.id)}
-                      isPinned={collection.isPinned ?? false}
-                      onCollectionPin={handleCollectionPin}
                     />
                   ))}
                 </div>
