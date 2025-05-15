@@ -61,8 +61,6 @@ interface CollectionComponentProps {
     updatedDescription?: string
   ) => Promise<OperationResult>;
   onNoteDelete?: (noteId: string) => Promise<OperationResult>;
-  onAddTask?: () => void;
-  onAddNote?: () => void;
   className?: string;
   isPinned?: boolean;
   onCollectionPin?: (
@@ -85,8 +83,6 @@ const CollectionComponent = ({
   onNoteColorChange,
   onNoteUpdate,
   onNoteDelete,
-  onAddTask,
-  onAddNote,
   className = "",
   isPinned = false,
   onCollectionPin,
@@ -225,16 +221,6 @@ const CollectionComponent = ({
   };
 
   // Collection pin handler
-  const handlePinToggle = async (e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    if (!onCollectionPin) return;
-
-    await safelyHandleOperation(
-      () => onCollectionPin(id, !isPinned),
-      "Failed to pin collection"
-    );
-  };
-
   // Task handlers with the correct return types
   const handleTaskCompleteWithErrorHandling = async (
     taskId: string,
@@ -421,14 +407,6 @@ const CollectionComponent = ({
 
           {/* Action buttons */}
           <div className="flex items-center space-x-2">
-            {onCollectionPin && (
-              <button
-                onClick={handlePinToggle}
-                className={`p-1.5 rounded-full ${hoverColor} transition-colors duration-200`}
-                aria-label={isPinned ? "Unpin collection" : "Pin collection"}
-              ></button>
-            )}
-
             <button
               className={`p-1.5 rounded-full ${subtextColor} ${hoverColor} transition-colors duration-200`}
               aria-label={isExpanded ? "Collapse" : "Expand"}
