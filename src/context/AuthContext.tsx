@@ -42,7 +42,6 @@ const AuthContext = createContext<AuthContextType>({
 
 // Helper to clear all Supabase authentication data from local storage
 const clearSupabaseLocalStorage = () => {
-  // Remove the specific Supabase auth keys from localStorage
   try {
     // Get all keys from localStorage
     const keys = Object.keys(localStorage);
@@ -57,6 +56,9 @@ const clearSupabaseLocalStorage = () => {
         localStorage.removeItem(key);
       }
     });
+
+    // Also clear any app-specific storage
+    localStorage.removeItem("list_it_email");
   } catch (err) {
     console.error("Error clearing localStorage:", err);
   }
@@ -68,19 +70,40 @@ const clearAllAuthCookies = () => {
   const cookiesToClear = [
     "auth_token",
     "isLoggedIn",
-    "supabase-auth-token", // Supabase may set this one
-    "sb-access-token", // Supabase browser storage keys
+    "supabase-auth-token",
+    "sb-access-token",
     "sb-refresh-token",
-    "sb:token", // Legacy Supabase cookie
+    "sb:token",
+    "__supabase_session", // Added additional cookies that might be set
+    "sb-refresh-token",
+    "sb-auth-token",
   ];
 
   // Clear each cookie by setting expiry in the past with various paths
   cookiesToClear.forEach((cookieName) => {
+    // For main path
     document.cookie = `${cookieName}=; path=/; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-    // Also try with different paths in case they were set differently
+
+    // Try additional paths
     document.cookie = `${cookieName}=; path=/api; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
     document.cookie = `${cookieName}=; path=/auth; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    document.cookie = `${cookieName}=; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
   });
+};
+
+// Helper to clear session storage
+const clearSessionStorage = () => {
+  try {
+    // Clear specific items
+    sessionStorage.removeItem("supabase.auth.token");
+    sessionStorage.removeItem("supabase.auth.expires_at");
+
+    // Only clear the entire session storage as a last resort
+    // as it might affect other functionality
+    // sessionStorage.clear();
+  } catch (err) {
+    console.error("Error clearing sessionStorage:", err);
+  }
 };
 
 // Hook for child components to get the auth context
@@ -220,59 +243,76 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Complete logout function that ensures full session cleanup
+  // Improved logout function that ensures full session cleanup
   const logout = async () => {
     try {
-      // 1. First update state for immediate UI response
+      console.log("Starting logout process...");
+
+      // Immediately update UI
       setIsLoggedIn(false);
       setUser(null);
 
-      // 2. Clear all auth cookies first
-      clearAllAuthCookies();
-
-      // 3. Clear Supabase data from localStorage
-      clearSupabaseLocalStorage();
-
-      // 4. Call Supabase signOut with global scope
-      const { error } = await supabase.auth.signOut({
-        scope: "global",
-      });
-
-      if (error) {
-        console.error("Error during Supabase signOut:", error);
-      }
-
-      // 5. Force a complete page reload to clear any in-memory state
-
-      // Set a flag in sessionStorage to show we're in the middle of logging out
-      // This prevents redirect loops if middleware tries to restore the session
+      // Mark logout attempt
       sessionStorage.setItem("logging_out", "true");
 
-      // Use direct window location for a full page refresh
-      window.location.href = "/login?logout=true";
+      // Safely get session
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.warn("Error fetching session during logout:", sessionError);
+      }
+
+      console.log("Session before logout:", session);
+
+      // Only sign out if session exists
+      if (session) {
+        try {
+          await supabase.auth.signOut(); // removes from local client only
+          console.log("Signed out from Supabase (global)");
+        } catch (signOutError) {
+          console.error("SignOut error:", signOutError);
+        }
+      } else {
+        console.log("No session present; skipping supabase.auth.signOut");
+      }
+
+      // Cleanup local/session storage
+      clearAllAuthCookies();
+      clearSupabaseLocalStorage();
+      clearSessionStorage();
+
+      // Delay to ensure async cleanup
+      setTimeout(() => {
+        window.location.href = "/login?logout=true";
+      }, 100);
     } catch (error) {
       console.error("Logout process error:", error);
 
-      // Still try to force clear everything and redirect even if there was an error
+      // Fallback cleanup and redirect
       clearAllAuthCookies();
       clearSupabaseLocalStorage();
-
-      // Force redirect
+      clearSessionStorage();
       window.location.href = "/login?logout=true&error=true";
     }
   };
-
-  // Reset password
   // Reset password
   const resetPassword = async (email: string) => {
     try {
-      // Get base URL without trailing slash
-      const baseUrl = (
-        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
-      ).replace(/\/$/, "");
+      // Get the site URL
+      const siteUrl =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        (typeof window !== "undefined" ? window.location.origin : "");
+
+      // Use the camelCase version of the path that matches your actual route
+      const redirectTo = `${siteUrl}/resetPassword`;
+
+      console.log("Reset password will redirect to:", redirectTo);
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${baseUrl}/resetPassword`,
+        redirectTo: redirectTo,
       });
 
       if (error) throw error;

@@ -29,11 +29,20 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [logoutSuccess, setLogoutSuccess] = useState(false);
   const [googleComingSoon, setGoogleComingSoon] = useState(false);
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
 
-  // Check for logout success message
+  // Check for logout success message or password reset success
   useEffect(() => {
-    if (searchParams && searchParams.get("logout") === "true") {
-      setLogoutSuccess(true);
+    if (searchParams) {
+      // Check for logout success
+      if (searchParams.get("logout") === "true") {
+        setLogoutSuccess(true);
+      }
+
+      // Check for password reset success
+      if (searchParams.get("password_reset") === "success") {
+        setPasswordResetSuccess(true);
+      }
     }
   }, [searchParams]);
 
@@ -186,6 +195,21 @@ const Login: React.FC = () => {
               </div>
             )}
 
+            {/* Password reset success message */}
+            {passwordResetSuccess && (
+              <div
+                className="mt-4 w-full max-w-xs bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
+                role="alert"
+              >
+                <div className="flex items-center">
+                  <span>
+                    Your password has been successfully reset. Please log in
+                    with your new password.
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Error message display */}
             {error && (
               <div
@@ -315,7 +339,7 @@ const Login: React.FC = () => {
                     required
                     name="password"
                     id="password"
-                    autoComplete="current-password"
+                    autoComplete="new-password" // Changed to new-password to prevent auto-filling
                   />
                   <button
                     type="button"

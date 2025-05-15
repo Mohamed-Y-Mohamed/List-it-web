@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { AlertCircle, CheckCircle, Eye, EyeOff, Lock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
 
@@ -13,10 +13,53 @@ interface ErrorObject {
   message?: string;
 }
 
+// Helper functions for sign-out
+const clearSupabaseLocalStorage = () => {
+  try {
+    // Get all keys from localStorage
+    const keys = Object.keys(localStorage);
+
+    // Remove any keys that start with 'supabase.auth.' or are related to auth
+    keys.forEach((key) => {
+      if (
+        key.startsWith("supabase.auth.") ||
+        key.includes("supabase") ||
+        key.includes("auth")
+      ) {
+        localStorage.removeItem(key);
+      }
+    });
+  } catch (err) {
+    console.error("Error clearing localStorage:", err);
+  }
+};
+
+const clearAllAuthCookies = () => {
+  // List of all cookies we might have set
+  const cookiesToClear = [
+    "auth_token",
+    "isLoggedIn",
+    "supabase-auth-token",
+    "sb-access-token",
+    "sb-refresh-token",
+    "sb:token",
+    "__supabase_session",
+  ];
+
+  // Clear each cookie by setting expiry in the past with various paths
+  cookiesToClear.forEach((cookieName) => {
+    document.cookie = `${cookieName}=; path=/; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    document.cookie = `${cookieName}=; path=/api; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    document.cookie = `${cookieName}=; path=/auth; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    document.cookie = `${cookieName}=; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  });
+};
+
 export const ResetPassword: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Form states
   const [password, setPassword] = useState("");
@@ -30,54 +73,31 @@ export const ResetPassword: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [validToken, setValidToken] = useState(false);
+  const [verifying, setVerifying] = useState(true);
+  const [token, setToken] = useState<string | null>(null);
 
-  // Verify token on component mount
+  // Extract and verify token on component mount
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        // Get current session
-        const { data, error } = await supabase.auth.getSession();
+    const extractToken = () => {
+      // Extract token from URL parameters
+      const tokenFromParams = searchParams?.get("token");
 
-        if (error) {
-          throw error;
-        }
-
-        // If no session, redirect to login
-        if (!data.session) {
-          setError(
-            "Invalid or expired reset link. Please request a new one from the login page."
-          );
-          // After 3 seconds, redirect to login
-          setTimeout(() => {
-            router.push("/login");
-          }, 3000);
-          return;
-        }
-
-        // Make sure this is actually a recovery session
-        // Check URL for type=recovery or check if we're redirected from the auth callback
-        const url = new URL(window.location.href);
-        const isRecovery =
-          url.searchParams.get("type") === "recovery" ||
-          sessionStorage.getItem("pwd_reset_flow") === "true";
-
-        if (!isRecovery) {
-          // Store in session storage that we're in a recovery flow
-          // This is because the URL params might be lost after the callback redirect
-          sessionStorage.setItem("pwd_reset_flow", "true");
-        }
-
-        setValidToken(true);
-      } catch (err) {
-        console.error("Session check error:", err);
+      if (!tokenFromParams) {
         setError(
-          "Unable to verify reset session. Please try again or request a new reset link."
+          "No reset token found. Please request a new password reset link."
         );
+        setVerifying(false);
+        return;
       }
+
+      // Store token for password reset
+      setToken(tokenFromParams);
+      setValidToken(true);
+      setVerifying(false);
     };
 
-    checkSession();
-  }, [router]);
+    extractToken();
+  }, [searchParams]);
 
   // Toggle password visibility
   const togglePasswordVisibility = () => {
@@ -106,6 +126,31 @@ export const ResetPassword: React.FC = () => {
     return null;
   };
 
+  // Enhanced force sign out function
+  const forceSignOut = async () => {
+    try {
+      // First try the official way
+      await supabase.auth.signOut({ scope: "global" });
+
+      // Then clear all storage regardless
+      clearSupabaseLocalStorage();
+      clearAllAuthCookies();
+
+      // Clear any session storage items related to auth
+      try {
+        sessionStorage.removeItem("supabase.auth.token");
+        sessionStorage.removeItem("supabase.auth.expires_at");
+      } catch (err) {
+        console.error("Error clearing sessionStorage:", err);
+      }
+    } catch (err) {
+      console.error("Force sign out error:", err);
+      // Even if there's an error, we still want to try clearing storage
+      clearSupabaseLocalStorage();
+      clearAllAuthCookies();
+    }
+  };
+
   // Handle setting new password
   const handleSetNewPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,25 +170,53 @@ export const ResetPassword: React.FC = () => {
       return;
     }
 
+    // Make sure we have a token
+    if (!token) {
+      setError("No valid reset token found. Please request a new reset link.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Update the user's password
-      const { error } = await supabase.auth.updateUser({ password });
+      // First verify the OTP (token)
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: token,
+        type: "recovery",
+      });
 
-      if (error) throw error;
+      if (verifyError) {
+        throw verifyError;
+      }
 
-      // Clear the password reset flow marker
-      sessionStorage.removeItem("pwd_reset_flow");
+      // Now update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password,
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Force sign out to ensure we don't auto sign-in
+      await forceSignOut();
 
       setSuccess(true);
       setMessage(
         "Your password has been successfully updated. You will be redirected to the login page."
       );
 
-      // Redirect to login page after 3 seconds
+      // Set a flag in session storage to indicate password reset success
+      try {
+        sessionStorage.setItem("password_reset_success", "true");
+      } catch (err) {
+        console.error("Error setting session storage:", err);
+      }
+
+      // Redirect to login page after 3 seconds with success message
       setTimeout(() => {
-        router.push("/login");
+        // Use window.location.href for a full page refresh to ensure clean state
+        window.location.href = "/login?password_reset=success";
       }, 3000);
     } catch (err: unknown) {
       console.error("Password update error:", err);
@@ -230,7 +303,16 @@ export const ResetPassword: React.FC = () => {
 
             <div className="w-full flex-1 mt-8">
               {!success ? (
-                validToken ? (
+                verifying ? (
+                  <div className="text-center mt-6">
+                    <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p
+                      className={`${isDark ? "text-gray-300" : "text-gray-600"}`}
+                    >
+                      Verifying your reset token...
+                    </p>
+                  </div>
+                ) : validToken ? (
                   <form
                     onSubmit={handleSetNewPassword}
                     className="mx-auto max-w-xs"
@@ -344,12 +426,26 @@ export const ResetPassword: React.FC = () => {
                   </form>
                 ) : (
                   <div className="text-center mt-6">
-                    <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <AlertCircle
+                      className="w-12 h-12 text-red-500 mx-auto mb-4"
+                      aria-hidden="true"
+                    />
                     <p
-                      className={`${isDark ? "text-gray-300" : "text-gray-600"}`}
+                      className={`${isDark ? "text-gray-300" : "text-gray-600"} mb-4`}
                     >
-                      Verifying reset token...
+                      {error || "Invalid or expired reset link."}
                     </p>
+                    <Link
+                      href="/resetpage"
+                      className={`mt-2 tracking-wide font-semibold ${
+                        isDark
+                          ? "bg-sky-600 hover:bg-sky-700"
+                          : "bg-sky-500 hover:bg-sky-600"
+                      } text-white px-6 py-2 rounded-lg transition-all duration-300 ease-in-out focus:shadow-outline focus:outline-none inline-block`}
+                      aria-label="Request new reset link"
+                    >
+                      Request New Link
+                    </Link>
                   </div>
                 )
               ) : (
