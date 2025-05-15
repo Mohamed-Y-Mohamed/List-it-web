@@ -1,17 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import {
-  UserPlus,
-  Mail,
-  Lock,
-  User,
-  AlertCircle,
-  Check,
-  Eye,
-  EyeOff,
-  X,
-} from "lucide-react";
+import React, { useState } from "react";
+import { UserPlus, Mail, Lock, User, AlertCircle, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,46 +27,10 @@ const Signup = () => {
   const [googleComingSoon, setGoogleComingSoon] = useState(false);
   const trimmedEmail = email.trim();
 
-  // Password visibility state
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  // Focus state for showing/hiding validation requirements
-  const [passwordFocused, setPasswordFocused] = useState(false);
-  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
-
-  // Password validation states
-  const [passwordValidation, setPasswordValidation] = useState({
-    minLength: false,
-    hasUpperCase: false,
-    hasLowerCase: false,
-    hasNumber: false,
-    hasSpecialChar: false,
-  });
-
-  const [passwordsMatch, setPasswordsMatch] = useState(false);
-
   // Loading and error states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  // Update password validation whenever password changes
-  useEffect(() => {
-    const validations = {
-      minLength: password.length >= 8,
-      hasUpperCase: /[A-Z]/.test(password),
-      hasLowerCase: /[a-z]/.test(password),
-      hasNumber: /[0-9]/.test(password),
-      hasSpecialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
-    };
-    setPasswordValidation(validations);
-  }, [password]);
-
-  // Check if passwords match
-  useEffect(() => {
-    setPasswordsMatch(password === confirmPassword && password !== "");
-  }, [password, confirmPassword]);
 
   // Form validation
   const isFormValid = () => {
@@ -92,16 +46,10 @@ const Signup = () => {
       setError("Please enter a valid email address");
       return false;
     }
-
-    // Check all password criteria
-    const allCriteriaMet = Object.values(passwordValidation).every(
-      (value) => value
-    );
-    if (!allCriteriaMet) {
-      setError("Password does not meet all requirements");
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
       return false;
     }
-
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return false;
@@ -223,16 +171,6 @@ const Signup = () => {
     setGoogleComingSoon(true);
     // Hide the message after 3 seconds
     setTimeout(() => setGoogleComingSoon(false), 3000);
-  };
-
-  // Function to toggle password visibility
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-  // Function to toggle confirm password visibility
-  const toggleConfirmPasswordVisibility = () => {
-    setShowConfirmPassword(!showConfirmPassword);
   };
 
   return (
@@ -403,174 +341,43 @@ const Signup = () => {
                     required
                   />
                 </div>
-
-                {/* Password field with toggle visibility */}
                 <div className="relative mt-5">
                   <Lock
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                     size={18}
                   />
                   <input
-                    className={`w-full pl-10 pr-12 py-4 rounded-lg font-medium ${
+                    className={`w-full pl-10 pr-3 py-4 rounded-lg font-medium ${
                       isDark
                         ? "bg-gray-700 border-gray-600 placeholder-gray-400 text-gray-200 focus:border-orange-400 focus:bg-gray-600"
                         : "bg-gray-100 border-gray-200 placeholder-gray-500 text-sm focus:border-orange-500 focus:bg-white"
                     } border text-sm focus:outline-none`}
-                    type={showPassword ? "text" : "password"}
+                    type="password"
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    onFocus={() => setPasswordFocused(true)}
-                    onBlur={() => setPasswordFocused(false)}
                     required
+                    minLength={6}
                   />
-                  <button
-                    type="button"
-                    onClick={togglePasswordVisibility}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
                 </div>
-
-                {/* Password validation indicators - only shown when password field is focused */}
-                {passwordFocused && (
-                  <div className="mt-2 text-xs">
-                    <div className="flex items-center mb-1">
-                      {passwordValidation.minLength ? (
-                        <Check size={14} className="text-green-500 mr-1" />
-                      ) : (
-                        <X size={14} className="text-red-500 mr-1" />
-                      )}
-                      <span
-                        className={
-                          passwordValidation.minLength
-                            ? "text-green-500"
-                            : "text-red-500"
-                        }
-                      >
-                        At least 8 characters
-                      </span>
-                    </div>
-                    <div className="flex items-center mb-1">
-                      {passwordValidation.hasUpperCase ? (
-                        <Check size={14} className="text-green-500 mr-1" />
-                      ) : (
-                        <X size={14} className="text-red-500 mr-1" />
-                      )}
-                      <span
-                        className={
-                          passwordValidation.hasUpperCase
-                            ? "text-green-500"
-                            : "text-red-500"
-                        }
-                      >
-                        At least 1 uppercase letter
-                      </span>
-                    </div>
-                    <div className="flex items-center mb-1">
-                      {passwordValidation.hasLowerCase ? (
-                        <Check size={14} className="text-green-500 mr-1" />
-                      ) : (
-                        <X size={14} className="text-red-500 mr-1" />
-                      )}
-                      <span
-                        className={
-                          passwordValidation.hasLowerCase
-                            ? "text-green-500"
-                            : "text-red-500"
-                        }
-                      >
-                        At least 1 lowercase letter
-                      </span>
-                    </div>
-                    <div className="flex items-center mb-1">
-                      {passwordValidation.hasNumber ? (
-                        <Check size={14} className="text-green-500 mr-1" />
-                      ) : (
-                        <X size={14} className="text-red-500 mr-1" />
-                      )}
-                      <span
-                        className={
-                          passwordValidation.hasNumber
-                            ? "text-green-500"
-                            : "text-red-500"
-                        }
-                      >
-                        At least 1 number
-                      </span>
-                    </div>
-                    <div className="flex items-center mb-1">
-                      {passwordValidation.hasSpecialChar ? (
-                        <Check size={14} className="text-green-500 mr-1" />
-                      ) : (
-                        <X size={14} className="text-red-500 mr-1" />
-                      )}
-                      <span
-                        className={
-                          passwordValidation.hasSpecialChar
-                            ? "text-green-500"
-                            : "text-red-500"
-                        }
-                      >
-                        At least 1 special character
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Confirm Password field with toggle visibility */}
                 <div className="relative mt-5">
                   <Lock
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                     size={18}
                   />
                   <input
-                    className={`w-full pl-10 pr-12 py-4 rounded-lg font-medium ${
+                    className={`w-full pl-10 pr-3 py-4 rounded-lg font-medium ${
                       isDark
                         ? "bg-gray-700 border-gray-600 placeholder-gray-400 text-gray-200 focus:border-orange-400 focus:bg-gray-600"
                         : "bg-gray-100 border-gray-200 placeholder-gray-500 text-sm focus:border-orange-500 focus:bg-white"
                     } border text-sm focus:outline-none`}
-                    type={showConfirmPassword ? "text" : "password"}
+                    type="password"
                     placeholder="Confirm Password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    onFocus={() => setConfirmPasswordFocused(true)}
-                    onBlur={() => setConfirmPasswordFocused(false)}
                     required
                   />
-                  <button
-                    type="button"
-                    onClick={toggleConfirmPasswordVisibility}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff size={18} />
-                    ) : (
-                      <Eye size={18} />
-                    )}
-                  </button>
                 </div>
-
-                {/* Password match indicator - only shown when confirm password field is focused or has content */}
-                {(confirmPasswordFocused || confirmPassword) && (
-                  <div className="mt-2 flex items-center text-xs">
-                    {passwordsMatch ? (
-                      <>
-                        <Check size={14} className="text-green-500 mr-1" />
-                        <span className="text-green-500">Passwords match</span>
-                      </>
-                    ) : (
-                      <>
-                        <X size={14} className="text-red-500 mr-1" />
-                        <span className="text-red-500">
-                          Passwords do not match
-                        </span>
-                      </>
-                    )}
-                  </div>
-                )}
-
                 <button
                   type="submit"
                   disabled={loading}
