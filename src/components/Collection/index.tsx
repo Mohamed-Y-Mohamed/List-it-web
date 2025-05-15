@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import TaskCard from "@/components/Tasks/index";
 import NoteCard from "@/components/Notes/noteCard";
-import { Task, Note, Collection } from "@/types/schema";
+import { Task, Note } from "@/types/schema";
 import { useTheme } from "@/context/ThemeContext";
 
 // Define types for operation results
@@ -27,7 +27,6 @@ interface CollectionComponentProps {
   content_count?: number;
   tasks?: Task[];
   notes?: Note[];
-  allCollections?: Collection[];
   onTaskComplete: (
     taskId: string,
     is_completed: boolean
@@ -46,10 +45,6 @@ interface CollectionComponentProps {
       is_pinned: boolean;
     }
   ) => Promise<OperationResult>;
-  onTaskCollectionChange?: (
-    taskId: string,
-    collectionId: string
-  ) => Promise<OperationResult>;
   onNotePin?: (noteId: string, isPinned: boolean) => Promise<OperationResult>;
   onNoteColorChange?: (
     noteId: string,
@@ -62,11 +57,6 @@ interface CollectionComponentProps {
   ) => Promise<OperationResult>;
   onNoteDelete?: (noteId: string) => Promise<OperationResult>;
   className?: string;
-  isPinned?: boolean;
-  onCollectionPin?: (
-    collectionId: string,
-    isPinned: boolean
-  ) => Promise<OperationResult>;
 }
 
 const CollectionComponent = ({
@@ -84,8 +74,6 @@ const CollectionComponent = ({
   onNoteUpdate,
   onNoteDelete,
   className = "",
-  isPinned = false,
-  onCollectionPin,
 }: CollectionComponentProps) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -109,9 +97,6 @@ const CollectionComponent = ({
   const errorBgColor = isDark ? "bg-red-900/30" : "bg-red-50";
   const tabHoverColor = isDark ? "hover:bg-gray-800" : "hover:bg-gray-100";
   const activeTabBgColor = isDark ? "bg-gray-800" : "bg-gray-100";
-  const buttonBgColor = isDark
-    ? "bg-gray-800 hover:bg-gray-700 text-gray-200"
-    : "bg-gray-100 hover:bg-gray-200 text-gray-700";
 
   // Memoized sorting functions to avoid unnecessary re-computations
   const sortTasks = useCallback((taskList: Task[] = []) => {
@@ -220,7 +205,6 @@ const CollectionComponent = ({
     }
   };
 
-  // Collection pin handler
   // Task handlers with the correct return types
   const handleTaskCompleteWithErrorHandling = async (
     taskId: string,
