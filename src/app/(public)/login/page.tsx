@@ -170,7 +170,7 @@ const Login: React.FC = () => {
               width={128}
               height={128}
               alt="LIST IT Logo"
-              className="w-32 mx-auto rounded-full"
+              className="w-32 mx-auto rounded-md"
               priority
             />
           </div>

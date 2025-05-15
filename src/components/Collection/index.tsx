@@ -403,9 +403,7 @@ const CollectionComponent = ({
             className="w-8 h-8 rounded-full flex items-center justify-center mr-3 shadow-sm"
             style={{ backgroundColor: bg_color_hex || "#cccccc" }}
             aria-hidden="true"
-          >
-            <ClipboardList className="h-4 w-4 text-white" />
-          </div>
+          ></div>
 
           {/* Collection title and info */}
           <div className="flex-1 min-w-0">
@@ -572,20 +570,6 @@ const CollectionComponent = ({
                   </div>
                 )
               )}
-
-              {/* Add Task Button */}
-              {onAddTask && (
-                <div className="mt-4 flex justify-center">
-                  <button
-                    onClick={onAddTask}
-                    className={`px-4 py-2 rounded-md text-sm font-medium 
-                      ${buttonBgColor} transition-colors duration-200`}
-                    aria-label="Add new task"
-                  >
-                    Add Task
-                  </button>
-                </div>
-              )}
             </div>
           )}
 
@@ -613,20 +597,6 @@ const CollectionComponent = ({
               ) : (
                 <div className={`text-center py-6 ${subtextColor} text-sm`}>
                   No notes in this collection
-                </div>
-              )}
-
-              {/* Add Note Button */}
-              {onAddNote && (
-                <div className="mt-4 flex justify-center">
-                  <button
-                    onClick={onAddNote}
-                    className={`px-4 py-2 rounded-md text-sm font-medium 
-                      ${buttonBgColor} transition-colors duration-200`}
-                    aria-label="Add new note"
-                  >
-                    Add Note
-                  </button>
                 </div>
               )}
             </>
