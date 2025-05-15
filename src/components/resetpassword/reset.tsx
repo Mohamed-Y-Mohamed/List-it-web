@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { AlertCircle, CheckCircle, Eye, EyeOff, Lock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
 
@@ -13,9 +13,52 @@ interface ErrorObject {
   message?: string;
 }
 
+// Helper functions for sign-out
+const clearSupabaseLocalStorage = () => {
+  try {
+    // Get all keys from localStorage
+    const keys = Object.keys(localStorage);
+
+    // Remove any keys that start with 'supabase.auth.' or are related to auth
+    keys.forEach((key) => {
+      if (
+        key.startsWith("supabase.auth.") ||
+        key.includes("supabase") ||
+        key.includes("auth")
+      ) {
+        localStorage.removeItem(key);
+      }
+    });
+  } catch (err) {
+    console.error("Error clearing localStorage:", err);
+  }
+};
+
+const clearAllAuthCookies = () => {
+  // List of all cookies we might have set
+  const cookiesToClear = [
+    "auth_token",
+    "isLoggedIn",
+    "supabase-auth-token",
+    "sb-access-token",
+    "sb-refresh-token",
+    "sb:token",
+    "__supabase_session",
+  ];
+
+  // Clear each cookie by setting expiry in the past with various paths
+  cookiesToClear.forEach((cookieName) => {
+    document.cookie = `${cookieName}=; path=/; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    document.cookie = `${cookieName}=; path=/api; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    document.cookie = `${cookieName}=; path=/auth; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    document.cookie = `${cookieName}=; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  });
+};
+
 export const ResetPassword: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   // Form states
@@ -83,6 +126,31 @@ export const ResetPassword: React.FC = () => {
     return null;
   };
 
+  // Enhanced force sign out function
+  const forceSignOut = async () => {
+    try {
+      // First try the official way
+      await supabase.auth.signOut({ scope: "global" });
+
+      // Then clear all storage regardless
+      clearSupabaseLocalStorage();
+      clearAllAuthCookies();
+
+      // Clear any session storage items related to auth
+      try {
+        sessionStorage.removeItem("supabase.auth.token");
+        sessionStorage.removeItem("supabase.auth.expires_at");
+      } catch (err) {
+        console.error("Error clearing sessionStorage:", err);
+      }
+    } catch (err) {
+      console.error("Force sign out error:", err);
+      // Even if there's an error, we still want to try clearing storage
+      clearSupabaseLocalStorage();
+      clearAllAuthCookies();
+    }
+  };
+
   // Handle setting new password
   const handleSetNewPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,6 +197,9 @@ export const ResetPassword: React.FC = () => {
       if (updateError) {
         throw updateError;
       }
+
+      // Force sign out to ensure we don't auto sign-in
+      await forceSignOut();
 
       setSuccess(true);
       setMessage(
