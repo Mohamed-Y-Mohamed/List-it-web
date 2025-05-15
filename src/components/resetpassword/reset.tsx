@@ -13,27 +13,6 @@ interface ErrorObject {
   message?: string;
 }
 
-const clearAllAuthCookies = () => {
-  // List of all cookies we might have set
-  const cookiesToClear = [
-    "auth_token",
-    "isLoggedIn",
-    "supabase-auth-token",
-    "sb-access-token",
-    "sb-refresh-token",
-    "sb:token",
-    "__supabase_session",
-  ];
-
-  // Clear each cookie by setting expiry in the past with various paths
-  cookiesToClear.forEach((cookieName) => {
-    document.cookie = `${cookieName}=; path=/; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-    document.cookie = `${cookieName}=; path=/api; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-    document.cookie = `${cookieName}=; path=/auth; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-    document.cookie = `${cookieName}=; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-  });
-};
-
 export const ResetPassword: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
