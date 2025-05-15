@@ -125,31 +125,6 @@ export const ResetPassword: React.FC = () => {
     return null;
   };
 
-  // Enhanced force sign out function
-  const forceSignOut = async () => {
-    try {
-      // First try the official way
-      await supabase.auth.signOut({ scope: "global" });
-
-      // Then clear all storage regardless
-      clearSupabaseLocalStorage();
-      clearAllAuthCookies();
-
-      // Clear any session storage items related to auth
-      try {
-        sessionStorage.removeItem("supabase.auth.token");
-        sessionStorage.removeItem("supabase.auth.expires_at");
-      } catch (err) {
-        console.error("Error clearing sessionStorage:", err);
-      }
-    } catch (err) {
-      console.error("Force sign out error:", err);
-      // Even if there's an error, we still want to try clearing storage
-      clearSupabaseLocalStorage();
-      clearAllAuthCookies();
-    }
-  };
-
   // Handle setting new password
   const handleSetNewPassword = async (e: React.FormEvent) => {
     e.preventDefault();

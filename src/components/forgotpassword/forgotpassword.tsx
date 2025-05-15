@@ -26,7 +26,6 @@ export const ForgotPassword: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string | null>(null);
 
   // Email validation
   const isValidEmail = (email: string): boolean => {
@@ -38,7 +37,6 @@ export const ForgotPassword: React.FC = () => {
   const handleResetRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setDebugInfo(null);
 
     // Validate input
     if (!email.trim()) {
@@ -65,7 +63,6 @@ export const ForgotPassword: React.FC = () => {
       const resetUrl = `${siteUrl}/resetPassword`;
 
       // For debugging
-      setDebugInfo(`Reset URL: ${resetUrl}`);
 
       // Call Supabase API with the correct redirect URL
       const { error } = await supabase.auth.resetPasswordForEmail(
@@ -134,14 +131,6 @@ export const ForgotPassword: React.FC = () => {
               Enter your email address and we&apos;ll send you a link to reset
               your password.
             </p>
-
-            {/* Debug info - only show in development */}
-            {process.env.NODE_ENV === "development" && debugInfo && (
-              <div className="mt-4 w-full bg-blue-100 border border-blue-400 text-blue-800 px-4 py-3 rounded relative text-sm">
-                <p className="font-bold">Debug Info:</p>
-                <pre className="whitespace-pre-wrap mt-1">{debugInfo}</pre>
-              </div>
-            )}
 
             {/* Error message display */}
             {error && (
@@ -236,7 +225,6 @@ export const ForgotPassword: React.FC = () => {
                     onClick={() => {
                       setEmail("");
                       setSuccess(false);
-                      setDebugInfo(null);
                     }}
                     className={`mt-2 tracking-wide font-semibold ${
                       isDark
