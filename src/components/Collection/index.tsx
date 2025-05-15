@@ -1,12 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import {
-  ChevronDown,
-  ChevronRight,
-  ClipboardList,
-  StickyNote,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, StickyNote } from "lucide-react";
 import TaskCard from "@/components/Tasks/index";
 import NoteCard from "@/components/Notes/noteCard";
 import { Task, Note } from "@/types/schema";
@@ -440,8 +435,7 @@ const CollectionComponent = ({
               id="tasks-tab"
             >
               <div className="flex items-center justify-center space-x-1">
-                <ClipboardList className="h-4 w-4" />
-                <span>Tasks </span>
+                <span>Tasks</span>
               </div>
               {activeTab === "tasks" && (
                 <div
@@ -466,7 +460,7 @@ const CollectionComponent = ({
             >
               <div className="flex items-center justify-center space-x-1">
                 <StickyNote className="h-4 w-4" />
-                <span>Notes </span>
+                <span>Notes</span>
               </div>
               {activeTab === "notes" && (
                 <div
