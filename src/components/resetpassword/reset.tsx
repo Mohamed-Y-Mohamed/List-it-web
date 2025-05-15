@@ -13,27 +13,6 @@ interface ErrorObject {
   message?: string;
 }
 
-// Helper functions for sign-out
-const clearSupabaseLocalStorage = () => {
-  try {
-    // Get all keys from localStorage
-    const keys = Object.keys(localStorage);
-
-    // Remove any keys that start with 'supabase.auth.' or are related to auth
-    keys.forEach((key) => {
-      if (
-        key.startsWith("supabase.auth.") ||
-        key.includes("supabase") ||
-        key.includes("auth")
-      ) {
-        localStorage.removeItem(key);
-      }
-    });
-  } catch (err) {
-    console.error("Error clearing localStorage:", err);
-  }
-};
-
 const clearAllAuthCookies = () => {
   // List of all cookies we might have set
   const cookiesToClear = [
@@ -171,9 +150,6 @@ export const ResetPassword: React.FC = () => {
       if (updateError) {
         throw updateError;
       }
-
-      // Force sign out to ensure we don't auto sign-in
-      await forceSignOut();
 
       setSuccess(true);
       setMessage(
