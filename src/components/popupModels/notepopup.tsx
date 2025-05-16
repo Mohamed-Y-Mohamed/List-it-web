@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { X, Check, AlertCircle } from "lucide-react";
+import { X, Check, AlertCircle, ChevronDown } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Collection, LIST_COLORS, Note } from "@/types/schema";
 import { supabase } from "@/utils/client";
@@ -225,7 +225,10 @@ const CreateNoteModal = ({
 
           {error && (
             <div className="mb-4 p-3 rounded-md bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border border-red-200 dark:border-red-800">
-              <AlertCircle className="h-5 w-5 mr-2 inline-block" /> {error}
+              <div className="flex items-center">
+                <AlertCircle className="h-5 w-5 mr-2" />
+                <span>{error}</span>
+              </div>
             </div>
           )}
 
@@ -266,17 +269,19 @@ const CreateNoteModal = ({
               >
                 Color
               </label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {LIST_COLORS.map((color) => (
                   <button
                     key={color}
                     type="button"
-                    className={`h-8 w-8 rounded-full ${selectedColor === color ? "ring-2 ring-offset-2 ring-offset-gray-100 ring-black" : ""}`}
+                    className={`h-8 w-8 rounded-full relative ${selectedColor === color ? "ring-2 ring-offset-2 ring-sky-500" : ""}`}
                     style={{ backgroundColor: color }}
                     onClick={() => setSelectedColor(color)}
                   >
                     {selectedColor === color && (
-                      <Check className="text-white w-4 h-4" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Check className="text-white w-4 h-4" />
+                      </div>
                     )}
                   </button>
                 ))}
@@ -289,25 +294,43 @@ const CreateNoteModal = ({
               >
                 Collection
               </label>
-              <select
-                value={selectedCollection}
-                onChange={(e) => setSelectedCollection(e.target.value)}
-                className={`w-full px-3 py-2 rounded-md border ${isDark ? "bg-gray-700 text-white border-gray-600" : "bg-white border-gray-300 text-black"}`}
-              >
-                <option value="">Select a collection</option>
-                {collections.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.collection_name || "Unnamed Collection"}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={selectedCollection}
+                  onChange={(e) => setSelectedCollection(e.target.value)}
+                  className={`w-full px-3 py-2 rounded-md border 
+                    ${isDark ? "bg-gray-700 text-white border-gray-600" : "bg-white border-gray-300 text-black"} 
+                    appearance-none`}
+                  style={{
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
+                  }}
+                >
+                  <option value="">Select a collection</option>
+                  {collections.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.collection_name || "Unnamed Collection"}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2">
+                  <ChevronDown
+                    className={`h-4 w-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end space-x-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-gray-700"
+                className={`px-4 py-2 rounded-md ${
+                  isDark
+                    ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+                disabled={isSubmitting}
               >
                 Cancel
               </button>

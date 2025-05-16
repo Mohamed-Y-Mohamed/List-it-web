@@ -5,7 +5,7 @@ import "./globals.css";
 import Footer from "@/components/Footer";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext"; // Add this
-import MergedNavigation from "@/components/Navbar/Navbar";
+// import MergedNavigation from "@/components/Navbar/Navbar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,12 +52,12 @@ export default function RootLayout({
           {" "}
           {/* Add the AuthProvider here */}
           <ThemeProvider>
-            <MergedNavigation>
-              <div className="flex flex-col  w-full min-h-screen">
-                {children}
-                <Footer />
-              </div>
-            </MergedNavigation>
+            {/* <MergedNavigation> */}
+            <div className="flex flex-col  w-full min-h-screen">
+              {children}
+              <Footer />
+            </div>
+            {/* </MergedNavigation> */}
           </ThemeProvider>
         </AuthProvider>
       </body>

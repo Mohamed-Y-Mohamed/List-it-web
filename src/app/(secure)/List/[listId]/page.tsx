@@ -927,15 +927,15 @@ export default function ListPage() {
 
   return (
     <main
-      className={`transition-all duration-300 
-      pt-16 lg:pl-16 min-h-screen w-full
+      className={`transition-all  duration-300 
+       pb-20 w-full
       ${isDark ? "text-gray-200" : "text-gray-800"}
       `}
       style={{
         backgroundColor: isDark ? "#2d3748" : "#FAF9F6",
       }}
     >
-      <div className="p-4 md:p-6 box-border">
+      <div className="p-4  pt-20 box-border">
         <div className={`max-w-6xl mx-auto`}>
           {/* Loading state */}
           {isLoading ? (

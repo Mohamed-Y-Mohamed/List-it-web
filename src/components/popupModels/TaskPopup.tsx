@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { X, Calendar, AlertCircle, Pin } from "lucide-react";
+import {
+  X,
+  Calendar,
+  AlertCircle,
+  Pin,
+  ChevronDown,
+  XCircle,
+} from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Collection } from "@/types/schema";
 
@@ -294,6 +301,11 @@ const CreateTaskModal = ({
     [showError]
   );
 
+  // Clear the due date (new function)
+  const clearDueDate = useCallback(() => {
+    setDueDate("");
+  }, []);
+
   if (!isOpen) return null;
 
   // Format today's date for the min attribute
@@ -472,10 +484,40 @@ const CreateTaskModal = ({
                   min={today}
                   value={dueDate}
                   onChange={handleDateChange}
-                  className={`${inputStyle} pl-10`}
+                  className={`${inputStyle} pl-10 ${dueDate ? "pr-10" : ""}`}
                   disabled={isSubmitting}
                 />
+                {dueDate && (
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <button
+                      type="button"
+                      onClick={clearDueDate}
+                      className={`rounded-full p-1 ${
+                        isDark
+                          ? "text-gray-400 hover:text-gray-200 hover:bg-gray-700"
+                          : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                      }`}
+                      disabled={isSubmitting}
+                      aria-label="Clear due date"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
               </div>
+              {dueDate && (
+                <div className="mt-1 text-xs text-gray-500">
+                  {new Date(dueDate + "T12:00:00").toLocaleDateString(
+                    undefined,
+                    {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    }
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="mb-4">
@@ -487,28 +529,40 @@ const CreateTaskModal = ({
               >
                 Collection
               </label>
-              <select
-                id="collection"
-                value={selectedCollectionId}
-                onChange={(e) => setSelectedCollectionId(e.target.value)}
-                className={inputStyle}
-                disabled={isSubmitting || collections.length === 0}
-              >
-                {collections.length === 0 ? (
-                  <option value="">No collections available</option>
-                ) : (
-                  <>
-                    <option value="">Select a collection</option>
-                    {collections.map((collection) => (
-                      <option key={collection.id} value={collection.id}>
-                        {collection.is_default
-                          ? `${collection.collection_name || "General"} (Default)`
-                          : collection.collection_name || "Unnamed Collection"}
-                      </option>
-                    ))}
-                  </>
-                )}
-              </select>
+              <div className="relative">
+                <select
+                  id="collection"
+                  value={selectedCollectionId}
+                  onChange={(e) => setSelectedCollectionId(e.target.value)}
+                  className={`${inputStyle} appearance-none pr-10`}
+                  disabled={isSubmitting || collections.length === 0}
+                  style={{
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
+                  }}
+                >
+                  {collections.length === 0 ? (
+                    <option value="">No collections available</option>
+                  ) : (
+                    <>
+                      <option value="">Select a collection</option>
+                      {collections.map((collection) => (
+                        <option key={collection.id} value={collection.id}>
+                          {collection.is_default
+                            ? `${collection.collection_name || "General"} (Default)`
+                            : collection.collection_name ||
+                              "Unnamed Collection"}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3">
+                  <ChevronDown
+                    className={`h-4 w-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}
+                  />
+                </div>
+              </div>
               {collections.length === 0 && (
                 <p
                   className={`mt-1 text-xs ${isDark ? "text-yellow-400" : "text-yellow-600"}`}
@@ -534,27 +588,30 @@ const CreateTaskModal = ({
                 disabled={!taskName.trim() || isSubmitting}
               >
                 {isSubmitting ? (
-                  <svg
-                    className="animate-spin h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
+                  <div className="flex items-center justify-center">
+                    <svg
+                      className="animate-spin h-5 w-5 text-white mr-2"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Creating...
+                  </div>
                 ) : (
                   "Create"
                 )}
