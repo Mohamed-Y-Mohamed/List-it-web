@@ -60,9 +60,11 @@ const CreateNoteModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorTimeout, setErrorTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [shouldFocusInput, setShouldFocusInput] = useState(true);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const colorSectionRef = useRef<HTMLDivElement>(null);
 
   const getDefaultCollection = useCallback(() => {
     const general = collections.find(
@@ -88,9 +90,22 @@ const CreateNoteModal = ({
       if (!selectedColor) {
         setSelectedColor(LIST_COLORS[0]);
       }
-      setTimeout(() => inputRef.current?.focus(), 100);
+      // Only focus the input field when modal first opens
+      if (shouldFocusInput) {
+        setTimeout(() => inputRef.current?.focus(), 100);
+        setShouldFocusInput(false);
+      }
+    } else {
+      // Reset shouldFocusInput when modal closes
+      setShouldFocusInput(true);
     }
-  }, [isOpen, selectedCollectionId, getDefaultCollection, selectedColor]);
+  }, [
+    isOpen,
+    selectedCollectionId,
+    getDefaultCollection,
+    selectedColor,
+    shouldFocusInput,
+  ]);
 
   useEffect(() => {
     const click = (e: MouseEvent) => {
@@ -136,6 +151,13 @@ const CreateNoteModal = ({
     },
     [errorTimeout]
   );
+
+  const handleColorSelect = (color: string) => {
+    // Prevent default to avoid any focus changes
+    setSelectedColor(color);
+    // Make sure we don't focus on title after selecting color
+    setShouldFocusInput(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -269,14 +291,21 @@ const CreateNoteModal = ({
               >
                 Color
               </label>
-              <div className="flex gap-2 flex-wrap">
+              <div ref={colorSectionRef} className="flex gap-2 flex-wrap">
                 {LIST_COLORS.map((color) => (
                   <button
                     key={color}
                     type="button"
                     className={`h-8 w-8 rounded-full relative ${selectedColor === color ? "ring-2 ring-offset-2 ring-sky-500" : ""}`}
                     style={{ backgroundColor: color }}
-                    onClick={() => setSelectedColor(color)}
+                    onClick={(e) => {
+                      e.preventDefault(); // Prevent form submission
+                      handleColorSelect(color);
+                    }}
+                    onMouseDown={(e) => {
+                      // Prevent default to avoid any focus-related browser behaviors
+                      e.preventDefault();
+                    }}
                   >
                     {selectedColor === color && (
                       <div className="absolute inset-0 flex items-center justify-center">
