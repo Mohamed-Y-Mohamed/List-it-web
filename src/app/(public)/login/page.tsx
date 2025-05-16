@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { LogIn, Mail, Lock, AlertCircle, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
 import { AuthError } from "@supabase/supabase-js";
@@ -13,7 +13,6 @@ const Login: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   // Always redirect to dashboard after login
   const redirectTo = "/dashboard";
@@ -27,24 +26,7 @@ const Login: React.FC = () => {
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [logoutSuccess, setLogoutSuccess] = useState(false);
   const [googleComingSoon, setGoogleComingSoon] = useState(false);
-  const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
-
-  // Check for logout success message or password reset success
-  useEffect(() => {
-    if (searchParams) {
-      // Check for logout success
-      if (searchParams.get("logout") === "true") {
-        setLogoutSuccess(true);
-      }
-
-      // Check for password reset success
-      if (searchParams.get("password_reset") === "success") {
-        setPasswordResetSuccess(true);
-      }
-    }
-  }, [searchParams]);
 
   // Load saved email on mount if it exists (just to fill the form)
   useEffect(() => {
@@ -182,33 +164,6 @@ const Login: React.FC = () => {
             >
               Log in to your account
             </h1>
-
-            {/* Logout success message */}
-            {logoutSuccess && (
-              <div
-                className="mt-4 w-full max-w-xs bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
-                role="alert"
-              >
-                <div className="flex items-center">
-                  <span>You have been successfully logged out</span>
-                </div>
-              </div>
-            )}
-
-            {/* Password reset success message */}
-            {passwordResetSuccess && (
-              <div
-                className="mt-4 w-full max-w-xs bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
-                role="alert"
-              >
-                <div className="flex items-center">
-                  <span>
-                    Your password has been successfully reset. Please log in
-                    with your new password.
-                  </span>
-                </div>
-              </div>
-            )}
 
             {/* Error message display */}
             {error && (
@@ -447,4 +402,6 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login;
+export default function LoginPage() {
+  return <Login />;
+}
