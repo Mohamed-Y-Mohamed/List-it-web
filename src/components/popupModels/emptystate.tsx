@@ -47,7 +47,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   return (
     <div
       className={`text-center py-16 rounded-xl ${
-        isDark ? "bg-gray-800/80 text-gray-300" : "bg-white text-gray-500"
+        isDark ? "bg-gray-800/20 text-gray-300" : "bg-white text-gray-500"
       } shadow-lg transition-all duration-300`}
     >
       <div className="flex flex-col items-center justify-center space-y-5">

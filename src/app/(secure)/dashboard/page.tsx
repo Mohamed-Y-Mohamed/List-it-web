@@ -58,7 +58,7 @@ const DashboardStats: React.FC<{
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Total Tasks Card */}
       <div
-        className={`p-4 rounded-xl ${isDark ? "bg-gray-800" : "bg-white"} shadow-sm relative overflow-hidden group`}
+        className={`p-4 rounded-xl ${isDark ? "bg-gray-800/50" : "bg-white/50"} shadow-sm relative overflow-hidden group`}
       >
         <div className="absolute -bottom-3 -right-3 h-16 w-16 rounded-full blur-xl opacity-20 bg-blue-500 group-hover:opacity-40 transition-opacity duration-300"></div>
         <div className="flex flex-col h-full">
@@ -95,7 +95,7 @@ const DashboardStats: React.FC<{
 
       {/* Completed Card */}
       <div
-        className={`p-4 rounded-xl ${isDark ? "bg-gray-800" : "bg-white"} shadow-sm relative overflow-hidden group`}
+        className={`p-4 rounded-xl ${isDark ? "bg-gray-800/50" : "bg-white/50"} shadow-sm relative overflow-hidden group`}
       >
         <div className="absolute -bottom-3 -right-3 h-16 w-16 rounded-full blur-xl opacity-20 bg-green-500 group-hover:opacity-40 transition-opacity duration-300"></div>
         <div className="flex flex-col h-full">
@@ -134,7 +134,7 @@ const DashboardStats: React.FC<{
 
       {/* Due Today Card */}
       <div
-        className={`p-4 rounded-xl ${isDark ? "bg-gray-800" : "bg-white"} shadow-sm relative overflow-hidden group`}
+        className={`p-4 rounded-xl ${isDark ? "bg-gray-800/50" : "bg-white/50"} shadow-sm relative overflow-hidden group`}
       >
         <div className="absolute -bottom-3 -right-3 h-16 w-16 rounded-full blur-xl opacity-20 bg-blue-500 group-hover:opacity-40 transition-opacity duration-300"></div>
         <div className="flex flex-col h-full">
@@ -173,7 +173,7 @@ const DashboardStats: React.FC<{
 
       {/* Overdue Card */}
       <div
-        className={`p-4 rounded-xl ${isDark ? "bg-gray-800" : "bg-white"} shadow-sm relative overflow-hidden group`}
+        className={`p-4 rounded-xl ${isDark ? "bg-gray-800/50" : "bg-white/50"} shadow-sm relative overflow-hidden group`}
       >
         <div className="absolute -bottom-3 -right-3 h-16 w-16 rounded-full blur-xl opacity-20 bg-red-500 group-hover:opacity-40 transition-opacity duration-300"></div>
         <div className="flex flex-col h-full">
@@ -285,7 +285,7 @@ const RecentTaskActivity: React.FC<{
         {[1, 2, 3].map((i) => (
           <div key={i} className="flex items-start animate-pulse">
             <div
-              className={`h-8 w-8 rounded-full ${isDark ? "bg-gray-700" : "bg-gray-200"} mr-3`}
+              className={`h-8 w-8 rounded-full ${isDark ? "bg-gray-700/50" : "bg-gray-200/50"} mr-3`}
             ></div>
             <div className="flex-1">
               <div
@@ -371,7 +371,7 @@ const PriorityTasks: React.FC<{
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className={`p-3 rounded-lg ${isDark ? "bg-gray-700" : "bg-gray-100"} animate-pulse`}
+            className={`p-3 rounded-lg ${isDark ? "bg-gray-700/50" : "bg-gray-100"} animate-pulse`}
           >
             <div
               className={`h-4 w-3/4 rounded ${isDark ? "bg-gray-600" : "bg-gray-200"} mb-2`}
@@ -405,7 +405,7 @@ const PriorityTasks: React.FC<{
           className={`block p-3 rounded-lg ${
             isDark
               ? "bg-gray-700/50 hover:bg-gray-700 border border-gray-700"
-              : "bg-gray-50 hover:bg-gray-100 border border-gray-100"
+              : "bg-gray-50/50 hover:bg-gray-100 border border-gray-100"
           } transition-colors duration-200`}
         >
           <div className="flex items-start">
@@ -491,7 +491,7 @@ const QuickActionCard: React.FC<QuickActionCardProps> = ({
   const Icon = icon;
   return (
     <div
-      className={`p-4 rounded-xl shadow-sm ${isDark ? "bg-gray-800" : "bg-white"}`}
+      className={`p-4 rounded-xl shadow-sm ${isDark ? "bg-gray-800/50" : "bg-white/50"}`}
     >
       <div className={`p-2 rounded-lg w-fit ${bgColor}`}>
         <Icon className="h-5 w-5 text-white" />
@@ -522,7 +522,7 @@ const QuickActionCard: React.FC<QuickActionCardProps> = ({
 const NewUserWelcome: React.FC<{ isDark: boolean }> = ({ isDark }) => {
   return (
     <div
-      className={`rounded-xl shadow-sm p-8 text-center ${isDark ? "bg-gray-800" : "bg-white"}`}
+      className={`rounded-xl shadow-sm p-8 text-center ${isDark ? "bg-gray-800/50" : "bg-white/50"}`}
     >
       <div className="mx-auto w-16 h-16 flex items-center justify-center rounded-full bg-blue-100 mb-4">
         <Calendar className="h-8 w-8 text-blue-600" />
@@ -709,11 +709,16 @@ export default function Dashboard() {
 
   return (
     <main
-      className={`transition-all duration-300 
-          py-4 pt-20 px-3 sm:px-4 md:px-6 lg:px-8
-          min-h-screen w-full
-          ${isDark ? "bg-gray-700 text-gray-200" : "bg-gray-50 text-gray-800"}`}
+      className={`transition-all pt-16 pr-16 min-h-screen duration-300 
+     pb-20 w-full relative
+    ${isDark ? "text-gray-200" : "text-gray-800"}
+    `}
     >
+      {isDark ? (
+        <div className="absolute inset-0 -z-10 size-full items-center [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#7c2d12_100%)]" />
+      ) : (
+        <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_60%_10%,#fff_20%,#bae6fd_100%)]" />
+      )}
       <div className="max-w-7xl pl-20 w-full mx-auto">
         {/* Dashboard header */}
         <header className="mb-6">
@@ -725,7 +730,11 @@ export default function Dashboard() {
           <p
             className={`text-sm sm:text-base mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}
           >
-            Welcome back, {user?.email ? user.email.split("@")[0] : "there"}!
+            Welcome back,{" "}
+            {user?.user_metadata.full_name
+              ? user.user_metadata.full_name
+              : "there"}
+            !
           </p>
         </header>
 
@@ -744,7 +753,7 @@ export default function Dashboard() {
               <div className="lg:col-span-2 space-y-6">
                 {/* Tasks Status Distribution */}
                 <div
-                  className={`rounded-xl shadow-sm p-5 ${isDark ? "bg-gray-800" : "bg-white"}`}
+                  className={`rounded-xl shadow-sm p-5 ${isDark ? "bg-gray-800/50" : "bg-white/50"}`}
                 >
                   <div className="flex justify-between items-center mb-4">
                     <h2
@@ -803,7 +812,7 @@ export default function Dashboard() {
 
                 {/* Recent Activity */}
                 <div
-                  className={`rounded-xl shadow-sm p-5 ${isDark ? "bg-gray-800" : "bg-white"}`}
+                  className={`rounded-xl shadow-sm p-5 ${isDark ? "bg-gray-800/50" : "bg-white/50"}`}
                 >
                   <div className="flex justify-between items-center mb-4">
                     <h2
@@ -832,7 +841,7 @@ export default function Dashboard() {
               <div className="space-y-6">
                 {/* Priority Tasks */}
                 <div
-                  className={`rounded-xl shadow-sm p-5 ${isDark ? "bg-gray-800" : "bg-white"}`}
+                  className={`rounded-xl shadow-sm p-5 ${isDark ? "bg-gray-800/50" : "bg-white/50"}`}
                 >
                   <div className="flex justify-between items-center mb-4">
                     <h2
@@ -871,7 +880,7 @@ export default function Dashboard() {
 
                 {/* Task Completion Progress */}
                 <div
-                  className={`rounded-xl shadow-sm p-5 ${isDark ? "bg-gray-800" : "bg-white"}`}
+                  className={`rounded-xl shadow-sm p-5 ${isDark ? "bg-gray-800/50" : "bg-white/50"}`}
                 >
                   <div className="flex justify-between items-center mb-4">
                     <h2

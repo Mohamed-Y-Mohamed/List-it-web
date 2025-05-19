@@ -5,6 +5,7 @@ import { Pin, AlertCircle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import NoteSidebar from "@/components/popupModels/notedetail";
 import { Note } from "@/types/schema";
+import { useRouter } from "next/navigation"; // ← import router
 
 // Define a proper result type for operations
 interface OperationResult {
@@ -52,7 +53,10 @@ const NoteCard = ({
   className = "",
 }: NoteCardProps) => {
   const { theme } = useTheme();
+
   const isDark = theme === "dark";
+  const router = useRouter(); // ← instantiate
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [noteTitle, setNoteTitle] = useState(title || "");
   const [noteDescription, setNoteDescription] = useState(description || "");
@@ -83,8 +87,13 @@ const NoteCard = ({
   const displayTitle = noteTitle || "Untitled Note";
 
   // Card styling
+  // Card styling with glassy effect
   const cardStyle = noteBackgroundColor
-    ? { backgroundColor: noteBackgroundColor }
+    ? {
+        backgroundColor: noteBackgroundColor,
+        // Add subtle gradient overlay for glass effect but preserve base color
+        backgroundImage: `linear-gradient(120deg, ${noteBackgroundColor}dd, ${noteBackgroundColor}aa)`,
+      }
     : {};
 
   const bgClass = !noteBackgroundColor
@@ -92,6 +101,8 @@ const NoteCard = ({
       ? "bg-gray-800"
       : "bg-yellow-50"
     : "";
+
+  // Glass effect classes
 
   const useWhiteText = noteBackgroundColor
     ? !["#FFD60A", "#34C759", "#00C7BE"].includes(noteBackgroundColor)
@@ -208,6 +219,7 @@ const NoteCard = ({
       if (updatedDescription !== undefined) {
         setNoteDescription(updatedDescription);
       }
+
       return { success: true };
     } catch (err) {
       console.error("Error updating note:", err);
@@ -230,7 +242,6 @@ const NoteCard = ({
 
     try {
       const result = await onNoteDelete(noteId);
-
       if (!result.success) {
         throw new Error(
           result.error ? String(result.error) : "Failed to delete note"
@@ -242,6 +253,8 @@ const NoteCard = ({
 
       // The parent component will handle removing this note from the UI
       // No need to update local state here since the component will be unmounted
+      router.refresh();
+
       return { success: true };
     } catch (err) {
       console.error("Error deleting note:", err);
@@ -298,24 +311,16 @@ const NoteCard = ({
 
         <button
           onClick={handlePinClick}
-          className={`absolute top-2 right-2 p-1 rounded-full transition-colors ${
-            isDark ? "hover:bg-gray-600/50" : "hover:bg-gray-200/50"
+          className={`absolute top-2 right-2 p-1 rounded-full txt-white transition-colors ${
+            isDark
+              ? "bg-gray-500/80 hover:bg-gray-600/50"
+              : "bg-gray-500/80 hover:bg-gray-200/10"
           } ${isProcessing ? "opacity-50" : ""}`}
           aria-label={is_pinned ? "Unpin note" : "Pin note"}
           disabled={isProcessing}
           type="button"
         >
-          <Pin
-            className={`h-4 w-4 ${
-              is_pinned
-                ? useWhiteText
-                  ? "text-white fill-orange-400"
-                  : "text-black fill-orange-500"
-                : useWhiteText
-                  ? "text-white stroke-2"
-                  : "text-black stroke-2"
-            }`}
-          />
+          <Pin className={`h-5 w-5 ${is_pinned ? "fill-current" : ""}`} />
         </button>
 
         <div className="absolute bottom-0 left-0 right-0 p-2">
@@ -324,7 +329,7 @@ const NoteCard = ({
           </h4>
           {noteDescription && (
             <p
-              className={`text-xs line-clamp-2 ${textColor} opacity-80 break-words`}
+              className={`text-xs line-clamp-1 ${textColor} opacity-80 break-words`}
               title={noteDescription}
             >
               {noteDescription}

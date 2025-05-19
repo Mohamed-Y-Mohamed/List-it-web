@@ -164,7 +164,7 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
       <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
         <div
           ref={modalRef}
-          className={`w-full max-w-md rounded-lg ${isDark ? "bg-gray-800" : "bg-white"} shadow-xl transition-all p-6 mx-4 pointer-events-auto`}
+          className={`w-full max-w-md rounded-lg ${isDark ? "bg-gray-800/50" : "bg-white/70"} shadow-xl transition-all p-6 mx-4 pointer-events-auto`}
         >
           <div className="flex justify-between items-center mb-4">
             <h2

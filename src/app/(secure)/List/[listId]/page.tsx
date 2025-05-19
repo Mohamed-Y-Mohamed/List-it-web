@@ -45,7 +45,12 @@ const handleTaskDelete = async (taskId: string) => {
     return { success: false, error: err };
   }
 };
-
+interface OperationResult {
+  success: boolean;
+  error?: unknown;
+  data?: unknown;
+  warning?: string;
+}
 export default function ListPage() {
   const params = useParams();
   const listId = params?.listId as string;
@@ -75,11 +80,13 @@ export default function ListPage() {
 
   // Add a refresh trigger to force re-fetch of data
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   // Function to trigger a data refresh
   const refreshData = useCallback(() => {
     setRefreshTrigger((prev) => prev + 1);
   }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   // Function to check if a collection name is "General"
   const isGeneralCollection = useCallback(
@@ -253,6 +260,7 @@ export default function ListPage() {
 
     fetchListData();
   }, [listId, user, refreshTrigger, isGeneralCollection]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   // Handler for creating a new collection
   const handleCreateCollection = useCallback(
@@ -773,7 +781,7 @@ export default function ListPage() {
           .from("note")
           .update(updateData)
           .eq("id", noteId)
-          .select();
+          .select("*");
 
         if (error) throw error;
 
@@ -796,6 +804,10 @@ export default function ListPage() {
               })
             );
           }
+
+          // Refresh all data when a note is updated to ensure collection changes are reflected
+          refreshData();
+
           return { success: true };
         }
         return { success: false, error: "No data returned from update" };
@@ -806,7 +818,96 @@ export default function ListPage() {
     },
     []
   );
+  // Handler for changing a task's collection
+  const handleTaskCollectionChange = useCallback(
+    async (
+      taskId: string,
+      newCollectionId: string
+    ): Promise<OperationResult> => {
+      try {
+        // First find the task and its current collection
+        let taskToMove = null;
+        let oldCollectionId = null;
 
+        for (const collection of collections) {
+          if (!collection.tasks) continue;
+
+          const foundTask = collection.tasks.find((task) => task.id === taskId);
+          if (foundTask) {
+            taskToMove = { ...foundTask };
+            oldCollectionId = collection.id;
+            break;
+          }
+        }
+
+        if (!taskToMove) {
+          return { success: false, error: "Task not found" };
+        }
+
+        // Update the collection_id in the database
+        const { error } = await supabase
+          .from("task")
+          .update({ collection_id: newCollectionId })
+          .eq("id", taskId);
+
+        if (error) throw error;
+
+        // Update local state to move the task between collections
+        setCollections((prevCollections) => {
+          // Create a copy of the collections
+          const updatedCollections = [...prevCollections];
+
+          // Remove the task from its old collection
+          if (oldCollectionId) {
+            const oldCollectionIndex = updatedCollections.findIndex(
+              (c) => c.id === oldCollectionId
+            );
+            if (
+              oldCollectionIndex >= 0 &&
+              updatedCollections[oldCollectionIndex].tasks
+            ) {
+              updatedCollections[oldCollectionIndex] = {
+                ...updatedCollections[oldCollectionIndex],
+                tasks:
+                  updatedCollections[oldCollectionIndex].tasks?.filter(
+                    (t) => t.id !== taskId
+                  ) || [],
+              };
+            }
+          }
+
+          // Add the task to its new collection with updated collection_id
+          const newCollectionIndex = updatedCollections.findIndex(
+            (c) => c.id === newCollectionId
+          );
+          if (newCollectionIndex >= 0) {
+            // Update the task's collection_id
+            const updatedTask = {
+              ...taskToMove,
+              collection_id: newCollectionId,
+            };
+
+            // Add the task to the new collection
+            updatedCollections[newCollectionIndex] = {
+              ...updatedCollections[newCollectionIndex],
+              tasks: [
+                updatedTask,
+                ...(updatedCollections[newCollectionIndex].tasks || []),
+              ],
+            };
+          }
+
+          return updatedCollections;
+        });
+
+        return { success: true };
+      } catch (err) {
+        console.error("Error changing task collection:", err);
+        return { success: false, error: err };
+      }
+    },
+    [collections]
+  );
   // Handler for note deletion
   const handleNoteDelete = useCallback(
     async (noteId: string) => {
@@ -825,10 +926,7 @@ export default function ListPage() {
         }
 
         // Update is_deleted flag in the database
-        const { error } = await supabase
-          .from("note")
-          .update({ is_deleted: true })
-          .eq("id", noteId);
+        const { error } = await supabase.from("note").delete().eq("id", noteId);
 
         if (error) throw error;
 
@@ -890,19 +988,17 @@ export default function ListPage() {
     if (!collections) return [];
 
     return [...collections].sort((a, b) => {
-      // First sort by pinned status
-      if (a.isPinned && !b.isPinned) return -1;
-      if (!a.isPinned && b.isPinned) return 1;
-
-      // Then sort by default status (General collection first)
       const aIsGeneral = isGeneralCollection(a.collection_name);
       const bIsGeneral = isGeneralCollection(b.collection_name);
 
+      // General first
       if (aIsGeneral && !bIsGeneral) return -1;
       if (!aIsGeneral && bIsGeneral) return 1;
 
-      // Finally sort by name
-      return (a.collection_name || "").localeCompare(b.collection_name || "");
+      // Then by creation date ascending (oldest first, newest last)
+      return (
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
     });
   }, [collections, isGeneralCollection]);
 
@@ -927,14 +1023,16 @@ export default function ListPage() {
 
   return (
     <main
-      className={`transition-all  duration-300 
-       pb-20 w-full
-      ${isDark ? "text-gray-200" : "text-gray-800"}
-      `}
-      style={{
-        backgroundColor: isDark ? "#2d3748" : "#FAF9F6",
-      }}
+      className={`transition-all min-h-screen duration-300 
+     pb-20 w-full relative
+    ${isDark ? "text-gray-200" : "text-gray-800"}
+    `}
     >
+      {isDark ? (
+        <div className="absolute inset-0 -z-10 size-full items-center px-5 py-24 [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#7c2d12_100%)]" />
+      ) : (
+        <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_60%_10%,#fff_20%,#bae6fd_100%)]" />
+      )}
       <div className="p-4  pt-20 box-border">
         <div className={`max-w-6xl mx-auto`}>
           {/* Loading state */}
@@ -993,7 +1091,7 @@ export default function ListPage() {
                 <div
                   className={`text-center py-16 rounded-xl ${
                     isDark
-                      ? "bg-gray-800 text-gray-300"
+                      ? "bg-gray-900/80 text-gray-300"
                       : "bg-white/90 text-gray-500"
                   } shadow-md`}
                 >
@@ -1028,10 +1126,12 @@ export default function ListPage() {
                       onTaskPriority={handleTaskPriority}
                       onTaskUpdate={handleTaskUpdate}
                       onTaskDelete={handleTaskDeleteWithUIUpdate}
+                      onCollectionChange={handleTaskCollectionChange}
                       onNotePin={handleNotePin}
                       onNoteColorChange={handleNoteColorChange}
                       onNoteUpdate={handleNoteUpdate}
                       onNoteDelete={handleNoteDelete}
+                      collections={collections} // Pass all collections
                     />
                   ))}
                 </div>

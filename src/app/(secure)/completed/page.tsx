@@ -167,18 +167,22 @@ export default function CompletedPage() {
 
   return (
     <div
-      className="pl-16 pt-16 min-h-screen"
-      style={{
-        backgroundColor: isDark ? "#2d3748" : "#edf2f7",
-        color: isDark ? "#e0e0e0" : "#212121",
-      }}
+      className={`transition-all pt-16 pr-16 min-h-screen duration-300 
+     pb-20 w-full relative
+    ${isDark ? "text-gray-200" : "text-gray-800"}
+    `}
     >
+      {isDark ? (
+        <div className="absolute inset-0 -z-10 size-full items-center [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#7c2d12_100%)]" />
+      ) : (
+        <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_60%_10%,#fff_20%,#bae6fd_100%)]" />
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <header className="mb-8">
           <div className="flex justify-between items-center">
             <h1
               className={`text-3xl font-bold tracking-tight ${
-                isDark ? "text-white" : "text-gray-900"
+                isDark ? "text-white" : "text-gray-900/50"
               }`}
             >
               Completed Tasks
@@ -222,11 +226,11 @@ export default function CompletedPage() {
           ) : sortedDates.length === 0 ? (
             <div
               className={`flex flex-col items-center justify-center py-16 rounded-xl shadow-sm ${
-                isDark ? "bg-gray-800" : "bg-white"
+                isDark ? "bg-gray-800/70" : "bg-white"
               }`}
             >
               <p
-                className={`text-xl ${isDark ? "text-gray-300" : "text-gray-600"}`}
+                className={`text-xl ${isDark ? "text-gray-300" : "text-gray-600/70"}`}
               >
                 No completed tasks.
               </p>
@@ -238,7 +242,7 @@ export default function CompletedPage() {
                 <div
                   className={`w-full rounded-lg shadow-md overflow-hidden ${
                     isDark
-                      ? "bg-gray-800 text-gray-100"
+                      ? "bg-gray-800/50 text-gray-100"
                       : "bg-gray-50 text-gray-900"
                   } py-3`}
                 >
@@ -304,7 +308,7 @@ export default function CompletedPage() {
                 {/* Selected date tasks display */}
                 <div
                   className={`mt-8 rounded-xl shadow-md overflow-hidden ${
-                    isDark ? "bg-gray-800" : "bg-white"
+                    isDark ? "bg-gray-800/50" : "bg-white"
                   }`}
                 >
                   <div

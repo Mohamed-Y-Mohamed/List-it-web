@@ -25,7 +25,7 @@ const Footer = () => {
   return (
     <>
       <footer
-        className={`${isDark ? "bg-gray-900" : "bg-gray-200"} py-12 ${
+        className={`${isDark ? "bg-gray-900/80" : "bg-gray-100/100"} py-12 ${
           isDark ? "text-white" : "text-gray-800"
         } transition-colors duration-300`}
       >

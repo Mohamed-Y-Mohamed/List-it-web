@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { ChevronDown, ChevronRight, StickyNote } from "lucide-react";
+import { ChevronDown, ChevronRight, ListTodo, StickyNote } from "lucide-react";
 import TaskCard from "@/components/Tasks/index";
 import NoteCard from "@/components/Notes/noteCard";
-import { Task, Note } from "@/types/schema";
+import { Task, Note, Collection } from "@/types/schema";
 import { useTheme } from "@/context/ThemeContext";
 
 // Define types for operation results
@@ -13,6 +13,7 @@ interface OperationResult {
   error?: unknown;
 }
 
+// Make sure to add onCollectionChange to the interface// In CollectionComponentProps interface
 interface CollectionComponentProps {
   id: string;
   collection_name: string;
@@ -40,6 +41,10 @@ interface CollectionComponentProps {
       is_pinned: boolean;
     }
   ) => Promise<OperationResult>;
+  onCollectionChange?: (
+    taskId: string,
+    collectionId: string
+  ) => Promise<OperationResult>;
   onNotePin?: (noteId: string, isPinned: boolean) => Promise<OperationResult>;
   onNoteColorChange?: (
     noteId: string,
@@ -51,6 +56,7 @@ interface CollectionComponentProps {
     updatedDescription?: string
   ) => Promise<OperationResult>;
   onNoteDelete?: (noteId: string) => Promise<OperationResult>;
+  collections?: Collection[]; // Add this prop
   className?: string;
 }
 
@@ -64,10 +70,12 @@ const CollectionComponent = ({
   onTaskPriority,
   onTaskUpdate,
   onTaskDelete,
+  onCollectionChange,
   onNotePin,
   onNoteColorChange,
   onNoteUpdate,
   onNoteDelete,
+  collections = [], // Add this with a default empty array
   className = "",
 }: CollectionComponentProps) => {
   const collectionId = id; // Store id to satisfy ESLint
@@ -83,7 +91,7 @@ const CollectionComponent = ({
   const [errorTimeout, setErrorTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Enhanced color utilities for better light/dark mode appearance
-  const bgColor = isDark ? "bg-gray-900" : "bg-white";
+  const bgColor = isDark ? "bg-gray-900/40" : "bg-white/70";
   const headerBgColor = isDark ? "bg-gray-850" : "bg-gray-50";
   const textColor = isDark ? "text-gray-100" : "text-gray-800";
   const subtextColor = isDark ? "text-gray-400" : "text-gray-600";
@@ -434,6 +442,8 @@ const CollectionComponent = ({
               id="tasks-tab"
             >
               <div className="flex items-center justify-center space-x-1">
+                <ListTodo className="h-4 w-4" />
+
                 <span>Tasks</span>
               </div>
               {activeTab === "tasks" && (
@@ -483,7 +493,6 @@ const CollectionComponent = ({
         >
           {activeTab === "tasks" && (
             <div className="space-y-3">
-              {/* Priority Tasks Section */}
               {priorityTasks.length > 0 && (
                 <>
                   <div className="space-y-2">
@@ -495,6 +504,8 @@ const CollectionComponent = ({
                         onPriorityChange={handleTaskPriorityWithErrorHandling}
                         onTaskUpdate={handleTaskUpdateWithErrorHandling}
                         onTaskDelete={handleTaskDeleteWithErrorHandling}
+                        onCollectionChange={onCollectionChange}
+                        collections={collections} // Pass the collections prop
                       />
                     ))}
                   </div>
@@ -518,6 +529,8 @@ const CollectionComponent = ({
                       onPriorityChange={handleTaskPriorityWithErrorHandling}
                       onTaskUpdate={handleTaskUpdateWithErrorHandling}
                       onTaskDelete={handleTaskDeleteWithErrorHandling}
+                      onCollectionChange={onCollectionChange}
+                      collections={collections} // Pass the collections prop
                     />
                   ))}
                 </div>
@@ -530,7 +543,6 @@ const CollectionComponent = ({
               )}
             </div>
           )}
-
           {activeTab === "notes" && (
             <>
               {sortedNotes.length > 0 ? (

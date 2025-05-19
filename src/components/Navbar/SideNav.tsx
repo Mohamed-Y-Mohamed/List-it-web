@@ -18,7 +18,6 @@ import {
   ClockAlert,
   Pin,
   Home,
-  Info,
   Sun,
   Moon,
   LogOut,
@@ -128,6 +127,8 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
 
   const navigateTo = (path: string): void => {
     router.push(path);
+    setSidebarOpen(false); // Always close the sidebar on navigation
+
     if (window.innerWidth < 1024) {
       setSidebarOpen(false);
     }
@@ -403,7 +404,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         sidebarOpen ? "hidden" : "flex"
       } h-10 w-10 items-center justify-center rounded-md ${
         isDark
-          ? "bg-gray-800 text-orange-400 hover:bg-gray-700"
+          ? "bg-gray-800/50 text-orange-400 hover:bg-gray-700"
           : "bg-white text-sky-500 hover:bg-gray-100"
       } shadow-md transition-colors`}
       aria-label="Open menu"
@@ -418,23 +419,21 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
 
   return (
     <div className="flex ">
-      {/* Toggle button visible when sidebar is closed */}
       <SidebarToggleButton />
 
-      {/* Sidebar overlay when open on mobile */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/50 bg-opacity-50 z-30 lg:hidden"
           onClick={toggleSidebar}
         />
       )}
 
       {/* Sidebar */}
       <nav
-        className={`fixed left-0 top-0 h-full ${sidebarOpen ? "w-64" : "w-0"} ${
+        className={`fixed left-0 top-0 h-full  ${sidebarOpen ? "w-64" : "w-0"} ${
           isDark
-            ? "bg-gray-900 text-gray-200 border-r border-gray-800"
-            : "bg-white text-gray-800 border-r border-gray-100"
+            ? "bg-gray-900/80 text-gray-200 border-r border-gray-800"
+            : "bg-white/50 text-gray-800 border-r border-gray-100"
         } shadow-lg transition-all duration-300 z-40 overflow-hidden`}
       >
         <div className={`flex flex-col h-full`}>
@@ -496,27 +495,6 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                   }`}
                 />
                 <span className="ml-3 text-sm font-medium">Home</span>
-              </button>
-              <button
-                onClick={() => navigateTo("/aboutus")}
-                className={`flex w-full items-center px-3 py-2 rounded-md ${
-                  currentPath === "/aboutus"
-                    ? isDark
-                      ? "bg-gray-800"
-                      : "bg-gray-100"
-                    : ""
-                } ${
-                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-                } transition-colors group`}
-              >
-                <Info
-                  className={`h-5 w-5 ${
-                    isDark
-                      ? "text-gray-400 group-hover:text-orange-400"
-                      : "text-gray-500 group-hover:text-orange-500"
-                  }`}
-                />
-                <span className="ml-3 text-sm font-medium">About</span>
               </button>
             </div>
 

@@ -252,7 +252,7 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
         <div
           ref={modalRef}
           className={`w-full max-w-md pointer-events-auto p-6 rounded-lg shadow-xl mx-4 ${
-            isDark ? "bg-gray-800" : "bg-white"
+            isDark ? "bg-gray-800/50" : "bg-white/70"
           }`}
           role="dialog"
           aria-modal="true"

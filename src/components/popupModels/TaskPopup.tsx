@@ -341,7 +341,7 @@ const CreateTaskModal = ({
         <div
           ref={modalRef}
           className={`w-full max-w-md rounded-lg ${
-            isDark ? "bg-gray-800" : "bg-white"
+            isDark ? "bg-gray-800/50" : "bg-white/70"
           } shadow-xl transition-all p-6 mx-4 pointer-events-auto`}
           role="dialog"
           aria-modal="true"
@@ -408,32 +408,40 @@ const CreateTaskModal = ({
                 maxLength={100}
                 aria-required="true"
               />
-              <div className="mt-1 flex justify-between items-center">
+              <div className="mt-1 flex justify-end items-center">
                 <div className="text-xs text-gray-500">
                   {characterCount}/100
                 </div>
-                <div className="flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => setIsPinned(!isPinned)}
-                    className={`flex items-center text-xs ${
-                      isDark ? "text-gray-300" : "text-gray-700"
-                    } hover:underline`}
-                    disabled={isSubmitting}
-                  >
-                    <Pin
-                      className={`h-3 w-3 mr-1 ${
-                        isPinned
-                          ? isDark
-                            ? "text-orange-400 fill-orange-400"
-                            : "text-orange-500 fill-orange-500"
-                          : ""
-                      }`}
-                    />
-                    {isPinned ? "Priority task" : "Mark as priority"}
-                  </button>
-                </div>
               </div>
+            </div>
+
+            {/* New dedicated row for priority pin */}
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={() => setIsPinned(!isPinned)}
+                className={`flex items-center px-3 py-2 w-full rounded-md border text-sm ${
+                  isPinned
+                    ? isDark
+                      ? "bg-orange-600/20 text-orange-300 border-orange-500"
+                      : "bg-orange-100 text-orange-700 border-orange-300"
+                    : isDark
+                      ? "bg-gray-700/50 text-gray-300 border-gray-600 hover:bg-gray-600/50"
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                } transition-colors duration-200`}
+                disabled={isSubmitting}
+              >
+                <Pin
+                  className={`h-4 w-4 mr-2 ${
+                    isPinned
+                      ? isDark
+                        ? "text-orange-400 fill-orange-400"
+                        : "text-orange-500 fill-orange-500"
+                      : ""
+                  }`}
+                />
+                {isPinned ? "Priority task" : "Mark as priority"}
+              </button>
             </div>
 
             <div className="mb-4">

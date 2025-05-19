@@ -16,6 +16,13 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
 
+interface OperationResult {
+  success: boolean;
+  error?: unknown;
+  data?: unknown;
+  warning?: string;
+}
+
 interface TaskSidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -35,11 +42,11 @@ interface TaskSidebarProps {
   onComplete: (
     taskId: string,
     is_completed: boolean
-  ) => Promise<{ success: boolean; error?: unknown }> | void;
+  ) => Promise<OperationResult> | void;
   onPriorityChange: (
     taskId: string,
     is_pinned: boolean
-  ) => Promise<{ success: boolean; error?: unknown }> | void;
+  ) => Promise<OperationResult> | void;
   onTaskUpdate?: (
     taskId: string,
     taskData: {
@@ -48,15 +55,13 @@ interface TaskSidebarProps {
       due_date?: Date | null;
       is_pinned: boolean;
     }
-  ) => Promise<{ success: boolean; error?: unknown }> | void;
+  ) => Promise<OperationResult> | void;
   collections?: Collection[];
   onCollectionChange?: (
     taskId: string,
     collectionId: string
-  ) => Promise<{ success: boolean; error?: unknown }> | void;
-  onTaskDelete?: (
-    taskId: string
-  ) => Promise<{ success: boolean; error?: unknown }> | void;
+  ) => Promise<OperationResult> | void;
+  onTaskDelete?: (taskId: string) => Promise<OperationResult> | void;
 }
 
 const TaskSidebar = ({
@@ -66,7 +71,7 @@ const TaskSidebar = ({
   onComplete,
   onPriorityChange,
   onTaskUpdate,
-  collections,
+  collections: externalCollections = [],
   onCollectionChange,
   onTaskDelete,
 }: TaskSidebarProps) => {
@@ -75,58 +80,118 @@ const TaskSidebar = ({
   const isDark = theme === "dark";
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  // Form state
-  const [taskName, setTaskName] = useState(task.text);
-  const [taskDescription, setTaskDescription] = useState(
+  // --- FETCH COLLECTIONS FOR THIS TASK'S LIST_ID OR USER ---
+  const [collections, setCollections] =
+    useState<{ id: string; collection_name: string | null }[]>(
+      externalCollections
+    );
+
+  useEffect(() => {
+    if (!isOpen || !user) return;
+    let query = supabase.from("collection").select("id,collection_name");
+    if (task.list_id) {
+      query = query.eq("list_id", task.list_id);
+    } else {
+      query = query.eq("user_id", user.id);
+    }
+    query.order("collection_name", { ascending: true }).then(({ data }) => {
+      if (data) setCollections(data);
+    });
+  }, [isOpen, task.list_id, user]);
+
+  // --- FORM STATE ---
+  const [taskText, setTaskText] = useState<string>(task.text || "");
+  const [taskDescription, setTaskDescription] = useState<string>(
     task.description || ""
   );
-  const [isPinned, setIsPinned] = useState(task.is_pinned);
-  const [dueDate, setDueDate] = useState(
+  const [dueDate, setDueDate] = useState<string>(
     task.due_date ? formatDateForInput(task.due_date) : ""
   );
-  const [selectedCollectionId, setSelectedCollectionId] = useState<
-    string | null
-  >(task.collection_id || null);
-  // UI state
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [selectedCollection, setSelectedCollection] = useState<string>(
+    task.collection_id || ""
+  );
+  const [isPinned, setIsPinned] = useState<boolean>(task.is_pinned || false);
+  const [isCompleted, setIsCompleted] = useState<boolean>(
+    task.is_completed || false
+  );
+
+  const [titleCharCount, setTitleCharCount] = useState<number>(
+    (task.text || "").length
+  );
+  const [descriptionCharCount, setDescriptionCharCount] = useState<number>(
+    (task.description || "").length
+  );
+  const [isTaskChanged, setIsTaskChanged] = useState<boolean>(false);
+
+  // --- UI STATE ---
+  const [showDeleteConfirmation, setShowDeleteConfirmation] =
+    useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorTimeout, setErrorTimeout] = useState<NodeJS.Timeout | null>(null);
   const [successTimeout, setSuccessTimeout] = useState<NodeJS.Timeout | null>(
     null
   );
-  const [isTaskChanged, setIsTaskChanged] = useState(false);
-  const [characterCount, setCharacterCount] = useState(task.text.length);
-  const [descriptionCount, setDescriptionCount] = useState(
-    (task.description || "").length
-  );
 
-  // Refs
-  const taskNameRef = useRef<HTMLInputElement>(null);
-  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const isProcessing = isSaving || isDeleting;
 
-  // Log user for debugging but don't flag it as unused
-  if (user) {
-    console.debug("Task sidebar opened by user:", user.id);
-  }
-
-  // Reset form state when task changes
+  // --- INIT FORM ON OPEN ---
   useEffect(() => {
     if (isOpen) {
-      setTaskName(task.text);
+      console.log("Setting initial values. Collection ID:", task.collection_id);
+
+      setTaskText(task.text || "");
       setTaskDescription(task.description || "");
-      setIsPinned(task.is_pinned);
       setDueDate(task.due_date ? formatDateForInput(task.due_date) : "");
-      setSelectedCollectionId(task.collection_id || null);
-      setCharacterCount(task.text.length);
-      setDescriptionCount((task.description || "").length);
-      setIsTaskChanged(false);
+      setTitleCharCount((task.text || "").length);
+      setDescriptionCharCount((task.description || "").length);
+      setSelectedCollection(task.collection_id || "");
+      setIsPinned(task.is_pinned || false);
+      setIsCompleted(task.is_completed || false);
       setError(null);
       setSuccessMessage(null);
+      setIsTaskChanged(false);
     }
   }, [task, isOpen]);
+
+  // --- TRACK CHANGES ---
+  useEffect(() => {
+    // Format dates for proper comparison
+    const oldDueDate = task.due_date ? formatDateForInput(task.due_date) : "";
+
+    const changed =
+      taskText !== task.text ||
+      taskDescription !== (task.description || "") ||
+      dueDate !== oldDueDate ||
+      isPinned !== task.is_pinned ||
+      isCompleted !== task.is_completed ||
+      selectedCollection !== task.collection_id;
+    setIsTaskChanged(changed);
+  }, [
+    taskText,
+    taskDescription,
+    dueDate,
+    isPinned,
+    isCompleted,
+    selectedCollection,
+    task,
+  ]);
+
+  // --- CLEANUP TIMEOUTS ---
+  useEffect(() => {
+    return () => {
+      if (errorTimeout) clearTimeout(errorTimeout);
+      if (successTimeout) clearTimeout(successTimeout);
+    };
+  }, [errorTimeout, successTimeout]);
+
+  // --- MESSAGES RESET ON OPEN/CLOSE ---
+  useEffect(() => {
+    setError(null);
+    setSuccessMessage(null);
+  }, [isOpen]);
 
   // Format date for input fields
   function formatDateForInput(date: Date | string | null | undefined): string {
@@ -139,114 +204,37 @@ const TaskSidebar = ({
     }
   }
 
-  // Format date for display
-  const formatDateForDisplay = useCallback(
-    (date: Date | string | null | undefined): string => {
-      if (!date) return "Unknown date";
-      try {
-        const dateObj = date instanceof Date ? date : new Date(date);
-        return dateObj.toLocaleDateString(undefined, {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        });
-      } catch {
-        return "Invalid date";
-      }
-    },
-    []
-  );
-
-  // Helper function to display error with auto-dismiss
+  // --- DISPLAY HELPERS ---
   const showError = useCallback(
     (message: string) => {
       setError(message);
-
-      if (errorTimeout) {
-        clearTimeout(errorTimeout);
-      }
-
-      const timeout = setTimeout(() => {
-        setError(null);
-      }, 5000);
-
-      setErrorTimeout(timeout);
+      if (errorTimeout) clearTimeout(errorTimeout);
+      const t = setTimeout(() => setError(null), 5000);
+      setErrorTimeout(t);
     },
     [errorTimeout]
   );
 
-  // Helper function to display success message with auto-dismiss
   const showSuccess = useCallback(
     (message: string) => {
       setSuccessMessage(message);
-
-      if (successTimeout) {
-        clearTimeout(successTimeout);
-      }
-
-      const timeout = setTimeout(() => {
-        setSuccessMessage(null);
-      }, 3000);
-
-      setSuccessTimeout(timeout);
+      if (successTimeout) clearTimeout(successTimeout);
+      const t = setTimeout(() => setSuccessMessage(null), 3000);
+      setSuccessTimeout(t);
     },
     [successTimeout]
   );
 
-  // Clean up timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (errorTimeout) clearTimeout(errorTimeout);
-      if (successTimeout) clearTimeout(successTimeout);
-    };
-  }, [errorTimeout, successTimeout]);
+  // --- AUTO-RESIZE TEXTAREA ---
+  const autoResizeTextarea = useCallback((el: HTMLTextAreaElement) => {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }, []);
 
-  // Auto-resize textarea based on content
-  const autoResizeTextarea = useCallback(
-    (textarea: HTMLTextAreaElement | null) => {
-      if (!textarea) return;
-
-      // Reset height to ensure we get the correct scrollHeight
-      textarea.style.height = "auto";
-      // Set height to scrollHeight to expand to content
-      textarea.style.height = `${textarea.scrollHeight}px`;
-    },
-    []
-  );
-
-  useEffect(() => {
-    if (descriptionRef.current) {
-      autoResizeTextarea(descriptionRef.current);
-    }
-  }, [taskDescription, autoResizeTextarea]);
-
-  // Check if task data has changed
-  useEffect(() => {
-    // Format dates for proper comparison
-    const oldDueDate = task.due_date ? formatDateForInput(task.due_date) : "";
-
-    // Check if any field has changed
-    const hasChanged =
-      taskName !== task.text ||
-      taskDescription !== (task.description || "") ||
-      isPinned !== task.is_pinned ||
-      dueDate !== oldDueDate ||
-      selectedCollectionId !== task.collection_id;
-
-    setIsTaskChanged(hasChanged);
-  }, [
-    taskName,
-    taskDescription,
-    isPinned,
-    dueDate,
-    selectedCollectionId,
-    task,
-  ]);
-
-  // Handle close with unsaved changes
+  // --- HANDLE CLOSE WITH UNSAVED ---
   const handleClose = useCallback(() => {
     if (isTaskChanged) {
-      // Offer to save changes (could implement a confirmation dialog here)
       if (
         window.confirm(
           "You have unsaved changes. Are you sure you want to discard them?"
@@ -259,72 +247,250 @@ const TaskSidebar = ({
     }
   }, [isTaskChanged, onClose]);
 
-  // Add event listener for escape key
+  // --- KEYBOARD ESC ---
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
         if (showDeleteConfirmation) {
           setShowDeleteConfirmation(false);
-        } else if (!isSaving && !isDeleting) {
+        } else if (!isProcessing) {
           handleClose();
         }
       }
     };
-
     if (isOpen) {
-      window.addEventListener("keydown", handleEscape);
-      document.body.style.overflow = "hidden"; // Prevent background scrolling
-
-      // Focus first input when sidebar opens
-      setTimeout(() => {
-        if (taskNameRef.current) {
-          taskNameRef.current.focus();
-        }
-      }, 100);
+      window.addEventListener("keydown", onKey);
+      document.body.style.overflow = "hidden";
     }
-
     return () => {
-      window.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = ""; // Restore scrolling
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
     };
-  }, [isOpen, showDeleteConfirmation, isSaving, isDeleting, handleClose]);
+  }, [isOpen, showDeleteConfirmation, isProcessing, handleClose]);
 
-  const handleOverlayClick = useCallback(
-    (e: React.MouseEvent) => {
-      // Close without saving when clicking outside
-      if (e.target === e.currentTarget) {
-        if (showDeleteConfirmation) {
-          setShowDeleteConfirmation(false);
-        } else if (!isSaving && !isDeleting) {
-          handleClose();
-        }
-      }
+  // --- FORM INPUT HANDLERS --- (moved above conditional return)
+  const handleTaskTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    setTaskText(v);
+    setTitleCharCount(v.length);
+    if (error === "Task name is required" && v.trim()) setError(null);
+  };
+
+  const handleDescriptionChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const v = e.target.value;
+      setTaskDescription(v);
+      setDescriptionCharCount(v.length);
+      autoResizeTextarea(e.target);
     },
-    [showDeleteConfirmation, isSaving, isDeleting, handleClose]
+    [autoResizeTextarea]
   );
 
-  const handleSave = async () => {
-    if (isSaving) return; // Prevent multiple submissions
+  const handlePinToggle = () => setIsPinned((p) => !p);
+  const handleCompletedToggle = () => setIsCompleted((c) => !c);
 
-    // Validate task name
-    if (!taskName.trim()) {
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDueDate(e.target.value);
+  };
+
+  const handleCollectionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedCollection(e.target.value);
+  };
+
+  // --- FORMATTED DATE ---
+  const formatDate = (date: Date | string | null | undefined): string => {
+    if (!date) return "Unknown date";
+    try {
+      const dateObj = date instanceof Date ? date : new Date(date);
+      return dateObj.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "Invalid date";
+    }
+  };
+
+  const formattedCreatedDate = formatDate(task.created_at);
+  const formattedCompletedDate = task.date_completed
+    ? formatDate(task.date_completed)
+    : null;
+
+  // Get the current date for min date in the date picker
+  const today = new Date().toISOString().split("T")[0];
+
+  // Find the current collection for logging
+  const currentCollection = collections.find(
+    (c) => c.id === task.collection_id
+  );
+
+  if (!isOpen) return null;
+
+  // --- UPDATE TASK FIELDS ---
+  const updateTaskInDatabase = async (): Promise<OperationResult> => {
+    if (!taskText.trim()) {
       showError("Task name is required");
-      return;
+      return { success: false, error: "Task name is required" };
+    }
+    if (!user || !user.id) {
+      showError("You must be logged in to update a task");
+      return { success: false, error: "Authentication required" };
+    }
+    try {
+      setIsSaving(true);
+      const updateData = {
+        text: taskText.trim(),
+        description: taskDescription.trim() || null,
+        due_date: dueDate
+          ? (() => {
+              // Ensure date is created properly
+              const [year, month, day] = dueDate.split("-").map(Number);
+              return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+            })()
+          : null,
+        is_pinned: isPinned,
+        is_completed: isCompleted,
+        date_completed: isCompleted ? new Date() : null,
+      };
+
+      // Update the task in the database
+      const { data, error: dbError } = await supabase
+        .from("task")
+        .update(updateData)
+        .eq("id", task.id)
+        .select("*");
+
+      if (dbError) {
+        if (
+          dbError.code === "42501" ||
+          dbError.message?.includes("row-level security")
+        ) {
+          throw new Error(
+            "Permission denied. Make sure you're authorized to update this task."
+          );
+        }
+        throw new Error(dbError.message);
+      }
+
+      // Call parent callbacks if they exist
+      if (onTaskUpdate) {
+        const result = await onTaskUpdate(task.id, updateData);
+        // Handle both void and OperationResult cases
+        if (
+          result &&
+          typeof result === "object" &&
+          "success" in result &&
+          !result.success
+        ) {
+          throw new Error(String(result.error || "Failed to update task"));
+        }
+      }
+
+      if (isPinned !== task.is_pinned && onPriorityChange) {
+        const result = await onPriorityChange(task.id, isPinned);
+        // Handle both void and OperationResult cases
+        if (
+          result &&
+          typeof result === "object" &&
+          "success" in result &&
+          !result.success
+        ) {
+          throw new Error(String(result.error || "Failed to update priority"));
+        }
+      }
+
+      if (isCompleted !== task.is_completed && onComplete) {
+        const result = await onComplete(task.id, isCompleted);
+        // Handle both void and OperationResult cases
+        if (
+          result &&
+          typeof result === "object" &&
+          "success" in result &&
+          !result.success
+        ) {
+          throw new Error(
+            String(result.error || "Failed to update completion status")
+          );
+        }
+      }
+
+      showSuccess("Task updated successfully");
+      return { success: true, data };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      showError(errorMessage || "Failed to update task");
+      return { success: false, error };
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // --- UPDATE COLLECTION ONLY ---
+  const updateCollectionInDatabase = async (): Promise<OperationResult> => {
+    if (!user || !user.id) {
+      showError("You must be logged in to update a task");
+      return { success: false, error: "Authentication required" };
     }
 
-    setIsSaving(true);
-    setError(null);
+    // Convert empty string to null for database
+    const collectionIdForDb =
+      selectedCollection === "" ? null : selectedCollection;
+
+    // Skip if collection hasn't changed (comparing with proper null handling)
+    const currentCollectionId =
+      task.collection_id === null ? "" : task.collection_id;
+    if (selectedCollection === currentCollectionId) {
+      return { success: true };
+    }
 
     try {
-      // Check if anything has changed
-      if (isTaskChanged && onTaskUpdate) {
-        // Prepare the task data for update
+      // If parent provides a collection change handler, use it to update UI
+      if (onCollectionChange && selectedCollection) {
+        console.log("Changing task collection to:", selectedCollection);
+        const result = await onCollectionChange(task.id, selectedCollection);
+
+        // Handle both void and OperationResult cases
+        if (
+          result &&
+          typeof result === "object" &&
+          "success" in result &&
+          !result.success
+        ) {
+          throw new Error(
+            String(result.error || "Failed to update collection")
+          );
+        }
+
+        showSuccess("Collection updated successfully");
+        setTimeout(onClose, 1000);
+        return { success: true };
+      }
+
+      // Fall back to direct database update if no collection change handler
+      console.warn(
+        "No onCollectionChange provided, updating database directly"
+      );
+      const { data, error: dbError } = await supabase
+        .from("task")
+        .update({ collection_id: collectionIdForDb })
+        .eq("id", task.id)
+        .select("*");
+
+      if (dbError) {
+        throw new Error(dbError.message);
+      }
+
+      // Try to update UI through other means
+      if (onTaskUpdate) {
         const updateData = {
-          text: taskName.trim(),
-          description: taskDescription.trim() || null,
+          text: taskText,
+          description: taskDescription || null,
           due_date: dueDate
             ? (() => {
-                // Ensure date is created in UTC timezone for iOS compatibility
                 const [year, month, day] = dueDate.split("-").map(Number);
                 return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
               })()
@@ -332,515 +498,348 @@ const TaskSidebar = ({
           is_pinned: isPinned,
         };
 
-        // Call the update function
-        const result = await onTaskUpdate(task.id, updateData);
-
-        // Check for errors
-        if (result && !result.success) {
-          throw new Error(
-            result.error ? String(result.error) : "Failed to update task"
-          );
-        }
-
-        // Update collection if changed
-        if (
-          selectedCollectionId !== task.collection_id &&
-          onCollectionChange &&
-          selectedCollectionId
-        ) {
-          const collectionResult = await onCollectionChange(
-            task.id,
-            selectedCollectionId
-          );
-
-          if (collectionResult && !collectionResult.success) {
-            console.warn("Collection update failed:", collectionResult.error);
-            // Continue anyway since the task was updated
-          }
-        }
-
-        showSuccess("Task updated successfully");
-
-        // Close after a short delay to show success message
-        setTimeout(() => {
-          onClose();
-        }, 1000);
-      } else {
-        // Nothing changed, just close
-        onClose();
+        await onTaskUpdate(task.id, updateData);
       }
-    } catch (err: unknown) {
-      console.error("Error updating task:", err);
-      showError(err instanceof Error ? err.message : "Failed to update task");
-    } finally {
-      setIsSaving(false);
+
+      showSuccess("Collection updated successfully");
+      setTimeout(onClose, 1000);
+      return { success: true, data };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      showError(errorMessage || "Failed to update collection");
+      return { success: false, error };
     }
   };
 
-  // Handle task delete with complete removal from database
-  const handleConfirmDelete = async () => {
-    if (isDeleting) return;
+  // --- HANDLE SAVE (fields + collection) ---
+  const handleSaveTask = async () => {
+    const res = await updateTaskInDatabase();
+    if (!res.success) return;
 
-    setIsDeleting(true);
-    setError(null);
+    // Handle collection change separately
+    const currentCollectionId =
+      task.collection_id === null ? "" : task.collection_id;
+    if (selectedCollection !== currentCollectionId) {
+      await updateCollectionInDatabase();
+      return; // updateCollectionInDatabase has its own close handler
+    }
 
+    // Close after success
+    setTimeout(onClose, 1000);
+  };
+
+  // --- DELETE TASK ---
+  const deleteTaskFromDatabase = async (): Promise<OperationResult> => {
+    if (!user || !user.id) {
+      showError("You must be logged in to delete a task");
+      return { success: false, error: "Authentication required" };
+    }
     try {
-      // Step 1: Delete all references to this task
-      // First, delete any task dependencies if they exist (subtasks, etc.)
-      // This depends on your database structure
+      setIsDeleting(true);
 
-      // Step 2: Hard delete from task table - permanently removes the record
-      const { error: deleteError } = await supabase
+      // Update is_deleted flag (soft delete) rather than hard delete
+      const { error: dbError } = await supabase
         .from("task")
-        .delete()
+        .update({ is_deleted: true })
         .eq("id", task.id);
 
-      if (deleteError) {
-        throw deleteError;
+      if (dbError) {
+        if (
+          dbError.code === "42501" ||
+          dbError.message?.includes("row-level security")
+        ) {
+          throw new Error(
+            "Permission denied. Make sure you're authorized to delete this task."
+          );
+        }
+        throw new Error(dbError.message);
       }
 
-      // Step 3: Call parent callback to update UI state
-      // This should only handle removing the task from local state arrays
+      // Call parent delete handler to update UI
       if (onTaskDelete) {
-        const parentResult = await onTaskDelete(task.id);
-
-        if (parentResult && !parentResult.success) {
-          console.warn("Parent state update failed:", parentResult.error);
-          // Continue anyway since database deletion succeeded
+        const result = await onTaskDelete(task.id);
+        // Handle both void and OperationResult cases
+        if (
+          result &&
+          typeof result === "object" &&
+          "success" in result &&
+          !result.success
+        ) {
+          throw new Error(String(result.error || "Failed to delete task"));
         }
       }
 
-      // Step 4: Clear any local caches or state that might still reference this task
-      // You might want to invalidate any React Query caches here if you're using them
-
-      showSuccess("Task permanently deleted");
-
-      // Close after showing success message
+      showSuccess("Task deleted successfully");
       setTimeout(() => {
         setShowDeleteConfirmation(false);
         onClose();
       }, 1000);
-    } catch (deleteError: unknown) {
-      console.error("Error permanently deleting task:", deleteError);
-      showError(
-        deleteError instanceof Error
-          ? deleteError.message
-          : "Failed to permanently delete task"
-      );
+      return { success: true };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      showError(errorMessage || "Failed to delete task");
+      return { success: false, error };
+    } finally {
       setIsDeleting(false);
     }
   };
 
-  const handlePriorityToggle = async () => {
-    const newPriority = !isPinned;
-
-    try {
-      // Call the priority change handler
-      if (onPriorityChange) {
-        const result = await onPriorityChange(task.id, newPriority);
-
-        if (result && !result.success) {
-          throw new Error(
-            result.error ? String(result.error) : "Failed to update priority"
-          );
-        }
-      }
-
-      // Update local state
-      setIsPinned(newPriority);
-    } catch (err: unknown) {
-      console.error("Error updating priority:", err);
-      showError(
-        err instanceof Error ? err.message : "Failed to update priority"
-      );
-    }
+  const handleConfirmDelete = async () => {
+    await deleteTaskFromDatabase();
   };
 
-  const handleCollectionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const collectionId = e.target.value || null;
-    setSelectedCollectionId(collectionId);
-  };
-
-  const handleTaskNameChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setTaskName(value);
-      setCharacterCount(value.length);
-    },
-    []
+  console.log(
+    "Current collection:",
+    currentCollection?.collection_name,
+    "ID:",
+    task.collection_id
   );
+  console.log("Selected collection state:", selectedCollection);
 
-  const handleDescriptionChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const value = e.target.value;
-      setTaskDescription(value);
-      setDescriptionCount(value.length);
-      autoResizeTextarea(e.target);
-    },
-    [autoResizeTextarea]
-  );
-
-  const handleDeleteClick = () => {
-    setShowDeleteConfirmation(true);
-  };
-
-  const handleCancelDelete = () => {
-    setShowDeleteConfirmation(false);
-  };
-
-  // Handle date change with validation
-  const handleDateChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const selectedDate = e.target.value;
-      setDueDate(selectedDate);
-    },
-    []
-  );
-
-  const today = new Date().toISOString().split("T")[0];
-  const createdDateFormatted = formatDateForDisplay(task.created_at);
-  const completedDateFormatted = task.date_completed
-    ? formatDateForDisplay(task.date_completed)
-    : null;
-
-  if (!isOpen) return null;
-
-  // Style variables for better readability
-  const borderColor = isDark ? "border-gray-700" : "border-gray-200";
-  const textColor = isDark ? "text-gray-300" : "text-gray-600";
-  const inputBase =
-    "w-full p-2 rounded-md border focus:outline-none focus:ring-1 transition-colors duration-200";
-  const inputStyles = isDark
-    ? "bg-gray-700 text-white border-gray-600 focus:border-orange-500 focus:ring-orange-500"
-    : "bg-white text-gray-800 border-gray-300 focus:border-blue-500 focus:ring-blue-500";
-
-  const buttonStyles = isDark
-    ? "p-2 rounded-full bg-gray-700 hover:bg-gray-600 disabled:bg-gray-700/50 transition-colors duration-200"
-    : "p-2 rounded-full bg-gray-100 hover:bg-gray-200 disabled:bg-gray-100/50 transition-colors duration-200";
-
-  const deleteButtonStyles = isDark
-    ? "bg-red-900/30 text-red-300 hover:bg-red-900/50 transition-colors duration-200"
-    : "bg-red-50 text-red-600 hover:bg-red-100 transition-colors duration-200";
-
-  // Using React Portal to render the sidebar at the root level of the DOM
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex justify-end backdrop-blur-md bg-black/30"
+      className="fixed inset-0 z-50 flex justify-end backdrop-blur-md bg-black/20"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isProcessing) handleClose();
+      }}
       role="dialog"
       aria-modal="true"
-      onClick={handleOverlayClick}
     >
       <div
         ref={sidebarRef}
-        className={`w-full max-w-md h-full overflow-auto shadow-xl transition-all duration-300 ${
-          isDark ? "bg-gray-800 text-white" : "bg-white text-gray-800"
-        }`}
-        onClick={(e) => e.stopPropagation()} // Prevent clicks inside sidebar from closing it
+        className={`w-full max-w-md overflow-auto shadow-xl text-white ${isDark ? "bg-black/50" : "bg-gray-600/50"}`}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div
-          className={`sticky top-0 z-10 flex items-center justify-between p-4 border-b ${borderColor} ${
-            isDark ? "bg-gray-800" : "bg-white"
-          }`}
-        >
-          <div className="flex flex-col">
-            <h2 className="text-lg font-semibold">Edit Task</h2>
-            <p
-              className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}
-            >
-              Created: {createdDateFormatted}
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={handleSave}
-              className={buttonStyles}
-              aria-label="Save and close"
-              disabled={isSaving || isDeleting}
-              type="button"
-            >
-              <Check
-                className={`w-4 h-4 ${
-                  isDark ? "text-green-400" : "text-green-600"
-                } ${isSaving || isDeleting ? "opacity-50" : ""}`}
-              />
-            </button>
-            <button
-              onClick={handleClose}
-              className={buttonStyles}
-              aria-label="Close without saving"
-              disabled={isSaving || isDeleting}
-              type="button"
-            >
-              <X
-                className={`w-4 h-4 ${isSaving || isDeleting ? "opacity-50" : ""}`}
-              />
-            </button>
-          </div>
+        {/* Header */}
+        <div className="flex flex-col items-center px-6 py-4 relative">
+          <button
+            onClick={handleClose}
+            disabled={isProcessing}
+            className="absolute top-4 right-4 p-2 bg-gray-700 rounded-full"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5 text-gray-300" />
+          </button>
+          <h2 className="text-2xl font-bold mb-1">Task Details</h2>
         </div>
 
-        {error && (
-          <div
-            className={`m-4 p-3 rounded-md flex items-center space-x-2 ${
-              isDark ? "bg-red-900/30 text-red-300" : "bg-red-100 text-red-700"
-            } animate-fadeIn`}
-            role="alert"
-          >
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
+        {/* Success */}
         {successMessage && (
-          <div
-            className={`m-4 p-3 rounded-md flex items-center space-x-2 ${
-              isDark
-                ? "bg-green-900/30 text-green-300"
-                : "bg-green-100 text-green-700"
-            } animate-fadeIn`}
-            role="status"
-          >
-            <Check className="w-5 h-5 flex-shrink-0" />
-            <span>{successMessage}</span>
+          <div className="mx-6 mb-4 p-3 bg-green-900/30 border border-green-700 rounded-lg text-green-400 flex items-center">
+            <Check className="w-5 h-5 mr-2" />
+            {successMessage}
+          </div>
+        )}
+        {/* Error */}
+        {error && (
+          <div className="mx-6 mb-4 p-3 bg-red-900/30 border border-red-700 rounded-lg text-red-400 flex items-center">
+            <AlertCircle className="w-5 h-5 mr-2" />
+            {error}
           </div>
         )}
 
-        <div className="p-4 space-y-6">
+        {/* Form */}
+        <div className="px-6 py-4 space-y-8">
+          {/* Task Name */}
           <div>
             <label
               htmlFor="task-name"
-              className={`block text-sm font-medium mb-2 ${textColor}`}
+              className="block text-xl font-semibold mb-2"
             >
-              Task Name <span className="text-red-500">*</span>
+              Task Name
             </label>
             <input
-              ref={taskNameRef}
               id="task-name"
               type="text"
-              value={taskName}
-              onChange={handleTaskNameChange}
-              className={`${inputBase} ${inputStyles} ${
-                error === "Task name is required"
-                  ? isDark
-                    ? "border-red-500 ring-1 ring-red-500"
-                    : "border-red-500 ring-1 ring-red-500"
-                  : ""
-              }`}
-              disabled={isSaving || isDeleting}
+              value={taskText}
+              onChange={handleTaskTextChange}
               maxLength={100}
-              aria-required="true"
+              disabled={isProcessing}
               placeholder="Task name"
+              className="w-full p-4 rounded-2xl bg-gray-800 text-white border border-gray-700 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
             />
-            <div className="mt-1 flex justify-between items-center">
-              <div className="text-xs text-gray-500">{characterCount}/100</div>
+            <div className="text-right text-gray-500 text-xs mt-1">
+              {titleCharCount}/100
             </div>
           </div>
 
+          {/* Description */}
           <div>
             <label
               htmlFor="task-description"
-              className={`block text-sm font-medium mb-2 ${textColor}`}
+              className="block text-xl font-semibold mb-2"
             >
               Description
             </label>
             <textarea
-              ref={descriptionRef}
               id="task-description"
               value={taskDescription}
               onChange={handleDescriptionChange}
-              className={`${inputBase} ${inputStyles} resize-none min-h-[80px]`}
-              disabled={isSaving || isDeleting}
               maxLength={500}
-              placeholder="Optional task description"
+              disabled={isProcessing}
+              placeholder="Add a description (optional)"
+              className="w-full p-4 rounded-2xl bg-gray-800 text-white border border-gray-700 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 min-h-[120px]"
             />
-            <div className="mt-1 text-xs text-right text-gray-500">
-              {descriptionCount}/500
+            <div className="text-right text-gray-500 text-xs mt-1">
+              {descriptionCharCount}/500
             </div>
           </div>
 
+          {/* Due Date */}
           <div>
             <label
               htmlFor="due-date"
-              className={`block text-sm font-medium mb-2 ${textColor}`}
+              className="block text-xl font-semibold mb-2"
             >
               Due Date
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Calendar className="h-4 w-4 text-gray-400" />
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <Calendar className="h-5 w-5 text-gray-400" />
               </div>
               <input
                 id="due-date"
                 type="date"
-                min={today}
                 value={dueDate}
                 onChange={handleDateChange}
-                className={`pl-10 pr-3 py-2 ${inputBase} ${inputStyles}`}
-                disabled={isSaving || isDeleting}
+                min={today} // Prevent selecting dates in the past
+                disabled={isProcessing}
+                className="w-full p-4 pl-10 rounded-2xl bg-gray-800 text-white border border-gray-700 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
               />
             </div>
           </div>
 
-          {collections && collections.length > 0 && (
-            <div>
-              <label
-                htmlFor="collection"
-                className={`block text-sm font-medium mb-2 ${textColor}`}
-              >
-                Collection
-              </label>
-              <select
-                id="collection"
-                value={selectedCollectionId || ""}
-                onChange={handleCollectionChange}
-                className={`${inputBase} ${inputStyles}`}
-                disabled={isSaving || isDeleting}
-              >
-                <option value="">None</option>
-                {collections.map((collection) => (
-                  <option key={collection.id} value={collection.id}>
-                    {collection.collection_name?.toLowerCase().trim() ===
-                    "general"
-                      ? `${collection.collection_name || "General"} (Default)`
-                      : collection.collection_name || "Unnamed Collection"}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-            <button
-              onClick={handlePriorityToggle}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-md w-full ${
-                isDark
-                  ? isPinned
-                    ? "bg-gray-700 text-orange-400"
-                    : "hover:bg-gray-700 text-gray-300"
-                  : isPinned
-                    ? "bg-gray-100 text-orange-500"
-                    : "hover:bg-gray-100 text-gray-700"
-              } transition-colors duration-200`}
-              aria-pressed={isPinned}
-              disabled={isSaving || isDeleting}
-              type="button"
-            >
-              <Pin
-                className={`h-4 w-4 ${
-                  isPinned
-                    ? isDark
-                      ? "text-orange-400 fill-orange-400"
-                      : "text-orange-500 fill-orange-500"
-                    : ""
-                }`}
-              />
-              <span>{isPinned ? "Priority task" : "Mark as priority"}</span>
-            </button>
-
-            {completedDateFormatted && (
-              <div
-                className={`px-3 py-2 rounded-md ${
-                  isDark ? "bg-green-900/20" : "bg-green-50"
-                }`}
-              >
-                <p
-                  className={`text-sm flex items-center ${isDark ? "text-green-300" : "text-green-600"}`}
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  Completed: {completedDateFormatted}
-                </p>
+          {/* Task Info */}
+          <div className="p-6 bg-gray-800 rounded-2xl">
+            <h3 className="text-2xl font-bold mb-4">Task Information</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Created</span>
+                <span className="text-white">{formattedCreatedDate}</span>
               </div>
-            )}
+
+              {formattedCompletedDate && (
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Completed</span>
+                  <span className="text-green-400">
+                    {formattedCompletedDate}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Collection</span>
+                <select
+                  id="collection-select"
+                  value={selectedCollection}
+                  onChange={handleCollectionChange}
+                  disabled={isProcessing}
+                  className="bg-gray-700 border border-gray-600 text-white p-2 rounded-lg focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                >
+                  {collections.map((col) => (
+                    <option key={col.id} value={col.id}>
+                      {col.collection_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <button
+                  onClick={handlePinToggle}
+                  disabled={isProcessing}
+                  className={`flex items-center justify-center w-full p-3 rounded-2xl transition-colors duration-200 ${
+                    isPinned
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-700 text-purple-400 border border-purple-500"
+                  }`}
+                  type="button"
+                >
+                  <Pin
+                    className={`w-5 h-5 mr-2 ${isPinned ? "fill-white" : ""}`}
+                  />
+                  {isPinned ? "Pinned" : "Pin this Task"}
+                </button>
+
+                <button
+                  onClick={handleCompletedToggle}
+                  disabled={isProcessing}
+                  className={`flex items-center justify-center w-full p-3 rounded-2xl transition-colors duration-200 ${
+                    isCompleted
+                      ? "bg-green-700 text-white"
+                      : "bg-gray-700 text-green-400 border border-green-500"
+                  }`}
+                  type="button"
+                >
+                  <Check className="w-5 h-5 mr-2" />
+                  {isCompleted ? "Completed" : "Mark as Completed"}
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* Task actions section */}
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between">
+          {/* Actions */}
+          <div className="flex flex-col space-y-4">
             <button
-              onClick={() => onComplete(task.id, !task.is_completed)}
-              className={`px-4 py-2 rounded-md flex items-center ${
-                task.is_completed
+              onClick={handleSaveTask}
+              disabled={isProcessing || !isTaskChanged}
+              className={`w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-colors duration-200 ${
+                isProcessing || !isTaskChanged
                   ? isDark
-                    ? "bg-gray-700 text-red-300 hover:bg-gray-600"
-                    : "bg-gray-100 text-red-500 hover:bg-gray-200"
+                    ? "bg-orange-900/50 text-white/70 cursor-not-allowed"
+                    : "bg-sky-700/50 text-white/70 cursor-not-allowed"
                   : isDark
-                    ? "bg-gray-700 text-green-300 hover:bg-gray-600"
-                    : "bg-gray-100 text-green-500 hover:bg-gray-200"
-              } transition-colors duration-200`}
-              disabled={isSaving || isDeleting}
-              type="button"
+                    ? "bg-orange-900 hover:bg-orange-600 text-white"
+                    : "bg-sky-700 hover:bg-sky-500 text-white"
+              }`}
             >
-              <Check className="h-4 w-4 mr-2" />
-              {task.is_completed ? "Mark Incomplete" : "Mark Complete"}
+              {isSaving ? "Saving..." : "Save Changes"}
             </button>
-
             <button
-              onClick={handleDeleteClick}
-              className={`px-4 py-2 rounded-md flex items-center ${deleteButtonStyles} ${isSaving || isDeleting ? "opacity-50 cursor-not-allowed" : ""}`}
-              disabled={isSaving || isDeleting}
-              type="button"
+              onClick={() => setShowDeleteConfirmation(true)}
+              disabled={isProcessing}
+              className="w-full py-3 px-6 rounded-2xl bg-transparent border border-red-500 text-red-400 hover:bg-red-900/30 font-medium transition-colors duration-200 flex items-center justify-center"
             >
-              <Trash2 className="w-4 h-4 mr-2" />
-              <span>Delete</span>
+              <Trash2 className="w-5 h-5 mr-2" />
+              Delete Task
             </button>
           </div>
         </div>
 
-        {/* Delete Confirmation Modal */}
+        {/* Delete Confirmation */}
         {showDeleteConfirmation && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fadeIn">
             <div
-              className="absolute inset-0 bg-black/50"
-              onClick={!isDeleting ? handleCancelDelete : undefined}
-            ></div>
-            <div
-              className={`relative w-full max-w-sm p-6 rounded-lg shadow-xl ${
-                isDark ? "bg-gray-800" : "bg-white"
-              } animate-scaleIn`}
-            >
+              className="absolute inset-0 bg-black/70"
+              onClick={
+                !isDeleting ? () => setShowDeleteConfirmation(false) : undefined
+              }
+            />
+            <div className="relative w-full max-w-sm p-6 rounded-lg shadow-xl bg-gray-800 animate-scaleIn">
               <div className="flex items-center space-x-3 mb-4">
-                <div
-                  className={`p-2 rounded-full ${
-                    isDark ? "bg-red-900/30" : "bg-red-100"
-                  }`}
-                >
-                  <AlertTriangle
-                    className={`w-6 h-6 ${
-                      isDark ? "text-red-300" : "text-red-600"
-                    }`}
-                  />
+                <div className="p-2 rounded-full bg-red-900/30">
+                  <AlertTriangle className="w-6 h-6 text-red-300" />
                 </div>
-                <h3 className="text-lg font-semibold">
-                  Permanently Delete Task
-                </h3>
+                <h3 className="text-lg font-semibold">Delete Task</h3>
               </div>
-
-              <p className={`mb-6 ${textColor}`}>
-                Are you sure you want to permanently delete &quot;{task.text}
-                &quot;? This action cannot be undone and will remove the task
-                from the database completely.
+              <p className="mb-6 text-gray-300">
+                Are you sure you want to delete this task? This action cannot be
+                undone and the task will be permanently removed.
               </p>
-
               <div className="flex justify-end space-x-3">
                 <button
-                  onClick={handleCancelDelete}
-                  className={`px-4 py-2 rounded-md ${
-                    isDark
-                      ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
-                      : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                  } transition-colors duration-200`}
+                  onClick={() => setShowDeleteConfirmation(false)}
                   disabled={isDeleting}
-                  type="button"
+                  className="px-4 py-2 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors duration-200"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmDelete}
-                  className={`px-4 py-2 rounded-md flex items-center justify-center min-w-[150px] ${
-                    isDark
-                      ? "bg-red-700 hover:bg-red-600 text-white"
-                      : "bg-red-600 hover:bg-red-700 text-white"
-                  } ${isDeleting ? "opacity-70 cursor-not-allowed" : ""} transition-colors duration-200`}
                   disabled={isDeleting}
-                  type="button"
+                  className="px-4 py-2 rounded-md flex items-center justify-center min-w-[90px] bg-red-700 hover:bg-red-600 text-white transition-colors duration-200"
                 >
                   {isDeleting ? (
                     <svg
@@ -848,7 +847,6 @@ const TaskSidebar = ({
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
-                      aria-hidden="true"
                     >
                       <circle
                         className="opacity-25"
@@ -857,15 +855,15 @@ const TaskSidebar = ({
                         r="10"
                         stroke="currentColor"
                         strokeWidth="4"
-                      ></circle>
+                      />
                       <path
                         className="opacity-75"
                         fill="currentColor"
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
+                      />
                     </svg>
                   ) : (
-                    "Permanently Delete"
+                    "Delete Permanently"
                   )}
                 </button>
               </div>
@@ -878,5 +876,4 @@ const TaskSidebar = ({
   );
 };
 
-// Use React.memo to prevent unnecessary re-renders
 export default React.memo(TaskSidebar);

@@ -36,12 +36,6 @@ export default function PriorityPage() {
   const isDark = theme === "dark";
 
   // Background styles
-  const backgroundStyle = useMemo(
-    () => ({
-      background: isDark ? "#2d3748" : "#FAF9F6",
-    }),
-    [isDark]
-  );
 
   // Function to get all collections and lists for lookup
   const fetchAllCollectionsAndLists = useCallback(async () => {
@@ -404,11 +398,16 @@ export default function PriorityPage() {
 
   return (
     <main
-      className={`min-h-screen w-full transition-all duration-300 pt-16 pl-20 ${
-        isDark ? "text-gray-200" : "text-gray-800"
-      }`}
-      style={backgroundStyle}
+      className={`transition-all pt-16 pr-16 min-h-screen duration-300 
+     pb-20 w-full relative
+    ${isDark ? "text-gray-200" : "text-gray-800"}
+    `}
     >
+      {isDark ? (
+        <div className="absolute inset-0 -z-10 size-full items-center [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#7c2d12_100%)]" />
+      ) : (
+        <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_60%_10%,#fff_20%,#bae6fd_100%)]" />
+      )}
       <div className="p-4 md:p-6 box-border">
         <div className="max-w-4xl mx-auto">
           {/* Header with title and refresh button */}

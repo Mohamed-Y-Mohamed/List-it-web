@@ -53,7 +53,7 @@ export default function RootLayout({
           {/* Add the AuthProvider here */}
           <ThemeProvider>
             {/* <MergedNavigation> */}
-            <div className="flex flex-col  w-full min-h-screen">
+            <div className="flex flex-col  w-full  min-h-50">
               {children}
               <Footer />
             </div>

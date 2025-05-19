@@ -1,10 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Calendar, Check, Pin } from "lucide-react";
+import { Calendar, Pin } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import TaskSidebar from "@/components/popupModels/TasksDetails";
 import { Collection } from "@/types/schema";
+
+interface OperationResult {
+  success: boolean;
+  error?: unknown;
+  data?: unknown;
+  warning?: string;
+}
 
 interface TaskCardProps {
   id: string;
@@ -18,14 +25,11 @@ interface TaskCardProps {
   collection_id?: string | null;
   list_id?: string | null;
   user_id?: string | null;
-  onComplete: (
-    id: string,
-    is_completed: boolean
-  ) => Promise<{ success: boolean; error?: unknown }>;
+  onComplete: (id: string, is_completed: boolean) => Promise<OperationResult>;
   onPriorityChange: (
     id: string,
     is_pinned: boolean
-  ) => Promise<{ success: boolean; error?: unknown }>;
+  ) => Promise<OperationResult>;
   onTaskUpdate?: (
     taskId: string,
     taskData: {
@@ -34,15 +38,13 @@ interface TaskCardProps {
       due_date?: Date | null;
       is_pinned: boolean;
     }
-  ) => Promise<{ success: boolean; error?: unknown }>;
-  onTaskDelete?: (
-    taskId: string
-  ) => Promise<{ success: boolean; error?: unknown }>;
+  ) => Promise<OperationResult>;
+  onTaskDelete?: (taskId: string) => Promise<OperationResult>;
   collections?: Collection[];
   onCollectionChange?: (
     taskId: string,
     collectionId: string
-  ) => Promise<{ success: boolean; error?: unknown }>;
+  ) => Promise<OperationResult>;
   className?: string;
 }
 
@@ -62,7 +64,7 @@ const TaskCard = ({
   onPriorityChange,
   onTaskUpdate,
   onTaskDelete,
-  collections,
+  collections = [],
   onCollectionChange,
   className = "",
 }: TaskCardProps) => {
@@ -81,6 +83,7 @@ const TaskCard = ({
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
+  // Update state when props change
   useEffect(() => {
     setIsCompleted(!!is_completed);
     setIsPinned(!!is_pinned);
@@ -101,35 +104,9 @@ const TaskCard = ({
     }
   }, []);
 
-  const createdDateFormatted = formatDate(created_at);
   const dueDateFormatted = taskDueDate
     ? formatDate(taskDueDate)
     : "No due date";
-
-  const handleCompletionToggle = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    if (isUpdating) return;
-    setIsUpdating(true);
-
-    const newState = !isCompleted;
-    const previousState = isCompleted;
-    setIsCompleted(newState);
-
-    try {
-      const result = await onComplete(id, newState);
-      // If there was an error, revert the state
-      if (!result.success) {
-        setIsCompleted(previousState);
-        console.error("Failed to update completion status:", result.error);
-      }
-    } catch (error) {
-      console.error("Error in completion toggle:", error);
-      setIsCompleted(previousState); // Revert on error
-    } finally {
-      setIsUpdating(false);
-    }
-  };
 
   const handlePriorityToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -159,6 +136,7 @@ const TaskCard = ({
   const handleCardClick = () => setIsSidebarOpen(true);
   const handleCloseSidebar = () => setIsSidebarOpen(false);
 
+  // Handler for task updates from the sidebar
   const handleTaskUpdate = async (
     taskId: string,
     taskData: {
@@ -167,7 +145,7 @@ const TaskCard = ({
       due_date?: Date | null;
       is_pinned: boolean;
     }
-  ): Promise<{ success: boolean; error?: unknown }> => {
+  ): Promise<OperationResult> => {
     if (!onTaskUpdate) {
       return { success: false, error: "Update handler not available" };
     }
@@ -223,31 +201,10 @@ const TaskCard = ({
   const dueDateObject = getDateObject(due_date);
   const dateCompletedObject = getDateObject(date_completed);
 
-  // Portal container for the sidebar
-  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
-    null
-  );
-
-  useEffect(() => {
-    // Create or find portal container
-    let container = document.getElementById("sidebar-portal-container");
-    if (!container) {
-      container = document.createElement("div");
-      container.id = "sidebar-portal-container";
-      document.body.appendChild(container);
-    }
-    setPortalContainer(container);
-
-    // Clean up
-    return () => {
-      if (
-        document.getElementById("sidebar-portal-container") &&
-        !document.getElementById("sidebar-portal-container")?.hasChildNodes()
-      ) {
-        document.getElementById("sidebar-portal-container")?.remove();
-      }
-    };
-  }, []);
+  // Skip rendering if no valid ID or text
+  if (!id) {
+    return null;
+  }
 
   return (
     <>
@@ -261,25 +218,6 @@ const TaskCard = ({
       >
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center space-x-3 overflow-hidden">
-            <button
-              onClick={handleCompletionToggle}
-              disabled={isUpdating}
-              className={`flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-sm border transition-colors ${
-                isDark
-                  ? isCompleted
-                    ? "border-orange-400 bg-orange-500 text-gray-900"
-                    : "border-gray-600 bg-gray-700 hover:border-orange-500"
-                  : isCompleted
-                    ? "border-green-500 bg-green-500 text-white"
-                    : "border-gray-300 bg-white hover:border-green-500"
-              } ${isUpdating ? "opacity-50" : ""}`}
-              aria-label={
-                isCompleted ? "Mark as incomplete" : "Mark as complete"
-              }
-            >
-              {isCompleted && <Check className="h-3 w-3" />}
-            </button>
-
             <h4
               className={`font-semibold truncate ${
                 isDark
@@ -291,7 +229,7 @@ const TaskCard = ({
                     : "text-gray-800"
               }`}
             >
-              {taskText}
+              {taskText || "Untitled Task"}
             </h4>
           </div>
 
@@ -301,10 +239,10 @@ const TaskCard = ({
             className={`flex-shrink-0 transition-colors ${
               isDark
                 ? isPinned
-                  ? "text-orange-400"
+                  ? "text-white"
                   : "text-gray-500 hover:text-gray-300"
                 : isPinned
-                  ? "text-orange-500"
+                  ? "text-black"
                   : "text-gray-400 hover:text-gray-600"
             } ${isUpdating ? "opacity-50" : ""}`}
             aria-label={isPinned ? "Unpin task" : "Pin task"}
@@ -337,20 +275,19 @@ const TaskCard = ({
           <div className="flex items-center overflow-hidden">
             <Calendar className="mr-1 h-4 w-4 flex-shrink-0" />
             <span className="truncate">
-              Created: {createdDateFormatted}
-              {taskDueDate && ` | Due: ${dueDateFormatted}`}
+              {taskDueDate ? `Due: ${dueDateFormatted}` : "No due date"}
             </span>
           </div>
         </div>
       </div>
 
-      {isSidebarOpen && portalContainer && createdAtDate && (
+      {isSidebarOpen && createdAtDate && (
         <TaskSidebar
           isOpen={isSidebarOpen}
           onClose={handleCloseSidebar}
           task={{
             id,
-            text: taskText,
+            text: taskText || "Untitled Task",
             description: taskDescription,
             created_at: createdAtDate,
             due_date: dueDateObject,
@@ -373,4 +310,4 @@ const TaskCard = ({
   );
 };
 
-export default TaskCard;
+export default React.memo(TaskCard);
