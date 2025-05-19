@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Mail,
   AlertCircle,
@@ -20,6 +20,7 @@ const ForgotPassword = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const { resetPassword } = useAuth();
+  const emailSentRef = useRef(false);
 
   // Form state
   const [email, setEmail] = useState("");
@@ -29,6 +30,11 @@ const ForgotPassword = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  // Reset any previous error when returning to this page
+  useEffect(() => {
+    setError(null);
+  }, []);
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +42,11 @@ const ForgotPassword = () => {
 
     if (!email.trim()) {
       setError("Email is required");
+      return;
+    }
+
+    // Prevent multiple submissions for the same email
+    if (emailSentRef.current && loading) {
       return;
     }
 
@@ -48,6 +59,8 @@ const ForgotPassword = () => {
         throw error || new Error("Failed to send reset link");
       }
 
+      // Mark that we've sent an email to prevent spam
+      emailSentRef.current = true;
       setSuccess(true);
     } catch (err: unknown) {
       console.error("Password reset error:", err);
@@ -143,7 +156,7 @@ const ForgotPassword = () => {
                 <CheckCircle className="w-5 h-5 mr-2" />
                 <span>
                   Password reset link has been sent to your email. Please check
-                  your inbox.
+                  your inbox and spam folder.
                 </span>
               </div>
             </div>
@@ -174,6 +187,20 @@ const ForgotPassword = () => {
                   />
                 </div>
 
+                <div
+                  className={`p-4 rounded-lg border-l-4 border-blue-500 ${
+                    isDark
+                      ? "bg-blue-900/30 text-blue-300"
+                      : "bg-blue-50 text-blue-700"
+                  }`}
+                >
+                  <p className="text-sm">
+                    <strong>Important:</strong> After receiving the email, click
+                    the reset link immediately. The link expires after 1 hour
+                    for security reasons.
+                  </p>
+                </div>
+
                 <button
                   type="submit"
                   disabled={loading}
@@ -194,13 +221,19 @@ const ForgotPassword = () => {
                 <p
                   className={`${isDark ? "text-gray-300" : "text-gray-600"} mb-4`}
                 >
-                  Check your email for the reset link. If you don&apos;t see it,
-                  please check your spam folder.
+                  Check your email for the reset link. If you don&apos;t see it
+                  within a few minutes, please check your spam folder.
+                </p>
+                <p
+                  className={`${isDark ? "text-gray-400" : "text-gray-500"} mb-4 text-sm`}
+                >
+                  The reset link will expire in 1 hour.
                 </p>
                 <button
                   onClick={() => {
                     setEmail("");
                     setSuccess(false);
+                    emailSentRef.current = false;
                   }}
                   className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
                     isDark

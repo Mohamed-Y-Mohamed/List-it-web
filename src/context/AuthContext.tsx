@@ -111,11 +111,11 @@ export const useAuth = () => useContext(AuthContext);
 
 // Provider component that wraps the app and provides auth context
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [initialized, setInitialized] = useState<boolean>(false);
   const router = useRouter();
-  const [initialized, setInitialized] = useState(false);
 
   // Initialize auth state on first load
   useEffect(() => {
@@ -253,7 +253,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
 
       // Mark logout attempt
-      sessionStorage.setItem("logging_out", "true");
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("logging_out", "true");
+      }
 
       // Safely get session
       const {
@@ -280,50 +282,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Cleanup local/session storage
-      clearAllAuthCookies();
-      clearSupabaseLocalStorage();
-      clearSessionStorage();
+      if (typeof window !== "undefined") {
+        clearAllAuthCookies();
+        clearSupabaseLocalStorage();
+        clearSessionStorage();
 
-      // Delay to ensure async cleanup
-      setTimeout(() => {
-        window.location.href = "/login?logout=true";
-      }, 100);
+        // Delay to ensure async cleanup
+        setTimeout(() => {
+          window.location.href = "/login?logout=true";
+        }, 100);
+      }
     } catch (error) {
       console.error("Logout process error:", error);
 
       // Fallback cleanup and redirect
-      clearAllAuthCookies();
-      clearSupabaseLocalStorage();
-      clearSessionStorage();
-      window.location.href = "/login?logout=true&error=true";
+      if (typeof window !== "undefined") {
+        clearAllAuthCookies();
+        clearSupabaseLocalStorage();
+        clearSessionStorage();
+        window.location.href = "/login?logout=true&error=true";
+      }
     }
   };
+
   // Reset password
+  // In your AuthContext.tsx
   const resetPassword = async (email: string) => {
     try {
-      // Get the site URL
-      const siteUrl =
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        (typeof window !== "undefined" ? window.location.origin : "");
+      // Get base URL without trailing slash
+      const baseUrl = (
+        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+      ).replace(/\/$/, "");
 
-      // Use the camelCase version of the path that matches your actual route
-      const redirectTo = `${siteUrl}/resetPassword`;
+      console.log("Using redirect URL:", `${baseUrl}/resetPassword`);
 
-      console.log("Reset password will redirect to:", redirectTo);
-
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectTo,
+      // IMPORTANT: redirectTo must be set for real tokens
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${baseUrl}/resetPassword`,
       });
 
-      if (error) throw error;
+      console.log("Reset password response:", data);
 
+      if (error) throw error;
       return { success: true };
     } catch (error) {
       console.error("Reset password error:", error);
       return { success: false, error: error as AuthError };
     }
   };
-
   // Provide the auth context to children components
   return (
     <AuthContext.Provider

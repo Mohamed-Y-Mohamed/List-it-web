@@ -9,11 +9,29 @@ import {
   CheckCircle,
   ListTodo,
   ArrowLeft,
+  Info,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
+
+// Define interface for debugInfo to fix type errors
+interface DebugInfo {
+  "URL Parameters": Record<string, string>;
+  "Hash Parameters": Record<string, string>;
+  "Full URL": string;
+  "Session Exists"?: string;
+  "Has Token"?: string;
+  "Is Recovery"?: string;
+  "Token Length"?: number;
+  "Token Appears Valid"?: string;
+  "Session After Process"?: string;
+  "Direct Verification"?: string;
+  "Verification Error"?: string;
+  "Session Check Error"?: string;
+  "Overall Error"?: string;
+}
 
 const ResetPassword = () => {
   const { theme } = useTheme();
@@ -31,29 +49,177 @@ const ResetPassword = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [validSession, setValidSession] = useState(false);
+  const [processingToken, setProcessingToken] = useState(true);
 
-  // Check if we have an active reset session
+  // Debug state
+  const [debugMode, setDebugMode] = useState(true);
+  const [debugInfo, setDebugInfo] = useState<DebugInfo>({
+    "URL Parameters": {},
+    "Hash Parameters": {},
+    "Full URL": "",
+  });
+
+  // Detect and process recovery parameters
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const { data, error } = await supabase.auth.getSession();
+        console.log("Starting session check for password reset");
+        setProcessingToken(true);
+        setError(null);
 
-        if (error) {
-          console.error("Session error:", error);
-          setError("Invalid or expired password reset session");
+        // Debug: Extract URL parameters and hash parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(
+          window.location.hash.substring(1)
+        );
+
+        const urlParamsObj: Record<string, string> = {};
+        urlParams.forEach((value, key) => {
+          urlParamsObj[key] = value;
+        });
+
+        const hashParamsObj: Record<string, string> = {};
+        hashParams.forEach((value, key) => {
+          hashParamsObj[key] = value;
+        });
+
+        // Debug: Save full URL and parameters
+        const debugData: DebugInfo = {
+          "URL Parameters": urlParamsObj,
+          "Hash Parameters": hashParamsObj,
+          "Full URL": window.location.href,
+        };
+
+        // First check if we already have a session
+        const { data: sessionData } = await supabase.auth.getSession();
+
+        // Add session info to debug data
+        debugData["Session Exists"] = sessionData.session ? "Yes" : "No";
+
+        if (sessionData.session) {
+          console.log("Session already exists");
+          setValidSession(true);
+          setProcessingToken(false);
+          setDebugInfo(debugData);
           return;
         }
 
-        if (data.session) {
-          setValidSession(true);
+        // Check if we have proper token parameters
+        const hasToken = hashParams.has("access_token");
+        const isRecovery = hashParams.get("type") === "recovery";
+        const tokenValue = hashParams.get("access_token") || "";
+
+        // Add token info to debug data
+        debugData["Has Token"] = hasToken ? "Yes" : "No";
+        debugData["Is Recovery"] = isRecovery ? "Yes" : "No";
+        debugData["Token Length"] = tokenValue.length;
+
+        // Check if token looks valid (should be at least 20 chars for a real Supabase token)
+        const tokenLooksValid = tokenValue.length > 20;
+        debugData["Token Appears Valid"] = tokenLooksValid ? "Yes" : "No";
+
+        setDebugInfo(debugData);
+
+        if (hasToken && isRecovery) {
+          console.log("Found recovery token in URL hash");
+
+          // Remove development mode exception - require valid tokens always
+          if (!tokenLooksValid) {
+            console.warn("Token appears to be invalid");
+            setError(
+              "Invalid password reset token. Please request a new password reset link."
+            );
+            setValidSession(false);
+            setProcessingToken(false);
+            return;
+          }
+
+          // For valid tokens, let Supabase process it
+          // Wait for Supabase to process the token
+          setTimeout(async () => {
+            try {
+              // Check if a session was established
+              const { data: refreshedSession } =
+                await supabase.auth.getSession();
+
+              // Update debug info with session check results
+              setDebugInfo((prev: DebugInfo) => ({
+                ...prev,
+                "Session After Process": refreshedSession.session
+                  ? "Yes"
+                  : "No",
+              }));
+
+              if (refreshedSession.session) {
+                console.log("Recovery session established");
+                setValidSession(true);
+              } else {
+                console.warn("No session after recovery token processing");
+
+                // Try a direct verification if no session was created
+                try {
+                  // This is a direct approach to verify the token - may work in some cases
+                  const { error: verifyError } = await supabase.auth.verifyOtp({
+                    token_hash: tokenValue,
+                    type: "recovery",
+                  });
+
+                  if (verifyError) {
+                    console.error(
+                      "Direct token verification failed:",
+                      verifyError
+                    );
+                    setDebugInfo((prev: DebugInfo) => ({
+                      ...prev,
+                      "Direct Verification": "Failed",
+                      "Verification Error": verifyError.message,
+                    }));
+                    throw verifyError;
+                  }
+
+                  // If we get here, verification worked
+                  console.log("Token verified via direct verification");
+                  setDebugInfo((prev: DebugInfo) => ({
+                    ...prev,
+                    "Direct Verification": "Success",
+                  }));
+                  setValidSession(true);
+                } catch (verifyErr) {
+                  setError(
+                    "Password reset link is invalid or has expired. Please request a new one."
+                  );
+                  setValidSession(false);
+                }
+              }
+            } catch (sessionErr) {
+              console.error("Session check error:", sessionErr);
+              setDebugInfo((prev: DebugInfo) => ({
+                ...prev,
+                "Session Check Error": String(sessionErr),
+              }));
+              setError("Failed to validate reset session. Please try again.");
+              setValidSession(false);
+            } finally {
+              setProcessingToken(false);
+            }
+          }, 1000);
         } else {
+          console.warn("No recovery token found in URL");
           setError(
             "No active password reset session found. Please request a new password reset link."
           );
+          setValidSession(false);
+          setProcessingToken(false);
         }
       } catch (err) {
-        console.error("Error checking session:", err);
-        setError("Failed to validate reset session");
+        console.error("Session check error:", err);
+        setDebugInfo((prev: DebugInfo) => ({
+          ...prev,
+          "Overall Error": String(err),
+        }));
+        setError("Failed to verify password reset session");
+        setValidSession(false);
+        setProcessingToken(false);
       }
     };
 
@@ -129,6 +295,11 @@ const ResetPassword = () => {
     }
   };
 
+  // Toggle debug mode
+  const toggleDebugMode = () => {
+    setDebugMode(!debugMode);
+  };
+
   return (
     <div className="min-h-screen w-full relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       {/* Background with radial gradient */}
@@ -144,6 +315,18 @@ const ResetPassword = () => {
         } backdrop-blur-sm p-8 md:p-10`}
       >
         <div className="flex flex-col items-center">
+          {/* Debug mode toggle */}
+          <button
+            onClick={toggleDebugMode}
+            className={`absolute top-3 right-3 p-2 rounded-full ${
+              isDark
+                ? "text-gray-300 hover:bg-gray-700"
+                : "text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            <Info size={16} />
+          </button>
+
           {/* Logo */}
           <div className="flex items-center justify-center mb-6">
             <div
@@ -174,8 +357,41 @@ const ResetPassword = () => {
             Enter your new password below.
           </p>
 
+          {/* Debug info display */}
+          {debugMode && (
+            <div
+              className={`w-full mb-6 rounded-lg border-l-4 border-yellow-500 ${
+                isDark
+                  ? "bg-yellow-900/30 text-yellow-300"
+                  : "bg-yellow-50 text-yellow-800"
+              } p-4 text-xs font-mono overflow-auto`}
+            >
+              <h3 className="font-bold mb-2">DEBUG INFO:</h3>
+              <pre className="whitespace-pre-wrap">
+                {JSON.stringify(debugInfo, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {/* Loading message while processing token */}
+          {processingToken && (
+            <div
+              className={`w-full mb-6 rounded-lg border-l-4 border-blue-500 ${
+                isDark
+                  ? "bg-blue-900/30 text-blue-300"
+                  : "bg-blue-50 text-blue-700"
+              } p-4`}
+              role="alert"
+            >
+              <div className="flex items-center">
+                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
+                <span>Verifying your reset token...</span>
+              </div>
+            </div>
+          )}
+
           {/* Error message display */}
-          {error && (
+          {!processingToken && error && (
             <div
               className={`w-full mb-6 rounded-lg border-l-4 border-red-500 ${
                 isDark ? "bg-red-900/30 text-red-300" : "bg-red-50 text-red-700"
@@ -210,7 +426,8 @@ const ResetPassword = () => {
           )}
 
           <div className="w-full mt-4">
-            {validSession && !success ? (
+            {/* Remove development mode exception from rendering condition */}
+            {!processingToken && validSession && !success ? (
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div className="relative">
                   <Lock
@@ -309,6 +526,7 @@ const ResetPassword = () => {
                 </button>
               </form>
             ) : (
+              !processingToken &&
               !success && (
                 <div className="text-center">
                   <p

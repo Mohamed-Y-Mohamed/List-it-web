@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
         // For password reset, redirect to the reset-password page
         if (isPasswordReset) {
-          return NextResponse.redirect(new URL("/reset-password", request.url));
+          return NextResponse.redirect(new URL("/resetPassword", request.url));
         }
 
         try {
