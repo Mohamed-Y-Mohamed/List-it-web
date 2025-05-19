@@ -1,68 +1,81 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Mail,
-  AlertCircle,
-  CheckCircle,
-  ListTodo,
-  ArrowLeft,
-} from "lucide-react";
+import React, { useState } from "react";
+import { Mail, AlertCircle, CheckCircle } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
-import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/utils/client";
 
+// Define error types for better type safety
 interface ErrorObject {
   message?: string;
 }
 
-const ForgotPassword = () => {
+export const ForgotPassword: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const { resetPassword } = useAuth();
-  const emailSentRef = useRef(false);
+  const searchParams = useSearchParams();
+
+  // Get email from URL if present
+  const emailFromUrl = searchParams?.get("email") || "";
 
   // Form state
-  const [email, setEmail] = useState("");
-
-  // UI state
+  const [email, setEmail] = useState(emailFromUrl || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Reset any previous error when returning to this page
-  useEffect(() => {
-    setError(null);
-  }, []);
+  // Email validation
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
 
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Handle password reset request
+  const handleResetRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
+    // Validate input
     if (!email.trim()) {
       setError("Email is required");
       return;
     }
 
-    // Prevent multiple submissions for the same email
-    if (emailSentRef.current && loading) {
+    if (!isValidEmail(email.trim())) {
+      setError("Please enter a valid email address");
       return;
     }
 
     setLoading(true);
 
     try {
-      const { success, error } = await resetPassword(email.trim());
+      // Use the exact URL format expected by your app
+      // In development: "http://localhost:3000"
+      // In production: your actual deployed URL
+      const siteUrl =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        (typeof window !== "undefined" ? window.location.origin : "");
 
-      if (!success) {
-        throw error || new Error("Failed to send reset link");
-      }
+      // IMPORTANT: Use the exact path to your reset password page - /resetPassword with camelCase
+      const resetUrl = `${siteUrl}/resetPassword`;
 
-      // Mark that we've sent an email to prevent spam
-      emailSentRef.current = true;
+      // For debugging
+
+      // Call Supabase API with the correct redirect URL
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        email.trim(),
+        {
+          redirectTo: resetUrl,
+        }
+      );
+
+      if (error) throw error;
+
       setSuccess(true);
-    } catch (err: unknown) {
+    } catch (err) {
       console.error("Password reset error:", err);
 
       if (err instanceof Error) {
@@ -72,7 +85,7 @@ const ForgotPassword = () => {
         err !== null &&
         (err as ErrorObject).message
       ) {
-        setError((err as ErrorObject).message!);
+        setError((err as ErrorObject).message ?? null);
       } else {
         setError("Failed to send reset link. Please try again.");
       }
@@ -82,182 +95,162 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen w-full relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      {/* Background with radial gradient */}
-      {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full items-center [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#7c2d12_100%)]" />
-      ) : (
-        <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_60%_10%,#fff_20%,#bae6fd_100%)]" />
-      )}
-
+    <div
+      className={`min-h-screen pt-18 ${
+        isDark ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-900"
+      } flex justify-center transition-colors duration-300`}
+    >
       <div
-        className={`max-w-md w-full mx-auto rounded-xl shadow-2xl overflow-hidden ${
-          isDark ? "bg-gray-800/70" : "bg-white/70"
-        } backdrop-blur-sm p-8 md:p-10`}
+        className={`max-w-md m-0 sm:m-10 ${
+          isDark ? "bg-gray-800" : "bg-white"
+        } shadow sm:rounded-lg flex justify-center flex-1`}
       >
-        <div className="flex flex-col items-center">
-          {/* Logo */}
-          <div className="flex items-center justify-center mb-6">
-            <div
-              className={`w-12 h-12 rounded-full flex items-center justify-center mr-3 shadow-sm ${
-                isDark ? "bg-orange-600" : "bg-sky-500"
-              }`}
-            >
-              <ListTodo className="h-6 w-6 text-white" />
-            </div>
-            <span
-              className={`text-2xl font-bold ${
-                isDark ? "text-orange-400" : "text-sky-500"
-              }`}
-            >
-              LIST IT
-            </span>
+        <div className="p-6 sm:p-12 w-full">
+          <div>
+            <Image
+              src="/app-icon.jpeg"
+              width={128}
+              height={128}
+              alt="LIST IT Logo"
+              className="w-24 mx-auto rounded-full"
+              priority
+            />
           </div>
-
-          <h1
-            className={`text-2xl font-bold mb-4 ${isDark ? "text-white" : "text-gray-900"}`}
-          >
-            Reset Your Password
-          </h1>
-
-          <p
-            className={`text-center mb-6 ${isDark ? "text-gray-300" : "text-gray-600"}`}
-          >
-            Enter your email address and we&apos;ll send you a link to reset
-            your password.
-          </p>
-
-          {/* Error message display */}
-          {error && (
-            <div
-              className={`w-full mb-6 rounded-lg border-l-4 border-red-500 ${
-                isDark ? "bg-red-900/30 text-red-300" : "bg-red-50 text-red-700"
-              } p-4`}
-              role="alert"
+          <div className="mt-12 flex flex-col items-center">
+            <h1
+              className={`text-2xl xl:text-3xl font-extrabold ${
+                isDark ? "text-gray-100" : "text-gray-900"
+              } text-center`}
             >
-              <div className="flex items-center">
-                <AlertCircle className="w-5 h-5 mr-2" />
-                <span>{error}</span>
-              </div>
-            </div>
-          )}
+              Reset Your Password
+            </h1>
 
-          {/* Success message display */}
-          {success && (
-            <div
-              className={`w-full mb-6 rounded-lg border-l-4 border-green-500 ${
-                isDark
-                  ? "bg-green-900/30 text-green-300"
-                  : "bg-green-50 text-green-700"
-              } p-4`}
-              role="alert"
+            <p
+              className={`mt-4 text-center ${isDark ? "text-gray-300" : "text-gray-600"}`}
             >
-              <div className="flex items-center">
-                <CheckCircle className="w-5 h-5 mr-2" />
-                <span>
-                  Password reset link has been sent to your email. Please check
-                  your inbox and spam folder.
-                </span>
-              </div>
-            </div>
-          )}
+              Enter your email address and we&apos;ll send you a link to reset
+              your password.
+            </p>
 
-          <div className="w-full mt-4">
-            {!success ? (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="relative">
-                  <Mail
-                    className={`absolute left-3 top-1/2 -translate-y-1/2 ${
-                      isDark ? "text-gray-400" : "text-gray-500"
-                    }`}
-                    size={18}
-                  />
-                  <input
-                    className={`w-full pl-10 pr-3 py-3 rounded-lg font-medium ${
-                      isDark
-                        ? "bg-gray-700/70 border-gray-600 placeholder-gray-400 text-gray-100 focus:border-orange-400"
-                        : "bg-white/80 border-gray-300 placeholder-gray-500 text-gray-800 focus:border-sky-500"
-                    } border focus:outline-none transition-colors`}
-                    type="email"
-                    placeholder="Email Address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={loading}
-                    required
-                  />
+            {/* Error message display */}
+            {error && (
+              <div
+                className="mt-4 w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+                role="alert"
+              >
+                <div className="flex items-center">
+                  <AlertCircle className="w-5 h-5 mr-2" aria-hidden="true" />
+                  <span>{error}</span>
                 </div>
-
-                <div
-                  className={`p-4 rounded-lg border-l-4 border-blue-500 ${
-                    isDark
-                      ? "bg-blue-900/30 text-blue-300"
-                      : "bg-blue-50 text-blue-700"
-                  }`}
-                >
-                  <p className="text-sm">
-                    <strong>Important:</strong> After receiving the email, click
-                    the reset link immediately. The link expires after 1 hour
-                    for security reasons.
-                  </p>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`mt-5 w-full font-semibold py-3 px-4 rounded-lg transition-all duration-300 flex items-center justify-center ${
-                    isDark
-                      ? "bg-orange-600 hover:bg-orange-700 text-white"
-                      : "bg-sky-500 hover:bg-sky-600 text-white"
-                  } ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
-                >
-                  {loading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  ) : null}
-                  <span>{loading ? "Sending..." : "Send Reset Link"}</span>
-                </button>
-              </form>
-            ) : (
-              <div className="text-center mt-6">
-                <p
-                  className={`${isDark ? "text-gray-300" : "text-gray-600"} mb-4`}
-                >
-                  Check your email for the reset link. If you don&apos;t see it
-                  within a few minutes, please check your spam folder.
-                </p>
-                <p
-                  className={`${isDark ? "text-gray-400" : "text-gray-500"} mb-4 text-sm`}
-                >
-                  The reset link will expire in 1 hour.
-                </p>
-                <button
-                  onClick={() => {
-                    setEmail("");
-                    setSuccess(false);
-                    emailSentRef.current = false;
-                  }}
-                  className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
-                    isDark
-                      ? "bg-gray-700 hover:bg-gray-600 text-white"
-                      : "bg-gray-200 hover:bg-gray-300 text-gray-800"
-                  }`}
-                >
-                  Send Another Link
-                </button>
               </div>
             )}
 
-            <div className="mt-6 text-center">
-              <Link
-                href="/login"
-                className={`inline-flex items-center text-sm font-medium ${
-                  isDark
-                    ? "text-orange-400 hover:text-orange-300"
-                    : "text-sky-500 hover:text-sky-600"
-                }`}
+            {/* Success message display */}
+            {success && (
+              <div
+                className="mt-4 w-full bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
+                role="alert"
               >
-                <ArrowLeft size={16} className="mr-1" />
-                Back to Login
-              </Link>
+                <div className="flex items-center">
+                  <CheckCircle className="w-5 h-5 mr-2" aria-hidden="true" />
+                  <span>
+                    Password reset link has been sent to your email. Please
+                    check your inbox and spam folders.
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="w-full flex-1 mt-8">
+              {!success ? (
+                <form
+                  onSubmit={handleResetRequest}
+                  className="mx-auto max-w-xs"
+                >
+                  <div className="relative">
+                    <Mail
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      size={18}
+                      aria-hidden="true"
+                    />
+                    <input
+                      className={`w-full pl-10 pr-3 py-4 rounded-lg font-medium ${
+                        isDark
+                          ? "bg-gray-700 border-gray-600 placeholder-gray-400 text-gray-200 focus:border-sky-400 focus:bg-gray-600"
+                          : "bg-gray-100 border-gray-200 placeholder-gray-500 text-sm focus:border-sky-500 focus:bg-white"
+                      } border text-sm focus:outline-none`}
+                      type="email"
+                      placeholder="Email Address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={loading}
+                      required
+                      name="email"
+                      id="email"
+                      autoComplete="email"
+                      aria-label="Email Address"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={`mt-5 tracking-wide font-semibold ${
+                      isDark
+                        ? "bg-sky-600 hover:bg-sky-700"
+                        : "bg-sky-500 hover:bg-sky-600"
+                    } text-white w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center focus:shadow-outline focus:outline-none ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+                    aria-label={
+                      loading ? "Sending reset link..." : "Send reset link"
+                    }
+                  >
+                    {loading ? (
+                      <div
+                        className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
+                        aria-hidden="true"
+                      ></div>
+                    ) : null}
+                    <span>{loading ? "Sending..." : "Send Reset Link"}</span>
+                  </button>
+                </form>
+              ) : (
+                <div className="text-center mt-6">
+                  <p
+                    className={`${isDark ? "text-gray-300" : "text-gray-600"} mb-4`}
+                  >
+                    Check your email for the reset link. If you don&apos;t see
+                    it, please check your spam folder.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setEmail("");
+                      setSuccess(false);
+                    }}
+                    className={`mt-2 tracking-wide font-semibold ${
+                      isDark
+                        ? "bg-gray-700 hover:bg-gray-600"
+                        : "bg-gray-200 hover:bg-gray-300"
+                    } text-${isDark ? "white" : "gray-800"} px-6 py-2 rounded-lg transition-all duration-300 ease-in-out focus:shadow-outline focus:outline-none`}
+                    aria-label="Send another reset link"
+                  >
+                    Send Another Link
+                  </button>
+                </div>
+              )}
+
+              <div className="mt-6 text-center">
+                <Link
+                  href="/login"
+                  className={`text-sm ${
+                    isDark
+                      ? "text-sky-400 hover:text-sky-300"
+                      : "text-sky-500 hover:text-sky-600"
+                  }`}
+                  aria-label="Back to login page"
+                >
+                  Back to Login
+                </Link>
+              </div>
             </div>
           </div>
         </div>

@@ -307,29 +307,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Reset password
   // In your AuthContext.tsx
+  // AuthContext.tsx (inside your AuthProvider)
   const resetPassword = async (email: string) => {
-    try {
-      // Get base URL without trailing slash
-      const baseUrl = (
-        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
-      ).replace(/\/$/, "");
+    // 1. Grab and normalize site URL
+    const rawSite =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      (typeof window !== "undefined" ? window.location.origin : "");
+    const siteUrl = rawSite.replace(/\/$/, ""); // "http://localhost:3000"
 
-      console.log("Using redirect URL:", `${baseUrl}/resetPassword`);
+    // 2. Append the reset route
+    const redirectTo = `${siteUrl}/resetPassword`; // "http://localhost:3000/resetPassword"
+    console.log("🔁 resetPassword redirectTo =", redirectTo);
 
-      // IMPORTANT: redirectTo must be set for real tokens
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${baseUrl}/resetPassword`,
-      });
+    // 3. Call Supabase
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
 
-      console.log("Reset password response:", data);
-
-      if (error) throw error;
-      return { success: true };
-    } catch (error) {
-      console.error("Reset password error:", error);
-      return { success: false, error: error as AuthError };
+    if (error) {
+      console.error("❌ resetPasswordForEmail error:", error);
+      return { success: false, error };
     }
+
+    return { success: true };
   };
+
   // Provide the auth context to children components
   return (
     <AuthContext.Provider
