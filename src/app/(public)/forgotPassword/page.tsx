@@ -4,78 +4,47 @@ import React, { useState } from "react";
 import { Mail, AlertCircle, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
-import { supabase } from "@/utils/client";
+import { useAuth } from "@/context/AuthContext";
 
-// Define error types for better type safety
 interface ErrorObject {
   message?: string;
 }
 
-export const ForgotPassword: React.FC = () => {
+const ForgotPassword = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const searchParams = useSearchParams();
-
-  // Get email from URL if present
-  const emailFromUrl = searchParams?.get("email") || "";
+  const { resetPassword } = useAuth();
 
   // Form state
-  const [email, setEmail] = useState(emailFromUrl || "");
+  const [email, setEmail] = useState("");
+
+  // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Email validation
-  const isValidEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  // Handle password reset request
-  const handleResetRequest = async (e: React.FormEvent) => {
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // Validate input
     if (!email.trim()) {
       setError("Email is required");
-      return;
-    }
-
-    if (!isValidEmail(email.trim())) {
-      setError("Please enter a valid email address");
       return;
     }
 
     setLoading(true);
 
     try {
-      // Use the exact URL format expected by your app
-      // In development: "http://localhost:3000"
-      // In production: your actual deployed URL
-      const siteUrl =
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        (typeof window !== "undefined" ? window.location.origin : "");
+      const { success, error } = await resetPassword(email.trim());
 
-      // IMPORTANT: Use the exact path to your reset password page - /resetPassword with camelCase
-      const resetUrl = `${siteUrl}/resetPassword`;
-
-      // For debugging
-
-      // Call Supabase API with the correct redirect URL
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        email.trim(),
-        {
-          redirectTo: resetUrl,
-        }
-      );
-
-      if (error) throw error;
+      if (!success) {
+        throw error || new Error("Failed to send reset link");
+      }
 
       setSuccess(true);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Password reset error:", err);
 
       if (err instanceof Error) {
@@ -85,7 +54,7 @@ export const ForgotPassword: React.FC = () => {
         err !== null &&
         (err as ErrorObject).message
       ) {
-        setError((err as ErrorObject).message ?? null);
+        setError((err as ErrorObject).message!);
       } else {
         setError("Failed to send reset link. Please try again.");
       }
@@ -113,7 +82,6 @@ export const ForgotPassword: React.FC = () => {
               height={128}
               alt="LIST IT Logo"
               className="w-24 mx-auto rounded-full"
-              priority
             />
           </div>
           <div className="mt-12 flex flex-col items-center">
@@ -135,11 +103,11 @@ export const ForgotPassword: React.FC = () => {
             {/* Error message display */}
             {error && (
               <div
-                className="mt-4 w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+                className={`mt-4 w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative`}
                 role="alert"
               >
                 <div className="flex items-center">
-                  <AlertCircle className="w-5 h-5 mr-2" aria-hidden="true" />
+                  <AlertCircle className="w-5 h-5 mr-2" />
                   <span>{error}</span>
                 </div>
               </div>
@@ -148,14 +116,14 @@ export const ForgotPassword: React.FC = () => {
             {/* Success message display */}
             {success && (
               <div
-                className="mt-4 w-full bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
+                className={`mt-4 w-full bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative`}
                 role="alert"
               >
                 <div className="flex items-center">
-                  <CheckCircle className="w-5 h-5 mr-2" aria-hidden="true" />
+                  <CheckCircle className="w-5 h-5 mr-2" />
                   <span>
                     Password reset link has been sent to your email. Please
-                    check your inbox and spam folders.
+                    check your inbox.
                   </span>
                 </div>
               </div>
@@ -163,15 +131,11 @@ export const ForgotPassword: React.FC = () => {
 
             <div className="w-full flex-1 mt-8">
               {!success ? (
-                <form
-                  onSubmit={handleResetRequest}
-                  className="mx-auto max-w-xs"
-                >
+                <form onSubmit={handleSubmit} className="mx-auto max-w-xs">
                   <div className="relative">
                     <Mail
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                       size={18}
-                      aria-hidden="true"
                     />
                     <input
                       className={`w-full pl-10 pr-3 py-4 rounded-lg font-medium ${
@@ -185,10 +149,6 @@ export const ForgotPassword: React.FC = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       disabled={loading}
                       required
-                      name="email"
-                      id="email"
-                      autoComplete="email"
-                      aria-label="Email Address"
                     />
                   </div>
 
@@ -200,15 +160,9 @@ export const ForgotPassword: React.FC = () => {
                         ? "bg-sky-600 hover:bg-sky-700"
                         : "bg-sky-500 hover:bg-sky-600"
                     } text-white w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center focus:shadow-outline focus:outline-none ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
-                    aria-label={
-                      loading ? "Sending reset link..." : "Send reset link"
-                    }
                   >
                     {loading ? (
-                      <div
-                        className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
-                        aria-hidden="true"
-                      ></div>
+                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                     ) : null}
                     <span>{loading ? "Sending..." : "Send Reset Link"}</span>
                   </button>
@@ -231,7 +185,6 @@ export const ForgotPassword: React.FC = () => {
                         ? "bg-gray-700 hover:bg-gray-600"
                         : "bg-gray-200 hover:bg-gray-300"
                     } text-${isDark ? "white" : "gray-800"} px-6 py-2 rounded-lg transition-all duration-300 ease-in-out focus:shadow-outline focus:outline-none`}
-                    aria-label="Send another reset link"
                   >
                     Send Another Link
                   </button>
@@ -246,7 +199,6 @@ export const ForgotPassword: React.FC = () => {
                       ? "text-sky-400 hover:text-sky-300"
                       : "text-sky-500 hover:text-sky-600"
                   }`}
-                  aria-label="Back to login page"
                 >
                   Back to Login
                 </Link>
