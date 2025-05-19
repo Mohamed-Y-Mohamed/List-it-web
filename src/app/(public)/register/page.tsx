@@ -32,7 +32,6 @@ const Signup = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [googleComingSoon, setGoogleComingSoon] = useState(false);
   const trimmedEmail = email.trim();
 
   // Loading and error states
