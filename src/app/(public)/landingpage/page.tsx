@@ -12,7 +12,6 @@ import {
   ChevronRight,
   Check,
   Calendar,
-  AlertCircle,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -190,6 +189,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
   return (
     <div
+      data-id={id}
       className={`rounded-lg border p-4 transition-shadow cursor-pointer max-w-full overflow-hidden ${
         isDark
           ? "bg-gray-800 border-gray-700 hover:shadow-gray-900/20"
@@ -246,7 +246,6 @@ const TaskCard: React.FC<TaskCardProps> = ({
           <Pin className={`h-5 w-5 ${isPinned ? "fill-current" : ""}`} />
         </button>
       </div>
-
       {description && (
         <p
           className={`mb-2 pl-8 text-sm break-words ${
@@ -262,7 +261,6 @@ const TaskCard: React.FC<TaskCardProps> = ({
           {description}
         </p>
       )}
-
       {due_date && (
         <div
           className={`flex items-center pl-8 text-xs overflow-hidden ${
@@ -406,7 +404,6 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
   const isDark = theme === "dark";
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<"tasks" | "notes">("tasks");
-
   // Enhanced color utilities for better light/dark mode appearance
   const bgColor = isDark ? "bg-gray-900/40" : "bg-white/70";
   const headerBgColor = isDark ? "bg-gray-850" : "bg-gray-50";
@@ -439,8 +436,9 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
 
   return (
     <div
-      className={`rounded-lg overflow-hidden shadow-lg transition-shadow duration-300 hover:shadow-xl ${bgColor}`}
       data-collection-id={id}
+      data-pinned={isPinned}
+      className={`rounded-lg overflow-hidden shadow-lg transition-shadow duration-300 hover:shadow-xl ${bgColor}`}
     >
       {/* Collection Header */}
       <div
@@ -547,7 +545,6 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
           </div>
         )}
       </div>
-
       {/* Collection Content */}
       {isExpanded && (
         <div
