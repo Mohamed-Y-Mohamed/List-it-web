@@ -235,21 +235,17 @@ const Login: React.FC = () => {
                 <button
                   onClick={handleGoogleLogin}
                   disabled={loading}
-                  className={`w-full max-w-xs font-bold shadow-sm rounded-lg py-3 ${
+                  className={`w-full mb-6 py-3 px-4 rounded-lg flex items-center justify-center transition-all duration-300 ${
                     isDark
-                      ? "bg-orange-900 text-gray-200"
-                      : "bg-orange-100 text-gray-800"
-                  } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+                      ? "bg-gray-700 hover:bg-gray-600 text-white"
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-800"
+                  } ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
                   aria-label="Login with Google"
                   type="button"
                 >
-                  <div
-                    className={`${
-                      isDark ? "bg-gray-800" : "bg-white"
-                    } p-2 rounded-full`}
-                  >
+                  <div className="bg-white p-1 rounded-full shadow-sm">
                     <svg
-                      className="w-4"
+                      className="w-5 h-5"
                       viewBox="0 0 533.5 544.3"
                       aria-hidden="true"
                     >
