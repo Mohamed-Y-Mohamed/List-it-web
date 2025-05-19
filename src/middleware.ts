@@ -21,8 +21,8 @@ export async function middleware(request: NextRequest) {
     "/settings",
   ];
 
-  // Define auth routes - FIXED: Added resetPassword (camelCase to match your route)
-  const authRoutes = ["/login", "/signup", "/resetPassword", "/resetpage"];
+  // Define auth routes
+  const authRoutes = ["/login", "/signup", "/reset-password"];
 
   // Define routes to skip authentication checks
   const skipAuthRoutes = [
@@ -63,9 +63,6 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // IMPORTANT: Check for password reset flow
-  const isPasswordReset = pathname === "/resetPassword";
-
   // Check if current path is a protected route that requires authentication
   const isProtectedRoute = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
@@ -75,8 +72,7 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = authRoutes.some((route) => pathname === route);
 
   // Only create Supabase client for protected routes or auth routes (for login status)
-  // or for password reset route
-  if (isProtectedRoute || isAuthRoute || isPasswordReset) {
+  if (isProtectedRoute || isAuthRoute) {
     // Create the Supabase middleware client
     const supabase = createMiddlewareClient({ req: request, res: response });
 
@@ -117,19 +113,6 @@ export async function middleware(request: NextRequest) {
         return response;
       }
 
-      // Special handling for password reset - ALLOW even without session
-      if (isPasswordReset) {
-        // Check for token in the URL (might be direct access from email)
-        const hasToken =
-          request.nextUrl.searchParams.has("token") ||
-          (request.headers.get("referer") || "").includes("token=");
-
-        if (hasToken || session) {
-          // Allow access if there's a token or session
-          return response;
-        }
-      }
-
       // Handle protected routes without session
       if (isProtectedRoute && !session) {
         const loginUrl = request.nextUrl.clone();
@@ -140,12 +123,7 @@ export async function middleware(request: NextRequest) {
       // Handle auth routes with active session
       // IMPORTANT: Only redirect away from login page if coming from another page
       // This lets users explicitly visit login if they want to login as different user
-      if (
-        isAuthRoute &&
-        session &&
-        pathname !== "/resetPassword" &&
-        pathname !== "/resetpage"
-      ) {
+      if (isAuthRoute && session) {
         const referer = request.headers.get("referer");
         if (referer && !referer.includes(pathname)) {
           const dashboardUrl = request.nextUrl.clone();

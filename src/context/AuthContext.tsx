@@ -42,6 +42,7 @@ const AuthContext = createContext<AuthContextType>({
 
 // Helper to clear all Supabase authentication data from local storage
 const clearSupabaseLocalStorage = () => {
+  // Remove the specific Supabase auth keys from localStorage
   try {
     // Get all keys from localStorage
     const keys = Object.keys(localStorage);
@@ -56,9 +57,6 @@ const clearSupabaseLocalStorage = () => {
         localStorage.removeItem(key);
       }
     });
-
-    // Also clear any app-specific storage
-    localStorage.removeItem("list_it_email");
   } catch (err) {
     console.error("Error clearing localStorage:", err);
   }
@@ -70,40 +68,19 @@ const clearAllAuthCookies = () => {
   const cookiesToClear = [
     "auth_token",
     "isLoggedIn",
-    "supabase-auth-token",
-    "sb-access-token",
+    "supabase-auth-token", // Supabase may set this one
+    "sb-access-token", // Supabase browser storage keys
     "sb-refresh-token",
-    "sb:token",
-    "__supabase_session", // Added additional cookies that might be set
-    "sb-refresh-token",
-    "sb-auth-token",
+    "sb:token", // Legacy Supabase cookie
   ];
 
   // Clear each cookie by setting expiry in the past with various paths
   cookiesToClear.forEach((cookieName) => {
-    // For main path
     document.cookie = `${cookieName}=; path=/; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-
-    // Try additional paths
+    // Also try with different paths in case they were set differently
     document.cookie = `${cookieName}=; path=/api; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
     document.cookie = `${cookieName}=; path=/auth; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-    document.cookie = `${cookieName}=; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
   });
-};
-
-// Helper to clear session storage
-const clearSessionStorage = () => {
-  try {
-    // Clear specific items
-    sessionStorage.removeItem("supabase.auth.token");
-    sessionStorage.removeItem("supabase.auth.expires_at");
-
-    // Only clear the entire session storage as a last resort
-    // as it might affect other functionality
-    // sessionStorage.clear();
-  } catch (err) {
-    console.error("Error clearing sessionStorage:", err);
-  }
 };
 
 // Hook for child components to get the auth context
@@ -111,11 +88,11 @@ export const useAuth = () => useContext(AuthContext);
 
 // Provider component that wraps the app and provides auth context
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [initialized, setInitialized] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const [initialized, setInitialized] = useState(false);
 
   // Initialize auth state on first load
   useEffect(() => {
@@ -165,22 +142,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [initialized]);
 
-  // Google OAuth login method
+  // Google OAuth login method - Fixed to use the direct URL
   const loginWithGoogle = async () => {
     try {
-      // Get base URL without trailing slash
-      const baseUrl = (
-        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
-      ).replace(/\/$/, "");
+      // Clear any existing auth state that might be corrupted
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Always use production URL for redirect
+      const siteUrl = "https://list-it-dom.netlify.app";
+
+      // Create a custom redirect URL with origin parameter to ensure proper redirects after auth
+      const fullRedirectUrl = `${siteUrl}/auth/callback?origin=${encodeURIComponent(siteUrl)}`;
+
+      console.log("Using redirect URL:", fullRedirectUrl);
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
+          redirectTo: fullRedirectUrl,
           queryParams: {
             access_type: "offline",
             prompt: "consent",
           },
-          redirectTo: `${baseUrl}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
         },
       });
 
@@ -191,18 +175,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Apple OAuth login method
+  // Similarly update Apple login if needed
   const loginWithApple = async () => {
     try {
-      // Get base URL without trailing slash
-      const baseUrl = (
-        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
-      ).replace(/\/$/, "");
+      // Clear any existing auth state that might be corrupted
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Always use production URL for redirect
+      const siteUrl = "https://list-it-dom.netlify.app";
+
+      // Create a custom redirect URL with origin parameter
+      const fullRedirectUrl = `${siteUrl}/auth/callback?origin=${encodeURIComponent(siteUrl)}`;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "apple",
         options: {
-          redirectTo: `${baseUrl}/auth/callback?redirectTo=${encodeURIComponent("/dashboard")}`,
+          redirectTo: fullRedirectUrl,
         },
       });
 
@@ -243,93 +232,62 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Improved logout function that ensures full session cleanup
+  // Complete logout function that ensures full session cleanup
   const logout = async () => {
     try {
-      console.log("Starting logout process...");
-
-      // Immediately update UI
+      // 1. First update state for immediate UI response
       setIsLoggedIn(false);
       setUser(null);
 
-      // Mark logout attempt
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("logging_out", "true");
+      // 2. Clear all auth cookies first
+      clearAllAuthCookies();
+
+      // 3. Clear Supabase data from localStorage
+      clearSupabaseLocalStorage();
+
+      // 4. Call Supabase signOut with global scope
+      const { error } = await supabase.auth.signOut({
+        scope: "global",
+      });
+
+      if (error) {
+        console.error("Error during Supabase signOut:", error);
       }
 
-      // Safely get session
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
+      // 5. Force a complete page reload to clear any in-memory state
 
-      if (sessionError) {
-        console.warn("Error fetching session during logout:", sessionError);
-      }
+      // Set a flag in sessionStorage to show we're in the middle of logging out
+      // This prevents redirect loops if middleware tries to restore the session
+      sessionStorage.setItem("logging_out", "true");
 
-      console.log("Session before logout:", session);
-
-      // Only sign out if session exists
-      if (session) {
-        try {
-          await supabase.auth.signOut(); // removes from local client only
-          console.log("Signed out from Supabase (global)");
-        } catch (signOutError) {
-          console.error("SignOut error:", signOutError);
-        }
-      } else {
-        console.log("No session present; skipping supabase.auth.signOut");
-      }
-
-      // Cleanup local/session storage
-      if (typeof window !== "undefined") {
-        clearAllAuthCookies();
-        clearSupabaseLocalStorage();
-        clearSessionStorage();
-
-        // Delay to ensure async cleanup
-        setTimeout(() => {
-          window.location.href = "/login?logout=true";
-        }, 100);
-      }
+      // Use direct window location for a full page refresh
+      window.location.href = "/login?logout=true";
     } catch (error) {
       console.error("Logout process error:", error);
 
-      // Fallback cleanup and redirect
-      if (typeof window !== "undefined") {
-        clearAllAuthCookies();
-        clearSupabaseLocalStorage();
-        clearSessionStorage();
-        window.location.href = "/login?logout=true&error=true";
-      }
+      // Still try to force clear everything and redirect even if there was an error
+      clearAllAuthCookies();
+      clearSupabaseLocalStorage();
+
+      // Force redirect
+      window.location.href = "/login?logout=true&error=true";
     }
   };
 
   // Reset password
-  // In your AuthContext.tsx
-  // AuthContext.tsx (inside your AuthProvider)
   const resetPassword = async (email: string) => {
-    // 1. Grab and normalize site URL
-    const rawSite =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      (typeof window !== "undefined" ? window.location.origin : "");
-    const siteUrl = rawSite.replace(/\/$/, ""); // "http://localhost:3000"
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: "https://list-it-dom.netlify.app/reset-password",
+      });
 
-    // 2. Append the reset route
-    const redirectTo = `${siteUrl}/resetPassword`; // "http://localhost:3000/resetPassword"
-    console.log("🔁 resetPassword redirectTo =", redirectTo);
+      if (error) throw error;
 
-    // 3. Call Supabase
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo,
-    });
-
-    if (error) {
-      console.error("❌ resetPasswordForEmail error:", error);
-      return { success: false, error };
+      return { success: true };
+    } catch (error) {
+      console.error("Reset password error:", error);
+      return { success: false, error: error as AuthError };
     }
-
-    return { success: true };
   };
 
   // Provide the auth context to children components

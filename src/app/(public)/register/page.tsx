@@ -173,8 +173,10 @@ const Signup = () => {
 
   // Handle showing "coming soon" message for Google signup
   const handleGoogleSignup = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
+      setError(null);
+
       // Clear any existing auth state
       localStorage.clear();
       sessionStorage.clear();
@@ -199,10 +201,11 @@ const Signup = () => {
       });
 
       if (error) throw error;
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Google login error:", err);
-      const error = err as AuthError;
+      const error = err as ErrorWithMessage;
       setError(error.message || "Failed to log in with Google");
+    } finally {
       setLoading(false);
     }
   };
