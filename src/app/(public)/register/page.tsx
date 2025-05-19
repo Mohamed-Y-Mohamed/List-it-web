@@ -218,11 +218,11 @@ const Signup = () => {
 
       <div
         className={`max-w-6xl w-full mx-auto rounded-xl shadow-2xl overflow-hidden flex flex-col md:flex-row ${
-          isDark ? "bg-gray-800/70" : "bg-white/70"
+          isDark ? "bg-gray-800/50" : "bg-white/50"
         } backdrop-blur-sm`}
       >
         {/* Left Panel - Illustration */}
-        <div className="md:w-1/2 bg-gradient-to-br from-gray-800 to-gray-900 hidden md:flex md:flex-col justify-center items-center p-12 relative overflow-hidden">
+        <div className="md:w-1/2 bg-gradient-to-br from-gray-800/70 to-gray-900 hidden md:flex md:flex-col justify-center items-center p-12 relative overflow-hidden">
           <div className="absolute inset-0 opacity-10 bg-pattern"></div>
           <div className="relative z-10 text-center">
             <div className="flex items-center justify-center mb-6">
@@ -328,7 +328,7 @@ const Signup = () => {
                   className={`w-full mb-6 py-3 px-4 rounded-lg flex items-center justify-center transition-all duration-300 ${
                     isDark
                       ? "bg-gray-700 hover:bg-gray-600 text-white"
-                      : "bg-gray-100 hover:bg-gray-200 text-gray-800"
+                      : "bg-gray-300 hover:bg-gray-400 text-gray-800"
                   } ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
                   aria-label="Login with Google"
                   type="button"

@@ -227,8 +227,6 @@ const Login: React.FC = () => {
               </div>
             )}
 
-            {/* Google "Coming Soon" message */}
-
             <div className="w-full">
               {/* Google Sign In Button */}
               <div className="flex flex-col items-center">
@@ -238,7 +236,7 @@ const Login: React.FC = () => {
                   className={`w-full mb-6 py-3 px-4 rounded-lg flex items-center justify-center transition-all duration-300 ${
                     isDark
                       ? "bg-gray-700 hover:bg-gray-600 text-white"
-                      : "bg-gray-100 hover:bg-gray-200 text-gray-800"
+                      : "bg-gray-300 hover:bg-gray-400 text-gray-800"
                   } ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
                   aria-label="Login with Google"
                   type="button"
