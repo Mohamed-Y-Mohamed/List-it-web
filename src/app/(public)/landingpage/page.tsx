@@ -11,6 +11,8 @@ import {
   ChevronDown,
   ChevronRight,
   Check,
+  Calendar,
+  AlertCircle,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -140,8 +142,9 @@ const initialData: { collections: Collection[] } = {
   ],
 };
 
-// Task Card Component
+// Task Card Component - Updated to match backend design
 interface TaskCardProps {
+  id: string;
   text: string;
   description?: string;
   due_date?: Date;
@@ -150,6 +153,7 @@ interface TaskCardProps {
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({
+  id,
   text,
   description,
   due_date,
@@ -186,118 +190,100 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
   return (
     <div
-      className={`rounded-xl border p-4 transition-all duration-300 cursor-pointer overflow-hidden ${
+      className={`rounded-lg border p-4 transition-shadow cursor-pointer max-w-full overflow-hidden ${
         isDark
-          ? "bg-gray-800 border-gray-700 hover:shadow-lg hover:shadow-gray-900/30"
-          : "bg-white border-gray-300 hover:shadow-lg hover:shadow-gray-300/70"
+          ? "bg-gray-800 border-gray-700 hover:shadow-gray-900/20"
+          : "bg-white border-gray-200 hover:shadow-md"
       }`}
     >
-      <div className="flex flex-col space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3 overflow-hidden">
-            <button
-              onClick={handleCompletionToggle}
-              className={`flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
-                isDark
-                  ? isCompleted
-                    ? "border-green-400 bg-green-500 text-gray-900"
-                    : "border-gray-600 bg-gray-700 hover:border-green-500"
-                  : isCompleted
-                    ? "border-green-500 bg-green-500 text-white"
-                    : "border-gray-300 bg-white hover:border-green-500"
-              }`}
-              aria-label={
-                isCompleted ? "Mark as incomplete" : "Mark as complete"
-              }
-              type="button"
-            >
-              {isCompleted && <Check className="h-3 w-3" />}
-            </button>
-
-            <h4
-              className={`font-semibold truncate ${
-                isDark
-                  ? isCompleted
-                    ? "text-gray-400 line-through"
-                    : "text-gray-100"
-                  : isCompleted
-                    ? "text-gray-500 line-through"
-                    : "text-gray-800"
-              }`}
-            >
-              {text || "Unnamed Task"}
-            </h4>
-
-            {isPinned && (
-              <span
-                className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                  isDark
-                    ? "bg-orange-900/50 text-orange-300"
-                    : "bg-orange-100 text-orange-600"
-                }`}
-              >
-                Priority
-              </span>
-            )}
-          </div>
-
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center space-x-3 overflow-hidden">
           <button
-            onClick={handlePriorityToggle}
-            className={`flex-shrink-0 transition-colors p-1 rounded-full ${
-              isDark
-                ? isPinned
-                  ? "text-orange-400 bg-orange-900/30"
-                  : "text-gray-500 hover:text-gray-300 hover:bg-gray-700"
-                : isPinned
-                  ? "text-orange-500 bg-orange-100"
-                  : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-            }`}
-            aria-label={isPinned ? "Unpin task" : "Pin task"}
-            type="button"
-          >
-            <Pin className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`} />
-          </button>
-        </div>
-
-        {description && (
-          <p
-            className={`pl-8 text-sm break-words ${
+            onClick={handleCompletionToggle}
+            className={`flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
               isDark
                 ? isCompleted
-                  ? "text-gray-500 line-through"
-                  : "text-gray-400"
+                  ? "border-green-400 bg-green-500 text-gray-900"
+                  : "border-gray-600 bg-gray-700 hover:border-green-500"
                 : isCompleted
+                  ? "border-green-500 bg-green-500 text-white"
+                  : "border-gray-300 bg-white hover:border-green-500"
+            }`}
+            aria-label={isCompleted ? "Mark as incomplete" : "Mark as complete"}
+            type="button"
+          >
+            {isCompleted && <Check className="h-3 w-3" />}
+          </button>
+
+          <h4
+            className={`font-semibold truncate ${
+              isDark
+                ? isCompleted
                   ? "text-gray-400 line-through"
-                  : "text-gray-600"
+                  : "text-gray-100"
+                : isCompleted
+                  ? "text-gray-500 line-through"
+                  : "text-gray-800"
             }`}
           >
-            {description}
-          </p>
-        )}
+            {text || "Untitled Task"}
+          </h4>
+        </div>
 
-        {due_date && (
-          <div className="flex flex-wrap items-center gap-2 pl-8 mt-1">
-            <div
-              className={`flex items-center text-xs px-2 py-1 rounded-full ${
-                isDark ? "bg-gray-700" : "bg-gray-100"
-              }`}
-            >
-              <Clock
-                className={`mr-1 h-3 w-3 flex-shrink-0 ${
-                  isDark ? "text-purple-400" : "text-purple-600"
-                }`}
-              />
-              <span className="truncate">{formatDate(due_date)}</span>
-            </div>
-          </div>
-        )}
+        <button
+          onClick={handlePriorityToggle}
+          className={`flex-shrink-0 transition-colors ${
+            isDark
+              ? isPinned
+                ? "text-white"
+                : "text-gray-500 hover:text-gray-300"
+              : isPinned
+                ? "text-black"
+                : "text-gray-400 hover:text-gray-600"
+          }`}
+          aria-label={isPinned ? "Unpin task" : "Pin task"}
+        >
+          <Pin className={`h-5 w-5 ${isPinned ? "fill-current" : ""}`} />
+        </button>
       </div>
+
+      {description && (
+        <p
+          className={`mb-2 pl-8 text-sm break-words ${
+            isDark
+              ? isCompleted
+                ? "text-gray-500 line-through"
+                : "text-gray-400"
+              : isCompleted
+                ? "text-gray-400 line-through"
+                : "text-gray-600"
+          }`}
+        >
+          {description}
+        </p>
+      )}
+
+      {due_date && (
+        <div
+          className={`flex items-center pl-8 text-xs overflow-hidden ${
+            isDark ? "text-gray-500" : "text-gray-500"
+          }`}
+        >
+          <div className="flex items-center overflow-hidden">
+            <Calendar className="mr-1 h-4 w-4 flex-shrink-0" />
+            <span className="truncate">
+              {due_date ? `Due: ${formatDate(due_date)}` : "No due date"}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-// Note Card Component
+// Note Card Component - Updated to match backend design
 interface NoteCardProps {
+  id: string;
   title: string | null;
   description: string | null;
   bg_color_hex: string | null;
@@ -305,6 +291,7 @@ interface NoteCardProps {
 }
 
 const NoteCard: React.FC<NoteCardProps> = ({
+  id,
   title,
   description,
   bg_color_hex,
@@ -316,15 +303,25 @@ const NoteCard: React.FC<NoteCardProps> = ({
 
   const displayTitle = title || "Untitled Note";
 
-  const cardStyle = bg_color_hex ? { backgroundColor: bg_color_hex } : {};
+  // Card styling with glassy effect
+  const cardStyle = bg_color_hex
+    ? {
+        backgroundColor: bg_color_hex,
+        // Add subtle gradient overlay for glass effect but preserve base color
+        backgroundImage: `linear-gradient(120deg, ${bg_color_hex}dd, ${bg_color_hex}aa)`,
+      }
+    : {};
+
   const bgClass = !bg_color_hex
     ? isDark
       ? "bg-gray-800"
       : "bg-yellow-50"
     : "";
+
   const useWhiteText = bg_color_hex
     ? !["#FFD60A", "#34C759", "#00C7BE"].includes(bg_color_hex)
     : isDark;
+
   const textColor = useWhiteText ? "text-white" : "text-gray-800";
 
   const handlePinClick = (e: React.MouseEvent): void => {
@@ -335,15 +332,24 @@ const NoteCard: React.FC<NoteCardProps> = ({
 
   return (
     <div
-      className={`rounded-lg p-4 shadow-sm hover:shadow-md relative overflow-hidden cursor-pointer w-full h-32 md:h-40 transition-all duration-200 ease-in-out ${bgClass}`}
+      className={`
+          rounded-lg p-4 shadow-sm hover:shadow-md
+          relative overflow-hidden cursor-pointer
+          w-full h-32 md:h-40
+          transition-all duration-200 ease-in-out
+          ${bgClass}
+        `}
       style={cardStyle}
       role="button"
       aria-label={`Open note: ${displayTitle}`}
+      data-id={id}
     >
       <button
         onClick={handlePinClick}
         className={`absolute top-2 right-2 p-1 rounded-full transition-colors ${
-          isDark ? "hover:bg-gray-600/50" : "hover:bg-gray-200/50"
+          isDark
+            ? "bg-gray-500/80 hover:bg-gray-600/50"
+            : "bg-gray-500/80 hover:bg-gray-200/10"
         }`}
         aria-label={isPinned ? "Unpin note" : "Pin note"}
         type="button"
@@ -352,8 +358,8 @@ const NoteCard: React.FC<NoteCardProps> = ({
           className={`h-4 w-4 ${
             isPinned
               ? useWhiteText
-                ? "text-white fill-orange-400"
-                : "text-black fill-orange-500"
+                ? "text-white fill-current"
+                : "text-black fill-current"
               : useWhiteText
                 ? "text-white stroke-2"
                 : "text-black stroke-2"
@@ -378,8 +384,9 @@ const NoteCard: React.FC<NoteCardProps> = ({
   );
 };
 
-// Collection Component
+// Collection Component - Updated to match backend design
 interface CollectionComponentProps {
+  id: string;
   collection_name: string;
   bg_color_hex: string;
   tasks: Task[];
@@ -388,6 +395,7 @@ interface CollectionComponentProps {
 }
 
 const CollectionComponent: React.FC<CollectionComponentProps> = ({
+  id,
   collection_name,
   bg_color_hex,
   tasks = [],
@@ -399,8 +407,8 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<"tasks" | "notes">("tasks");
 
-  // Enhanced color utilities
-  const bgColor = isDark ? "bg-gray-900" : "bg-white";
+  // Enhanced color utilities for better light/dark mode appearance
+  const bgColor = isDark ? "bg-gray-900/40" : "bg-white/70";
   const headerBgColor = isDark ? "bg-gray-850" : "bg-gray-50";
   const textColor = isDark ? "text-gray-100" : "text-gray-800";
   const subtextColor = isDark ? "text-gray-400" : "text-gray-600";
@@ -410,14 +418,20 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
   const activeTabBgColor = isDark ? "bg-gray-800" : "bg-gray-100";
 
   // Filter and sort tasks
-  const priorityTasks = tasks.filter((task) => task.is_pinned);
+  const priorityTasks = tasks.filter((task) => Boolean(task.is_pinned));
   const regularTasks = tasks.filter((task) => !task.is_pinned);
 
   // Sort notes
   const sortedNotes = [...notes].sort((a, b) => {
     if (a.is_pinned && !b.is_pinned) return -1;
     if (!a.is_pinned && b.is_pinned) return 1;
-    return 0;
+
+    // Then sort by creation date
+    const dateA =
+      a.created_at instanceof Date ? a.created_at : new Date(a.created_at);
+    const dateB =
+      b.created_at instanceof Date ? b.created_at : new Date(b.created_at);
+    return dateB.getTime() - dateA.getTime();
   });
 
   const taskCount = tasks.length;
@@ -426,6 +440,7 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
   return (
     <div
       className={`rounded-lg overflow-hidden shadow-lg transition-shadow duration-300 hover:shadow-xl ${bgColor}`}
+      data-collection-id={id}
     >
       {/* Collection Header */}
       <div
@@ -437,6 +452,7 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
           onClick={() => setIsExpanded(!isExpanded)}
           role="button"
           aria-expanded={isExpanded}
+          aria-label={`${collection_name || "Unnamed Collection"} collection`}
         >
           {/* Icon with collection color */}
           <div
@@ -465,17 +481,6 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
           <div className="flex items-center space-x-2">
             <button
               className={`p-1.5 rounded-full ${subtextColor} ${hoverColor} transition-colors duration-200`}
-              type="button"
-              aria-label={isPinned ? "Unpin collection" : "Pin collection"}
-            >
-              <Pin
-                className={`h-4 w-4 ${isPinned ? "text-orange-500" : subtextColor} transition-colors duration-200`}
-                fill={isPinned ? "currentColor" : "none"}
-              />
-            </button>
-            <button
-              className={`p-1.5 rounded-full ${subtextColor} ${hoverColor} transition-colors duration-200`}
-              type="button"
               aria-label={isExpanded ? "Collapse" : "Expand"}
             >
               {isExpanded ? (
@@ -499,7 +504,8 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
               onClick={() => setActiveTab("tasks")}
               role="tab"
               aria-selected={activeTab === "tasks"}
-              type="button"
+              aria-controls="tasks-panel"
+              id="tasks-tab"
             >
               <div className="flex items-center justify-center space-x-1">
                 <ListTodo className="h-4 w-4" />
@@ -523,7 +529,8 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
               onClick={() => setActiveTab("notes")}
               role="tab"
               aria-selected={activeTab === "notes"}
-              type="button"
+              aria-controls="notes-panel"
+              id="notes-tab"
             >
               <div className="flex items-center justify-center space-x-1">
                 <StickyNote className="h-4 w-4" />
@@ -543,7 +550,12 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
 
       {/* Collection Content */}
       {isExpanded && (
-        <div className={`${bgColor} p-4`}>
+        <div
+          className={`${bgColor} p-4`}
+          role="tabpanel"
+          id={activeTab === "tasks" ? "tasks-panel" : "notes-panel"}
+          aria-labelledby={activeTab === "tasks" ? "tasks-tab" : "notes-tab"}
+        >
           {activeTab === "tasks" && (
             <div className="space-y-3">
               {/* Priority Tasks Section */}
@@ -553,6 +565,7 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
                     {priorityTasks.map((task) => (
                       <TaskCard
                         key={task.id}
+                        id={task.id}
                         text={task.text}
                         description={task.description}
                         due_date={task.due_date}
@@ -576,6 +589,7 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
                   {regularTasks.map((task) => (
                     <TaskCard
                       key={task.id}
+                      id={task.id}
                       text={task.text}
                       description={task.description}
                       due_date={task.due_date}
@@ -601,6 +615,7 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
                   {sortedNotes.map((note) => (
                     <NoteCard
                       key={note.id}
+                      id={note.id}
                       title={note.title}
                       description={note.description}
                       bg_color_hex={note.bg_color_hex}
@@ -621,20 +636,21 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
   );
 };
 
-// Hero Component
+// Hero Component - Updated with glass effect
 const Hero: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   return (
-    <section
-      className={`${
-        isDark
-          ? "bg-gradient-to-r from-gray-900 via-orange-950 to-gray-900"
-          : "bg-gradient-to-r from-sky-100 via-orange-50 to-sky-200"
-      } pt-28 transition-colors duration-300`}
-    >
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+    <section className="relative">
+      {/* Background with updated gradient */}
+      {isDark ? (
+        <div className="absolute inset-0 -z-10 size-full items-center px-5 py-24 [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#7c2d12_100%)]" />
+      ) : (
+        <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_60%_10%,#fff_20%,#bae6fd_100%)]" />
+      )}
+
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 pt-28">
         <div className="flex flex-col items-center justify-between lg:flex-row">
           <div className="mb-12 max-w-xl lg:mb-0 lg:w-1/2">
             <h1
@@ -682,14 +698,15 @@ const Hero: React.FC = () => {
           <div className="w-full lg:w-1/2">
             <div
               className={`relative overflow-hidden rounded-xl ${
-                isDark ? "bg-gray-800" : "bg-white"
-              } p-4 shadow-2xl`}
+                isDark ? "bg-gray-800/70" : "bg-white/80"
+              } p-4 shadow-2xl backdrop-blur-sm`}
             >
-              {/* Demo UI preview here */}
+              {/* Demo UI preview here with updated components */}
               <div className="space-y-4">
                 {initialData.collections.map((collection) => (
                   <CollectionComponent
                     key={collection.id}
+                    id={collection.id}
                     collection_name={collection.collection_name}
                     bg_color_hex={collection.bg_color_hex}
                     tasks={collection.tasks}
@@ -703,9 +720,9 @@ const Hero: React.FC = () => {
         </div>
       </div>
       <div
-        className={`mt-16 w-full ${
+        className={`w-full ${
           isDark ? "bg-orange-800" : "bg-sky-500"
-        } py-10 text-center text-white`}
+        } py-10 text-center text-white backdrop-blur-sm bg-opacity-90`}
       >
         <div className="mx-auto max-w-3xl px-4">
           <h2 className="mb-4 text-2xl font-bold md:text-3xl">
@@ -720,7 +737,7 @@ const Hero: React.FC = () => {
   );
 };
 
-// Feature Card Component
+// Feature Card Component - Updated to match design system
 interface FeatureCardProps {
   icon: React.ReactNode;
   title: string;
@@ -738,7 +755,9 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
   return (
     <div
       className={`rounded-xl p-6 transition-all duration-200 ${
-        isDark ? "bg-gray-800 hover:bg-gray-750" : "bg-white hover:bg-gray-50"
+        isDark
+          ? "bg-gray-800/80 hover:bg-gray-800/90 backdrop-blur-sm"
+          : "bg-white/80 hover:bg-white/90 backdrop-blur-sm"
       } shadow-lg hover:shadow-xl`}
     >
       <div className="mb-4">{icon}</div>
@@ -754,7 +773,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
   );
 };
 
-// How It Works Card
+// How It Works Card - Updated with glass effect
 interface HowItWorksCardProps {
   icon: React.FC<{ className?: string }>;
   title: string;
@@ -777,7 +796,7 @@ const HowItWorksCard: React.FC<HowItWorksCardProps> = ({
 
   return (
     <div
-      className={`rounded-lg p-6 border-2 border-transparent hover:border-2 ${hoverBorder} transition-all duration-300 ${bgColor} shadow-lg`}
+      className={`rounded-lg p-6 border-2 border-transparent hover:border-2 ${hoverBorder} transition-all duration-300 ${bgColor} shadow-lg backdrop-blur-sm`}
     >
       <div className={`inline-flex rounded-full p-3 mb-4 ${textColor}`}>
         <Icon className="h-6 w-6" />
@@ -834,7 +853,7 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
   );
 };
 
-// Benefit Card Component
+// Benefit Card Component - Updated with glass effect
 interface BenefitCardProps {
   title: string;
   description: string;
@@ -851,7 +870,11 @@ const BenefitCard: React.FC<BenefitCardProps> = ({
 
   return (
     <div
-      className={`flex items-start p-6 ${isDark ? "bg-gray-800" : "bg-white"} rounded-lg shadow-lg`}
+      className={`flex items-start p-6 ${
+        isDark
+          ? "bg-gray-800/80 backdrop-blur-sm"
+          : "bg-white/80 backdrop-blur-sm"
+      } rounded-lg shadow-lg`}
     >
       <div
         className={`flex-shrink-0 p-3 mr-4 rounded-full ${isDark ? "bg-orange-900/40 text-orange-400" : "bg-sky-100 text-sky-600"}`}
@@ -942,14 +965,19 @@ const LandingPage: React.FC = () => {
   ];
 
   return (
-    <div
-      className={`min-h-screen w-full ${isDark ? "bg-gray-900" : "bg-white"} transition-colors duration-300`}
-    >
+    <div className="min-h-screen w-full">
       {/* Hero Section with Live Demo */}
       <Hero />
 
       {/* How It Works Section */}
-      <section className={`py-20 ${isDark ? "bg-gray-900" : ""}`}>
+      <section className="py-20 relative">
+        {/* Background with radial gradient */}
+        {isDark ? (
+          <div className="absolute inset-0 -z-10 size-full items-center [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#000_100%)]" />
+        ) : (
+          <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_50%_50%,#fff_20%,#f0f9ff_100%)]" />
+        )}
+
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="How"
@@ -963,7 +991,7 @@ const LandingPage: React.FC = () => {
               icon={Folder}
               title="Create Collections"
               description="Group related tasks into themed collections with custom colors for visual organization."
-              bgColor={isDark ? "bg-gray-800" : "bg-white"}
+              bgColor={isDark ? "bg-gray-800/80" : "bg-white/80"}
               hoverBorder={isDark ? "border-orange-700" : "border-orange-200"}
               textColor={
                 isDark
@@ -975,7 +1003,7 @@ const LandingPage: React.FC = () => {
               icon={ListTodo}
               title="Manage Tasks"
               description="Create priority tasks with descriptions, mark tasks as complete, and organize them with due dates."
-              bgColor={isDark ? "bg-gray-800" : "bg-white"}
+              bgColor={isDark ? "bg-gray-800/80" : "bg-white/80"}
               hoverBorder={isDark ? "border-sky-700" : "border-sky-200"}
               textColor={
                 isDark ? "bg-sky-900 text-sky-400" : "bg-sky-100 text-sky-500"
@@ -985,7 +1013,7 @@ const LandingPage: React.FC = () => {
               icon={StickyNote}
               title="Add Notes"
               description="Create colorful, pinnable notes for important details and reference information within each collection."
-              bgColor={isDark ? "bg-gray-800" : "bg-white"}
+              bgColor={isDark ? "bg-gray-800/80" : "bg-white/80"}
               hoverBorder={isDark ? "border-orange-700" : "border-orange-200"}
               textColor={
                 isDark
@@ -998,9 +1026,14 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Features Section */}
-      <section
-        className={`py-20 ${isDark ? "bg-gradient-to-r from-gray-900 via-orange-950 to-gray-900" : "bg-gradient-to-r from-sky-100 via-orange-50 to-sky-100"}`}
-      >
+      <section className="py-20 relative">
+        {/* Background with radial gradient */}
+        {isDark ? (
+          <div className="absolute inset-0 -z-10 size-full items-center px-5 py-24 [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#7c2d12_100%)]" />
+        ) : (
+          <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_60%_10%,#fff_20%,#bae6fd_100%)]" />
+        )}
+
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="Everything You Need to"
@@ -1017,7 +1050,14 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Interactive Demo Section */}
-      <section className={`py-20 ${isDark ? "bg-gray-900" : "bg-white"}`}>
+      <section className="py-20 relative">
+        {/* Background with radial gradient */}
+        {isDark ? (
+          <div className="absolute inset-0 -z-10 size-full items-center [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#000_100%)]" />
+        ) : (
+          <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_50%_50%,#fff_20%,#f0f9ff_100%)]" />
+        )}
+
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="See LIST IT in"
@@ -1026,11 +1066,14 @@ const LandingPage: React.FC = () => {
           />
 
           <div className="mt-16 overflow-hidden rounded-xl shadow-2xl">
-            <div className={`p-4 ${isDark ? "bg-gray-800" : "bg-white"}`}>
+            <div
+              className={`p-4 ${isDark ? "bg-gray-800/80" : "bg-white/80"} backdrop-blur-sm`}
+            >
               <div className="space-y-6">
                 {initialData.collections.map((collection) => (
                   <CollectionComponent
                     key={collection.id}
+                    id={collection.id}
                     collection_name={collection.collection_name}
                     bg_color_hex={collection.bg_color_hex}
                     tasks={collection.tasks}
@@ -1045,7 +1088,14 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Benefits Section (replacing Testimonials) */}
-      <section className={`py-20 ${isDark ? "bg-gray-850" : "bg-gray-50"}`}>
+      <section className="py-20 relative">
+        {/* Background with radial gradient */}
+        {isDark ? (
+          <div className="absolute inset-0 -z-10 size-full items-center [background:radial-gradient(125%_125%_at_50%_10%,#111827_40%,#1f2937_100%)]" />
+        ) : (
+          <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_50%_50%,#f9fafb_20%,#f3f4f6_100%)]" />
+        )}
+
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="Work Smarter"
@@ -1063,7 +1113,7 @@ const LandingPage: React.FC = () => {
 
       {/* CTA Section */}
       <section
-        className={`py-16 text-white ${isDark ? "bg-orange-800" : "bg-sky-500"}`}
+        className={`py-16 text-white relative ${isDark ? "bg-orange-800/90" : "bg-sky-500/90"} backdrop-blur-sm`}
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
@@ -1079,7 +1129,7 @@ const LandingPage: React.FC = () => {
                 className={`inline-flex items-center justify-center rounded-md ${
                   isDark
                     ? "bg-gray-800 text-orange-400 hover:bg-gray-700"
-                    : "bg-white text-orange-500 hover:bg-gray-100"
+                    : "bg-white text-sky-500 hover:bg-gray-100"
                 } px-6 py-3 text-base font-medium transition-colors`}
               >
                 Get Started - It&apos;s Free!

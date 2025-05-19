@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { LogIn, Mail, Lock, AlertCircle, Eye, EyeOff } from "lucide-react";
+import {
+  LogIn,
+  Mail,
+  Lock,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  ListTodo,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -135,32 +143,42 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div
-      className={`min-h-screen pt-18 ${
-        isDark ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-900"
-      } flex justify-center transition-colors duration-300`}
-    >
+    <div className="min-h-screen w-full relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {/* Background with radial gradient */}
+      {isDark ? (
+        <div className="absolute inset-0 -z-10 size-full items-center [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#7c2d12_100%)]" />
+      ) : (
+        <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_60%_10%,#fff_20%,#bae6fd_100%)]" />
+      )}
+
       <div
-        className={`max-w-screen-xl m-0 sm:m-10 ${
-          isDark ? "bg-gray-800" : "bg-white"
-        } shadow sm:rounded-lg flex justify-center flex-1`}
+        className={`max-w-6xl w-full mx-auto rounded-xl shadow-2xl overflow-hidden flex flex-col md:flex-row ${
+          isDark ? "bg-gray-800/70" : "bg-white/70"
+        } backdrop-blur-sm`}
       >
-        <div className="lg:w-1/2 xl:w-5/12 p-6 sm:p-12">
-          <div>
-            <Image
-              src="/app-icon.jpeg"
-              width={128}
-              height={128}
-              alt="LIST IT Logo"
-              className="w-32 mx-auto rounded-md"
-              priority
-            />
-          </div>
-          <div className="mt-12 flex flex-col items-center">
+        {/* Left Panel - Form */}
+        <div className="md:w-1/2 p-8 md:p-12">
+          <div className="flex flex-col items-center md:items-start">
+            {/* Logo on mobile only */}
+            <div className="md:hidden mb-8 flex items-center justify-center">
+              <div
+                className={`w-12 h-12 rounded-full flex items-center justify-center mr-3 shadow-sm ${
+                  isDark ? "bg-orange-600" : "bg-sky-500"
+                }`}
+              >
+                <ListTodo className="h-6 w-6 text-white" />
+              </div>
+              <span
+                className={`text-2xl font-bold ${
+                  isDark ? "text-orange-400" : "text-sky-500"
+                }`}
+              >
+                LIST IT
+              </span>
+            </div>
+
             <h1
-              className={`text-2xl xl:text-3xl font-extrabold ${
-                isDark ? "text-gray-100" : "text-gray-900"
-              }`}
+              className={`text-2xl font-bold mb-8 ${isDark ? "text-white" : "text-gray-900"}`}
             >
               Log in to your account
             </h1>
@@ -168,7 +186,11 @@ const Login: React.FC = () => {
             {/* Error message display */}
             {error && (
               <div
-                className="mt-4 w-full max-w-xs bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+                className={`w-full mb-6 rounded-lg border-l-4 border-red-500 ${
+                  isDark
+                    ? "bg-red-900/30 text-red-300"
+                    : "bg-red-50 text-red-700"
+                } p-4`}
                 role="alert"
               >
                 <div className="flex items-center">
@@ -181,7 +203,11 @@ const Login: React.FC = () => {
             {/* Google "Coming Soon" message */}
             {googleComingSoon && (
               <div
-                className="mt-4 w-full max-w-xs bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative"
+                className={`w-full mb-6 rounded-lg border-l-4 border-blue-500 ${
+                  isDark
+                    ? "bg-blue-900/30 text-blue-300"
+                    : "bg-blue-50 text-blue-700"
+                } p-4`}
                 role="alert"
               >
                 <div className="flex items-center">
@@ -190,79 +216,79 @@ const Login: React.FC = () => {
               </div>
             )}
 
-            <div className="w-full flex-1 mt-8">
-              <div className="flex flex-col items-center">
-                <button
-                  onClick={handleGoogleLogin}
-                  disabled={loading}
-                  className={`w-full max-w-xs font-bold shadow-sm rounded-lg py-3 ${
-                    isDark
-                      ? "bg-orange-900 text-gray-200"
-                      : "bg-orange-100 text-gray-800"
-                  } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
-                  aria-label="Login with Google"
-                  type="button"
-                >
-                  <div
-                    className={`${
-                      isDark ? "bg-gray-800" : "bg-white"
-                    } p-2 rounded-full`}
+            <div className="w-full">
+              {/* Google Sign In Button */}
+              <button
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className={`w-full mb-6 py-3 px-4 rounded-lg flex items-center justify-center transition-all duration-300 ${
+                  isDark
+                    ? "bg-gray-700 hover:bg-gray-600 text-white"
+                    : "bg-gray-100 hover:bg-gray-200 text-gray-800"
+                } ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+                aria-label="Login with Google"
+                type="button"
+              >
+                <div className="bg-white p-1 rounded-full shadow-sm">
+                  <svg
+                    className="w-5 h-5"
+                    viewBox="0 0 533.5 544.3"
+                    aria-hidden="true"
                   >
-                    <svg
-                      className="w-4"
-                      viewBox="0 0 533.5 544.3"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M533.5 278.4c0-18.5-1.5-37.1-4.7-55.3H272.1v104.8h147c-6.1 33.8-25.7 63.7-54.4 82.7v68h87.7c51.5-47.4 81.1-117.4 81.1-200.2z"
-                        fill="#4285f4"
-                      />
-                      <path
-                        d="M272.1 544.3c73.4 0 135.3-24.1 180.4-65.7l-87.7-68c-24.4 16.6-55.9 26-92.6 26-71 0-131.2-47.9-152.8-112.3H28.9v70.1c46.2 91.9 140.3 149.9 243.2 149.9z"
-                        fill="#34a853"
-                      />
-                      <path
-                        d="M119.3 324.3c-11.4-33.8-11.4-70.4 0-104.2V150H28.9c-38.6 76.9-38.6 167.5 0 244.4l90.4-70.1z"
-                        fill="#fbbc04"
-                      />
-                      <path
-                        d="M272.1 107.7c38.8-.6 76.3 14 104.4 40.8l77.7-77.7C405 24.6 339.7-.8 272.1 0 169.2 0 75.1 58 28.9 150l90.4 70.1c21.5-64.5 81.8-112.4 152.8-112.4z"
-                        fill="#ea4335"
-                      />
-                    </svg>
-                  </div>
-                  <span className="ml-4">
-                    Log in with Google{" "}
-                    <span className="text-xs italic">(Coming Soon)</span>
-                  </span>
-                </button>
-              </div>
+                    <path
+                      d="M533.5 278.4c0-18.5-1.5-37.1-4.7-55.3H272.1v104.8h147c-6.1 33.8-25.7 63.7-54.4 82.7v68h87.7c51.5-47.4 81.1-117.4 81.1-200.2z"
+                      fill="#4285f4"
+                    />
+                    <path
+                      d="M272.1 544.3c73.4 0 135.3-24.1 180.4-65.7l-87.7-68c-24.4 16.6-55.9 26-92.6 26-71 0-131.2-47.9-152.8-112.3H28.9v70.1c46.2 91.9 140.3 149.9 243.2 149.9z"
+                      fill="#34a853"
+                    />
+                    <path
+                      d="M119.3 324.3c-11.4-33.8-11.4-70.4 0-104.2V150H28.9c-38.6 76.9-38.6 167.5 0 244.4l90.4-70.1z"
+                      fill="#fbbc04"
+                    />
+                    <path
+                      d="M272.1 107.7c38.8-.6 76.3 14 104.4 40.8l77.7-77.7C405 24.6 339.7-.8 272.1 0 169.2 0 75.1 58 28.9 150l90.4 70.1c21.5-64.5 81.8-112.4 152.8-112.4z"
+                      fill="#ea4335"
+                    />
+                  </svg>
+                </div>
+                <span className="ml-4">
+                  Log in with Google{" "}
+                  <span className="text-xs italic">(Coming Soon)</span>
+                </span>
+              </button>
 
-              <div className="my-12 border-b text-center">
-                <div
-                  className={`leading-none px-2 inline-block text-sm ${
-                    isDark
-                      ? "text-gray-400 bg-gray-800"
-                      : "text-gray-600 bg-white"
-                  } tracking-wide font-medium transform translate-y-1/2`}
-                >
-                  Or log in with e-mail
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div
+                    className={`w-full border-t ${isDark ? "border-gray-700" : "border-gray-300"}`}
+                  ></div>
+                </div>
+                <div className="relative flex justify-center">
+                  <span
+                    className={`px-3 ${isDark ? "bg-gray-800/70 text-gray-400" : "bg-white/70 text-gray-600"}`}
+                  >
+                    Or log in with email
+                  </span>
                 </div>
               </div>
 
-              <form onSubmit={handleLogin} className="mx-auto max-w-xs">
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div className="relative">
                   <Mail
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 ${
+                      isDark ? "text-gray-400" : "text-gray-500"
+                    }`}
                     size={18}
                     aria-hidden="true"
                   />
                   <input
-                    className={`w-full pl-10 pr-3 py-4 rounded-lg font-medium ${
+                    className={`w-full pl-10 pr-3 py-3 rounded-lg font-medium ${
                       isDark
-                        ? "bg-gray-700 border-gray-600 placeholder-gray-400 text-gray-200 focus:border-sky-400 focus:bg-gray-600"
-                        : "bg-gray-100 border-gray-200 placeholder-gray-500 text-sm focus:border-sky-500 focus:bg-white"
-                    } border text-sm focus:outline-none`}
+                        ? "bg-gray-700/70 border-gray-600 placeholder-gray-400 text-gray-100 focus:border-orange-400"
+                        : "bg-white/80 border-gray-300 placeholder-gray-500 text-gray-800 focus:border-sky-500"
+                    } border focus:outline-none transition-colors`}
                     type="email"
                     placeholder="Email"
                     value={email}
@@ -274,18 +300,21 @@ const Login: React.FC = () => {
                     autoComplete="email"
                   />
                 </div>
-                <div className="relative mt-5">
+
+                <div className="relative">
                   <Lock
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 ${
+                      isDark ? "text-gray-400" : "text-gray-500"
+                    }`}
                     size={18}
                     aria-hidden="true"
                   />
                   <input
-                    className={`w-full pl-10 pr-10 py-4 rounded-lg font-medium ${
+                    className={`w-full pl-10 pr-10 py-3 rounded-lg font-medium ${
                       isDark
-                        ? "bg-gray-700 border-gray-600 placeholder-gray-400 text-gray-200 focus:border-sky-400 focus:bg-gray-600"
-                        : "bg-gray-100 border-gray-200 placeholder-gray-500 text-sm focus:border-sky-500 focus:bg-white"
-                    } border text-sm focus:outline-none`}
+                        ? "bg-gray-700/70 border-gray-600 placeholder-gray-400 text-gray-100 focus:border-orange-400"
+                        : "bg-white/80 border-gray-300 placeholder-gray-500 text-gray-800 focus:border-sky-500"
+                    } border focus:outline-none transition-colors`}
                     type={showPassword ? "text" : "password"}
                     placeholder="Password"
                     value={password}
@@ -294,12 +323,16 @@ const Login: React.FC = () => {
                     required
                     name="password"
                     id="password"
-                    autoComplete="new-password" // Changed to new-password to prevent auto-filling
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
                     onClick={togglePasswordVisibility}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-500 focus:outline-none"
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 ${
+                      isDark
+                        ? "text-gray-400 hover:text-gray-300"
+                        : "text-gray-500 hover:text-gray-600"
+                    } focus:outline-none`}
                     aria-label={
                       showPassword ? "Hide password" : "Show password"
                     }
@@ -311,7 +344,8 @@ const Login: React.FC = () => {
                     )}
                   </button>
                 </div>
-                <div className="flex justify-between items-center mt-2">
+
+                <div className="flex justify-between items-center">
                   <div className="flex items-center">
                     <input
                       id="remember-me"
@@ -319,11 +353,11 @@ const Login: React.FC = () => {
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className={`h-4 w-4 ${
+                      className={`h-4 w-4 rounded focus:ring-2 ${
                         isDark
-                          ? "text-sky-400 border-gray-600"
-                          : "text-sky-500 border-gray-300"
-                      } focus:ring-sky-500 rounded`}
+                          ? "bg-gray-700 border-gray-600 text-orange-500 focus:ring-orange-500"
+                          : "bg-white border-gray-300 text-sky-500 focus:ring-sky-500"
+                      }`}
                     />
                     <label
                       htmlFor="remember-me"
@@ -337,47 +371,45 @@ const Login: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleForgotPassword}
-                    className={`text-sm ${
+                    className={`text-sm font-medium ${
                       isDark
-                        ? "text-sky-400 hover:text-sky-300"
+                        ? "text-orange-400 hover:text-orange-300"
                         : "text-sky-500 hover:text-sky-600"
                     }`}
                   >
                     Forgot password?
                   </button>
                 </div>
+
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`mt-5 tracking-wide font-semibold ${
+                  className={`mt-5 w-full font-semibold py-3 px-4 rounded-lg transition-all duration-300 flex items-center justify-center ${
                     isDark
-                      ? "bg-sky-600 hover:bg-sky-700"
-                      : "bg-sky-500 hover:bg-sky-600"
-                  } text-white w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center focus:shadow-outline focus:outline-none ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+                      ? "bg-orange-600 hover:bg-orange-700 text-white"
+                      : "bg-sky-500 hover:bg-sky-600 text-white"
+                  } ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
                 >
                   {loading ? (
                     <div
-                      className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
+                      className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
                       aria-hidden="true"
                     ></div>
                   ) : (
-                    <LogIn className="w-6 h-6 -ml-2" aria-hidden="true" />
+                    <LogIn className="w-5 h-5 mr-2" aria-hidden="true" />
                   )}
-                  <span className="ml-3">
-                    {loading ? "Logging In..." : "Log In"}
-                  </span>
+                  <span>{loading ? "Logging In..." : "Log In"}</span>
                 </button>
+
                 <p
-                  className={`mt-6 text-sm ${
-                    isDark ? "text-gray-400" : "text-gray-600"
-                  } text-center`}
+                  className={`text-sm text-center ${isDark ? "text-gray-400" : "text-gray-600"}`}
                 >
                   Don&apos;t have an account?{" "}
                   <Link
                     href="/register"
                     className={`${
                       isDark
-                        ? "text-sky-400 hover:text-sky-300"
+                        ? "text-orange-400 hover:text-orange-300"
                         : "text-sky-500 hover:text-sky-600"
                     } font-bold`}
                   >
@@ -388,14 +420,41 @@ const Login: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="flex-1 bg-[#6b6b6b] text-center hidden lg:flex">
-          <div
-            className="m-12 xl:m-16 w-full bg-contain bg-center bg-no-repeat"
-            style={{
-              backgroundImage: "url('/images/login.png')",
-            }}
-            aria-hidden="true"
-          ></div>
+
+        {/* Right Panel - Illustration */}
+        <div className="md:w-1/2 bg-gradient-to-br from-gray-800 to-gray-900 hidden md:flex md:flex-col justify-center items-center p-12 relative overflow-hidden">
+          <div className="absolute inset-0 opacity-10 bg-pattern"></div>
+          <div className="relative z-10 text-center">
+            <div className="flex items-center justify-center mb-6">
+              <div
+                className={`w-16 h-16 rounded-full flex items-center justify-center mr-3 shadow-lg ${
+                  isDark ? "bg-orange-600" : "bg-sky-500"
+                }`}
+              >
+                <ListTodo className="h-8 w-8 text-white" />
+              </div>
+              <span className="text-4xl font-bold text-white">LIST IT</span>
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-6">Welcome Back</h2>
+            <p className="text-gray-300 mb-8 max-w-sm mx-auto">
+              Log in to access your tasks, notes, and collections. Stay
+              productive and organized with LIST IT.
+            </p>
+
+            <div className="relative mt-8">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-orange-500 rounded-lg blur opacity-20"></div>
+              <div className="relative">
+                <Image
+                  src="/app-icon.jpeg"
+                  width={180}
+                  height={180}
+                  alt="LIST IT App"
+                  className="mx-auto rounded-xl shadow-lg"
+                  priority
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
