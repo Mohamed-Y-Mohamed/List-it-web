@@ -185,6 +185,9 @@ const ResetPassword = () => {
                   }));
                   setValidSession(true);
                 } catch (verifyErr) {
+                  // Error: 'verifyErr' is defined but never used
+                  // Fix: Log the error to use the variable
+                  console.error("Verification error:", verifyErr);
                   setError(
                     "Password reset link is invalid or has expired. Please request a new one."
                   );
