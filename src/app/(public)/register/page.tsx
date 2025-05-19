@@ -15,7 +15,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
-import { AuthError } from "@supabase/supabase-js";
 interface ErrorWithMessage {
   message?: string;
   details?: string;
