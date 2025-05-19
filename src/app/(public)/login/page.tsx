@@ -130,11 +130,39 @@ const Login: React.FC = () => {
   };
 
   // Handle Google login "coming soon" message
-  const handleGoogleLogin = () => {
-    setError(null);
-    setGoogleComingSoon(true);
-    // Hide the message after 3 seconds
-    setTimeout(() => setGoogleComingSoon(false), 3000);
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      // Clear any existing auth state
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Always use production URL for redirect
+      const siteUrl = "https://list-it-dom.netlify.app";
+
+      // Create a custom redirect URL with origin parameter to ensure proper redirects after auth
+      const fullRedirectUrl = `${siteUrl}/auth/callback?origin=${encodeURIComponent(siteUrl)}`;
+
+      console.log("Using redirect URL:", fullRedirectUrl);
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: fullRedirectUrl,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
+      });
+
+      if (error) throw error;
+    } catch (err) {
+      console.error("Google login error:", err);
+      const error = err as AuthError;
+      setError(error.message || "Failed to log in with Google");
+      setLoading(false);
+    }
   };
 
   // Handle forgot password - redirect to the dedicated reset page
@@ -218,47 +246,49 @@ const Login: React.FC = () => {
 
             <div className="w-full">
               {/* Google Sign In Button */}
-              <button
-                onClick={handleGoogleLogin}
-                disabled={loading}
-                className={`w-full mb-6 py-3 px-4 rounded-lg flex items-center justify-center transition-all duration-300 ${
-                  isDark
-                    ? "bg-gray-700 hover:bg-gray-600 text-white"
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-800"
-                } ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
-                aria-label="Login with Google"
-                type="button"
-              >
-                <div className="bg-white p-1 rounded-full shadow-sm">
-                  <svg
-                    className="w-5 h-5"
-                    viewBox="0 0 533.5 544.3"
-                    aria-hidden="true"
+              <div className="flex flex-col items-center">
+                <button
+                  onClick={handleGoogleLogin}
+                  disabled={loading}
+                  className={`w-full max-w-xs font-bold shadow-sm rounded-lg py-3 ${
+                    isDark
+                      ? "bg-orange-900 text-gray-200"
+                      : "bg-orange-100 text-gray-800"
+                  } flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none hover:shadow focus:shadow-sm focus:shadow-outline ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+                  aria-label="Login with Google"
+                  type="button"
+                >
+                  <div
+                    className={`${
+                      isDark ? "bg-gray-800" : "bg-white"
+                    } p-2 rounded-full`}
                   >
-                    <path
-                      d="M533.5 278.4c0-18.5-1.5-37.1-4.7-55.3H272.1v104.8h147c-6.1 33.8-25.7 63.7-54.4 82.7v68h87.7c51.5-47.4 81.1-117.4 81.1-200.2z"
-                      fill="#4285f4"
-                    />
-                    <path
-                      d="M272.1 544.3c73.4 0 135.3-24.1 180.4-65.7l-87.7-68c-24.4 16.6-55.9 26-92.6 26-71 0-131.2-47.9-152.8-112.3H28.9v70.1c46.2 91.9 140.3 149.9 243.2 149.9z"
-                      fill="#34a853"
-                    />
-                    <path
-                      d="M119.3 324.3c-11.4-33.8-11.4-70.4 0-104.2V150H28.9c-38.6 76.9-38.6 167.5 0 244.4l90.4-70.1z"
-                      fill="#fbbc04"
-                    />
-                    <path
-                      d="M272.1 107.7c38.8-.6 76.3 14 104.4 40.8l77.7-77.7C405 24.6 339.7-.8 272.1 0 169.2 0 75.1 58 28.9 150l90.4 70.1c21.5-64.5 81.8-112.4 152.8-112.4z"
-                      fill="#ea4335"
-                    />
-                  </svg>
-                </div>
-                <span className="ml-4">
-                  Log in with Google{" "}
-                  <span className="text-xs italic">(Coming Soon)</span>
-                </span>
-              </button>
-
+                    <svg
+                      className="w-4"
+                      viewBox="0 0 533.5 544.3"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M533.5 278.4c0-18.5-1.5-37.1-4.7-55.3H272.1v104.8h147c-6.1 33.8-25.7 63.7-54.4 82.7v68h87.7c51.5-47.4 81.1-117.4 81.1-200.2z"
+                        fill="#4285f4"
+                      />
+                      <path
+                        d="M272.1 544.3c73.4 0 135.3-24.1 180.4-65.7l-87.7-68c-24.4 16.6-55.9 26-92.6 26-71 0-131.2-47.9-152.8-112.3H28.9v70.1c46.2 91.9 140.3 149.9 243.2 149.9z"
+                        fill="#34a853"
+                      />
+                      <path
+                        d="M119.3 324.3c-11.4-33.8-11.4-70.4 0-104.2V150H28.9c-38.6 76.9-38.6 167.5 0 244.4l90.4-70.1z"
+                        fill="#fbbc04"
+                      />
+                      <path
+                        d="M272.1 107.7c38.8-.6 76.3 14 104.4 40.8l77.7-77.7C405 24.6 339.7-.8 272.1 0 169.2 0 75.1 58 28.9 150l90.4 70.1c21.5-64.5 81.8-112.4 152.8-112.4z"
+                        fill="#ea4335"
+                      />
+                    </svg>
+                  </div>
+                  <span className="ml-4">Log in with Google</span>
+                </button>
+              </div>
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
                   <div
