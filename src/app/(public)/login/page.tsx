@@ -34,7 +34,6 @@ const Login: React.FC = () => {
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [googleComingSoon, setGoogleComingSoon] = useState(false);
 
   // Load saved email on mount if it exists (just to fill the form)
   useEffect(() => {
@@ -229,20 +228,6 @@ const Login: React.FC = () => {
             )}
 
             {/* Google "Coming Soon" message */}
-            {googleComingSoon && (
-              <div
-                className={`w-full mb-6 rounded-lg border-l-4 border-blue-500 ${
-                  isDark
-                    ? "bg-blue-900/30 text-blue-300"
-                    : "bg-blue-50 text-blue-700"
-                } p-4`}
-                role="alert"
-              >
-                <div className="flex items-center">
-                  <span>Sign in with Google will be available soon!</span>
-                </div>
-              </div>
-            )}
 
             <div className="w-full">
               {/* Google Sign In Button */}
