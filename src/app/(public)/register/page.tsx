@@ -106,6 +106,7 @@ const Signup = () => {
         setSuccess(
           "Signup successful! Please check your email to confirm your account."
         );
+        router.push("/login");
       } else {
         // User was auto-confirmed (rare case)
         setSuccess("Account created successfully! Redirecting to dashboard...");
