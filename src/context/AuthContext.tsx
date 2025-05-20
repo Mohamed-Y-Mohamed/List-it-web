@@ -207,56 +207,69 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Sign up with email/password
-  const signup = async (email: string, password: string, fullName: string) => {
+  const signup = async (
+    email: string,
+    password: string,
+    fullName: string
+  ): Promise<{
+    success: boolean;
+    error?: AuthError | null;
+    emailVerificationSent?: boolean;
+  }> => {
+    // ─── ADD THIS ───────────────────────────────────────────────────────────────
+    // Check if a user-profile already exists
+    const { data: existingUser, error: selectError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (selectError) {
+      console.error("Error checking existing user:", selectError);
+      return { success: false, error: new AuthError(selectError.message) };
+    }
+    if (existingUser) {
+      // immediately bail out with the exact message your component expects
+      return { success: false, error: new AuthError("already registered") };
+    }
+    // ────────────────────────────────────────────────────────────────────────────
+
     try {
       const siteUrl = getSiteUrl();
 
-      // Sign up with Supabase Auth
+      // THIS PART IS JUST AS YOU HAD IT:
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            full_name: fullName,
-          },
+          data: { full_name: fullName },
           emailRedirectTo: `${siteUrl}/auth/callback?type=email`,
         },
       });
-
       if (error) throw error;
 
-      // Insert user into users table
       if (data.user) {
-        try {
-          await supabase.from("users").insert([
-            {
-              id: data.user.id,
-              full_name: fullName,
-              email: email,
-            },
-          ]);
-        } catch (err) {
-          console.error("Error creating user profile:", err);
-          // Continue even if profile creation fails
-        }
+        await supabase
+          .from("users")
+          .insert([{ id: data.user.id, full_name: fullName, email }]);
       }
 
-      // Check if email confirmation is needed
       if (data.session) {
-        // User was auto-confirmed (rare)
         setIsLoggedIn(true);
         setUser(data.user);
         return { success: true };
       } else {
-        // Email confirmation required
-        return {
-          success: true,
-          emailVerificationSent: true,
-        };
+        return { success: true, emailVerificationSent: true };
       }
-    } catch (error) {
-      console.error("Signup error:", error);
-      return { success: false, error: error as AuthError };
+    } catch (err: unknown) {
+      console.error("Signup error:", err);
+      return {
+        success: false,
+        error:
+          err instanceof AuthError
+            ? err
+            : new AuthError("Unknown signup error"),
+      };
     }
   };
 
