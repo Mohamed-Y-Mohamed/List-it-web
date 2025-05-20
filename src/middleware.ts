@@ -22,7 +22,12 @@ export async function middleware(request: NextRequest) {
   ];
 
   // Define auth routes
-  const authRoutes = ["/login", "/signup", "/reset-password"];
+  const authRoutes = [
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/reset-password",
+  ];
 
   // Define routes to skip authentication checks
   const skipAuthRoutes = [
@@ -68,7 +73,7 @@ export async function middleware(request: NextRequest) {
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 
-  // Check if current path is an auth route (login/signup)
+  // Check if current path is an auth route (login/signup/etc)
   const isAuthRoute = authRoutes.some((route) => pathname === route);
 
   // Only create Supabase client for protected routes or auth routes (for login status)
@@ -121,7 +126,7 @@ export async function middleware(request: NextRequest) {
       }
 
       // Handle auth routes with active session
-      // IMPORTANT: Only redirect away from login page if coming from another page
+      // Only redirect away from login page if coming from another page
       // This lets users explicitly visit login if they want to login as different user
       if (isAuthRoute && session) {
         const referer = request.headers.get("referer");

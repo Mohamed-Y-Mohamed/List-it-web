@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import {
   LogIn,
   Mail,
@@ -8,22 +8,22 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  CheckCircle,
   ListTodo,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
-import { supabase } from "@/utils/client";
-import { AuthError } from "@supabase/supabase-js";
+import { useAuth } from "@/context/AuthContext";
 
-const Login: React.FC = () => {
+// Inner component that uses useSearchParams
+function LoginWithSearchParams() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const router = useRouter();
-
-  // Always redirect to dashboard after login
-  const redirectTo = "/dashboard";
+  const searchParams = useSearchParams();
+  const { login, loginWithGoogle, resendVerificationEmail } = useAuth();
 
   // Form state
   const [email, setEmail] = useState("");
@@ -34,10 +34,16 @@ const Login: React.FC = () => {
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [emailVerificationNeeded, setEmailVerificationNeeded] = useState(false);
+  const [emailForVerification, setEmailForVerification] = useState("");
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [waitTime, setWaitTime] = useState<number | null>(null);
 
-  // Load saved email on mount if it exists (just to fill the form)
+  // Handle URL parameters and load saved email
   useEffect(() => {
     try {
+      // Load saved email if exists
       const savedEmail = localStorage.getItem("list_it_email");
       if (savedEmail) {
         setEmail(savedEmail);
@@ -45,11 +51,45 @@ const Login: React.FC = () => {
       }
     } catch (err) {
       console.error("Error loading saved email:", err);
-      // Silent fail - local storage might be unavailable in some browsers/modes
     }
-  }, []);
 
-  // Remember email only, not password
+    // Check for hash parameters which often contain error info from Supabase
+    if (typeof window !== "undefined") {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const errorInHash = hashParams.get("error");
+      const errorCode = hashParams.get("error_code");
+      const errorDescription = hashParams.get("error_description");
+
+      if (errorInHash === "access_denied" && errorCode === "otp_expired") {
+        setError(
+          "Your verification link has expired. Please request a new one using the form below."
+        );
+      } else if (errorInHash) {
+        setError(errorDescription || "Authentication error. Please try again.");
+      }
+    }
+
+    // Handle URL parameters
+    const isVerified = searchParams?.get("verified") === "true";
+    const isPasswordReset = searchParams?.get("password_reset") === "success";
+    const errorParam = searchParams?.get("error");
+    const isLoggedOut = searchParams?.get("logout") === "true";
+
+    // Only show success if there's no error in hash
+    if (isVerified && !error) {
+      setSuccess("Email verified successfully! You can now log in.");
+    } else if (isPasswordReset) {
+      setSuccess(
+        "Password reset successfully! You can now log in with your new password."
+      );
+    } else if (errorParam) {
+      setError(decodeURIComponent(errorParam));
+    } else if (isLoggedOut) {
+      setSuccess("You have been logged out successfully.");
+    }
+  }, [searchParams, error]);
+
+  // Remember email
   const handleRememberCredentials = () => {
     try {
       if (rememberMe && email) {
@@ -59,7 +99,6 @@ const Login: React.FC = () => {
       }
     } catch (err) {
       console.error("Error saving email preference:", err);
-      // Silent fail - local storage might be unavailable
     }
   };
 
@@ -72,6 +111,8 @@ const Login: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
+    setEmailVerificationNeeded(false);
 
     // Validate form
     if (!email.trim()) {
@@ -86,87 +127,116 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      // Sign in with Supabase Auth
-      const { data, error: signInError } =
-        await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
+      const { success, error, isEmailUnverified } = await login(
+        email.trim(),
+        password
+      );
 
-      if (signInError) throw signInError;
+      if (!success) {
+        if (isEmailUnverified) {
+          setEmailVerificationNeeded(true);
+          setEmailForVerification(email.trim());
+          setError("Please verify your email before logging in.");
+        } else if (error) {
+          throw error;
+        }
+        return;
+      } else {
+        if (success) {
+          router.push("/dashboard");
+          return;
+        }
+      }
 
-      // Save email if remember me is checked
+      // Handle remember me
       handleRememberCredentials();
 
-      // Handle successful login
-      if (data.session) {
-        // Redirect to dashboard
-        router.push(redirectTo);
-      } else {
-        // This should rarely happen - no session but no error
-        throw new Error("Authentication successful but no session returned");
-      }
-    } catch (err) {
+      // If success, the context will navigate us
+    } catch (err: unknown) {
       console.error("Login error:", err);
-
-      const error = err as AuthError;
-
-      if (error?.message) {
-        // Provide user-friendly error messages
-        if (error.message.includes("Invalid login credentials")) {
-          setError("Invalid email or password. Please try again.");
-        } else if (error.message.includes("Email not confirmed")) {
-          setError("Please confirm your email address before logging in.");
-        } else {
-          setError(error.message);
-        }
-      } else {
-        setError("Failed to log in. Please try again.");
-      }
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Invalid email or password. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle Google login "coming soon" message
+  // Handle Google login
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      // Clear any existing auth state
-      localStorage.clear();
-      sessionStorage.clear();
-
-      // Always use production URL for redirect
-      const siteUrl = "https://list-it-dom.netlify.app";
-
-      // Create a custom redirect URL with origin parameter to ensure proper redirects after auth
-      const fullRedirectUrl = `${siteUrl}/auth/callback?origin=${encodeURIComponent(siteUrl)}`;
-
-      console.log("Using redirect URL:", fullRedirectUrl);
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: fullRedirectUrl,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
-        },
-      });
-
-      if (error) throw error;
-    } catch (err) {
+      await loginWithGoogle();
+      // Redirect is handled in the OAuth flow
+    } catch (err: unknown) {
       console.error("Google login error:", err);
-      const error = err as AuthError;
-      setError(error.message || "Failed to log in with Google");
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to log in with Google";
+      setError(errorMessage);
       setLoading(false);
     }
   };
 
-  // Handle forgot password - redirect to the dedicated reset page
+  // Handle resend verification email
+  const handleResendVerification = async () => {
+    if (!emailForVerification && !email) {
+      setError("Please enter your email address to resend verification");
+      return;
+    }
+
+    const emailToVerify = emailForVerification || email;
+    setResendingVerification(true);
+    setWaitTime(null);
+
+    try {
+      const { success, error, isRateLimited, waitTime } =
+        await resendVerificationEmail(emailToVerify);
+
+      if (success) {
+        setSuccess(
+          `Verification email sent to ${emailToVerify}! Please check your inbox.`
+        );
+      } else if (isRateLimited && waitTime) {
+        setWaitTime(waitTime);
+        setError(
+          `Please wait ${waitTime} seconds before requesting another email.`
+        );
+
+        // Start countdown timer
+        const timer = setInterval(() => {
+          setWaitTime((prevTime) => {
+            if (prevTime && prevTime > 1) {
+              return prevTime - 1;
+            } else {
+              clearInterval(timer);
+              setError(null);
+              return null;
+            }
+          });
+        }, 1000);
+      } else {
+        setError(
+          error?.message ||
+            "Failed to resend verification email. Please try again."
+        );
+      }
+    } catch (err: unknown) {
+      console.error("Error resending verification:", err);
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Failed to resend verification email";
+      setError(errorMessage);
+    } finally {
+      setResendingVerification(false);
+    }
+  };
+
+  // Handle forgot password
   const handleForgotPassword = () => {
-    router.push("/forgotPassword"); // This route should match your ForgotPasswordPage
+    router.push("/forgotPassword");
   };
 
   return (
@@ -210,6 +280,23 @@ const Login: React.FC = () => {
               Log in to your account
             </h1>
 
+            {/* Success message display */}
+            {success && (
+              <div
+                className={`w-full mb-6 rounded-lg border-l-4 border-green-500 ${
+                  isDark
+                    ? "bg-green-900/30 text-green-300"
+                    : "bg-green-50 text-green-700"
+                } p-4`}
+                role="alert"
+              >
+                <div className="flex items-center">
+                  <CheckCircle className="w-5 h-5 mr-2" aria-hidden="true" />
+                  <span>{success}</span>
+                </div>
+              </div>
+            )}
+
             {/* Error message display */}
             {error && (
               <div
@@ -224,6 +311,26 @@ const Login: React.FC = () => {
                   <AlertCircle className="w-5 h-5 mr-2" aria-hidden="true" />
                   <span>{error}</span>
                 </div>
+
+                {error.includes("verification") ||
+                error.includes("expired") ||
+                emailVerificationNeeded ? (
+                  <div className="mt-3 ml-7">
+                    <button
+                      onClick={handleResendVerification}
+                      disabled={resendingVerification || !!waitTime}
+                      className={`text-sm underline ${
+                        isDark ? "text-blue-300" : "text-blue-600"
+                      } ${resendingVerification || !!waitTime ? "opacity-50 cursor-not-allowed" : ""}`}
+                    >
+                      {resendingVerification
+                        ? "Sending..."
+                        : waitTime
+                          ? `Wait ${waitTime}s to resend`
+                          : "Resend verification email"}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             )}
 
@@ -268,6 +375,7 @@ const Login: React.FC = () => {
                   <span className="ml-4">Log in with Google</span>
                 </button>
               </div>
+
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
                   <div
@@ -468,8 +576,22 @@ const Login: React.FC = () => {
       </div>
     </div>
   );
+}
+
+// Main page component that uses Suspense
+const LoginPage = () => {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-gray-800 border-t-transparent rounded-full animate-spin"></div>
+          <span className="ml-2">Loading...</span>
+        </div>
+      }
+    >
+      <LoginWithSearchParams />
+    </Suspense>
+  );
 };
 
-export default function LoginPage() {
-  return <Login />;
-}
+export default LoginPage;

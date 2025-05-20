@@ -8,10 +8,9 @@ import React, {
   ReactNode,
 } from "react";
 import { supabase } from "@/utils/client";
-import { useRouter } from "next/navigation";
 import { User, AuthError } from "@supabase/supabase-js";
 
-// Define the shape of our auth context
+// Auth context type
 interface AuthContextType {
   isLoggedIn: boolean;
   user: User | null;
@@ -19,35 +18,73 @@ interface AuthContextType {
   login: (
     email: string,
     password: string
-  ) => Promise<{ success: boolean; error?: AuthError | null }>;
+  ) => Promise<{
+    success: boolean;
+    error?: AuthError | null;
+    isEmailUnverified?: boolean;
+  }>;
+  signup: (
+    email: string,
+    password: string,
+    fullName: string
+  ) => Promise<{
+    success: boolean;
+    error?: AuthError | null;
+    emailVerificationSent?: boolean;
+  }>;
   loginWithGoogle: () => Promise<void>;
-  loginWithApple: () => Promise<void>;
   logout: () => Promise<void>;
-  resetPassword: (
-    email: string
-  ) => Promise<{ success: boolean; error?: AuthError | null }>;
+  resetPassword: (email: string) => Promise<{
+    success: boolean;
+    error?: AuthError | null;
+  }>;
+  resendVerificationEmail: (email: string) => Promise<{
+    success: boolean;
+    error?: AuthError | null;
+    isRateLimited?: boolean;
+    waitTime?: number;
+  }>;
+  updatePassword: (password: string) => Promise<{
+    success: boolean;
+    error?: AuthError | null;
+  }>;
 }
 
-// Create the context with a default value
+// Create auth context
 const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   user: null,
   loading: true,
   login: async () => ({ success: false }),
+  signup: async () => ({ success: false }),
   loginWithGoogle: async () => {},
-  loginWithApple: async () => {},
   logout: async () => {},
   resetPassword: async () => ({ success: false }),
+  resendVerificationEmail: async () => ({ success: false }),
+  updatePassword: async () => ({ success: false }),
 });
 
-// Helper to clear all Supabase authentication data from local storage
-const clearSupabaseLocalStorage = () => {
-  // Remove the specific Supabase auth keys from localStorage
-  try {
-    // Get all keys from localStorage
-    const keys = Object.keys(localStorage);
+// Helper to clear all auth cookies and local storage
+const clearAuthData = () => {
+  // Clear cookies
+  const cookiesToClear = [
+    "auth_token",
+    "isLoggedIn",
+    "supabase-auth-token",
+    "sb-access-token",
+    "sb-refresh-token",
+    "sb:token",
+  ];
 
-    // Remove any keys that start with 'supabase.auth.' or are related to auth
+  cookiesToClear.forEach((cookieName) => {
+    document.cookie = `${cookieName}=; path=/; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    document.cookie = `${cookieName}=; path=/api; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    document.cookie = `${cookieName}=; path=/auth; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  });
+
+  // Clear localStorage auth items
+  try {
+    const keys = Object.keys(localStorage);
     keys.forEach((key) => {
       if (
         key.startsWith("supabase.auth.") ||
@@ -62,43 +99,26 @@ const clearSupabaseLocalStorage = () => {
   }
 };
 
-// Helper to clear all auth cookies
-const clearAllAuthCookies = () => {
-  // List of all cookies we might have set
-  const cookiesToClear = [
-    "auth_token",
-    "isLoggedIn",
-    "supabase-auth-token", // Supabase may set this one
-    "sb-access-token", // Supabase browser storage keys
-    "sb-refresh-token",
-    "sb:token", // Legacy Supabase cookie
-  ];
-
-  // Clear each cookie by setting expiry in the past with various paths
-  cookiesToClear.forEach((cookieName) => {
-    document.cookie = `${cookieName}=; path=/; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-    // Also try with different paths in case they were set differently
-    document.cookie = `${cookieName}=; path=/api; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-    document.cookie = `${cookieName}=; path=/auth; max-age=0; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-  });
-};
-
-// Hook for child components to get the auth context
-export const useAuth = () => useContext(AuthContext);
-
-// Provider component that wraps the app and provides auth context
+// Auth provider component
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
   const [initialized, setInitialized] = useState(false);
 
-  // Initialize auth state on first load
+  // Get site URL
+  const getSiteUrl = () => {
+    return (
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      (typeof window !== "undefined" ? window.location.origin : "")
+    );
+  };
+
+  // Initialize auth state
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Get the current session first
+        // Get current session
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -121,18 +141,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initializeAuth();
   }, []);
 
-  // Set up auth state listener after initial load
+  // Auth state change listener
   useEffect(() => {
     if (!initialized) return;
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state change:", event);
+
         if (event === "SIGNED_IN" && session) {
           setIsLoggedIn(true);
           setUser(session.user);
         } else if (event === "SIGNED_OUT") {
           setIsLoggedIn(false);
           setUser(null);
+        } else if (event === "USER_UPDATED" && session) {
+          setUser(session.user);
         }
       }
     );
@@ -142,83 +166,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [initialized]);
 
-  // Google OAuth login method - Fixed to use the direct URL
-  const loginWithGoogle = async () => {
-    try {
-      // Clear any existing auth state that might be corrupted
-      localStorage.clear();
-      sessionStorage.clear();
-
-      // Always use production URL for redirect
-      const siteUrl = "https://list-it-dom.netlify.app";
-
-      // Create a custom redirect URL with origin parameter to ensure proper redirects after auth
-      const fullRedirectUrl = `${siteUrl}/auth/callback?origin=${encodeURIComponent(siteUrl)}`;
-
-      console.log("Using redirect URL:", fullRedirectUrl);
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: fullRedirectUrl,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
-        },
-      });
-
-      if (error) throw error;
-    } catch (error) {
-      console.error("Google login error:", error);
-      throw error;
-    }
-  };
-
-  // Similarly update Apple login if needed
-  const loginWithApple = async () => {
-    try {
-      // Clear any existing auth state that might be corrupted
-      localStorage.clear();
-      sessionStorage.clear();
-
-      // Always use production URL for redirect
-      const siteUrl = "https://list-it-dom.netlify.app";
-
-      // Create a custom redirect URL with origin parameter
-      const fullRedirectUrl = `${siteUrl}/auth/callback?origin=${encodeURIComponent(siteUrl)}`;
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "apple",
-        options: {
-          redirectTo: fullRedirectUrl,
-        },
-      });
-
-      if (error) throw error;
-    } catch (error) {
-      console.error("Apple login error:", error);
-      throw error;
-    }
-  };
-
-  // Login function
+  // Login with email/password
   const login = async (email: string, password: string) => {
     try {
+      // Try to refresh session first
+      await supabase.auth.refreshSession();
+
+      // Attempt to sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle unverified email
+        if (error.message.includes("Email not confirmed")) {
+          return {
+            success: false,
+            error,
+            isEmailUnverified: true,
+          };
+        }
+        throw error;
+      }
 
       if (data.session) {
         setIsLoggedIn(true);
         setUser(data.session.user);
-
-        // Navigate to dashboard
-        router.push("/dashboard");
-
         return { success: true };
       }
 
@@ -232,53 +206,114 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Complete logout function that ensures full session cleanup
+  // Sign up with email/password
+  const signup = async (email: string, password: string, fullName: string) => {
+    try {
+      const siteUrl = getSiteUrl();
+
+      // Sign up with Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+          emailRedirectTo: `${siteUrl}/auth/callback?type=email`,
+        },
+      });
+
+      if (error) throw error;
+
+      // Insert user into users table
+      if (data.user) {
+        try {
+          await supabase.from("users").insert([
+            {
+              id: data.user.id,
+              full_name: fullName,
+              email: email,
+            },
+          ]);
+        } catch (err) {
+          console.error("Error creating user profile:", err);
+          // Continue even if profile creation fails
+        }
+      }
+
+      // Check if email confirmation is needed
+      if (data.session) {
+        // User was auto-confirmed (rare)
+        setIsLoggedIn(true);
+        setUser(data.user);
+        return { success: true };
+      } else {
+        // Email confirmation required
+        return {
+          success: true,
+          emailVerificationSent: true,
+        };
+      }
+    } catch (error) {
+      console.error("Signup error:", error);
+      return { success: false, error: error as AuthError };
+    }
+  };
+
+  // Google OAuth sign in
+  const loginWithGoogle = async () => {
+    try {
+      const siteUrl = getSiteUrl();
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${siteUrl}/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Google login error:", error);
+      throw error;
+    }
+  };
+
+  // Logout function
   const logout = async () => {
     try {
-      // 1. First update state for immediate UI response
+      // Update state immediately for responsive UI
       setIsLoggedIn(false);
       setUser(null);
 
-      // 2. Clear all auth cookies first
-      clearAllAuthCookies();
+      // Clear auth data
+      clearAuthData();
 
-      // 3. Clear Supabase data from localStorage
-      clearSupabaseLocalStorage();
-
-      // 4. Call Supabase signOut with global scope
+      // Call Supabase signOut
       const { error } = await supabase.auth.signOut({
         scope: "global",
       });
 
       if (error) {
-        console.error("Error during Supabase signOut:", error);
+        console.error("Error during signOut:", error);
       }
 
-      // 5. Force a complete page reload to clear any in-memory state
-
-      // Set a flag in sessionStorage to show we're in the middle of logging out
-      // This prevents redirect loops if middleware tries to restore the session
-      sessionStorage.setItem("logging_out", "true");
-
-      // Use direct window location for a full page refresh
+      // Redirect to login page
       window.location.href = "/login?logout=true";
     } catch (error) {
       console.error("Logout process error:", error);
-
-      // Still try to force clear everything and redirect even if there was an error
-      clearAllAuthCookies();
-      clearSupabaseLocalStorage();
-
-      // Force redirect
+      clearAuthData();
       window.location.href = "/login?logout=true&error=true";
     }
   };
 
-  // Reset password
+  // Reset password (send reset email)
   const resetPassword = async (email: string) => {
     try {
+      const siteUrl = getSiteUrl();
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: "https://list-it-dom.netlify.app/reset-password",
+        redirectTo: `${siteUrl}/auth/callback?type=recovery`,
       });
 
       if (error) throw error;
@@ -290,7 +325,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Provide the auth context to children components
+  // Resend verification email
+  const resendVerificationEmail = async (email: string) => {
+    try {
+      const siteUrl = getSiteUrl();
+
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email,
+        options: {
+          emailRedirectTo: `${siteUrl}/auth/callback?type=signup`,
+        },
+      });
+
+      if (error) {
+        // Handle rate limiting
+        if (error.message && error.message.includes("For security purposes")) {
+          const timeMatch = error.message.match(/(\d+) seconds/);
+          const waitTime = timeMatch ? parseInt(timeMatch[1]) : 60;
+
+          return {
+            success: false,
+            error,
+            isRateLimited: true,
+            waitTime,
+          };
+        }
+        throw error;
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Error resending verification email:", error);
+      return { success: false, error: error as AuthError };
+    }
+  };
+
+  // Update password
+  const updatePassword = async (password: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password,
+      });
+
+      if (error) throw error;
+
+      return { success: true };
+    } catch (error) {
+      console.error("Update password error:", error);
+      return { success: false, error: error as AuthError };
+    }
+  };
+
+  // Provide context
   return (
     <AuthContext.Provider
       value={{
@@ -298,13 +385,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         loading,
         login,
+        signup,
         loginWithGoogle,
-        loginWithApple,
         logout,
         resetPassword,
+        resendVerificationEmail,
+        updatePassword,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
 };
+
+// Export hook for using auth context
+export const useAuth = () => useContext(AuthContext);

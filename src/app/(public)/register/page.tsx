@@ -9,34 +9,45 @@ import {
   AlertCircle,
   Check,
   ListTodo,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
-import { supabase } from "@/utils/client";
-interface ErrorWithMessage {
-  message?: string;
-  details?: string;
-  status?: number;
-}
+import { useAuth } from "@/context/AuthContext";
 
 const Signup = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const router = useRouter();
+  const { signup, loginWithGoogle, resendVerificationEmail } = useAuth();
 
   // Form state
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const trimmedEmail = email.trim();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Loading and error states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
+
+  // Toggle password visibility
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  // Toggle confirm password visibility
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword);
+  };
 
   // Form validation
   const isFormValid = () => {
@@ -69,99 +80,51 @@ const Signup = () => {
 
     setError(null);
     setSuccess(null);
+    setVerificationSent(false);
 
     if (!isFormValid()) return;
 
-    // Prevent rapid fire requests (429 errors)
+    // Prevent rapid fire requests
     if (loading) return;
 
     setLoading(true);
 
     try {
-      // 1. Sign up with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: trimmedEmail,
+      const { success, error, emailVerificationSent } = await signup(
+        email.trim(),
         password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-        },
-      });
+        fullName
+      );
 
-      if (authError) throw authError;
-
-      // 2. Insert user into 'users' table WITHOUT waiting for authentication
-      if (authData.user) {
-        // Corrected: only include fields that actually exist in your users table
-        try {
-          const { error: profileError } = await supabase.from("users").insert([
-            {
-              id: authData.user.id,
-              full_name: fullName,
-              email: trimmedEmail,
-              // Removed the 'lists' field since it doesn't exist in your schema
-            },
-          ]);
-
-          if (profileError) {
-            console.error("Profile error:", profileError);
-            // Continue even if profile setup fails, but log the error
-
-            // Check for specific schema errors
-            if (
-              profileError.message?.includes("column") &&
-              profileError.message?.includes("schema cache")
-            ) {
-              console.warn(
-                "Schema mismatch detected. Check your users table schema."
-              );
-            }
-          }
-        } catch (profileErr) {
-          console.error("Error inserting user profile:", profileErr);
-          // Continue with auth flow even if profile insertion fails
-        }
+      if (!success) {
+        throw error || new Error("Signup failed");
       }
 
-      // 3. Set authentication cookies
-      if (authData.session?.access_token) {
-        document.cookie = `auth_token=${authData.session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-        document.cookie = `isLoggedIn=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-
-        // 4. Redirect to dashboard
-        setSuccess("Account created successfully! Redirecting to dashboard...");
-
-        // Add a slight delay for the success message to be seen
-        setTimeout(() => {
-          router.push("/dashboard");
-        }, 1500);
-      } else {
-        // If we don't have a session yet, show email confirmation message
+      if (emailVerificationSent) {
+        // Email confirmation required
+        setVerificationSent(true);
         setSuccess(
           "Signup successful! Please check your email to confirm your account."
         );
+      } else {
+        // User was auto-confirmed (rare case)
+        setSuccess("Account created successfully! Redirecting to dashboard...");
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 1500);
       }
     } catch (err: unknown) {
       console.error("Signup error:", err);
 
-      // Type guard to check if error has message property
-      const error = err as ErrorWithMessage;
-
-      // Specific handler for rate limiting
-      if (
-        error?.message?.includes("For security purposes") ||
-        error?.status === 429
-      ) {
-        setError("Please wait a few seconds before trying again");
-      }
-      // Provide other user-friendly error messages
-      else if (error?.message?.includes("already registered")) {
-        setError("This email is already registered. Please log in instead.");
-      } else if (error?.message) {
-        setError(error.message);
-      } else if (error?.details) {
-        setError(error.details);
+      if (err instanceof Error) {
+        // Handle specific errors
+        if (err.message.includes("already registered")) {
+          setError("This email is already registered. Please log in instead.");
+        } else if (err.message.includes("For security purposes")) {
+          setError("Please wait a few seconds before trying again");
+        } else {
+          setError(err.message);
+        }
       } else {
         setError("Failed to sign up. Please try again.");
       }
@@ -170,48 +133,56 @@ const Signup = () => {
     }
   };
 
-  // Handle showing "coming soon" message for Google signup
+  // Handle Google signup
   const handleGoogleSignup = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Clear any existing auth state
-      localStorage.clear();
-      sessionStorage.clear();
-
-      // Always use production URL for redirect
-      const siteUrl = "https://list-it-dom.netlify.app";
-
-      // Create a custom redirect URL with origin parameter to ensure proper redirects after auth
-      const fullRedirectUrl = `${siteUrl}/auth/callback?origin=${encodeURIComponent(siteUrl)}`;
-
-      console.log("Using redirect URL:", fullRedirectUrl);
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: fullRedirectUrl,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
-        },
-      });
-
-      if (error) throw error;
+      await loginWithGoogle();
+      // Redirect handled in the OAuth flow
     } catch (err: unknown) {
-      console.error("Google login error:", err);
-      const error = err as ErrorWithMessage;
-      setError(error.message || "Failed to log in with Google");
-    } finally {
+      console.error("Google signup error:", err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to sign up with Google");
+      }
       setLoading(false);
+    }
+  };
+
+  // Handle resend verification email
+  const handleResendVerification = async () => {
+    if (!email.trim()) {
+      setError("Email is required to resend verification");
+      return;
+    }
+
+    setResendingVerification(true);
+
+    try {
+      const { success, error } = await resendVerificationEmail(email.trim());
+
+      if (success) {
+        setSuccess("Verification email resent! Please check your inbox.");
+      } else if (error) {
+        setError(error.message || "Failed to resend verification email");
+      }
+    } catch (err) {
+      console.error("Error resending verification:", err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to resend verification email");
+      }
+    } finally {
+      setResendingVerification(false);
     }
   };
 
   return (
     <div className="min-h-screen w-full relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      {/* Background with radial gradient */}
       {isDark ? (
         <div className="absolute inset-0 -z-10 size-full items-center [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#7c2d12_100%)]" />
       ) : (
@@ -304,6 +275,45 @@ const Signup = () => {
               </div>
             )}
 
+            {/* Email verification instructions */}
+            {verificationSent && (
+              <div
+                className={`w-full mb-6 rounded-lg border-l-4 border-blue-500 ${
+                  isDark
+                    ? "bg-blue-900/30 text-blue-300"
+                    : "bg-blue-50 text-blue-700"
+                } p-4`}
+                role="alert"
+              >
+                <div className="flex flex-col">
+                  <div className="flex items-center mb-2">
+                    <Mail className="w-5 h-5 mr-2" />
+                    <span className="font-medium">Check your inbox</span>
+                  </div>
+                  <p>
+                    We&apos;ve sent a verification link to{" "}
+                    <span className="font-medium">{email}</span>. Please check
+                    your email and click the link to verify your account.
+                  </p>
+                  <p className="mt-2 text-sm">
+                    If you don&apos;t see the email, please check your spam
+                    folder.
+                  </p>
+                  <button
+                    onClick={handleResendVerification}
+                    disabled={resendingVerification}
+                    className={`mt-2 text-sm underline ${
+                      isDark ? "text-blue-300" : "text-blue-600"
+                    } ${resendingVerification ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    {resendingVerification
+                      ? "Sending..."
+                      : "Resend verification email"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Error message display */}
             {error && (
               <div
@@ -332,7 +342,7 @@ const Signup = () => {
                       ? "bg-gray-700 hover:bg-gray-600 text-white"
                       : "bg-gray-300 hover:bg-gray-400 text-gray-800"
                   } ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
-                  aria-label="Login with Google"
+                  aria-label="Sign up with Google"
                   type="button"
                 >
                   <div className="bg-white p-1 rounded-full shadow-sm">
@@ -359,7 +369,7 @@ const Signup = () => {
                       />
                     </svg>
                   </div>
-                  <span className="ml-4">Log in with Google</span>
+                  <span className="ml-4">Sign up with Google</span>
                 </button>
               </div>
 
@@ -429,18 +439,36 @@ const Signup = () => {
                     size={18}
                   />
                   <input
-                    className={`w-full pl-10 pr-3 py-3 rounded-lg font-medium ${
+                    className={`w-full pl-10 pr-10 py-3 rounded-lg font-medium ${
                       isDark
                         ? "bg-gray-700/70 border-gray-600 placeholder-gray-400 text-gray-100 focus:border-orange-400"
                         : "bg-white/80 border-gray-300 placeholder-gray-500 text-gray-800 focus:border-sky-500"
                     } border focus:outline-none transition-colors`}
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={6}
                   />
+                  <button
+                    type="button"
+                    onClick={togglePasswordVisibility}
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 ${
+                      isDark
+                        ? "text-gray-400 hover:text-gray-300"
+                        : "text-gray-500 hover:text-gray-600"
+                    } focus:outline-none`}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff size={18} aria-hidden="true" />
+                    ) : (
+                      <Eye size={18} aria-hidden="true" />
+                    )}
+                  </button>
                 </div>
 
                 <div className="relative">
@@ -451,34 +479,58 @@ const Signup = () => {
                     size={18}
                   />
                   <input
-                    className={`w-full pl-10 pr-3 py-3 rounded-lg font-medium ${
+                    className={`w-full pl-10 pr-10 py-3 rounded-lg font-medium ${
                       isDark
                         ? "bg-gray-700/70 border-gray-600 placeholder-gray-400 text-gray-100 focus:border-orange-400"
                         : "bg-white/80 border-gray-300 placeholder-gray-500 text-gray-800 focus:border-sky-500"
                     } border focus:outline-none transition-colors`}
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirm Password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={toggleConfirmPasswordVisibility}
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 ${
+                      isDark
+                        ? "text-gray-400 hover:text-gray-300"
+                        : "text-gray-500 hover:text-gray-600"
+                    } focus:outline-none`}
+                    aria-label={
+                      showConfirmPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff size={18} aria-hidden="true" />
+                    ) : (
+                      <Eye size={18} aria-hidden="true" />
+                    )}
+                  </button>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || verificationSent}
                   className={`mt-5 w-full font-semibold py-3 px-4 rounded-lg transition-all duration-300 flex items-center justify-center ${
                     isDark
                       ? "bg-orange-600 hover:bg-orange-700 text-white"
                       : "bg-sky-500 hover:bg-sky-600 text-white"
-                  } ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+                  } ${loading || verificationSent ? "opacity-70 cursor-not-allowed" : ""}`}
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                   ) : (
                     <UserPlus className="w-5 h-5 mr-2" />
                   )}
-                  <span>{loading ? "Signing Up..." : "Sign Up"}</span>
+                  <span>
+                    {loading
+                      ? "Signing Up..."
+                      : verificationSent
+                        ? "Check Your Email"
+                        : "Sign Up"}
+                  </span>
                 </button>
 
                 <p
@@ -529,6 +581,7 @@ const Signup = () => {
         </div>
       </div>
     </div>
+    // End of Signup component
   );
 };
 

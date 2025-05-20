@@ -1,62 +1,108 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Mail, AlertCircle, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 
-interface ErrorObject {
-  message?: string;
-}
-
-const ForgotPassword = () => {
+const ForgotPasswordPage: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const { resetPassword } = useAuth();
 
   // Form state
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState<string>("");
 
   // UI state
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState<boolean>(false);
+  const [waitTime, setWaitTime] = useState<number>(0);
+
+  // Timer ref for countdown
+  const timerRef = useRef<number | null>(null);
+
+  // Basic email format check
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  // Countdown effect
+  useEffect(() => {
+    if (waitTime <= 0) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+    timerRef.current = window.setInterval(() => {
+      setWaitTime((t) => {
+        if (t <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [waitTime]);
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!email.trim()) {
+    // Cooldown check
+    if (waitTime > 0) {
+      setError(`Please wait ${waitTime}s before trying again.`);
+      return;
+    }
+
+    const trimmed = email.trim();
+
+    // Validation
+    if (!trimmed) {
       setError("Email is required");
+      return;
+    }
+    if (!emailRegex.test(trimmed)) {
+      setError("Please enter a valid email address");
       return;
     }
 
     setLoading(true);
 
     try {
-      const { success, error } = await resetPassword(email.trim());
+      const { success: ok, error: apiErr } = await resetPassword(trimmed);
 
-      if (!success) {
-        throw error || new Error("Failed to send reset link");
+      if (!ok) {
+        // Supabase rate-limit message contains seconds
+        const msg = apiErr?.message ?? "";
+        const m = msg.match(/(\d+)\s*seconds?/);
+        if (msg.includes("For security purposes") && m) {
+          const secs = parseInt(m[1], 10);
+          setWaitTime(secs);
+          setError(`Please wait ${secs}s before requesting again.`);
+        } else {
+          throw apiErr || new Error("Failed to send reset link");
+        }
+        return;
       }
 
       setSuccess(true);
+      // seed a short cooldown so user can't immediately re-click
+      setWaitTime(60);
     } catch (err: unknown) {
-      console.error("Password reset error:", err);
-
       if (err instanceof Error) {
-        setError(err.message);
-      } else if (
-        typeof err === "object" &&
-        err !== null &&
-        (err as ErrorObject).message
-      ) {
-        setError((err as ErrorObject).message!);
+        console.error("Password reset error:", err);
+        setError(err.message || "Failed to send reset link. Please try again.");
       } else {
-        setError("Failed to send reset link. Please try again.");
+        console.error("Password reset error:", err);
+        setError("An unknown error occurred.");
       }
     } finally {
       setLoading(false);
@@ -75,15 +121,14 @@ const ForgotPassword = () => {
         } shadow sm:rounded-lg flex justify-center flex-1`}
       >
         <div className="p-6 sm:p-12 w-full">
-          <div>
-            <Image
-              src="/app-icon.jpeg"
-              width={128}
-              height={128}
-              alt="LIST IT Logo"
-              className="w-24 mx-auto rounded-full"
-            />
-          </div>
+          <Image
+            src="/app-icon.jpeg"
+            width={128}
+            height={128}
+            alt="LIST IT Logo"
+            className="w-24 mx-auto rounded-full"
+          />
+
           <div className="mt-12 flex flex-col items-center">
             <h1
               className={`text-2xl xl:text-3xl font-extrabold ${
@@ -92,18 +137,17 @@ const ForgotPassword = () => {
             >
               Reset Your Password
             </h1>
-
             <p
-              className={`mt-4 text-center ${isDark ? "text-gray-300" : "text-gray-600"}`}
+              className={`mt-4 text-center ${
+                isDark ? "text-gray-300" : "text-gray-600"
+              }`}
             >
-              Enter your email address and we&apos;ll send you a link to reset
-              your password.
+              Enter your email and we’ll send you a link to reset your password.
             </p>
 
-            {/* Error message display */}
             {error && (
               <div
-                className={`mt-4 w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative`}
+                className="mt-4 w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded"
                 role="alert"
               >
                 <div className="flex items-center">
@@ -113,17 +157,15 @@ const ForgotPassword = () => {
               </div>
             )}
 
-            {/* Success message display */}
             {success && (
               <div
-                className={`mt-4 w-full bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative`}
+                className="mt-4 w-full bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded"
                 role="alert"
               >
                 <div className="flex items-center">
                   <CheckCircle className="w-5 h-5 mr-2" />
                   <span>
-                    Password reset link has been sent to your email. Please
-                    check your inbox.
+                    Reset link sent! Check your inbox (and spam folder).
                   </span>
                 </div>
               </div>
@@ -138,53 +180,70 @@ const ForgotPassword = () => {
                       size={18}
                     />
                     <input
+                      type="email"
+                      name="email"
+                      id="email"
+                      autoComplete="email"
                       className={`w-full pl-10 pr-3 py-4 rounded-lg font-medium ${
                         isDark
                           ? "bg-gray-700 border-gray-600 placeholder-gray-400 text-gray-200 focus:border-sky-400 focus:bg-gray-600"
                           : "bg-gray-100 border-gray-200 placeholder-gray-500 text-sm focus:border-sky-500 focus:bg-white"
                       } border text-sm focus:outline-none`}
-                      type="email"
                       placeholder="Email Address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      disabled={loading}
+                      disabled={loading || waitTime > 0}
                       required
                     />
                   </div>
 
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || waitTime > 0}
                     className={`mt-5 tracking-wide font-semibold ${
                       isDark
                         ? "bg-sky-600 hover:bg-sky-700"
                         : "bg-sky-500 hover:bg-sky-600"
-                    } text-white w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center focus:shadow-outline focus:outline-none ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+                    } text-white w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center ${
+                      loading || waitTime > 0
+                        ? "opacity-70 cursor-not-allowed"
+                        : ""
+                    }`}
                   >
                     {loading ? (
-                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                     ) : null}
-                    <span>{loading ? "Sending..." : "Send Reset Link"}</span>
+                    <span>
+                      {waitTime > 0
+                        ? `Wait ${waitTime}s`
+                        : loading
+                          ? "Sending..."
+                          : "Send Reset Link"}
+                    </span>
                   </button>
                 </form>
               ) : (
                 <div className="text-center mt-6">
                   <p
-                    className={`${isDark ? "text-gray-300" : "text-gray-600"} mb-4`}
+                    className={`${
+                      isDark ? "text-gray-300" : "text-gray-600"
+                    } mb-4`}
                   >
-                    Check your email for the reset link. If you don&apos;t see
-                    it, please check your spam folder.
+                    Didn’t receive it? Wait a moment, then try again.
                   </p>
                   <button
                     onClick={() => {
-                      setEmail("");
                       setSuccess(false);
+                      setError(null);
+                      setEmail("");
                     }}
                     className={`mt-2 tracking-wide font-semibold ${
                       isDark
                         ? "bg-gray-700 hover:bg-gray-600"
                         : "bg-gray-200 hover:bg-gray-300"
-                    } text-${isDark ? "white" : "gray-800"} px-6 py-2 rounded-lg transition-all duration-300 ease-in-out focus:shadow-outline focus:outline-none`}
+                    } ${
+                      isDark ? "text-white" : "text-gray-800"
+                    } px-6 py-2 rounded-lg transition-all duration-300 ease-in-out focus:shadow-outline focus:outline-none`}
                   >
                     Send Another Link
                   </button>
@@ -211,4 +270,4 @@ const ForgotPassword = () => {
   );
 };
 
-export default ForgotPassword;
+export default ForgotPasswordPage;
