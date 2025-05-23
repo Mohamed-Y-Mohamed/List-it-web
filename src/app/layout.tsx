@@ -45,6 +45,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="w-full h-full">
+      <head>
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-WJE2Z8G3QZ"
+        ></script>
+        <script id="google-analytics">
+          {`
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-WJE2Z8G3QZ');
+    `}
+        </script>
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased w-full min-h-screen`}
       >
