@@ -1,0 +1,38 @@
+# Robots.txt for List-It Todo App
+
+User-agent: *
+
+# Allow public marketing pages
+Allow: /
+Allow: /aboutus
+Allow: /landingpage
+Allow: /login
+Allow: /register
+
+# Block all user data and secure areas
+Disallow: /dashboard
+Disallow: /completed
+Disallow: /list
+Disallow: /notcomplete
+Disallow: /overdue
+Disallow: /priority
+Disallow: /today
+Disallow: /tomorrow
+Disallow: /resetPassword
+Disallow: /forgotPassword
+
+# Block API routes
+Disallow: /api/
+
+# Block admin areas (if any)
+Disallow: /admin/
+
+# Allow static assets
+Allow: /public/
+Allow: /_next/static/
+Allow: /favicon.ico
+Allow: /robots.txt
+Allow: /sitemap.xml
+
+# Crawl delay (optional - be nice to your server)
+Crawl-delay: 1
