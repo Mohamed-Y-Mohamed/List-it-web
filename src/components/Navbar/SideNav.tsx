@@ -472,10 +472,63 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
           </div>
 
           {/* Main navigation links */}
-          <div className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          <div
+            className={`flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-elegant ${isDark ? "scrollbar-dark" : "scrollbar-light"}`}
+          >
+            <style jsx>{`
+              .scrollbar-elegant {
+                scrollbar-width: thin;
+              }
+
+              .scrollbar-elegant::-webkit-scrollbar {
+                width: 6px;
+              }
+
+              .scrollbar-light::-webkit-scrollbar-track {
+                background: rgba(243, 244, 246, 0.5);
+                border-radius: 3px;
+              }
+
+              .scrollbar-light::-webkit-scrollbar-thumb {
+                background: linear-gradient(180deg, #0ea5e9, #06b6d4);
+                border-radius: 3px;
+                transition: all 0.3s ease;
+              }
+
+              .scrollbar-light::-webkit-scrollbar-thumb:hover {
+                background: linear-gradient(180deg, #0284c7, #0891b2);
+                box-shadow: 0 0 10px rgba(14, 165, 233, 0.3);
+              }
+
+              .scrollbar-dark::-webkit-scrollbar-track {
+                background: rgba(55, 65, 81, 0.5);
+                border-radius: 3px;
+              }
+
+              .scrollbar-dark::-webkit-scrollbar-thumb {
+                background: linear-gradient(180deg, #fb923c, #f97316);
+                border-radius: 3px;
+                transition: all 0.3s ease;
+              }
+
+              .scrollbar-dark::-webkit-scrollbar-thumb:hover {
+                background: linear-gradient(180deg, #ea580c, #dc2626);
+                box-shadow: 0 0 10px rgba(251, 146, 60, 0.4);
+              }
+
+              /* For Firefox */
+              .scrollbar-light {
+                scrollbar-color: #0ea5e9 rgba(243, 244, 246, 0.5);
+              }
+
+              .scrollbar-dark {
+                scrollbar-color: #fb923c rgba(55, 65, 81, 0.5);
+              }
+            `}</style>
             {/* Home & About links */}
             <div className="space-y-1 mb-3">
               <button
+                title="go to home page"
                 onClick={() => navigateTo("/landingpage")}
                 className={`flex w-full items-center px-3 py-2 rounded-md ${
                   currentPath === "/landingpage"
@@ -508,6 +561,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
             {/* Dashboard & feature links */}
             <div className="space-y-1 mb-3">
               <button
+                title="Dashboard page"
                 onClick={() => navigateTo("/dashboard")}
                 className={`flex w-full items-center px-3 py-2 rounded-md ${
                   currentPath === "/dashboard"
@@ -529,6 +583,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                 <span className="ml-3 text-sm font-medium">Dashboard</span>
               </button>
               <button
+                title="Task Due Today"
                 onClick={() => navigateTo("/today")}
                 className={`flex w-full items-center px-3 py-2 rounded-md ${
                   currentPath === "/today"
@@ -550,6 +605,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                 <span className="ml-3 text-sm font-medium">Today</span>
               </button>
               <button
+                title="Task Due Tomorrow"
                 onClick={() => navigateTo("/tomorrow")}
                 className={`flex w-full items-center px-3 py-2 rounded-md ${
                   currentPath === "/tomorrow"
@@ -571,6 +627,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                 <span className="ml-3 text-sm font-medium">Tomorrow</span>
               </button>
               <button
+                title="Task with Priority"
                 onClick={() => navigateTo("/priority")}
                 className={`flex w-full items-center px-3 py-2 rounded-md ${
                   currentPath === "/priority"
@@ -592,6 +649,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                 <span className="ml-3 text-sm font-medium">Priority</span>
               </button>
               <button
+                title="thats not complete"
                 onClick={() => navigateTo("/notcomplete")}
                 className={`flex w-full items-center px-3 py-2 rounded-md ${
                   currentPath === "/notcomplete"
@@ -615,6 +673,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                 </span>
               </button>
               <button
+                title="Overdue Tasks"
                 onClick={() => navigateTo("/overdue")}
                 className={`flex w-full items-center px-3 py-2 rounded-md ${
                   currentPath === "/overdue"
@@ -636,6 +695,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                 <span className="ml-3 text-sm font-medium">Overdue Tasks</span>
               </button>
               <button
+                title="Completed Tasks"
                 onClick={() => navigateTo("/completed")}
                 className={`flex w-full items-center px-3 py-2 rounded-md ${
                   currentPath === "/completed"
@@ -658,39 +718,67 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
               </button>
             </div>
 
-            {/* My Lists section */}
+            {/* My Lists section - Compressed Design */}
             <div
               className={`my-3 border-t ${
                 isDark ? "border-gray-800" : "border-gray-200"
               }`}
             />
 
-            {/* Lists header with add button */}
-            <div className="flex items-center justify-between px-3 py-2">
+            {/* My Lists section - Clean Design with 3D Cards */}
+            <div
+              className={`my-3 border-t ${
+                isDark ? "border-gray-800" : "border-gray-200"
+              }`}
+            />
+
+            {/* Section Header */}
+            <div className="px-3 py-2">
               <h3
-                className={`text-xs font-semibold uppercase ${
+                className={`text-xs font-semibold uppercase tracking-wide ${
                   isDark ? "text-gray-400" : "text-gray-500"
                 }`}
               >
-                My Lists
+                My Lists ({isLoadingLists ? "..." : sortedLists.length})
               </h3>
+            </div>
+
+            {/* Create List Button */}
+            <div className="px-3 mb-4">
               <button
                 onClick={() => setIsCreateListModalOpen(true)}
-                className={`rounded-md p-1 transition-colors ${
-                  isDark
-                    ? "hover:bg-gray-800 text-gray-400 hover:text-orange-400"
-                    : "hover:bg-gray-100 text-gray-500 hover:text-orange-500"
-                }`}
-                aria-label="Add new list"
-                title="Add new list"
                 disabled={isLoadingLists}
+                className={`flex w-full items-center px-4 py-3 rounded-lg border transition-all duration-200 ${
+                  isDark
+                    ? "bg-gray-800/50 border-gray-700 hover:bg-gray-800 hover:border-orange-400/50 text-gray-300 hover:text-orange-400"
+                    : "bg-white border-gray-200 hover:bg-sky-50 hover:border-sky-300 text-gray-700 hover:text-sky-600"
+                } ${
+                  isLoadingLists
+                    ? "opacity-50 cursor-not-allowed"
+                    : "cursor-pointer shadow-sm hover:shadow-md"
+                }`}
+                aria-label="Create new list"
               >
-                <Plus className="h-4 w-4" />
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 ${
+                    isDark ? "bg-gray-700" : "bg-gray-100"
+                  }`}
+                >
+                  <Plus className="h-4 w-4" />
+                </div>
+                <div className="text-left">
+                  <div className="text-sm font-medium">Create New List</div>
+                  <div
+                    className={`text-xs ${isDark ? "text-gray-500" : "text-gray-500"}`}
+                  >
+                    Organize your tasks and notes
+                  </div>
+                </div>
               </button>
             </div>
 
-            {/* Lists */}
-            <div className="space-y-1">
+            {/* Lists Container - 3D Cards */}
+            <div className="px-3 space-y-2">
               {isLoadingLists ? (
                 <div className="flex justify-center py-4">
                   <div
@@ -699,96 +787,151 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                 </div>
               ) : sortedLists.length === 0 ? (
                 <div
-                  className={`text-center py-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}
+                  className={`text-center py-6 px-4 rounded-lg ${
+                    isDark
+                      ? "bg-gray-800/30 text-gray-400"
+                      : "bg-gray-50 text-gray-500"
+                  }`}
                 >
+                  <ListTodo className={`w-6 h-6 mx-auto mb-2 opacity-50`} />
                   <p className="text-sm">No lists yet</p>
-                  <p className="text-xs mt-1">Create your first list</p>
+                  <p className="text-xs mt-1 opacity-75">
+                    Create your first list above
+                  </p>
                 </div>
               ) : (
                 sortedLists.map((list) => (
                   <div
                     key={list.id}
-                    className={`flex items-center w-full rounded-md ${
+                    className={`group relative transition-all duration-200 ${
                       currentListId === list.id.toString()
                         ? isDark
-                          ? "bg-gray-800"
-                          : "bg-gray-100"
+                          ? "transform translate-x-1"
+                          : "transform translate-x-1"
                         : ""
-                    } ${
-                      isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-                    } transition-colors`}
+                    }`}
                   >
-                    <button
-                      onClick={() => handleListClick(list.id)}
-                      className="flex-grow flex items-center px-3 py-2 text-left"
+                    {/* 3D Card */}
+                    <div
+                      className={`relative rounded-lg border transition-all duration-200 ${
+                        currentListId === list.id.toString()
+                          ? isDark
+                            ? "bg-gray-800 border-orange-400/60 shadow-lg shadow-orange-400/20"
+                            : "bg-sky-50 border-sky-400/60 shadow-lg shadow-sky-500/20"
+                          : isDark
+                            ? "bg-gray-800/60 border-gray-700 hover:bg-gray-800 hover:border-gray-600 shadow-md hover:shadow-lg"
+                            : "bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm hover:shadow-md"
+                      }`}
+                      style={{
+                        transform:
+                          currentListId === list.id.toString()
+                            ? "translateY(-2px)"
+                            : "translateY(0px)",
+                      }}
                     >
-                      <ListTodo
-                        className="h-5 w-5 flex-shrink-0"
-                        style={{
-                          color:
-                            list.bg_color_hex !== null ? list.bg_color_hex : "",
-                          fill:
-                            list.bg_color_hex !== null ? list.bg_color_hex : "",
-                          fillOpacity: 0.2,
-                        }}
-                      />
-                      <span className="ml-3 text-sm font-medium truncate">
-                        {list.list_name}
-                      </span>
-                    </button>
-                    <div className="flex mr-1">
-                      {/* Pin Button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTogglePinList(list.id);
-                        }}
-                        className={`p-1.5 ${
-                          list.is_pinned
-                            ? isDark
-                              ? "text-orange-400"
-                              : "text-orange-500"
-                            : isDark
-                              ? "text-gray-500 hover:text-gray-400"
-                              : "text-gray-400 hover:text-gray-500"
-                        } transition-colors`}
-                        aria-label={list.is_pinned ? "Unpin list" : "Pin list"}
-                        title={list.is_pinned ? "Unpin list" : "Pin list"}
-                        disabled={isDeletingList}
-                      >
-                        <Pin
-                          size={18}
-                          fill={
-                            list.is_pinned
-                              ? (list.bg_color_hex ?? "currentColor")
-                              : "none"
-                          }
-                          stroke={list.is_pinned ? "none" : "currentColor"}
-                          style={{
-                            color: list.is_pinned
-                              ? (list.bg_color_hex ?? "currentColor")
-                              : "currentColor",
-                          }}
+                      {/* Pinned Indicator */}
+                      {list.is_pinned && (
+                        <div
+                          className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
+                            isDark ? "bg-orange-400" : "bg-sky-500"
+                          } shadow-lg`}
                         />
-                      </button>
+                      )}
 
-                      {/* Delete Button */}
+                      {/* Card Content */}
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setListToDelete(list.id);
-                          setIsDeleteListModalOpen(true);
-                        }}
-                        className={`p-1.5 ${
-                          isDark
-                            ? "text-gray-500 hover:text-red-500"
-                            : "text-gray-400 hover:text-red-500"
-                        } transition-colors`}
-                        aria-label={`Delete ${list.list_name} list`}
-                        title={`Delete ${list.list_name}`}
-                        disabled={isDeletingList}
+                        onClick={() => handleListClick(list.id)}
+                        className="w-full text-left p-4 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-1 rounded-lg"
                       >
-                        <Trash2 size={16} />
+                        <div className="flex items-center justify-between">
+                          {/* Left Side - Icon and Name */}
+                          <div className="flex items-center min-w-0 flex-1">
+                            {/* List Icon */}
+                            <div
+                              className="w-8 h-8 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 shadow-sm"
+                              style={{
+                                backgroundColor: list.bg_color_hex
+                                  ? `${list.bg_color_hex}25`
+                                  : isDark
+                                    ? "#374151"
+                                    : "#F3F4F6",
+                                border: `1px solid ${list.bg_color_hex || (isDark ? "#4B5563" : "#E5E7EB")}40`,
+                              }}
+                            >
+                              <ListTodo
+                                className="w-4 h-4"
+                                style={{
+                                  color:
+                                    list.bg_color_hex ||
+                                    (isDark ? "#9CA3AF" : "#6B7280"),
+                                }}
+                              />
+                            </div>
+
+                            {/* List Name */}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center">
+                                <span
+                                  className={`font-medium text-sm truncate ${
+                                    isDark ? "text-gray-200" : "text-gray-800"
+                                  }`}
+                                >
+                                  {list.list_name}
+                                </span>
+                                {list.is_pinned && (
+                                  <Pin
+                                    className={`w-3 h-3 ml-2 flex-shrink-0 ${
+                                      isDark
+                                        ? "text-orange-400"
+                                        : "text-sky-500"
+                                    }`}
+                                    fill="currentColor"
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right Side - Actions */}
+                          <div className="flex space-x-1 ml-3 flex-shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTogglePinList(list.id);
+                              }}
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 ${
+                                list.is_pinned
+                                  ? isDark
+                                    ? "bg-orange-400/20 text-orange-400 hover:bg-orange-400/30 shadow-sm"
+                                    : "bg-sky-100 text-sky-600 hover:bg-sky-200 shadow-sm"
+                                  : isDark
+                                    ? "bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-orange-400 shadow-sm"
+                                    : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-sky-600 shadow-sm"
+                              }`}
+                              title={list.is_pinned ? "Unpin" : "Pin"}
+                              disabled={isDeletingList}
+                            >
+                              <Pin className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setListToDelete(list.id);
+                                setIsDeleteListModalOpen(true);
+                              }}
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 ${
+                                isDark
+                                  ? "bg-gray-700 text-gray-400 hover:bg-red-500/20 hover:text-red-400 shadow-sm"
+                                  : "bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 shadow-sm"
+                              }`}
+                              title="Delete"
+                              disabled={isDeletingList}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
                       </button>
                     </div>
                   </div>
@@ -847,7 +990,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
       {isDeleteListModalOpen && listToDelete && (
         <>
           <div
-            className="fixed inset-0 z-40 backdrop-blur-md bg-black bg-opacity-50"
+            className="fixed inset-0 z-40 backdrop-blur-md bg-black/50 bg-opacity-50"
             onClick={() => !isDeletingList && setIsDeleteListModalOpen(false)}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">

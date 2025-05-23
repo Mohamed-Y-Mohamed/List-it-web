@@ -658,7 +658,7 @@ const TaskSidebar = ({
               maxLength={100}
               disabled={isProcessing}
               placeholder="Task name"
-              className="w-full p-4 rounded-2xl bg-gray-800 text-white border border-gray-700 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              className="w-full p-4 rounded-2xl bg-gray-800 text-white border border-gray-700 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
             />
             <div className="text-right text-gray-500 text-xs mt-1">
               {titleCharCount}/100
@@ -680,7 +680,7 @@ const TaskSidebar = ({
               maxLength={500}
               disabled={isProcessing}
               placeholder="Add a description (optional)"
-              className="w-full p-4 rounded-2xl bg-gray-800 text-white border border-gray-700 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 min-h-[120px]"
+              className="w-full p-4 rounded-2xl bg-gray-800 text-white border border-gray-700 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 min-h-[120px]"
             />
             <div className="text-right text-gray-500 text-xs mt-1">
               {descriptionCharCount}/500
@@ -706,7 +706,7 @@ const TaskSidebar = ({
                 onChange={handleDateChange}
                 min={today} // Prevent selecting dates in the past
                 disabled={isProcessing}
-                className="w-full p-4 pl-10 rounded-2xl bg-gray-800 text-white border border-gray-700 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                className="w-full p-4 pl-10 rounded-2xl bg-gray-800 text-white border border-gray-700 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
               />
             </div>
           </div>
@@ -736,7 +736,7 @@ const TaskSidebar = ({
                   value={selectedCollection}
                   onChange={handleCollectionChange}
                   disabled={isProcessing}
-                  className="bg-gray-700 border border-gray-600 text-white p-2 rounded-lg focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  className="bg-gray-700 border border-gray-600 text-white p-2 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
                 >
                   {collections.map((col) => (
                     <option key={col.id} value={col.id}>
@@ -752,8 +752,8 @@ const TaskSidebar = ({
                   disabled={isProcessing}
                   className={`flex items-center justify-center w-full p-3 rounded-2xl transition-colors duration-200 ${
                     isPinned
-                      ? "bg-purple-600 text-white"
-                      : "bg-gray-700 text-purple-400 border border-purple-500"
+                      ? "bg-orange-600 text-white"
+                      : "bg-gray-700 text-orange-400 border border-orange-500"
                   }`}
                   type="button"
                 >

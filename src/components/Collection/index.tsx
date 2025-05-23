@@ -386,11 +386,8 @@ const CollectionComponent = ({
               {collection_name || "Unnamed Collection"}
             </h3>
             <p className={`text-xs ${subtextColor}`}>
-              {taskCount > 0
-                ? `${taskCount} task${taskCount !== 1 ? "s" : ""}`
-                : "No tasks"}
-              {noteCount > 0 &&
-                `, ${noteCount} note${noteCount !== 1 ? "s" : ""}`}
+              {taskCount} task{taskCount !== 1 ? "s" : ""}, {noteCount} note
+              {noteCount !== 1 ? "s" : ""}
             </p>
           </div>
 

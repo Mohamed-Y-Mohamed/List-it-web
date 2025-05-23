@@ -80,13 +80,11 @@ export default function ListPage() {
 
   // Add a refresh trigger to force re-fetch of data
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   // Function to trigger a data refresh
   const refreshData = useCallback(() => {
     setRefreshTrigger((prev) => prev + 1);
   }, []);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   // Function to check if a collection name is "General"
   const isGeneralCollection = useCallback(
@@ -260,7 +258,6 @@ export default function ListPage() {
 
     fetchListData();
   }, [listId, user, refreshTrigger, isGeneralCollection]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   // Handler for creating a new collection
   const handleCreateCollection = useCallback(
@@ -818,6 +815,7 @@ export default function ListPage() {
     },
     []
   );
+
   // Handler for changing a task's collection
   const handleTaskCollectionChange = useCallback(
     async (

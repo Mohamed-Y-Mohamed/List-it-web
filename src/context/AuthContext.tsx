@@ -147,8 +147,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log("Auth state change:", event);
-
         if (event === "SIGNED_IN" && session) {
           setIsLoggedIn(true);
           setUser(session.user);
