@@ -1,0 +1,17 @@
+# *
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /today
+Disallow: /tomorrow
+Disallow: /priority
+Disallow: /completed
+Disallow: /notcomplete
+Disallow: /overdue
+Disallow: /api/
+
+# Host
+Host: https://list-it-dom.netlify.app/
+
+# Sitemaps
+Sitemap: https://list-it-dom.netlify.app/sitemap.xml
