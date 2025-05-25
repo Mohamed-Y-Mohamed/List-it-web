@@ -6,12 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LineChart,
-  Line,
   AreaChart,
   Area,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
@@ -24,7 +20,6 @@ import {
 import {
   CheckCircle,
   Clock,
-  AlertCircle,
   BarChart3,
   ListTodo,
   TrendingUp,
@@ -32,13 +27,12 @@ import {
   Target,
   Activity,
   Plus,
-  Edit,
   Star,
   CircleAlert,
   ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
-import { format, subDays, parseISO, isValid } from "date-fns";
+import { format, subDays, isValid } from "date-fns";
 
 // Interfaces
 interface TaskStats {
@@ -875,6 +869,7 @@ export default function Dashboard() {
           completedResult.status === "fulfilled"
             ? completedResult.value.count || 0
             : 0;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const dueTodayCount =
           dueTodayResult.status === "fulfilled"
             ? dueTodayResult.value.count || 0
