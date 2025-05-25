@@ -116,6 +116,7 @@ const StatsCard: React.FC<{
       </div>
     );
   }
+  const lightBg = color.replace(/bg-(\w+)-\d+/, "bg-$1-100");
 
   return (
     <motion.div
@@ -132,9 +133,11 @@ const StatsCard: React.FC<{
 
       <div className="flex items-center justify-between mb-3 relative z-10">
         <div
-          className={`p-2 rounded-lg ${color.replace("bg-", "bg-").replace("-500", "-100")} ${isDark ? "bg-opacity-20" : ""}`}
+          className={`p-2 rounded-lg ${lightBg} ${
+            isDark ? "bg-opacity-40" : ""
+          }`}
         >
-          <Icon className={`h-5 w-5 ${color.replace("bg-", "text-")}`} />
+          <Icon className={`h-5 w-5 z-1 ${color.replace("bg-", "text-")}`} />
         </div>
       </div>
 
@@ -688,7 +691,7 @@ export default function OverduePage() {
               title="Critical Items"
               value={groupedTasks.critical.length}
               icon={TrendingDown}
-              color="bg-red-600"
+              color="bg-red-600 "
               isDark={isDark}
               description="7+ days overdue"
               isLoading={isLoading}

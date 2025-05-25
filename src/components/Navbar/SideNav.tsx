@@ -669,7 +669,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                   }`}
                 />
                 <span className="ml-3 text-sm font-medium">
-                  Incomplete Tasks
+                  Not Completed Tasks
                 </span>
               </button>
               <button
@@ -839,9 +839,17 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                       )}
 
                       {/* Card Content */}
-                      <button
+                      <div
                         onClick={() => handleListClick(list.id)}
-                        className="w-full text-left p-4 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-1 rounded-lg"
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleListClick(list.id);
+                          }
+                        }}
+                        className="w-full text-left p-4 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-1 rounded-lg cursor-pointer"
                       >
                         <div className="flex items-center justify-between">
                           {/* Left Side - Icon and Name */}
@@ -932,7 +940,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                             </button>
                           </div>
                         </div>
-                      </button>
+                      </div>
                     </div>
                   </div>
                 ))

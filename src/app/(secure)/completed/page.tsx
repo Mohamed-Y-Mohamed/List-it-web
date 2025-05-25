@@ -144,15 +144,9 @@ const OverallProgress: React.FC<{
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
       className={`rounded-xl p-6 mb-8 ${
-        isDark ? "bg-gray-800/50" : "bg-white/50"
-      } backdrop-blur-sm border ${isDark ? "border-gray-700/50" : "border-gray-300/50"} relative overflow-hidden`}
+        isDark ? "bg-transparent" : "bg-white"
+      } backdrop-blur-sm border ${isDark ? "border-gray-700/59" : "border-gray-300/50"} relative overflow-hidden`}
     >
-      {/* Subtle glow effect */}
-      <div
-        className="absolute inset-0 opacity-10 rounded-xl"
-        style={{ backgroundColor: progressColor.color }}
-      />
-
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-4">
           <div>

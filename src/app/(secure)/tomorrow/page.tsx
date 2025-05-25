@@ -586,7 +586,7 @@ export default function TomorrowPage() {
                 <h1
                   className={`text-3xl md:text-4xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}
                 >
-                  Tomorrow&aposs Focus
+                  Tomorrow&apos;s Tasks
                 </h1>
               </div>
               <p

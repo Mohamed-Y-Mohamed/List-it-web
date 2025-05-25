@@ -658,7 +658,7 @@ export default function NotCompletedPage() {
                 <h1
                   className={`text-3xl md:text-4xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}
                 >
-                  Pending Tasks
+                  To-Do Tasks
                 </h1>
               </div>
               <p
