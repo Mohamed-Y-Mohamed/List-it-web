@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Clock,
   Folder,
@@ -9,9 +10,15 @@ import {
   StickyNote,
   Pin,
   ChevronDown,
-  ChevronRight,
   Check,
   Calendar,
+  Star,
+  Target,
+  TrendingUp,
+  Zap,
+  Users,
+  Shield,
+  Rocket,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -56,7 +63,7 @@ interface Collection {
   user_id?: string;
 }
 
-// Mock data for the demo
+//  demo data
 const initialData: { collections: Collection[] } = {
   collections: [
     {
@@ -141,7 +148,7 @@ const initialData: { collections: Collection[] } = {
   ],
 };
 
-// Task Card Component - Updated to match backend design
+//  Task Card Component
 interface TaskCardProps {
   id: string;
   text: string;
@@ -188,98 +195,148 @@ const TaskCard: React.FC<TaskCardProps> = ({
   };
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      whileHover={{ y: -2, scale: 1.02 }}
       data-id={id}
-      className={`rounded-lg border p-4 transition-shadow cursor-pointer max-w-full overflow-hidden ${
-        isDark
-          ? "bg-gray-800 border-gray-700 hover:shadow-gray-900/20"
-          : "bg-white border-gray-200 hover:shadow-md"
-      }`}
+      className={`rounded-xl border p-4 transition-all duration-300 cursor-pointer backdrop-blur-sm group
+        ${
+          isDark
+            ? "bg-gray-800/40 border-gray-700/50 hover:bg-gray-800/60 hover:shadow-xl hover:shadow-gray-900/20"
+            : "bg-white/40 border-gray-300/50 hover:bg-white/60 hover:shadow-xl hover:shadow-gray-300/20"
+        }`}
     >
-      <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center space-x-3 overflow-hidden">
-          <button
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="flex items-start space-x-3 overflow-hidden flex-1 min-w-0">
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={handleCompletionToggle}
-            className={`flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+            className={`flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all duration-200 mt-0.5 ${
               isDark
                 ? isCompleted
                   ? "border-green-400 bg-green-500 text-gray-900"
-                  : "border-gray-600 bg-gray-700 hover:border-green-500"
+                  : "border-gray-600 bg-gray-700/50 hover:border-green-500"
                 : isCompleted
                   ? "border-green-500 bg-green-500 text-white"
-                  : "border-gray-300 bg-white hover:border-green-500"
+                  : "border-gray-300 bg-white/50 hover:border-green-500"
             }`}
             aria-label={isCompleted ? "Mark as incomplete" : "Mark as complete"}
             type="button"
           >
-            {isCompleted && <Check className="h-3 w-3" />}
-          </button>
+            <AnimatePresence>
+              {isCompleted && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Check className="h-3 w-3" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.button>
 
-          <h4
-            className={`font-semibold truncate ${
-              isDark
-                ? isCompleted
-                  ? "text-gray-400 line-through"
-                  : "text-gray-100"
-                : isCompleted
-                  ? "text-gray-500 line-through"
-                  : "text-gray-800"
-            }`}
-          >
-            {text || "Untitled Task"}
-          </h4>
+          <div className="flex-1 min-w-0">
+            <h4
+              className={`font-semibold text-sm sm:text-base truncate ${
+                isDark
+                  ? isCompleted
+                    ? "text-gray-400 line-through"
+                    : "text-gray-100"
+                  : isCompleted
+                    ? "text-gray-500 line-through"
+                    : "text-gray-800"
+              }`}
+            >
+              {text || "Untitled Task"}
+            </h4>
+
+            <AnimatePresence>
+              {isPinned && (
+                <motion.span
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className={`inline-flex items-center text-xs px-2 py-1 rounded-full font-medium mt-1 ${
+                    isDark
+                      ? "bg-orange-900/30 text-orange-300 border border-orange-500/30"
+                      : "bg-orange-100 text-orange-600 border border-orange-200"
+                  }`}
+                >
+                  <Star className="h-3 w-3 mr-1 fill-current" />
+                  Priority
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
-        <button
+        <motion.button
+          whileHover={{ scale: 1.1, rotate: 15 }}
+          whileTap={{ scale: 0.9 }}
           onClick={handlePriorityToggle}
-          className={`flex-shrink-0 transition-colors ${
+          className={`flex-shrink-0 transition-all duration-200 p-2 rounded-lg ${
             isDark
               ? isPinned
-                ? "text-white"
-                : "text-gray-500 hover:text-gray-300"
+                ? "text-orange-400 bg-orange-900/30"
+                : "text-gray-500 hover:text-orange-400 hover:bg-gray-700/50"
               : isPinned
-                ? "text-black"
-                : "text-gray-400 hover:text-gray-600"
+                ? "text-orange-500 bg-orange-100"
+                : "text-gray-400 hover:text-orange-500 hover:bg-orange-50"
           }`}
           aria-label={isPinned ? "Unpin task" : "Pin task"}
         >
-          <Pin className={`h-5 w-5 ${isPinned ? "fill-current" : ""}`} />
-        </button>
+          <Pin className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`} />
+        </motion.button>
       </div>
-      {description && (
-        <p
-          className={`mb-2 pl-8 text-sm break-words ${
-            isDark
-              ? isCompleted
-                ? "text-gray-500 line-through"
-                : "text-gray-400"
-              : isCompleted
-                ? "text-gray-400 line-through"
-                : "text-gray-600"
-          }`}
-        >
-          {description}
-        </p>
-      )}
+
+      <AnimatePresence>
+        {description && (
+          <motion.p
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className={`mb-3 text-xs sm:text-sm break-words ${
+              isDark
+                ? isCompleted
+                  ? "text-gray-500 line-through"
+                  : "text-gray-400"
+                : isCompleted
+                  ? "text-gray-400 line-through"
+                  : "text-gray-600"
+            }`}
+          >
+            {description}
+          </motion.p>
+        )}
+      </AnimatePresence>
+
       {due_date && (
-        <div
-          className={`flex items-center pl-8 text-xs overflow-hidden ${
-            isDark ? "text-gray-500" : "text-gray-500"
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className={`flex items-center text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-full w-fit transition-all duration-200 ${
+            isDark
+              ? "bg-gray-700/50 hover:bg-gray-700 border border-gray-600/50"
+              : "bg-gray-100/50 hover:bg-gray-200 border border-gray-200/50"
           }`}
         >
-          <div className="flex items-center overflow-hidden">
-            <Calendar className="mr-1 h-4 w-4 flex-shrink-0" />
-            <span className="truncate">
-              {due_date ? `Due: ${formatDate(due_date)}` : "No due date"}
-            </span>
-          </div>
-        </div>
+          <Calendar className="mr-1 sm:mr-1.5 h-3 w-3 flex-shrink-0 text-purple-500" />
+          <span className="truncate">Due: {formatDate(due_date)}</span>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 };
 
-// Note Card Component - Updated to match backend design
+//  Note Card Component
 interface NoteCardProps {
   id: string;
   title: string | null;
@@ -301,19 +358,17 @@ const NoteCard: React.FC<NoteCardProps> = ({
 
   const displayTitle = title || "Untitled Note";
 
-  // Card styling with glassy effect
   const cardStyle = bg_color_hex
     ? {
-        backgroundColor: bg_color_hex,
-        // Add subtle gradient overlay for glass effect but preserve base color
-        backgroundImage: `linear-gradient(120deg, ${bg_color_hex}dd, ${bg_color_hex}aa)`,
+        background: `linear-gradient(135deg, ${bg_color_hex}dd 0%, ${bg_color_hex}aa 50%, ${bg_color_hex}bb 100%)`,
+        backdropFilter: "blur(10px)",
       }
     : {};
 
   const bgClass = !bg_color_hex
     ? isDark
-      ? "bg-gray-800"
-      : "bg-yellow-50"
+      ? "bg-gray-800/50"
+      : "bg-yellow-50/50"
     : "";
 
   const useWhiteText = bg_color_hex
@@ -329,44 +384,66 @@ const NoteCard: React.FC<NoteCardProps> = ({
   };
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      whileHover={{ y: -4, scale: 1.02 }}
+      transition={{ duration: 0.3 }}
       className={`
-          rounded-lg p-4 shadow-sm hover:shadow-md
-          relative overflow-hidden cursor-pointer
-          w-full h-32 md:h-40
-          transition-all duration-200 ease-in-out
-          ${bgClass}
-        `}
+        rounded-xl p-4 shadow-sm hover:shadow-lg
+        relative overflow-hidden cursor-pointer
+        w-full h-28 sm:h-32 md:h-40 group
+        transition-all duration-300 backdrop-blur-sm border
+        ${bgClass}
+        ${isDark ? "border-gray-700/50" : "border-gray-300/50"}
+      `}
       style={cardStyle}
       role="button"
       aria-label={`Open note: ${displayTitle}`}
       data-id={id}
     >
-      <button
+      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-30 transition-opacity duration-300 bg-gradient-to-br from-white/20 to-transparent" />
+
+      <motion.button
+        whileHover={{ scale: 1.1, rotate: 15 }}
+        whileTap={{ scale: 0.9 }}
         onClick={handlePinClick}
-        className={`absolute top-2 right-2 p-1 rounded-full transition-colors ${
+        className={`absolute top-3 right-3 p-2 rounded-lg backdrop-blur-sm transition-all duration-200 ${
           isDark
-            ? "bg-gray-500/80 hover:bg-gray-600/50"
-            : "bg-gray-500/80 hover:bg-gray-200/10"
+            ? "bg-black/20 hover:bg-black/40"
+            : "bg-white/20 hover:bg-white/40"
         }`}
         aria-label={isPinned ? "Unpin note" : "Pin note"}
         type="button"
       >
         <Pin
-          className={`h-4 w-4 ${
-            isPinned
-              ? useWhiteText
-                ? "text-white fill-current"
-                : "text-black fill-current"
-              : useWhiteText
-                ? "text-white stroke-2"
-                : "text-black stroke-2"
+          className={`h-4 w-4 transition-all duration-200 ${
+            isPinned ? "fill-current text-orange-400" : textColor
           }`}
         />
-      </button>
+      </motion.button>
 
-      <div className="absolute bottom-0 left-0 right-0 p-2">
-        <h4 className={`font-semibold ${textColor} truncate`}>
+      <AnimatePresence>
+        {isPinned && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className={`absolute top-3 left-3 px-2 py-1 rounded-full text-xs font-medium flex items-center backdrop-blur-sm ${
+              isDark
+                ? "bg-orange-900/40 text-orange-300 border border-orange-500/30"
+                : "bg-orange-100/60 text-orange-700 border border-orange-300/50"
+            }`}
+          >
+            <Star className="h-3 w-3 mr-1 fill-current" />
+            Pinned
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="absolute bottom-0 left-0 right-0 p-3">
+        <h4 className={`font-semibold ${textColor} truncate mb-1`}>
           {displayTitle}
         </h4>
         {description && (
@@ -378,11 +455,11 @@ const NoteCard: React.FC<NoteCardProps> = ({
           </p>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 };
 
-// Collection Component - Updated to match backend design
+//  Collection Component
 interface CollectionComponentProps {
   id: string;
   collection_name: string;
@@ -404,263 +481,424 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
   const isDark = theme === "dark";
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<"tasks" | "notes">("tasks");
-  // Enhanced color utilities for better light/dark mode appearance
-  const bgColor = isDark ? "bg-gray-900/40" : "bg-white/70";
-  const headerBgColor = isDark ? "bg-gray-850" : "bg-gray-50";
-  const textColor = isDark ? "text-gray-100" : "text-gray-800";
-  const subtextColor = isDark ? "text-gray-400" : "text-gray-600";
-  const borderColor = isDark ? "border-gray-700" : "border-gray-200";
-  const hoverColor = isDark ? "hover:bg-gray-800" : "hover:bg-gray-100";
-  const tabHoverColor = isDark ? "hover:bg-gray-800" : "hover:bg-gray-100";
-  const activeTabBgColor = isDark ? "bg-gray-800" : "bg-gray-100";
 
-  // Filter and sort tasks
   const priorityTasks = tasks.filter((task) => Boolean(task.is_pinned));
   const regularTasks = tasks.filter((task) => !task.is_pinned);
-
-  // Sort notes
   const sortedNotes = [...notes].sort((a, b) => {
     if (a.is_pinned && !b.is_pinned) return -1;
     if (!a.is_pinned && b.is_pinned) return 1;
-
-    // Then sort by creation date
-    const dateA =
-      a.created_at instanceof Date ? a.created_at : new Date(a.created_at);
-    const dateB =
-      b.created_at instanceof Date ? b.created_at : new Date(b.created_at);
-    return dateB.getTime() - dateA.getTime();
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
   const taskCount = tasks.length;
   const noteCount = notes.length;
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
       data-collection-id={id}
       data-pinned={isPinned}
-      className={`rounded-lg overflow-hidden shadow-lg transition-shadow duration-300 hover:shadow-xl ${bgColor}`}
+      className={`rounded-xl overflow-hidden shadow-lg  transition-all duration-300 hover:shadow-xl backdrop-blur-sm border ${
+        isDark
+          ? "bg-gray-800/50 border-gray-700/50"
+          : "bg-white/50 border-gray-300/50"
+      }`}
     >
       {/* Collection Header */}
       <div
-        className={`${headerBgColor} border-l-4 transition-colors duration-300`}
-        style={{ borderLeftColor: bg_color_hex || "#cccccc" }}
+        className={`backdrop-blur-sm relative  ${isDark ? "bg-gray-800/60" : "bg-white/60"}`}
       >
         <div
-          className={`flex items-center p-4 cursor-pointer ${hoverColor} transition-colors duration-200`}
+          className="absolute top-0 left-0 right-0 h-1 opacity-80"
+          style={{ backgroundColor: bg_color_hex || "#fb923c" }}
+        />
+
+        <motion.div
+          className={`flex items-center p-5 cursor-pointer transition-all duration-200 relative ${
+            isDark ? "hover:bg-gray-700/50" : "hover:bg-gray-100/50"
+          }`}
           onClick={() => setIsExpanded(!isExpanded)}
+          whileHover={{ x: 2 }}
+          whileTap={{ scale: 0.98 }}
           role="button"
           aria-expanded={isExpanded}
           aria-label={`${collection_name || "Unnamed Collection"} collection`}
         >
-          {/* Icon with collection color */}
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center mr-3 shadow-sm"
-            style={{ backgroundColor: bg_color_hex || "#cccccc" }}
-            aria-hidden="true"
+          <motion.div
+            className="relative mr-4"
+            whileHover={{ scale: 1.1, rotate: 5 }}
+            transition={{ duration: 0.2 }}
           >
-            <ListTodo className="h-4 w-4 text-white" />
-          </div>
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg backdrop-blur-sm"
+              style={{
+                backgroundColor: bg_color_hex || "#fb923c",
+                boxShadow: `0 4px 20px ${bg_color_hex || "#fb923c"}30`,
+              }}
+            >
+              <ListTodo className="h-4 w-4 text-white" />
+            </div>
+          </motion.div>
 
-          {/* Collection title and info */}
           <div className="flex-1 min-w-0">
-            <h3 className={`font-medium ${textColor} truncate`}>
-              {collection_name || "Unnamed Collection"}
-            </h3>
-            <p className={`text-xs ${subtextColor}`}>
-              {taskCount > 0
-                ? `${taskCount} task${taskCount !== 1 ? "s" : ""}`
-                : "No tasks"}
-              {noteCount > 0 &&
-                `, ${noteCount} note${noteCount !== 1 ? "s" : ""}`}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3">
+              <h3
+                className={`font-semibold text-base sm:text-lg truncate ${
+                  isDark ? "text-gray-100" : "text-gray-800"
+                }`}
+              >
+                {collection_name || "Unnamed Collection"}
+              </h3>
+
+              <div className="flex items-center space-x-2 mt-1 sm:mt-0">
+                {taskCount > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      isDark
+                        ? "bg-orange-900/30 text-orange-300"
+                        : "bg-orange-100 text-orange-600"
+                    }`}
+                  >
+                    {taskCount} task{taskCount !== 1 ? "s" : ""}
+                  </motion.span>
+                )}
+
+                {noteCount > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      isDark
+                        ? "bg-blue-900/30 text-blue-400"
+                        : "bg-blue-100 text-blue-600"
+                    }`}
+                  >
+                    {noteCount} note{noteCount !== 1 ? "s" : ""}
+                  </motion.span>
+                )}
+              </div>
+            </div>
+
+            <p
+              className={`text-xs sm:text-sm mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}
+            >
+              {taskCount + noteCount} total items
             </p>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center space-x-2">
-            <button
-              className={`p-1.5 rounded-full ${subtextColor} ${hoverColor} transition-colors duration-200`}
-              aria-label={isExpanded ? "Collapse" : "Expand"}
+          <motion.button
+            className={`p-2 rounded-lg transition-colors duration-200 ${
+              isDark
+                ? "text-gray-400 hover:bg-gray-700/50"
+                : "text-gray-600 hover:bg-gray-100/50"
+            }`}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            aria-label={isExpanded ? "Collapse" : "Expand"}
+          >
+            <motion.div
+              animate={{ rotate: isExpanded ? 0 : -90 }}
+              transition={{ duration: 0.3 }}
             >
-              {isExpanded ? (
-                <ChevronDown className="h-5 w-5" />
-              ) : (
-                <ChevronRight className="h-5 w-5" />
-              )}
-            </button>
-          </div>
-        </div>
+              <ChevronDown className="h-5 w-5" />
+            </motion.div>
+          </motion.button>
+        </motion.div>
 
-        {/* Tabs */}
-        {isExpanded && (
-          <div className={`flex border-t ${borderColor}`} role="tablist">
-            <button
-              className={`flex-1 py-2.5 px-4 text-sm font-medium transition-all relative ${
-                activeTab === "tasks"
-                  ? `${textColor} ${activeTabBgColor}`
-                  : `${subtextColor} ${tabHoverColor}`
+        {/*  tabs */}
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className={`flex border-t backdrop-blur-sm ${
+                isDark ? "border-gray-700" : "border-gray-200"
               }`}
-              onClick={() => setActiveTab("tasks")}
-              role="tab"
-              aria-selected={activeTab === "tasks"}
-              aria-controls="tasks-panel"
-              id="tasks-tab"
+              role="tablist"
             >
-              <div className="flex items-center justify-center space-x-1">
-                <ListTodo className="h-4 w-4" />
-                <span>Tasks ({taskCount})</span>
-              </div>
-              {activeTab === "tasks" && (
-                <div
-                  className="absolute bottom-0 left-0 right-0 h-0.5 transition-colors duration-300"
-                  style={{ backgroundColor: bg_color_hex || "#cccccc" }}
-                  aria-hidden="true"
-                />
-              )}
-            </button>
+              {["tasks", "notes"].map((tab) => (
+                <motion.button
+                  key={tab}
+                  className={`flex-1 py-3 px-4 text-sm font-medium transition-all relative ${
+                    activeTab === tab
+                      ? isDark
+                        ? "text-gray-100 bg-gray-700/60"
+                        : "text-gray-800 bg-gray-100/60"
+                      : isDark
+                        ? "text-gray-400 hover:bg-gray-700/50"
+                        : "text-gray-600 hover:bg-gray-100/50"
+                  }`}
+                  onClick={() => setActiveTab(tab as "tasks" | "notes")}
+                  whileHover={{ y: -1 }}
+                  whileTap={{ scale: 0.98 }}
+                  role="tab"
+                  aria-selected={activeTab === tab}
+                  aria-controls={`${tab}-panel`}
+                  id={`${tab}-tab`}
+                >
+                  <div className="flex items-center justify-center space-x-2">
+                    {tab === "tasks" ? (
+                      <ListTodo className="h-4 w-4" />
+                    ) : (
+                      <StickyNote className="h-4 w-4" />
+                    )}
+                    <span className="capitalize">{tab}</span>
 
-            <button
-              className={`flex-1 py-2.5 px-4 text-sm font-medium transition-all relative ${
-                activeTab === "notes"
-                  ? `${textColor} ${activeTabBgColor}`
-                  : `${subtextColor} ${tabHoverColor}`
-              }`}
-              onClick={() => setActiveTab("notes")}
-              role="tab"
-              aria-selected={activeTab === "notes"}
-              aria-controls="notes-panel"
-              id="notes-tab"
-            >
-              <div className="flex items-center justify-center space-x-1">
-                <StickyNote className="h-4 w-4" />
-                <span>Notes ({noteCount})</span>
-              </div>
-              {activeTab === "notes" && (
-                <div
-                  className="absolute bottom-0 left-0 right-0 h-0.5 transition-colors duration-300"
-                  style={{ backgroundColor: bg_color_hex || "#cccccc" }}
-                  aria-hidden="true"
-                />
-              )}
-            </button>
-          </div>
-        )}
+                    {((tab === "tasks" && taskCount > 0) ||
+                      (tab === "notes" && noteCount > 0)) && (
+                      <span
+                        className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                          activeTab === tab
+                            ? "bg-white/20 text-current"
+                            : "bg-gray-500/20 text-gray-500"
+                        }`}
+                      >
+                        {tab === "tasks" ? taskCount : noteCount}
+                      </span>
+                    )}
+                  </div>
+
+                  {activeTab === tab && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full"
+                      style={{ backgroundColor: bg_color_hex || "#fb923c" }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  )}
+                </motion.button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
+
       {/* Collection Content */}
-      {isExpanded && (
-        <div
-          className={`${bgColor} p-4`}
-          role="tabpanel"
-          id={activeTab === "tasks" ? "tasks-panel" : "notes-panel"}
-          aria-labelledby={activeTab === "tasks" ? "tasks-tab" : "notes-tab"}
-        >
-          {activeTab === "tasks" && (
-            <div className="space-y-3">
-              {/* Priority Tasks Section */}
-              {priorityTasks.length > 0 && (
-                <>
-                  <div className="space-y-2">
-                    {priorityTasks.map((task) => (
-                      <TaskCard
-                        key={task.id}
-                        id={task.id}
-                        text={task.text}
-                        description={task.description}
-                        due_date={task.due_date}
-                        is_completed={task.is_completed}
-                        is_pinned={task.is_pinned}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className={`p-5 backdrop-blur-sm ${isDark ? "bg-gray-800/40" : "bg-white/40"}`}
+            role="tabpanel"
+            id={activeTab === "tasks" ? "tasks-panel" : "notes-panel"}
+            aria-labelledby={activeTab === "tasks" ? "tasks-tab" : "notes-tab"}
+          >
+            {activeTab === "tasks" && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4 }}
+                className="space-y-4"
+              >
+                {priorityTasks.length > 0 && (
+                  <>
+                    <div className="space-y-3">
+                      {priorityTasks.map((task, index) => (
+                        <motion.div
+                          key={task.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.3, delay: index * 0.1 }}
+                        >
+                          <TaskCard
+                            id={task.id}
+                            text={task.text}
+                            description={task.description}
+                            due_date={task.due_date}
+                            is_completed={task.is_completed}
+                            is_pinned={task.is_pinned}
+                          />
+                        </motion.div>
+                      ))}
+                    </div>
+                    {regularTasks.length > 0 && (
+                      <div
+                        className={`border-t pt-4 ${isDark ? "border-gray-700" : "border-gray-200"}`}
                       />
+                    )}
+                  </>
+                )}
+
+                {regularTasks.length > 0 ? (
+                  <div className="space-y-3">
+                    {regularTasks.map((task, index) => (
+                      <motion.div
+                        key={task.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{
+                          duration: 0.3,
+                          delay: (priorityTasks.length + index) * 0.1,
+                        }}
+                      >
+                        <TaskCard
+                          id={task.id}
+                          text={task.text}
+                          description={task.description}
+                          due_date={task.due_date}
+                          is_completed={task.is_completed}
+                          is_pinned={task.is_pinned}
+                        />
+                      </motion.div>
                     ))}
                   </div>
-                  {regularTasks.length > 0 && (
-                    <div
-                      className={`border-t ${borderColor} pt-2 my-3`}
-                      aria-hidden="true"
-                    ></div>
-                  )}
-                </>
-              )}
+                ) : (
+                  priorityTasks.length === 0 && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.4 }}
+                      className={`text-center py-12 ${isDark ? "text-gray-400" : "text-gray-600"}`}
+                    >
+                      <ListTodo className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p className="text-lg font-medium mb-1">No tasks yet</p>
+                      <p className="text-sm">Add tasks to organize your work</p>
+                    </motion.div>
+                  )
+                )}
+              </motion.div>
+            )}
 
-              {/* Regular Tasks Section */}
-              {regularTasks.length > 0 ? (
-                <div className="space-y-2">
-                  {regularTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      id={task.id}
-                      text={task.text}
-                      description={task.description}
-                      due_date={task.due_date}
-                      is_completed={task.is_completed}
-                      is_pinned={task.is_pinned}
-                    />
-                  ))}
-                </div>
-              ) : (
-                priorityTasks.length === 0 && (
-                  <div className={`text-center py-6 ${subtextColor} text-sm`}>
-                    No tasks in this collection
+            {activeTab === "notes" && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4 }}
+              >
+                {sortedNotes.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {sortedNotes.map((note, index) => (
+                      <motion.div
+                        key={note.id}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.3, delay: index * 0.1 }}
+                      >
+                        <NoteCard
+                          id={note.id}
+                          title={note.title}
+                          description={note.description}
+                          bg_color_hex={note.bg_color_hex}
+                          is_pinned={note.is_pinned}
+                        />
+                      </motion.div>
+                    ))}
                   </div>
-                )
-              )}
-            </div>
-          )}
-
-          {activeTab === "notes" && (
-            <>
-              {sortedNotes.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {sortedNotes.map((note) => (
-                    <NoteCard
-                      key={note.id}
-                      id={note.id}
-                      title={note.title}
-                      description={note.description}
-                      bg_color_hex={note.bg_color_hex}
-                      is_pinned={note.is_pinned}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className={`text-center py-6 ${subtextColor} text-sm`}>
-                  No notes in this collection
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </div>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.4 }}
+                    className={`text-center py-12 ${isDark ? "text-gray-400" : "text-gray-600"}`}
+                  >
+                    <StickyNote className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-lg font-medium mb-1">No notes yet</p>
+                    <p className="text-sm">
+                      Create notes to capture your ideas
+                    </p>
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
-// Hero Component - Updated with glass effect
+// Animated counter component
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const AnimatedCounter: React.FC<{
+  value: number;
+  duration?: number;
+  suffix?: string;
+}> = ({ value, duration = 1000, suffix = "" }) => {
+  const [count, setCount] = useState(0);
+
+  React.useEffect(() => {
+    let startTime: number;
+    const startValue = 0;
+    const endValue = value; // Fix: use the 'value' prop instead of 'AnimatedCounter'
+
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const current = startValue + (endValue - startValue) * progress;
+      setCount(Math.floor(current));
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [value, duration]);
+
+  return (
+    <span>
+      {count}
+      {suffix}
+    </span>
+  );
+};
+
+// Hero Component
 const Hero: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   return (
-    <section className="relative">
-      {/* Background with updated gradient */}
+    <section className="relative min-h-screen flex items-center">
       {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full items-center px-5 py-24 [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#7c2d12_100%)]" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(251,146,60,0.1)_0%,transparent_50%)] before:content-['']" />
       ) : (
-        <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_60%_10%,#fff_20%,#bae6fd_100%)]" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(251,146,60,0.05)_0%,transparent_70%)] before:content-['']" />
       )}
 
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 pt-28">
+      <div className="mx-auto max-w-7xl px-4 mb-24 py-16 sm:px-6 lg:px-8 pt-28">
         <div className="flex flex-col items-center justify-between lg:flex-row">
-          <div className="mb-12 max-w-xl lg:mb-0 lg:w-1/2">
-            <h1
+          <motion.div
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8 }}
+            className="mb-12 max-w-xl lg:mb-0 lg:w-1/2"
+          >
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
               className={`mb-6 text-4xl font-bold leading-tight tracking-tight ${
                 isDark ? "text-gray-100" : "text-gray-900"
               } md:text-5xl`}
             >
               Organize Your Tasks with{" "}
-              <span className={isDark ? "text-orange-400" : "text-sky-500"}>
+              <span
+                className={`${isDark ? "text-orange-400" : "text-orange-500"} relative`}
+              >
                 LIST IT
+                <motion.div
+                  className="absolute -bottom-2 left-0 h-1 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 1, delay: 1 }}
+                />
               </span>
-            </h1>
-            <p
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
               className={`mb-8 text-lg ${
                 isDark ? "text-gray-300" : "text-gray-600"
               }`}
@@ -668,145 +906,283 @@ const Hero: React.FC = () => {
               A simple yet powerful task management tool to help you organize
               collections, track tasks, and keep important notes all in one
               place.
-            </p>
-            <div className="flex flex-col space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
-              <Link
-                href="/register"
-                className={`inline-flex items-center justify-center rounded-md ${
-                  isDark
-                    ? "bg-orange-600 hover:bg-orange-700 text-white"
-                    : "bg-sky-500 hover:bg-sky-600 text-white"
-                } px-6 py-3 text-base font-medium transition-colors`}
-              >
-                Get Started Free
-              </Link>
-              <Link
-                href="/aboutus"
-                className={`inline-flex items-center justify-center rounded-md border ${
-                  isDark
-                    ? "border-gray-600 text-gray-300 hover:bg-gray-800"
-                    : "border-gray-300 text-gray-700 hover:bg-gray-100"
-                } px-6 py-3 text-base font-medium transition-colors`}
-              >
-                Learn More
-              </Link>
-            </div>
-          </div>
-          <div className="w-full lg:w-1/2">
-            <div
-              className={`relative overflow-hidden rounded-xl ${
-                isDark ? "bg-gray-800/70" : "bg-white/80"
-              } p-4 shadow-2xl backdrop-blur-sm`}
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+              className="flex flex-col space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0"
             >
-              {/* Demo UI preview here with updated components */}
-              <div className="space-y-4">
-                {initialData.collections.map((collection) => (
-                  <CollectionComponent
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Link
+                  href="/register"
+                  className={`inline-flex items-center justify-center rounded-xl ${
+                    isDark
+                      ? "bg-orange-600 hover:bg-orange-700 text-white"
+                      : "bg-orange-500 hover:bg-orange-600 text-white"
+                  } px-8 py-4 text-base font-medium transition-all duration-200 shadow-lg hover:shadow-xl backdrop-blur-sm`}
+                >
+                  Get Started Free
+                  <Rocket className="ml-2 h-5 w-5" />
+                </Link>
+              </motion.div>
+
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Link
+                  href="/aboutus"
+                  className={`inline-flex items-center justify-center rounded-xl border backdrop-blur-sm ${
+                    isDark
+                      ? "border-gray-600 text-gray-300 hover:bg-gray-800/50"
+                      : "border-gray-300 text-gray-700 hover:bg-gray-100/50"
+                  } px-8 py-4 text-base font-medium transition-all duration-200 shadow-lg hover:shadow-xl`}
+                >
+                  Learn More
+                </Link>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="w-full lg:w-1/2"
+          >
+            <div
+              className={`relative overflow-hidden rounded-2xl ${
+                isDark ? "bg-gray-800/40" : "bg-white/40"
+              } p-6 shadow-2xl backdrop-blur-sm border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
+            >
+              <div className="space-y-6">
+                {initialData.collections.map((collection, index) => (
+                  <motion.div
                     key={collection.id}
-                    id={collection.id}
-                    collection_name={collection.collection_name}
-                    bg_color_hex={collection.bg_color_hex}
-                    tasks={collection.tasks}
-                    notes={collection.notes}
-                    isPinned={collection.isPinned}
-                  />
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.8 + index * 0.2 }}
+                  >
+                    <CollectionComponent
+                      id={collection.id}
+                      collection_name={collection.collection_name}
+                      bg_color_hex={collection.bg_color_hex}
+                      tasks={collection.tasks}
+                      notes={collection.notes}
+                      isPinned={collection.isPinned}
+                    />
+                  </motion.div>
                 ))}
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
-      <div
-        className={`w-full ${
-          isDark ? "bg-orange-800" : "bg-sky-500"
-        } py-10 text-center text-white backdrop-blur-sm bg-opacity-90`}
+
+      {/*  CTA banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 1.2 }}
+        className={`absolute bottom-0  w-full ${
+          isDark ? "bg-orange-800/90" : "bg-orange-500/90"
+        } py-6 sm:py-8 text-center text-white backdrop-blur-sm`}
       >
         <div className="mx-auto max-w-3xl px-4">
-          <h2 className="mb-4 text-2xl font-bold md:text-3xl">
+          <h2 className="mb-2 sm:mb-4 text-xl sm:text-2xl md:text-3xl font-bold">
             The simplest way to manage your tasks
           </h2>
-          <p className="text-lg opacity-90">
+          <p className="text-sm sm:text-base md:text-lg opacity-90">
             Get organized and boost your productivity with LIST IT
           </p>
         </div>
-      </div>
+      </motion.div>
     </section>
   );
 };
 
-// Feature Card Component - Updated to match design system
+//  Feature Card Component
 interface FeatureCardProps {
   icon: React.ReactNode;
   title: string;
   description: string;
+  delay?: number;
 }
 
 const FeatureCard: React.FC<FeatureCardProps> = ({
   icon,
   title,
   description,
+  delay = 0,
 }) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   return (
-    <div
-      className={`rounded-xl p-6 transition-all duration-200 ${
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay }}
+      whileHover={{ y: -5, scale: 1.02 }}
+      className={`rounded-xl p-4 sm:p-6 transition-all duration-300 backdrop-blur-sm border group ${
         isDark
-          ? "bg-gray-800/80 hover:bg-gray-800/90 backdrop-blur-sm"
-          : "bg-white/80 hover:bg-white/90 backdrop-blur-sm"
-      } shadow-lg hover:shadow-xl`}
+          ? "bg-gray-800/50 hover:bg-gray-800/70 border-gray-700/50 hover:shadow-xl hover:shadow-gray-900/20"
+          : "bg-white/50 hover:bg-white/70 border-gray-300/50 hover:shadow-xl hover:shadow-gray-300/20"
+      }`}
     >
-      <div className="mb-4">{icon}</div>
+      <motion.div
+        className="mb-3 sm:mb-4"
+        whileHover={{ scale: 1.1, rotate: 5 }}
+        transition={{ duration: 0.2 }}
+      >
+        {icon}
+      </motion.div>
       <h3
-        className={`mb-2 text-xl font-semibold ${isDark ? "text-gray-100" : "text-gray-900"}`}
+        className={`mb-2 sm:mb-3 text-lg sm:text-xl font-semibold ${isDark ? "text-gray-100" : "text-gray-900"}`}
       >
         {title}
       </h3>
-      <p className={`${isDark ? "text-gray-400" : "text-gray-600"}`}>
+      <p
+        className={`${isDark ? "text-gray-400" : "text-gray-600"} leading-relaxed text-sm sm:text-base`}
+      >
         {description}
       </p>
-    </div>
+    </motion.div>
   );
 };
 
-// How It Works Card - Updated with glass effect
+//  How It Works Card
 interface HowItWorksCardProps {
   icon: React.FC<{ className?: string }>;
   title: string;
   description: string;
-  bgColor: string;
-  hoverBorder: string;
-  textColor: string;
+  step: number;
+  delay?: number;
 }
 
 const HowItWorksCard: React.FC<HowItWorksCardProps> = ({
   icon: Icon,
   title,
   description,
-  bgColor,
-  hoverBorder,
-  textColor,
+  step,
+  delay = 0,
 }) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   return (
-    <div
-      className={`rounded-lg p-6 border-2 border-transparent hover:border-2 ${hoverBorder} transition-all duration-300 ${bgColor} shadow-lg backdrop-blur-sm`}
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay }}
+      whileHover={{ y: -5 }}
+      className={`rounded-xl p-4 sm:p-6 border-2 transition-all duration-300 backdrop-blur-sm group relative overflow-hidden ${
+        isDark
+          ? "bg-gray-800/50 border-gray-700/50 hover:border-orange-500/50"
+          : "bg-white/50 border-gray-300/50 hover:border-orange-500/50"
+      }`}
     >
-      <div className={`inline-flex rounded-full p-3 mb-4 ${textColor}`}>
-        <Icon className="h-6 w-6" />
+      {/* Step number */}
+      <div
+        className={`absolute top-3 sm:top-4 right-3 sm:right-4 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold ${
+          isDark
+            ? "bg-orange-900/50 text-orange-300"
+            : "bg-orange-100 text-orange-600"
+        }`}
+      >
+        {step}
       </div>
+
+      {/* Subtle glow effect */}
+      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 bg-gradient-to-br from-orange-500/20 to-transparent" />
+
+      <motion.div
+        className={`inline-flex rounded-xl p-2 sm:p-3 mb-3 sm:mb-4 relative z-10 ${
+          isDark
+            ? "bg-orange-900/30 text-orange-400"
+            : "bg-orange-100 text-orange-600"
+        }`}
+        whileHover={{ scale: 1.1, rotate: 5 }}
+        transition={{ duration: 0.2 }}
+      >
+        <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+      </motion.div>
+
       <h3
-        className={`mb-3 text-xl font-medium ${isDark ? "text-gray-100" : "text-gray-900"}`}
+        className={`mb-2 sm:mb-3 text-lg sm:text-xl font-semibold relative z-10 ${
+          isDark ? "text-gray-100" : "text-gray-900"
+        }`}
       >
         {title}
       </h3>
-      <p className={`${isDark ? "text-gray-400" : "text-gray-600"}`}>
+
+      <p
+        className={`relative z-10 text-sm sm:text-base ${isDark ? "text-gray-400" : "text-gray-600"} leading-relaxed`}
+      >
         {description}
       </p>
-    </div>
+    </motion.div>
+  );
+};
+
+//  Benefit Card Component
+interface BenefitCardProps {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  delay?: number;
+}
+
+const BenefitCard: React.FC<BenefitCardProps> = ({
+  title,
+  description,
+  icon,
+  delay = 0,
+}) => {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -30 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.6, delay }}
+      whileHover={{ x: 5 }}
+      className={`flex items-start p-4 sm:p-6 rounded-xl shadow-lg backdrop-blur-sm border transition-all duration-300 ${
+        isDark
+          ? "bg-gray-800/50 border-gray-700/50 hover:bg-gray-800/70"
+          : "bg-white/50 border-gray-300/50 hover:bg-white/70"
+      }`}
+    >
+      <motion.div
+        className={`flex-shrink-0 p-2 sm:p-3 mr-3 sm:mr-4 rounded-xl ${
+          isDark
+            ? "bg-orange-900/40 text-orange-400"
+            : "bg-orange-100 text-orange-600"
+        }`}
+        whileHover={{ scale: 1.1, rotate: 5 }}
+        transition={{ duration: 0.2 }}
+      >
+        {icon}
+      </motion.div>
+      <div>
+        <h3
+          className={`text-lg sm:text-xl font-semibold mb-1 sm:mb-2 ${isDark ? "text-gray-100" : "text-gray-900"}`}
+        >
+          {title}
+        </h3>
+        <p
+          className={`${isDark ? "text-gray-400" : "text-gray-600"} leading-relaxed text-sm sm:text-base`}
+        >
+          {description}
+        </p>
+      </div>
+    </motion.div>
   );
 };
 
@@ -815,84 +1191,51 @@ interface SectionTitleProps {
   title: string;
   highlight: string;
   description: string;
-  highlightColor?: string;
 }
 
 const SectionTitle: React.FC<SectionTitleProps> = ({
   title,
   highlight,
   description,
-  highlightColor,
 }) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   return (
-    <div className="text-center">
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8 }}
+      className="text-center mb-12 sm:mb-16"
+    >
       <h2
-        className={`text-3xl font-bold tracking-tight md:text-4xl ${isDark ? "text-gray-100" : "text-gray-900"}`}
+        className={`text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight mb-3 sm:mb-4 ${
+          isDark ? "text-gray-100" : "text-gray-900"
+        }`}
       >
         {title}{" "}
         <span
-          className={
-            highlightColor || (isDark ? "text-orange-400" : "text-sky-500")
-          }
+          className={`${isDark ? "text-orange-400" : "text-orange-500"} relative`}
         >
           {highlight}
+          <motion.div
+            className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full"
+            initial={{ width: 0 }}
+            whileInView={{ width: "100%" }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+          />
         </span>
       </h2>
       <p
-        className={`mt-4 max-w-2xl mx-auto text-xl ${isDark ? "text-gray-300" : "text-gray-600"}`}
+        className={`max-w-2xl mx-auto text-base sm:text-lg md:text-xl px-4 ${isDark ? "text-gray-300" : "text-gray-600"}`}
       >
         {description}
       </p>
-    </div>
+    </motion.div>
   );
 };
 
-// Benefit Card Component - Updated with glass effect
-interface BenefitCardProps {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-}
-
-const BenefitCard: React.FC<BenefitCardProps> = ({
-  title,
-  description,
-  icon,
-}) => {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-
-  return (
-    <div
-      className={`flex items-start p-6 ${
-        isDark
-          ? "bg-gray-800/80 backdrop-blur-sm"
-          : "bg-white/80 backdrop-blur-sm"
-      } rounded-lg shadow-lg`}
-    >
-      <div
-        className={`flex-shrink-0 p-3 mr-4 rounded-full ${isDark ? "bg-orange-900/40 text-orange-400" : "bg-sky-100 text-sky-600"}`}
-      >
-        {icon}
-      </div>
-      <div>
-        <h3
-          className={`text-xl font-semibold mb-2 ${isDark ? "text-gray-100" : "text-gray-900"}`}
-        >
-          {title}
-        </h3>
-        <p className={`${isDark ? "text-gray-400" : "text-gray-600"}`}>
-          {description}
-        </p>
-      </div>
-    </div>
-  );
-};
-
-// Landing Page Component
+//  Landing Page Component
 const LandingPage: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -904,237 +1247,311 @@ const LandingPage: React.FC = () => {
           className={`h-12 w-12 ${isDark ? "text-orange-400" : "text-orange-500"}`}
         />
       ),
-      title: "Collections",
+      title: "Smart Collections",
       description:
-        "Group related tasks with customizable color-coding for efficient organization.",
+        "Group related tasks with customizable color-coding for efficient organization and visual clarity.",
     },
     {
       icon: (
         <ListTodo
-          className={`h-12 w-12 ${isDark ? "text-sky-400" : "text-sky-500"}`}
+          className={`h-12 w-12 ${isDark ? "text-blue-400" : "text-blue-500"}`}
         />
       ),
-      title: "Task Management",
+      title: "Advanced Task Management",
       description:
-        "Create, prioritize, and track tasks with descriptions and deadlines.",
+        "Create, prioritize, and track tasks with rich descriptions, deadlines, and priority levels.",
     },
     {
       icon: (
         <Clock
-          className={`h-12 w-12 ${isDark ? "text-orange-400" : "text-orange-500"}`}
+          className={`h-12 w-12 ${isDark ? "text-purple-400" : "text-purple-500"}`}
         />
       ),
-      title: "Due Date Tracking",
+      title: "Smart Due Date Tracking",
       description:
-        "Assign due dates to tasks and easily identify priority items.",
+        "Never miss deadlines with intelligent due date tracking and priority-based organization.",
     },
     {
       icon: (
         <StickyNote
-          className={`h-12 w-12 ${isDark ? "text-sky-400" : "text-sky-500"}`}
+          className={`h-12 w-12 ${isDark ? "text-green-400" : "text-green-500"}`}
         />
       ),
-      title: "Notes",
+      title: "Rich Notes System",
       description:
-        "Add color-coded, pinnable notes to collections for important information.",
+        "Create color-coded, pinnable notes with rich formatting for important information and ideas.",
     },
   ];
 
   const benefits = [
     {
-      icon: <StickyNote className="h-8 w-8" />,
+      icon: <Target className="h-8 w-8" />,
       title: "Stay Focused",
       description:
         "Organize your thoughts and tasks visually to maintain clarity and focus on what matters most.",
     },
     {
-      icon: <Clock className="h-8 w-8" />,
-      title: "Save Time",
+      icon: <Zap className="h-8 w-8" />,
+      title: "Boost Productivity",
       description:
-        "Reduce time spent organizing and searching for information with our intuitive interface.",
+        "Streamline your workflow with intuitive organization tools that adapt to your working style.",
     },
     {
-      icon: <Folder className="h-8 w-8" />,
-      title: "Flexible Organization",
+      icon: <TrendingUp className="h-8 w-8" />,
+      title: "Track Progress",
       description:
-        "Customize your workflow with collections that adapt to your unique organizational style.",
+        "Monitor your achievements and productivity trends with intelligent analytics and insights.",
     },
   ];
 
   return (
     <div className="min-h-screen w-full">
-      {/* Hero Section with Live Demo */}
+      {/* Hero Section */}
       <Hero />
 
       {/* How It Works Section */}
-      <section className="py-20 relative">
-        {/* Background with radial gradient */}
+      <section className="py-12 sm:py-16 lg:py-20 relative">
         {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full items-center [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#000_100%)]" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a1a1a_0%,#232323_50%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(251,146,60,0.05)_0%,transparent_70%)] before:content-['']" />
         ) : (
-          <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_50%_50%,#fff_20%,#f0f9ff_100%)]" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f9fafb_0%,#ffffff_50%,#f3f4f6_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(251,146,60,0.03)_0%,transparent_70%)] before:content-['']" />
         )}
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="How"
-            highlight="LIST IT"
+            highlight="LIST IT Works"
             description="A structured approach to task management with hierarchical organization"
-            highlightColor={isDark ? "text-orange-400" : "text-sky-500"}
           />
 
-          <div className="mt-16 grid gap-8 md:grid-cols-3">
-            <HowItWorksCard
-              icon={Folder}
-              title="Create Collections"
-              description="Group related tasks into themed collections with custom colors for visual organization."
-              bgColor={isDark ? "bg-gray-800/80" : "bg-white/80"}
-              hoverBorder={isDark ? "border-orange-700" : "border-orange-200"}
-              textColor={
-                isDark
-                  ? "bg-orange-900 text-orange-500"
-                  : "bg-orange-100 text-orange-500"
-              }
-            />
+          <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
             <HowItWorksCard
               icon={ListTodo}
-              title="Manage Tasks"
-              description="Create priority tasks with descriptions, mark tasks as complete, and organize them with due dates."
-              bgColor={isDark ? "bg-gray-800/80" : "bg-white/80"}
-              hoverBorder={isDark ? "border-sky-700" : "border-sky-200"}
-              textColor={
-                isDark ? "bg-sky-900 text-sky-400" : "bg-sky-100 text-sky-500"
-              }
+              title="Create Lists"
+              description="Start by creating lists to organize your workflow. Lists serve as containers that hold multiple collections for different projects or areas of your life."
+              step={1}
+              delay={0}
+            />
+            <HowItWorksCard
+              icon={Folder}
+              title="Add Collections"
+              description="Within each list, create themed collections with custom colors. Collections group related tasks and notes for better visual organization."
+              step={2}
+              delay={0.2}
             />
             <HowItWorksCard
               icon={StickyNote}
-              title="Add Notes"
-              description="Create colorful, pinnable notes for important details and reference information within each collection."
-              bgColor={isDark ? "bg-gray-800/80" : "bg-white/80"}
-              hoverBorder={isDark ? "border-orange-700" : "border-orange-200"}
-              textColor={
-                isDark
-                  ? "bg-orange-900 text-orange-500"
-                  : "bg-orange-100 text-orange-500"
-              }
+              title="Manage Tasks & Notes"
+              description="Inside collections, add priority tasks with due dates and create colorful notes for important information and reference materials."
+              step={3}
+              delay={0.4}
             />
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 relative">
-        {/* Background with radial gradient */}
+      <section className="py-12 sm:py-16 lg:py-20 relative">
         {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full items-center px-5 py-24 [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#7c2d12_100%)]" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(251,146,60,0.1)_0%,transparent_50%)] before:content-['']" />
         ) : (
-          <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_60%_10%,#fff_20%,#bae6fd_100%)]" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(251,146,60,0.05)_0%,transparent_70%)] before:content-['']" />
         )}
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="Everything You Need to"
             highlight="Stay Organized"
-            description="Powerful features designed to boost your productivity"
+            description="Powerful features designed to boost your productivity and streamline your workflow"
           />
 
-          <div className="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-4">
             {features.map((feature, index) => (
-              <FeatureCard key={index} {...feature} />
+              <FeatureCard key={index} {...feature} delay={index * 0.1} />
             ))}
           </div>
         </div>
       </section>
 
       {/* Interactive Demo Section */}
-      <section className="py-20 relative">
-        {/* Background with radial gradient */}
+      <section className="py-12 sm:py-16 lg:py-20 relative">
         {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full items-center [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#000_100%)]" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a1a1a_0%,#232323_50%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
         ) : (
-          <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_50%_50%,#fff_20%,#f0f9ff_100%)]" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f0f9ff_0%,#ffffff_50%,#f8fafc_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
         )}
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="See LIST IT in"
             highlight="Action"
-            description="Try our interactive demo to experience the app firsthand"
+            description="Experience our interactive demo to see how LIST IT can transform your productivity"
           />
 
-          <div className="mt-16 overflow-hidden rounded-xl shadow-2xl">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl"
+          >
             <div
-              className={`p-4 ${isDark ? "bg-gray-800/80" : "bg-white/80"} backdrop-blur-sm`}
+              className={`p-4 sm:p-6 ${isDark ? "bg-gray-800/50" : "bg-white/50"} backdrop-blur-sm border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
             >
-              <div className="space-y-6">
-                {initialData.collections.map((collection) => (
-                  <CollectionComponent
+              <div className="space-y-4 sm:space-y-6">
+                {initialData.collections.map((collection, index) => (
+                  <motion.div
                     key={collection.id}
-                    id={collection.id}
-                    collection_name={collection.collection_name}
-                    bg_color_hex={collection.bg_color_hex}
-                    tasks={collection.tasks}
-                    notes={collection.notes}
-                    isPinned={collection.isPinned}
-                  />
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.2 }}
+                  >
+                    <CollectionComponent
+                      id={collection.id}
+                      collection_name={collection.collection_name}
+                      bg_color_hex={collection.bg_color_hex}
+                      tasks={collection.tasks}
+                      notes={collection.notes}
+                      isPinned={collection.isPinned}
+                    />
+                  </motion.div>
                 ))}
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Benefits Section (replacing Testimonials) */}
-      <section className="py-20 relative">
-        {/* Background with radial gradient */}
+      {/* Benefits Section */}
+      <section className="py-12 sm:py-16 lg:py-20 relative">
         {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full items-center [background:radial-gradient(125%_125%_at_50%_10%,#111827_40%,#1f2937_100%)]" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_left,rgba(20,184,166,0.1)_0%,transparent_50%)] before:content-['']" />
         ) : (
-          <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_50%_50%,#f9fafb_20%,#f3f4f6_100%)]" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f0fdfa_0%,#ffffff_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_left,rgba(20,184,166,0.05)_0%,transparent_70%)] before:content-['']" />
         )}
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="Work Smarter"
             highlight="Not Harder"
-            description="Discover how LIST IT can transform your productivity"
+            description="Discover how LIST IT can transform your productivity and simplify your workflow"
           />
 
-          <div className="mt-16 grid gap-8 md:grid-cols-3">
+          <div className="grid gap-6 sm:gap-8 lg:grid-cols-3">
             {benefits.map((benefit, index) => (
-              <BenefitCard key={index} {...benefit} />
+              <BenefitCard key={index} {...benefit} delay={index * 0.2} />
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section
-        className={`py-16 text-white relative ${isDark ? "bg-orange-800/90" : "bg-sky-500/90"} backdrop-blur-sm`}
+      {/*  CTA Section */}
+      <motion.section
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        transition={{ duration: 0.8 }}
+        className={`py-12 sm:py-16 lg:py-20 text-white relative overflow-hidden ${
+          isDark ? "bg-orange-800/90" : "bg-orange-500/90"
+        } backdrop-blur-sm`}
       >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-              Ready to boost your productivity?
-            </h2>
-            <p className="mt-4 text-lg opacity-90">
-              Join LIST IT today and start organizing your work life.
-            </p>
-            <div className="mt-8 flex flex-col justify-center space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
-              <Link
-                href="/register"
-                className={`inline-flex items-center justify-center rounded-md ${
-                  isDark
-                    ? "bg-gray-800 text-orange-400 hover:bg-gray-700"
-                    : "bg-white text-sky-500 hover:bg-gray-100"
-                } px-6 py-3 text-base font-medium transition-colors`}
-              >
-                Get Started - It&apos;s Free!
-              </Link>
-            </div>
-          </div>
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <motion.div
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.1, 0.2, 0.1],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-white/10 to-transparent rounded-full"
+          />
+          <motion.div
+            animate={{
+              scale: [1.2, 1, 1.2],
+              opacity: [0.1, 0.2, 0.1],
+            }}
+            transition={{
+              duration: 10,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-white/10 to-transparent rounded-full"
+          />
         </div>
-      </section>
+
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="mx-auto max-w-3xl text-center"
+          >
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight mb-4 sm:mb-6">
+              Ready to Transform Your Productivity?
+            </h2>
+            <p className="text-base sm:text-lg md:text-xl opacity-90 mb-6 sm:mb-8 px-4">
+              Join thousands of users who have already streamlined their
+              workflow with LIST IT. Start organizing your tasks today!
+            </p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="flex flex-col justify-center space-y-4 sm:flex-row sm:space-x-6 sm:space-y-0"
+            >
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Link
+                  href="/register"
+                  className={`inline-flex items-center justify-center rounded-xl ${
+                    isDark
+                      ? "bg-gray-800 text-orange-400 hover:bg-gray-700"
+                      : "bg-white text-orange-500 hover:bg-gray-100"
+                  } px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl backdrop-blur-sm w-full sm:w-auto`}
+                >
+                  Get Started - It&apos;s Free!
+                  <Users className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
+                </Link>
+              </motion.div>
+
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Link
+                  href="/aboutus"
+                  className="inline-flex items-center justify-center rounded-xl border-2 border-white/30 text-white hover:bg-white/10 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold transition-all duration-200 backdrop-blur-sm w-full sm:w-auto"
+                >
+                  Learn More
+                  <Shield className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
+                </Link>
+              </motion.div>
+            </motion.div>
+
+            {/* Trust indicators */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="mt-8 sm:mt-12 flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-8 text-sm opacity-80"
+            >
+              <div className="flex items-center">
+                <Shield className="h-4 w-4 mr-2" />
+                Secure & Private
+              </div>
+              <div className="flex items-center">
+                <Rocket className="h-4 w-4 mr-2" />
+                Always Free
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </motion.section>
     </div>
   );
 };

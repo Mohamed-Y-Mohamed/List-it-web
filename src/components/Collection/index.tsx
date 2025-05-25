@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { ChevronDown, ChevronRight, ListTodo, StickyNote } from "lucide-react";
+import {
+  ChevronDown,
+  ListTodo,
+  StickyNote,
+  AlertCircle,
+  X,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import TaskCard from "@/components/Tasks/index";
 import NoteCard from "@/components/Notes/noteCard";
 import { Task, Note, Collection } from "@/types/schema";
@@ -13,7 +20,6 @@ interface OperationResult {
   error?: unknown;
 }
 
-// Make sure to add onCollectionChange to the interface// In CollectionComponentProps interface
 interface CollectionComponentProps {
   id: string;
   collection_name: string;
@@ -56,12 +62,12 @@ interface CollectionComponentProps {
     updatedDescription?: string
   ) => Promise<OperationResult>;
   onNoteDelete?: (noteId: string) => Promise<OperationResult>;
-  collections?: Collection[]; // Add this prop
+  collections?: Collection[];
   className?: string;
 }
 
-const CollectionComponent = ({
-  id, // Used in DOM attributes for accessibility and required for DOM operations
+const EnhancedCollectionComponent = ({
+  id,
   collection_name,
   bg_color_hex,
   tasks = [],
@@ -75,10 +81,10 @@ const CollectionComponent = ({
   onNoteColorChange,
   onNoteUpdate,
   onNoteDelete,
-  collections = [], // Add this with a default empty array
+  collections = [],
   className = "",
 }: CollectionComponentProps) => {
-  const collectionId = id; // Store id to satisfy ESLint
+  const collectionId = id;
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
@@ -89,30 +95,53 @@ const CollectionComponent = ({
   const [sortedNotes, setSortedNotes] = useState<Note[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [errorTimeout, setErrorTimeout] = useState<NodeJS.Timeout | null>(null);
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+  const [isHovered, setIsHovered] = useState(false);
 
-  // Enhanced color utilities for better light/dark mode appearance
-  const bgColor = isDark ? "bg-gray-900/40" : "bg-white/70";
-  const headerBgColor = isDark ? "bg-gray-850" : "bg-gray-50";
-  const textColor = isDark ? "text-gray-100" : "text-gray-800";
-  const subtextColor = isDark ? "text-gray-400" : "text-gray-600";
-  const borderColor = isDark ? "border-gray-700" : "border-gray-200";
-  const hoverColor = isDark ? "hover:bg-gray-800" : "hover:bg-gray-100";
-  const errorColor = isDark ? "text-red-400" : "text-red-600";
-  const errorBgColor = isDark ? "bg-red-900/30" : "bg-red-50";
-  const tabHoverColor = isDark ? "hover:bg-gray-800" : "hover:bg-gray-100";
-  const activeTabBgColor = isDark ? "bg-gray-800" : "bg-gray-100";
+  // Enhanced color scheme that complements our elegant background
+  const getColorScheme = () => {
+    if (isDark) {
+      return {
+        cardBg: "bg-gray-800/30",
+        headerBg: "bg-gray-800/50",
+        textPrimary: "text-gray-100",
+        textSecondary: "text-gray-400",
+        border: "border-gray-700/50",
+        hover: "hover:bg-gray-700/50",
+        errorText: "text-red-300",
+        errorBg: "bg-red-900/20",
+        tabHover: "hover:bg-gray-700/50",
+        activeTab: "bg-gray-700/60",
+        accent: "text-orange-400",
+        accentBg: "bg-orange-900/30",
+      };
+    } else {
+      return {
+        cardBg: "bg-white/40",
+        headerBg: "bg-white/60",
+        textPrimary: "text-gray-900",
+        textSecondary: "text-gray-600",
+        border: "border-gray-300/50",
+        hover: "hover:bg-gray-100/50",
+        errorText: "text-red-700",
+        errorBg: "bg-red-100/50",
+        tabHover: "hover:bg-gray-200/50",
+        activeTab: "bg-gray-200/60",
+        accent: "text-orange-600",
+        accentBg: "bg-orange-100/50",
+      };
+    }
+  };
 
-  // Memoized sorting functions to avoid unnecessary re-computations
+  const colors = getColorScheme();
+
+  // Memoized sorting functions
   const sortTasks = useCallback((taskList: Task[] = []) => {
     try {
-      // Filter out null/undefined tasks and already deleted ones
       const validTasks =
         taskList?.filter((task) => task && !task.is_deleted) || [];
-
-      // Split into priority and regular tasks
       const priority = validTasks.filter((task) => Boolean(task.is_pinned));
       const regular = validTasks.filter((task) => !task.is_pinned);
-
       return { priority, regular };
     } catch (err) {
       console.error("Error sorting tasks:", err);
@@ -123,20 +152,14 @@ const CollectionComponent = ({
 
   const sortNotes = useCallback((noteList: Note[] = []) => {
     try {
-      // Filter out null/undefined notes and already deleted ones
       const validNotes =
         noteList?.filter((note) => note && !note.is_deleted) || [];
-
-      // Sort by pinned status, then by creation date (newest first)
       return [...validNotes].sort((a, b) => {
-        // Handle pinned notes first
         if (Boolean(a.is_pinned) && !Boolean(b.is_pinned)) return -1;
         if (!Boolean(a.is_pinned) && Boolean(b.is_pinned)) return 1;
 
-        // Then sort by creation date
         const dateA =
           a.created_at instanceof Date ? a.created_at : new Date(a.created_at);
-
         const dateB =
           b.created_at instanceof Date ? b.created_at : new Date(b.created_at);
 
@@ -186,12 +209,7 @@ const CollectionComponent = ({
   const noteCount =
     notes?.filter((note) => note && !note.is_deleted).length || 0;
 
-  /**
-   * Safely handle API operations with error handling
-   * @param operation The async operation to perform
-   * @param errorMessage The error message to show if the operation fails
-   * @returns The result of the operation or { success: false } on failure
-   */
+  // Safely handle API operations with error handling
   const safelyHandleOperation = async (
     operation: () => Promise<OperationResult>,
     errorMessage: string
@@ -209,7 +227,7 @@ const CollectionComponent = ({
     }
   };
 
-  // Task handlers with the correct return types
+  // Task handlers with error handling
   const handleTaskCompleteWithErrorHandling = async (
     taskId: string,
     isCompleted: boolean
@@ -261,7 +279,6 @@ const CollectionComponent = ({
       "Failed to delete task"
     );
 
-    // Re-run sorting after successful deletion
     if (result.success) {
       const { priority, regular } = sortTasks(
         tasks.filter((t) => t.id !== taskId)
@@ -273,7 +290,7 @@ const CollectionComponent = ({
     return result;
   };
 
-  // Note handlers with improved deletion handling
+  // Note handlers
   const handleNotePinWithErrorHandling = async (
     noteId: string,
     isPinned: boolean
@@ -287,7 +304,6 @@ const CollectionComponent = ({
       "Failed to pin note"
     );
 
-    // Re-run sorting after successful pin change
     if (result.success) {
       setSortedNotes(sortNotes(notes));
     }
@@ -324,7 +340,6 @@ const CollectionComponent = ({
     );
   };
 
-  // Key improvement: Better note deletion handling
   const handleNoteDeleteWithErrorHandling = async (
     noteId: string
   ): Promise<OperationResult> => {
@@ -337,9 +352,7 @@ const CollectionComponent = ({
       "Failed to delete note"
     );
 
-    // Force re-sort after successful deletion
     if (result.success) {
-      // Filter out the deleted note and re-sort
       const updatedNotes = notes.filter((note) => note.id !== noteId);
       setSortedNotes(sortNotes(updatedNotes));
     }
@@ -357,221 +370,346 @@ const CollectionComponent = ({
   };
 
   return (
-    <div
-      className={`${className} rounded-lg overflow-hidden shadow-lg transition-shadow duration-300 hover:shadow-xl ${bgColor}`}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.5 }}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
+      className={`${className} rounded-xl overflow-hidden shadow-lg transition-all duration-300 backdrop-blur-sm border ${colors.border} ${colors.cardBg}`}
       data-collection-id={collectionId}
     >
       {/* Collection Header */}
-      <div
-        className={`${headerBgColor} border-l-4 transition-colors duration-300`}
-        style={{ borderLeftColor: bg_color_hex || "#cccccc" }}
-      >
+      <div className={`${colors.headerBg} backdrop-blur-sm relative`}>
+        {/* Accent border with collection color */}
         <div
-          className={`flex items-center p-4 cursor-pointer ${hoverColor} transition-colors duration-200`}
+          className="absolute top-0 left-0 right-0 h-1 opacity-80"
+          style={{ backgroundColor: bg_color_hex || "#fb923c" }}
+        />
+
+        <motion.div
+          className={`flex items-center p-5 cursor-pointer ${colors.hover} transition-all duration-200 relative`}
           onClick={() => setIsExpanded(!isExpanded)}
+          whileHover={{ x: 2 }}
+          whileTap={{ scale: 0.98 }}
           role="button"
           aria-expanded={isExpanded}
           aria-label={`${collection_name || "Unnamed Collection"} collection`}
         >
-          {/* Icon with collection color */}
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center mr-3 shadow-sm"
-            style={{ backgroundColor: bg_color_hex || "#cccccc" }}
-            aria-hidden="true"
-          ></div>
+          {/* Enhanced collection icon */}
+          <motion.div
+            className="relative mr-4"
+            whileHover={{ scale: 1.1, rotate: 5 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg backdrop-blur-sm"
+              style={{
+                backgroundColor: bg_color_hex || "#fb923c",
+                boxShadow: `0 4px 20px ${bg_color_hex || "#fb923c"}30`,
+              }}
+            ></div>
+            <div
+              className="absolute inset-0 rounded-xl opacity-30 blur-md"
+              style={{ backgroundColor: bg_color_hex || "#fb923c" }}
+            />
+          </motion.div>
 
-          {/* Collection title and info */}
+          {/* Collection info */}
           <div className="flex-1 min-w-0">
-            <h3 className={`font-medium ${textColor} truncate`}>
-              {collection_name || "Unnamed Collection"}
-            </h3>
-            <p className={`text-xs ${subtextColor}`}>
-              {taskCount} task{taskCount !== 1 ? "s" : ""}, {noteCount} note
-              {noteCount !== 1 ? "s" : ""}
+            <div className="flex items-center space-x-3">
+              <h3
+                className={`font-semibold text-lg ${colors.textPrimary} truncate`}
+              >
+                {collection_name || "Unnamed Collection"}
+              </h3>
+
+              {/* Content badges */}
+              <div className="flex items-center space-x-2">
+                {taskCount > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${colors.accentBg} ${colors.accent}`}
+                  >
+                    {taskCount} task{taskCount !== 1 ? "s" : ""}
+                  </motion.span>
+                )}
+
+                {noteCount > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className={`px-2 py-1 rounded-full text-xs font-medium bg-blue-100/50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400`}
+                  >
+                    {noteCount} note{noteCount !== 1 ? "s" : ""}
+                  </motion.span>
+                )}
+              </div>
+            </div>
+
+            <p className={`text-sm ${colors.textSecondary} mt-1`}>
+              {taskCount + noteCount} total items
             </p>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center space-x-2">
-            <button
-              className={`p-1.5 rounded-full ${subtextColor} ${hoverColor} transition-colors duration-200`}
-              aria-label={isExpanded ? "Collapse" : "Expand"}
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-5 w-5" />
-              ) : (
-                <ChevronRight className="h-5 w-5" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Error message */}
-        {error && (
-          <div
-            className={`px-4 py-2 ${errorBgColor} ${errorColor} text-sm flex justify-between items-center`}
-            role="alert"
+          {/* Expand/Collapse button */}
+          <motion.button
+            className={`p-2 rounded-lg ${colors.textSecondary} ${colors.hover} transition-colors duration-200`}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            aria-label={isExpanded ? "Collapse" : "Expand"}
           >
-            <span>{error}</span>
-            <button
-              onClick={clearError}
-              className="ml-2 text-xs font-medium hover:underline"
-              aria-label="Dismiss error"
+            <motion.div
+              animate={{ rotate: isExpanded ? 0 : -90 }}
+              transition={{ duration: 0.3 }}
             >
-              Dismiss
-            </button>
-          </div>
-        )}
+              <ChevronDown className="h-5 w-5" />
+            </motion.div>
+          </motion.button>
+        </motion.div>
 
-        {/* Tabs */}
-        {isExpanded && (
-          <div className={`flex border-t ${borderColor}`} role="tablist">
-            <button
-              className={`flex-1 py-2.5 px-4 text-sm font-medium transition-all relative ${
-                activeTab === "tasks"
-                  ? `${textColor} ${activeTabBgColor}`
-                  : `${subtextColor} ${tabHoverColor}`
-              }`}
-              onClick={() => setActiveTab("tasks")}
-              role="tab"
-              aria-selected={activeTab === "tasks"}
-              aria-controls="tasks-panel"
-              id="tasks-tab"
+        {/* Error notification */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className={`px-5 py-3 ${colors.errorBg} ${colors.errorText} text-sm flex justify-between items-center backdrop-blur-sm`}
+              role="alert"
             >
-              <div className="flex items-center justify-center space-x-1">
-                <ListTodo className="h-4 w-4" />
-
-                <span>Tasks</span>
+              <div className="flex items-center">
+                <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span>{error}</span>
               </div>
-              {activeTab === "tasks" && (
-                <div
-                  className="absolute bottom-0 left-0 right-0 h-0.5 transition-colors duration-300"
-                  style={{ backgroundColor: bg_color_hex || "#cccccc" }}
-                  aria-hidden="true"
-                />
-              )}
-            </button>
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={clearError}
+                className="ml-3 p-1 rounded-full hover:bg-white/10 transition-colors"
+                aria-label="Dismiss error"
+              >
+                <X className="h-4 w-4" />
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            <button
-              className={`flex-1 py-2.5 px-4 text-sm font-medium transition-all relative ${
-                activeTab === "notes"
-                  ? `${textColor} ${activeTabBgColor}`
-                  : `${subtextColor} ${tabHoverColor}`
-              }`}
-              onClick={() => setActiveTab("notes")}
-              role="tab"
-              aria-selected={activeTab === "notes"}
-              aria-controls="notes-panel"
-              id="notes-tab"
+        {/* Enhanced tabs */}
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className={`flex border-t ${colors.border} backdrop-blur-sm`}
+              role="tablist"
             >
-              <div className="flex items-center justify-center space-x-1">
-                <StickyNote className="h-4 w-4" />
-                <span>Notes</span>
-              </div>
-              {activeTab === "notes" && (
-                <div
-                  className="absolute bottom-0 left-0 right-0 h-0.5 transition-colors duration-300"
-                  style={{ backgroundColor: bg_color_hex || "#cccccc" }}
-                  aria-hidden="true"
-                />
-              )}
-            </button>
-          </div>
-        )}
+              {["tasks", "notes"].map((tab) => (
+                <motion.button
+                  key={tab}
+                  className={`flex-1 py-3 px-4 text-sm font-medium transition-all relative ${
+                    activeTab === tab
+                      ? `${colors.textPrimary} ${colors.activeTab}`
+                      : `${colors.textSecondary} ${colors.tabHover}`
+                  }`}
+                  onClick={() => setActiveTab(tab as "tasks" | "notes")}
+                  whileHover={{ y: -1 }}
+                  whileTap={{ scale: 0.98 }}
+                  role="tab"
+                  aria-selected={activeTab === tab}
+                  aria-controls={`${tab}-panel`}
+                  id={`${tab}-tab`}
+                >
+                  <div className="flex items-center justify-center space-x-2">
+                    {tab === "tasks" ? (
+                      <ListTodo className="h-4 w-4" />
+                    ) : (
+                      <StickyNote className="h-4 w-4" />
+                    )}
+                    <span className="capitalize">{tab}</span>
+
+                    {/* Count badges */}
+                    {((tab === "tasks" && taskCount > 0) ||
+                      (tab === "notes" && noteCount > 0)) && (
+                      <span
+                        className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                          activeTab === tab
+                            ? "bg-white/20 text-current"
+                            : "bg-gray-500/20 text-gray-500"
+                        }`}
+                      >
+                        {tab === "tasks" ? taskCount : noteCount}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Active tab indicator */}
+                  {activeTab === tab && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full"
+                      style={{ backgroundColor: bg_color_hex || "#fb923c" }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  )}
+                </motion.button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Collection Content */}
-      {isExpanded && (
-        <div
-          className={`${bgColor} p-4`}
-          role="tabpanel"
-          id={activeTab === "tasks" ? "tasks-panel" : "notes-panel"}
-          aria-labelledby={activeTab === "tasks" ? "tasks-tab" : "notes-tab"}
-        >
-          {activeTab === "tasks" && (
-            <div className="space-y-3">
-              {priorityTasks.length > 0 && (
-                <>
-                  <div className="space-y-2">
-                    {priorityTasks.map((task) => (
-                      <TaskCard
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className={`${colors.cardBg} p-5 backdrop-blur-sm`}
+            role="tabpanel"
+            id={activeTab === "tasks" ? "tasks-panel" : "notes-panel"}
+            aria-labelledby={activeTab === "tasks" ? "tasks-tab" : "notes-tab"}
+          >
+            {activeTab === "tasks" && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4 }}
+                className="space-y-4"
+              >
+                {/* Priority tasks */}
+                {priorityTasks.length > 0 && (
+                  <>
+                    <div className="space-y-3">
+                      {priorityTasks.map((task, index) => (
+                        <motion.div
+                          key={task.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.3, delay: index * 0.1 }}
+                        >
+                          <TaskCard
+                            {...task}
+                            onComplete={handleTaskCompleteWithErrorHandling}
+                            onPriorityChange={
+                              handleTaskPriorityWithErrorHandling
+                            }
+                            onTaskUpdate={handleTaskUpdateWithErrorHandling}
+                            onTaskDelete={handleTaskDeleteWithErrorHandling}
+                            onCollectionChange={onCollectionChange}
+                            collections={collections}
+                          />
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    {regularTasks.length > 0 && (
+                      <div className={`border-t ${colors.border} pt-4`} />
+                    )}
+                  </>
+                )}
+
+                {/* Regular tasks */}
+                {regularTasks.length > 0 ? (
+                  <div className="space-y-3">
+                    {regularTasks.map((task, index) => (
+                      <motion.div
                         key={task.id}
-                        {...task}
-                        onComplete={handleTaskCompleteWithErrorHandling}
-                        onPriorityChange={handleTaskPriorityWithErrorHandling}
-                        onTaskUpdate={handleTaskUpdateWithErrorHandling}
-                        onTaskDelete={handleTaskDeleteWithErrorHandling}
-                        onCollectionChange={onCollectionChange}
-                        collections={collections} // Pass the collections prop
-                      />
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{
+                          duration: 0.3,
+                          delay: (priorityTasks.length + index) * 0.1,
+                        }}
+                      >
+                        <TaskCard
+                          {...task}
+                          onComplete={handleTaskCompleteWithErrorHandling}
+                          onPriorityChange={handleTaskPriorityWithErrorHandling}
+                          onTaskUpdate={handleTaskUpdateWithErrorHandling}
+                          onTaskDelete={handleTaskDeleteWithErrorHandling}
+                          onCollectionChange={onCollectionChange}
+                          collections={collections}
+                        />
+                      </motion.div>
                     ))}
                   </div>
-                  {regularTasks.length > 0 && (
-                    <div
-                      className={`border-t ${borderColor} pt-2 my-3`}
-                      aria-hidden="true"
-                    ></div>
-                  )}
-                </>
-              )}
+                ) : (
+                  priorityTasks.length === 0 && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.4 }}
+                      className={`text-center py-12 ${colors.textSecondary}`}
+                    >
+                      <ListTodo className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p className="text-lg font-medium mb-1">No tasks yet</p>
+                      <p className="text-sm">Add tasks to organize your work</p>
+                    </motion.div>
+                  )
+                )}
+              </motion.div>
+            )}
 
-              {/* Regular Tasks Section */}
-              {regularTasks.length > 0 ? (
-                <div className="space-y-2">
-                  {regularTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      {...task}
-                      onComplete={handleTaskCompleteWithErrorHandling}
-                      onPriorityChange={handleTaskPriorityWithErrorHandling}
-                      onTaskUpdate={handleTaskUpdateWithErrorHandling}
-                      onTaskDelete={handleTaskDeleteWithErrorHandling}
-                      onCollectionChange={onCollectionChange}
-                      collections={collections} // Pass the collections prop
-                    />
-                  ))}
-                </div>
-              ) : (
-                priorityTasks.length === 0 && (
-                  <div className={`text-center py-6 ${subtextColor} text-sm`}>
-                    No tasks in this collection
+            {activeTab === "notes" && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4 }}
+              >
+                {sortedNotes.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {sortedNotes.map((note, index) => (
+                      <motion.div
+                        key={note.id}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.3, delay: index * 0.1 }}
+                      >
+                        <NoteCard
+                          id={note.id}
+                          title={note.title}
+                          description={note.description}
+                          created_at={note.created_at}
+                          is_deleted={note.is_deleted}
+                          bg_color_hex={note.bg_color_hex}
+                          is_pinned={note.is_pinned}
+                          onPinChange={handleNotePinWithErrorHandling}
+                          onColorChange={handleNoteColorChangeWithErrorHandling}
+                          onNoteUpdate={handleNoteUpdateWithErrorHandling}
+                          onNoteDelete={handleNoteDeleteWithErrorHandling}
+                        />
+                      </motion.div>
+                    ))}
                   </div>
-                )
-              )}
-            </div>
-          )}
-          {activeTab === "notes" && (
-            <>
-              {sortedNotes.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                  {sortedNotes.map((note) => (
-                    <NoteCard
-                      key={note.id}
-                      id={note.id}
-                      title={note.title}
-                      description={note.description}
-                      created_at={note.created_at}
-                      is_deleted={note.is_deleted}
-                      bg_color_hex={note.bg_color_hex}
-                      is_pinned={note.is_pinned}
-                      onPinChange={handleNotePinWithErrorHandling}
-                      onColorChange={handleNoteColorChangeWithErrorHandling}
-                      onNoteUpdate={handleNoteUpdateWithErrorHandling}
-                      onNoteDelete={handleNoteDeleteWithErrorHandling}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className={`text-center py-6 ${subtextColor} text-sm`}>
-                  No notes in this collection
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </div>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.4 }}
+                    className={`text-center py-12 ${colors.textSecondary}`}
+                  >
+                    <StickyNote className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-lg font-medium mb-1">No notes yet</p>
+                    <p className="text-sm">
+                      Create notes to capture your ideas
+                    </p>
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
-export default CollectionComponent;
+export default EnhancedCollectionComponent;

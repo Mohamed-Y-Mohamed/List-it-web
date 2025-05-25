@@ -74,9 +74,11 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
     >
       {/* Top Navigation Bar */}
       <header
-        className={`fixed top-0 z-50 w-full ${
-          isDark ? "bg-gray-900 shadow-gray-800" : "bg-white shadow-sm"
-        } transition-colors duration-300`}
+        className={`fixed top-0 z-50 w-full transition-all duration-300 backdrop-blur-md border-b ${
+          isDark
+            ? "bg-gray-900/80 border-gray-600/30 shadow-gray-900/20"
+            : "bg-white/80 border-gray-300/30 shadow-gray-300/20"
+        } shadow-lg`}
       >
         <div className="mx-auto px-4">
           <div className="flex h-16 items-center justify-between">

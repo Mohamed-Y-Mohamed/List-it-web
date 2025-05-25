@@ -1,9 +1,16 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Mail, AlertCircle, CheckCircle } from "lucide-react";
+import {
+  Mail,
+  AlertCircle,
+  CheckCircle,
+  ListTodo,
+  ArrowLeft,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 
@@ -110,162 +117,308 @@ const ForgotPasswordPage: React.FC = () => {
   };
 
   return (
-    <div
-      className={`min-h-screen pt-18 ${
-        isDark ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-900"
-      } flex justify-center transition-colors duration-300`}
-    >
-      <div
-        className={`max-w-md m-0 sm:m-10 ${
-          isDark ? "bg-gray-800" : "bg-white"
-        } shadow sm:rounded-lg flex justify-center flex-1`}
-      >
-        <div className="p-6 sm:p-12 w-full">
-          <Image
-            src="/app-icon.jpeg"
-            width={128}
-            height={128}
-            alt="LIST IT Logo"
-            className="w-24 mx-auto rounded-full"
-          />
+    <div className="min-h-screen w-full relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {/*  background */}
+      {isDark ? (
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.15)_0%,transparent_50%)] before:content-['']" />
+      ) : (
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.08)_0%,transparent_70%)] before:content-['']" />
+      )}
 
-          <div className="mt-12 flex flex-col items-center">
+      {/* Floating elements */}
+      <motion.div
+        animate={{
+          y: [0, -20, 0],
+          opacity: [0.1, 0.2, 0.1],
+        }}
+        transition={{
+          duration: 6,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+        className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"
+      />
+      <motion.div
+        animate={{
+          y: [0, 20, 0],
+          opacity: [0.1, 0.15, 0.1],
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+        className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"
+      />
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8 }}
+        className={`max-w-md w-full mx-auto rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl border ${
+          isDark
+            ? "bg-gray-800/40 border-gray-700/30 shadow-gray-900/20"
+            : "bg-white/40 border-gray-300/30 shadow-gray-300/20"
+        }`}
+      >
+        <div className="p-8 md:p-12">
+          {/* Logo and branding */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="flex flex-col items-center mb-8"
+          >
+            <motion.div
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              className="relative mb-4"
+            >
+              <motion.div
+                animate={{
+                  scale: [1, 1.1, 1],
+                  opacity: [0.5, 0.8, 0.5],
+                }}
+                transition={{ duration: 3, repeat: Infinity }}
+                className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl blur-xl opacity-40"
+              />
+              <div className="relative">
+                <Image
+                  src="/app-icon.jpeg"
+                  width={96}
+                  height={96}
+                  alt="LIST IT Logo"
+                  className="w-24 h-24 rounded-2xl shadow-lg border-2 border-white/20"
+                />
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="flex items-center"
+            >
+              <motion.div
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center mr-2 ${
+                  isDark ? "bg-blue-600/80" : "bg-blue-500/80"
+                }`}
+              >
+                <ListTodo className="h-4 w-4 text-white" />
+              </motion.div>
+              <span
+                className={`text-xl font-bold ${
+                  isDark ? "text-blue-400" : "text-blue-500"
+                }`}
+              >
+                LIST IT
+              </span>
+            </motion.div>
+          </motion.div>
+
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="text-center mb-8"
+          >
             <h1
-              className={`text-2xl xl:text-3xl font-extrabold ${
-                isDark ? "text-gray-100" : "text-gray-900"
-              } text-center`}
+              className={`text-2xl md:text-3xl font-bold mb-4 ${
+                isDark ? "text-white" : "text-gray-900"
+              }`}
             >
               Reset Your Password
             </h1>
             <p
-              className={`mt-4 text-center ${
+              className={`text-base ${
                 isDark ? "text-gray-300" : "text-gray-600"
-              }`}
+              } leading-relaxed`}
             >
-              Enter your email and we’ll send you a link to reset your password.
+              Enter your email and we&apos;ll send you a secure link to reset
+              your password.
             </p>
+          </motion.div>
 
+          {/* Error message */}
+          <AnimatePresence>
             {error && (
-              <div
-                className="mt-4 w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded"
+              <motion.div
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                transition={{ duration: 0.4 }}
+                className={`mb-6 rounded-xl border-l-4 border-red-500 backdrop-blur-sm ${
+                  isDark
+                    ? "bg-red-900/30 text-red-300 border border-red-500/30"
+                    : "bg-red-50/80 text-red-700 border border-red-200/50"
+                } p-4 shadow-lg`}
                 role="alert"
               >
                 <div className="flex items-center">
-                  <AlertCircle className="w-5 h-5 mr-2" />
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <AlertCircle className="w-5 h-5 mr-2" />
+                  </motion.div>
                   <span>{error}</span>
                 </div>
-              </div>
+              </motion.div>
             )}
+          </AnimatePresence>
 
+          {/* Success message */}
+          <AnimatePresence>
             {success && (
-              <div
-                className="mt-4 w-full bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded"
+              <motion.div
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                transition={{ duration: 0.4 }}
+                className={`mb-6 rounded-xl border-l-4 border-green-500 backdrop-blur-sm ${
+                  isDark
+                    ? "bg-green-900/30 text-green-300 border border-green-500/30"
+                    : "bg-green-50/80 text-green-700 border border-green-200/50"
+                } p-4 shadow-lg`}
                 role="alert"
               >
                 <div className="flex items-center">
-                  <CheckCircle className="w-5 h-5 mr-2" />
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                  </motion.div>
                   <span>
                     Reset link sent! Check your inbox (and spam folder).
                   </span>
                 </div>
-              </div>
+              </motion.div>
             )}
+          </AnimatePresence>
 
-            <div className="w-full flex-1 mt-8">
-              {!success ? (
-                <form onSubmit={handleSubmit} className="mx-auto max-w-xs">
-                  <div className="relative">
-                    <Mail
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                      size={18}
-                    />
-                    <input
-                      type="email"
-                      name="email"
-                      id="email"
-                      autoComplete="email"
-                      className={`w-full pl-10 pr-3 py-4 rounded-lg font-medium ${
-                        isDark
-                          ? "bg-gray-700 border-gray-600 placeholder-gray-400 text-gray-200 focus:border-sky-400 focus:bg-gray-600"
-                          : "bg-gray-100 border-gray-200 placeholder-gray-500 text-sm focus:border-sky-500 focus:bg-white"
-                      } border text-sm focus:outline-none`}
-                      placeholder="Email Address"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={loading || waitTime > 0}
-                      required
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading || waitTime > 0}
-                    className={`mt-5 tracking-wide font-semibold ${
-                      isDark
-                        ? "bg-sky-600 hover:bg-sky-700"
-                        : "bg-sky-500 hover:bg-sky-600"
-                    } text-white w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center ${
-                      loading || waitTime > 0
-                        ? "opacity-70 cursor-not-allowed"
-                        : ""
+          {/* Form or success content */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >
+            {!success ? (
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <motion.div whileFocus={{ scale: 1.02 }} className="relative">
+                  <Mail
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 ${
+                      isDark ? "text-gray-400" : "text-gray-500"
                     }`}
-                  >
-                    {loading ? (
-                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                    ) : null}
-                    <span>
-                      {waitTime > 0
-                        ? `Wait ${waitTime}s`
-                        : loading
-                          ? "Sending..."
-                          : "Send Reset Link"}
-                    </span>
-                  </button>
-                </form>
-              ) : (
-                <div className="text-center mt-6">
-                  <p
-                    className={`${
-                      isDark ? "text-gray-300" : "text-gray-600"
-                    } mb-4`}
-                  >
-                    Didn’t receive it? Wait a moment, then try again.
-                  </p>
-                  <button
-                    onClick={() => {
-                      setSuccess(false);
-                      setError(null);
-                      setEmail("");
-                    }}
-                    className={`mt-2 tracking-wide font-semibold ${
+                    size={18}
+                  />
+                  <input
+                    type="email"
+                    name="email"
+                    id="email"
+                    autoComplete="email"
+                    className={`w-full pl-10 pr-3 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
                       isDark
-                        ? "bg-gray-700 hover:bg-gray-600"
-                        : "bg-gray-200 hover:bg-gray-300"
-                    } ${
-                      isDark ? "text-white" : "text-gray-800"
-                    } px-6 py-2 rounded-lg transition-all duration-300 ease-in-out focus:shadow-outline focus:outline-none`}
-                  >
-                    Send Another Link
-                  </button>
-                </div>
-              )}
+                        ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-blue-400 focus:bg-gray-700/70"
+                        : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-blue-500 focus:bg-white/70"
+                    } border focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm`}
+                    placeholder="Email Address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading || waitTime > 0}
+                    required
+                  />
+                </motion.div>
 
-              <div className="mt-6 text-center">
-                <Link
-                  href="/login"
-                  className={`text-sm ${
+                <motion.button
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="submit"
+                  disabled={loading || waitTime > 0}
+                  className={`w-full font-semibold py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center backdrop-blur-sm shadow-lg ${
                     isDark
-                      ? "text-sky-400 hover:text-sky-300"
-                      : "text-sky-500 hover:text-sky-600"
-                  }`}
+                      ? "bg-blue-600/80 hover:bg-blue-700/80 text-white border border-blue-500/30"
+                      : "bg-blue-500/80 hover:bg-blue-600/80 text-white border border-blue-400/30"
+                  } ${loading || waitTime > 0 ? "opacity-70 cursor-not-allowed" : "hover:shadow-xl"}`}
                 >
-                  Back to Login
-                </Link>
-              </div>
-            </div>
-          </div>
+                  {loading ? (
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        duration: 1,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                      className="w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-2"
+                    />
+                  ) : null}
+                  <span>
+                    {waitTime > 0
+                      ? `Wait ${waitTime}s`
+                      : loading
+                        ? "Sending..."
+                        : "Send Reset Link"}
+                  </span>
+                </motion.button>
+              </form>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="text-center space-y-4"
+              >
+                <p
+                  className={`${
+                    isDark ? "text-gray-300" : "text-gray-600"
+                  } mb-4`}
+                >
+                  Didn&apos;t receive it? Wait a moment, then try again.
+                </p>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setSuccess(false);
+                    setError(null);
+                    setEmail("");
+                  }}
+                  className={`font-medium px-6 py-2 rounded-xl transition-all duration-300 backdrop-blur-sm shadow-lg ${
+                    isDark
+                      ? "bg-gray-700/50 hover:bg-gray-600/50 text-white border border-gray-600/30"
+                      : "bg-gray-200/50 hover:bg-gray-300/50 text-gray-800 border border-gray-300/30"
+                  } hover:shadow-xl`}
+                >
+                  Send Another Link
+                </motion.button>
+              </motion.div>
+            )}
+          </motion.div>
+
+          {/* Back to login link */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="mt-8 text-center"
+          >
+            <Link
+              href="/login"
+              className={`inline-flex items-center text-sm font-medium transition-all duration-200 ${
+                isDark
+                  ? "text-blue-400 hover:text-blue-300"
+                  : "text-blue-500 hover:text-blue-600"
+              } hover:underline`}
+            >
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Back to Login
+            </Link>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

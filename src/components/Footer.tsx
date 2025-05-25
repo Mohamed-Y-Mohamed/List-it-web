@@ -25,11 +25,13 @@ const Footer = () => {
   return (
     <>
       <footer
-        className={`${isDark ? "bg-gray-900/80" : "bg-gray-100/100"} py-12 ${
-          isDark ? "text-white" : "text-gray-800"
-        } transition-colors duration-300`}
+        className={`py-12 transition-all duration-300 border-t ${
+          isDark
+            ? "bg-gradient-to-r from-gray-900 via-gray-800 to-gray-700 border-gray-600/30 text-white"
+            : "bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200 border-gray-300/30 text-gray-800"
+        }`}
       >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-2 sm:px-3 lg:px-8">
           <div className="text-center">
             <div
               className={`text-3xl font-bold ${
@@ -88,7 +90,7 @@ const Footer = () => {
       {showScroll && (
         <button
           onClick={scrollToTop}
-          className={`fixed bottom-6 right-2 z-50 md:w-10 md:h-10 flex h-12 w-12 items-center justify-center rounded-full ${
+          className={`fixed bottom-6 right-6 z-50 md:w-10 md:h-10  flex h-12 w-12 items-center justify-center rounded-full ${
             isDark
               ? "bg-orange-600 hover:bg-orange-700"
               : "bg-sky-500 hover:bg-sky-600"

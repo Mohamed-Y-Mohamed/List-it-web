@@ -4,10 +4,17 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
-import TodayTaskCard from "@/components/Tasks/customcard"; // Reusing the same card component
-import { Calendar, RefreshCw } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import TodayTaskCard from "@/components/Tasks/customcard";
+import {
+  Calendar,
+  RefreshCw,
+  Target,
+  TrendingUp,
+  CalendarDays,
+} from "lucide-react";
 import EmptyState from "@/components/popupModels/emptystate";
-import { Collection as SchemaCollection } from "@/types/schema"; // Import the schema type
+import { Collection as SchemaCollection } from "@/types/schema";
 
 // Define types for better type safety
 interface Task {
@@ -26,16 +33,133 @@ interface Task {
   list_name?: string;
 }
 
+// Animated counter component
+const AnimatedCounter: React.FC<{
+  value: number;
+  duration?: number;
+  suffix?: string;
+}> = ({ value, duration = 1000, suffix = "" }) => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let startTime: number;
+    const startValue = 0;
+    const endValue = value;
+
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const current = startValue + (endValue - startValue) * progress;
+      setCount(Math.floor(current));
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [value, duration]);
+
+  return (
+    <span>
+      {count}
+      {suffix}
+    </span>
+  );
+};
+
+// Stats card component
+const StatsCard: React.FC<{
+  title: string;
+  value: number;
+  icon: React.ElementType;
+  color: string;
+  isDark: boolean;
+  suffix?: string;
+  description?: string;
+  isLoading?: boolean;
+}> = ({
+  title,
+  value,
+  icon,
+  color,
+  isDark,
+  suffix = "",
+  description,
+  isLoading = false,
+}) => {
+  const Icon = icon;
+
+  if (isLoading) {
+    return (
+      <div
+        className={`p-4 rounded-xl ${isDark ? "bg-gray-800/50" : "bg-white/50"} shadow-sm animate-pulse backdrop-blur-sm`}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <div
+            className={`h-10 w-10 rounded-lg ${isDark ? "bg-gray-700" : "bg-gray-200"}`}
+          ></div>
+        </div>
+        <div
+          className={`h-4 w-16 rounded ${isDark ? "bg-gray-700" : "bg-gray-200"} mb-2`}
+        ></div>
+        <div
+          className={`h-6 w-12 rounded ${isDark ? "bg-gray-700" : "bg-gray-200"}`}
+        ></div>
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      className={`p-4 rounded-xl ${isDark ? "bg-gray-800/50" : "bg-white/50"} 
+        shadow-sm relative overflow-hidden group hover:shadow-lg transition-all duration-300 backdrop-blur-sm border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
+    >
+      <div
+        className={`absolute -bottom-2 -right-2 h-16 w-16 rounded-full blur-xl opacity-20 ${color} 
+        group-hover:opacity-40 transition-opacity duration-300`}
+      ></div>
+
+      <div className="flex items-center justify-between mb-3 relative z-10">
+        <div
+          className={`p-2 rounded-lg ${color.replace("bg-", "bg-").replace("-500", "-100")} ${isDark ? "bg-opacity-20" : ""}`}
+        >
+          <Icon className={`h-5 w-5 ${color.replace("bg-", "text-")}`} />
+        </div>
+      </div>
+
+      <div className="relative z-10">
+        <h3
+          className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-gray-500"} mb-1`}
+        >
+          {title}
+        </h3>
+        <div className="text-2xl font-bold mb-1">
+          <AnimatedCounter value={value} suffix={suffix} />
+        </div>
+        {description && (
+          <p
+            className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}
+          >
+            {description}
+          </p>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
 export default function TomorrowPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [collections, setCollections] = useState<SchemaCollection[]>([]); // Use the correct Collection type
+  const [collections, setCollections] = useState<SchemaCollection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { theme } = useTheme();
   const { user } = useAuth();
   const isDark = theme === "dark";
-
-  // Background styles
 
   // Format date for PostgreSQL query
   const formatDateForPostgres = useCallback((date: Date) => {
@@ -48,7 +172,7 @@ export default function TomorrowPage() {
   // Get tomorrow's date and set time to beginning of day
   const tomorrow = useMemo(() => {
     const date = new Date();
-    date.setDate(date.getDate() + 1); // Add 1 day to get tomorrow
+    date.setDate(date.getDate() + 1);
     date.setHours(0, 0, 0, 0);
     return date;
   }, []);
@@ -65,46 +189,38 @@ export default function TomorrowPage() {
   // Function to get all collections and lists for lookup
   const fetchAllCollectionsAndLists = useCallback(async () => {
     try {
-      // Get all collections
       const { data: collectionsData } = await supabase
         .from("collection")
         .select("*");
 
       if (collectionsData) {
-        // Convert to the correct type with all required properties
         const schemaCollections: SchemaCollection[] = collectionsData.map(
           (collection) => ({
             id: collection.id,
             collection_name: collection.collection_name,
-            bg_color_hex: collection.bg_color_hex || "#000000", // Provide default if null
+            bg_color_hex: collection.bg_color_hex || "#000000",
             list_id: collection.list_id,
             user_id: collection.user_id,
             created_at: collection.created_at,
-            list_name: null, // Will be updated below
+            list_name: null,
           })
         );
-
         setCollections(schemaCollections);
       }
 
-      // Create lookup objects for collection names and list names
       const listIds: string[] = [];
-
-      // Get unique list IDs from collections
       collectionsData?.forEach((collection) => {
         if (collection.list_id && !listIds.includes(collection.list_id)) {
           listIds.push(collection.list_id);
         }
       });
 
-      // Get list data for all list IDs
       if (listIds.length > 0) {
         const { data: listsData } = await supabase
           .from("list")
           .select("*")
           .in("id", listIds);
 
-        // Add list names to collections
         if (listsData && collectionsData) {
           const listMap = new Map();
           listsData.forEach((list) => {
@@ -143,13 +259,11 @@ export default function TomorrowPage() {
     setIsRefreshing(true);
 
     try {
-      // Get tomorrow's date in the format that PostgreSQL expects (YYYY-MM-DD)
       formatDateForPostgres(tomorrow);
       const dayAfterTomorrow = new Date(tomorrow);
       dayAfterTomorrow.setDate(tomorrow.getDate() + 1);
       formatDateForPostgres(dayAfterTomorrow);
 
-      // Get all tasks
       const { data: allTasks, error: tasksError } = await supabase
         .from("task")
         .select("*")
@@ -163,7 +277,6 @@ export default function TomorrowPage() {
         return;
       }
 
-      // Filter tasks for tomorrow
       const tomorrowTasks =
         allTasks?.filter((task) => {
           if (!task.due_date) return false;
@@ -196,33 +309,27 @@ export default function TomorrowPage() {
         return;
       }
 
-      // Get collection and list info
       const { collectionsData } = await fetchAllCollectionsAndLists();
 
-      // Create lookup maps for collections and lists
       const collectionMap = new Map();
       collectionsData?.forEach((collection) => {
         collectionMap.set(collection.id, collection);
       });
 
-      // Get list IDs from tasks
       const taskListIds = tomorrowTasks
         .map((task) => task.list_id)
         .filter((id) => id !== null) as string[];
 
-      // Get list data for task list IDs
       const { data: listsData } = await supabase
         .from("list")
         .select("*")
         .in("id", taskListIds);
 
-      // Create list lookup map
       const listMap = new Map();
       listsData?.forEach((list) => {
         listMap.set(list.id, list);
       });
 
-      // Add collection and list names to tasks
       const tasksWithNames: Task[] = tomorrowTasks.map((task) => {
         const collection = task.collection_id
           ? collectionMap.get(task.collection_id)
@@ -258,7 +365,6 @@ export default function TomorrowPage() {
       if (!user) return { success: false, error: "User not authenticated" };
 
       try {
-        // Update the task in the database
         const { error } = await supabase
           .from("task")
           .update({
@@ -272,7 +378,6 @@ export default function TomorrowPage() {
           return { success: false, error };
         }
 
-        // Remove from local state if completed
         if (isCompleted) {
           setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId));
         }
@@ -291,7 +396,6 @@ export default function TomorrowPage() {
       if (!user) return { success: false, error: "User not authenticated" };
 
       try {
-        // Update in the database
         const { error } = await supabase
           .from("task")
           .update({ is_pinned: isPinned })
@@ -302,7 +406,6 @@ export default function TomorrowPage() {
           return { success: false, error };
         }
 
-        // Update in local state
         setTasks((prevTasks) =>
           prevTasks.map((t) =>
             t.id === taskId ? { ...t, is_pinned: isPinned } : t
@@ -331,7 +434,6 @@ export default function TomorrowPage() {
       if (!user) return { success: false, error: "User not authenticated" };
 
       try {
-        // Check if due date has changed and is no longer tomorrow
         let willRemoveFromView = false;
         if (taskData.due_date) {
           const updatedDueDate = new Date(taskData.due_date);
@@ -339,7 +441,6 @@ export default function TomorrowPage() {
           willRemoveFromView = updatedDueDate.getTime() !== tomorrow.getTime();
         }
 
-        // Update in the database
         const { error } = await supabase
           .from("task")
           .update({
@@ -357,7 +458,6 @@ export default function TomorrowPage() {
           return { success: false, error };
         }
 
-        // Update in local state
         if (willRemoveFromView) {
           setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId));
         } else {
@@ -367,7 +467,7 @@ export default function TomorrowPage() {
                 ? {
                     ...t,
                     text: taskData.text,
-                    description: taskData.description ?? null, // Add null check here
+                    description: taskData.description ?? null,
                     due_date: taskData.due_date
                       ? taskData.due_date.toISOString()
                       : null,
@@ -402,10 +502,9 @@ export default function TomorrowPage() {
           return { success: false, error };
         }
 
-        // Find the collection in our collections array
         const collection = collections.find((c) => c.id === collectionId);
         const collectionName = collection?.collection_name ?? undefined;
-        // Update in local state
+
         setTasks((prevTasks) =>
           prevTasks.map((t) =>
             t.id === taskId
@@ -427,13 +526,11 @@ export default function TomorrowPage() {
     [user, collections]
   );
 
-  // Handle task deletion
   const handleTaskDelete = useCallback(
     async (taskId: string) => {
       if (!user) return { success: false, error: "User not authenticated" };
 
       try {
-        // Remove from local state
         setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId));
         return { success: true };
       } catch (error) {
@@ -447,102 +544,173 @@ export default function TomorrowPage() {
   // Memoized sorted tasks to prevent re-sorting on every render
   const sortedTasks = useMemo(() => {
     return [...tasks].sort((a, b) => {
-      // Sort by pin status first (pinned items at top)
       if (a.is_pinned && !b.is_pinned) return -1;
       if (!a.is_pinned && b.is_pinned) return 1;
 
-      // Then by due date (if available)
       const aDate = a.due_date ? new Date(a.due_date) : new Date(a.created_at);
       const bDate = b.due_date ? new Date(b.due_date) : new Date(b.created_at);
       return aDate.getTime() - bDate.getTime();
     });
   }, [tasks]);
 
+  // Calculate stats
+  const pinnedTasks = sortedTasks.filter((task) => task.is_pinned).length;
+  const totalTasks = sortedTasks.length;
+
   return (
     <main
-      className={`transition-all pt-16 pr-16 min-h-screen duration-300 
-   pb-20 w-full relative
-  ${isDark ? "text-gray-200" : "text-gray-800"}
-  `}
+      className={`transition-all pt-16 pr-4 md:pr-16 min-h-screen duration-300 pb-20 w-full relative
+      ${isDark ? "text-gray-200" : "text-gray-800"}`}
     >
+      {/*  background */}
       {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full items-center [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#7c2d12_100%)]" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(147,51,234,0.1)_0%,transparent_50%)] before:content-['']" />
       ) : (
-        <div className="absolute inset-0 -z-10 size-full bg-white [background:radial-gradient(125%_125%_at_60%_10%,#fff_20%,#bae6fd_100%)]" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(147,51,234,0.05)_0%,transparent_70%)] before:content-['']" />
       )}
-      <div className="p-4 md:p-6 box-border">
-        <div className="max-w-4xl mx-auto">
-          {/* Header with title and refresh button */}
-          <div className="mb-6 px-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <div className="flex items-center mb-1">
-                  <Calendar className="h-6 w-6 mr-2 text-purple-500" />
-                  <h1
-                    className={`text-2xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}
-                  >
-                    Due Tomorrow
-                  </h1>
-                </div>
-                <p
-                  className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}
-                >
-                  <span className="font-medium">{tomorrowFormatted}</span> •{" "}
-                  {sortedTasks.length} task
-                  {sortedTasks.length !== 1 && "s"} scheduled
-                </p>
-              </div>
-              <button
-                onClick={fetchTasksDueTomorrow}
-                disabled={isRefreshing}
-                className={`p-2 rounded-full transition-all duration-200 ${
-                  isDark
-                    ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
-                    : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                } ${isRefreshing ? "animate-pulse" : ""}`}
-                aria-label="Refresh tasks"
-              >
-                <RefreshCw
-                  className={`h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`}
-                />
-              </button>
-            </div>
-          </div>
 
-          {/* Loading state */}
-          {isLoading ? (
-            <div
-              className={`text-center py-12 rounded-xl ${
-                isDark
-                  ? "bg-gray-800/80 text-gray-300"
-                  : "bg-white text-gray-500"
-              } shadow-lg border-l-4 border-purple-500 transition-all duration-300`}
-            >
-              <div className="flex flex-col items-center justify-center space-y-3">
-                <div className="relative">
-                  <RefreshCw className="h-8 w-8 animate-spin text-purple-500" />
-                  <div className="absolute inset-0 animate-pulse bg-purple-500 rounded-full opacity-20"></div>
-                </div>
-                <p className="text-lg font-medium">
-                  Loading tomorrow&apos;s tasks...
-                </p>
+      <div className="max-w-7xl pl-4 md:pl-20 w-full mx-auto">
+        {/* Header */}
+        <motion.header
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="mb-8"
+        >
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="flex items-center mb-2">
+                <Calendar
+                  className={`h-7 w-7 mr-3 ${isDark ? "text-purple-400" : "text-purple-500"}`}
+                />
+                <h1
+                  className={`text-3xl md:text-4xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}
+                >
+                  Tomorrow&aposs Focus
+                </h1>
               </div>
+              <p
+                className={`text-base ${isDark ? "text-gray-400" : "text-gray-600"}`}
+              >
+                <span className="font-medium">{tomorrowFormatted}</span> •{" "}
+                {tasks.length} task{tasks.length !== 1 ? "s" : ""} scheduled
+              </p>
             </div>
-          ) : sortedTasks.length === 0 ? (
-            // Empty state
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={fetchTasksDueTomorrow}
+              disabled={isRefreshing}
+              className={`p-3 rounded-xl transition-all duration-200 shadow-sm ${
+                isDark
+                  ? "bg-gray-800/50 hover:bg-gray-700/50 text-gray-300"
+                  : "bg-white/50 hover:bg-gray-100/50 text-gray-700"
+              } ${isRefreshing ? "animate-pulse" : ""} backdrop-blur-sm border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
+              aria-label="Refresh tasks"
+            >
+              <RefreshCw
+                className={`h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+            </motion.button>
+          </div>
+        </motion.header>
+
+        {/* Quick Stats */}
+        {!isLoading && tasks.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <StatsCard
+              title="Tomorrow's Tasks"
+              value={totalTasks}
+              icon={CalendarDays}
+              color="bg-purple-500"
+              isDark={isDark}
+              description="Scheduled for tomorrow"
+              isLoading={isLoading}
+            />
+            <StatsCard
+              title="Priority Tasks"
+              value={pinnedTasks}
+              icon={Target}
+              color="bg-indigo-500"
+              isDark={isDark}
+              description="High priority items"
+              isLoading={isLoading}
+            />
+            <StatsCard
+              title="Planning Score"
+              value={totalTasks > 0 ? Math.min(100, totalTasks * 20) : 0}
+              icon={TrendingUp}
+              color="bg-blue-500"
+              isDark={isDark}
+              suffix="%"
+              description="Preparation level"
+              isLoading={isLoading}
+            />
+          </div>
+        )}
+
+        {/* Loading state */}
+        {isLoading ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6 }}
+            className={`text-center py-16 rounded-xl ${
+              isDark
+                ? "bg-gray-800/50 text-gray-300"
+                : "bg-white/50 text-gray-500"
+            } shadow-sm backdrop-blur-sm border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
+          >
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <div className="relative">
+                <RefreshCw
+                  className={`h-10 w-10 animate-spin ${isDark ? "text-purple-400" : "text-purple-500"}`}
+                />
+                <div
+                  className={`absolute inset-0 animate-pulse ${isDark ? "bg-purple-400" : "bg-purple-500"} rounded-full opacity-20`}
+                ></div>
+              </div>
+              <p className="text-lg font-medium">
+                Loading tomorrow&aposs tasks...
+              </p>
+            </div>
+          </motion.div>
+        ) : sortedTasks.length === 0 ? (
+          // Empty state
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6 }}
+          >
             <EmptyState
               title="No tasks due tomorrow"
               message="You've got a clear schedule for tomorrow. Need to plan ahead? Add a task with tomorrow's due date."
               icon="calendar"
             />
-          ) : (
-            // Tasks list
-            <div className="space-y-3">
-              {sortedTasks.map((task) => (
-                <div
+          </motion.div>
+        ) : (
+          // Tasks list
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="space-y-4"
+          >
+            <AnimatePresence>
+              {sortedTasks.map((task, index) => (
+                <motion.div
                   key={task.id}
-                  className="transform transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="relative group"
                 >
+                  <div className="absolute -top-2 -right-2 px-3 py-1 rounded-full text-xs font-bold bg-purple-500 text-white shadow-lg z-10">
+                    <Calendar className="w-3 h-3 inline mr-1" />
+                    Tomorrow
+                  </div>
                   <TodayTaskCard
                     id={task.id}
                     text={task.text}
@@ -563,13 +731,13 @@ export default function TomorrowPage() {
                     onTaskDelete={handleTaskDelete}
                     collections={collections}
                     onCollectionChange={handleCollectionChange}
-                    className="border-l-4"
+                    className="border-l-4 border-purple-500 hover:-translate-y-1 hover:shadow-lg transition-all duration-200"
                   />
-                </div>
+                </motion.div>
               ))}
-            </div>
-          )}
-        </div>
+            </AnimatePresence>
+          </motion.div>
+        )}
       </div>
     </main>
   );

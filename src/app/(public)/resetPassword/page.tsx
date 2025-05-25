@@ -1,10 +1,19 @@
 "use client";
 
 import React, { useState } from "react";
-import { AlertCircle, CheckCircle, Eye, EyeOff, Lock } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle,
+  Eye,
+  EyeOff,
+  Lock,
+  ListTodo,
+  ArrowLeft,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 
@@ -94,203 +103,383 @@ const ResetPasswordPage = () => {
   };
 
   return (
-    <div
-      className={`min-h-screen pt-18 ${
-        isDark ? "bg-gray-900 text-gray-100" : "bg-gray-100 text-gray-900"
-      } flex justify-center transition-colors duration-300`}
-    >
-      <div
-        className={`max-w-md m-0 sm:m-10 ${
-          isDark ? "bg-gray-800" : "bg-white"
-        } shadow sm:rounded-lg flex justify-center flex-1`}
+    <div className="min-h-screen w-full relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {/*  background */}
+      {isDark ? (
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(16,185,129,0.15)_0%,transparent_50%)] before:content-['']" />
+      ) : (
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(16,185,129,0.08)_0%,transparent_70%)] before:content-['']" />
+      )}
+
+      {/* Floating elements */}
+      <motion.div
+        animate={{
+          y: [0, -20, 0],
+          opacity: [0.1, 0.2, 0.1],
+        }}
+        transition={{
+          duration: 6,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+        className="absolute top-1/4 right-1/4 w-64 h-64 bg-green-500/10 rounded-full blur-3xl"
+      />
+      <motion.div
+        animate={{
+          y: [0, 20, 0],
+          opacity: [0.1, 0.15, 0.1],
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+        className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"
+      />
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8 }}
+        className={`max-w-md w-full mx-auto rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl border ${
+          isDark
+            ? "bg-gray-800/40 border-gray-700/30 shadow-gray-900/20"
+            : "bg-white/40 border-gray-300/30 shadow-gray-300/20"
+        }`}
       >
-        <div className="p-6 sm:p-12 w-full">
-          <div>
-            <Image
-              src="/app-icon.jpeg"
-              width={128}
-              height={128}
-              alt="LIST IT Logo"
-              className="w-24 mx-auto rounded-full"
-            />
-          </div>
-          <div className="mt-12 flex flex-col items-center">
+        <div className="p-8 md:p-12">
+          {/* Logo and branding */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="flex flex-col items-center mb-8"
+          >
+            <motion.div
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              className="relative mb-4"
+            >
+              <motion.div
+                animate={{
+                  scale: [1, 1.1, 1],
+                  opacity: [0.5, 0.8, 0.5],
+                }}
+                transition={{ duration: 3, repeat: Infinity }}
+                className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl blur-xl opacity-40"
+              />
+              <div className="relative">
+                <Image
+                  src="/app-icon.jpeg"
+                  width={96}
+                  height={96}
+                  alt="LIST IT Logo"
+                  className="w-24 h-24 rounded-2xl shadow-lg border-2 border-white/20"
+                />
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="flex items-center"
+            >
+              <motion.div
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center mr-2 ${
+                  isDark ? "bg-green-600/80" : "bg-green-500/80"
+                }`}
+              >
+                <ListTodo className="h-4 w-4 text-white" />
+              </motion.div>
+              <span
+                className={`text-xl font-bold ${
+                  isDark ? "text-green-400" : "text-green-500"
+                }`}
+              >
+                LIST IT
+              </span>
+            </motion.div>
+          </motion.div>
+
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="text-center mb-8"
+          >
             <h1
-              className={`text-2xl xl:text-3xl font-extrabold ${
-                isDark ? "text-gray-100" : "text-gray-900"
-              } text-center`}
+              className={`text-2xl md:text-3xl font-bold mb-4 ${
+                isDark ? "text-white" : "text-gray-900"
+              }`}
             >
               Set New Password
             </h1>
-
             <p
-              className={`mt-4 text-center ${isDark ? "text-gray-300" : "text-gray-600"}`}
+              className={`text-base ${
+                isDark ? "text-gray-300" : "text-gray-600"
+              } leading-relaxed`}
             >
-              Please enter and confirm your new password below.
+              Please enter and confirm your new secure password below.
             </p>
+          </motion.div>
 
-            {/* Error message display */}
+          {/* Error message */}
+          <AnimatePresence>
             {error && (
-              <div
-                className={`mt-4 w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative`}
+              <motion.div
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                transition={{ duration: 0.4 }}
+                className={`mb-6 rounded-xl border-l-4 border-red-500 backdrop-blur-sm ${
+                  isDark
+                    ? "bg-red-900/30 text-red-300 border border-red-500/30"
+                    : "bg-red-50/80 text-red-700 border border-red-200/50"
+                } p-4 shadow-lg`}
                 role="alert"
               >
                 <div className="flex items-center">
-                  <AlertCircle className="w-5 h-5 mr-2" aria-hidden="true" />
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <AlertCircle className="w-5 h-5 mr-2" aria-hidden="true" />
+                  </motion.div>
                   <span>{error}</span>
                 </div>
-              </div>
+              </motion.div>
             )}
+          </AnimatePresence>
 
-            {/* Success message display */}
+          {/* Success message */}
+          <AnimatePresence>
             {success && message && (
-              <div
-                className={`mt-4 w-full bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative`}
+              <motion.div
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                transition={{ duration: 0.4 }}
+                className={`mb-6 rounded-xl border-l-4 border-green-500 backdrop-blur-sm ${
+                  isDark
+                    ? "bg-green-900/30 text-green-300 border border-green-500/30"
+                    : "bg-green-50/80 text-green-700 border border-green-200/50"
+                } p-4 shadow-lg`}
                 role="alert"
               >
                 <div className="flex items-center">
-                  <CheckCircle className="w-5 h-5 mr-2" aria-hidden="true" />
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <CheckCircle className="w-5 h-5 mr-2" aria-hidden="true" />
+                  </motion.div>
                   <span>{message}</span>
                 </div>
-              </div>
+              </motion.div>
             )}
+          </AnimatePresence>
 
-            <div className="w-full flex-1 mt-8">
-              {!success ? (
-                <form
-                  onSubmit={handleSetNewPassword}
-                  className="mx-auto max-w-xs"
-                >
-                  {/* New Password Input */}
-                  <div className="relative mt-5">
-                    <Lock
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                      size={18}
-                      aria-hidden="true"
-                    />
-                    <input
-                      className={`w-full pl-10 pr-10 py-4 rounded-lg font-medium ${
-                        isDark
-                          ? "bg-gray-700 border-gray-600 placeholder-gray-400 text-gray-200 focus:border-sky-400 focus:bg-gray-600"
-                          : "bg-gray-100 border-gray-200 placeholder-gray-500 text-sm focus:border-sky-500 focus:bg-white"
-                      } border text-sm focus:outline-none`}
-                      type={showPassword ? "text" : "password"}
-                      placeholder="New Password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={loading}
-                      required
-                      minLength={8}
-                      name="password"
-                      id="password"
-                      autoComplete="new-password"
-                    />
-                    <button
-                      type="button"
-                      onClick={togglePasswordVisibility}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-500 focus:outline-none"
-                      aria-label={
-                        showPassword ? "Hide password" : "Show password"
-                      }
-                    >
-                      {showPassword ? (
-                        <EyeOff size={18} aria-hidden="true" />
-                      ) : (
-                        <Eye size={18} aria-hidden="true" />
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Confirm Password Input */}
-                  <div className="relative mt-5">
-                    <Lock
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                      size={18}
-                      aria-hidden="true"
-                    />
-                    <input
-                      className={`w-full pl-10 pr-10 py-4 rounded-lg font-medium ${
-                        isDark
-                          ? "bg-gray-700 border-gray-600 placeholder-gray-400 text-gray-200 focus:border-sky-400 focus:bg-gray-600"
-                          : "bg-gray-100 border-gray-200 placeholder-gray-500 text-sm focus:border-sky-500 focus:bg-white"
-                      } border text-sm focus:outline-none`}
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="Confirm New Password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      disabled={loading}
-                      required
-                      minLength={8}
-                      name="confirmPassword"
-                      id="confirmPassword"
-                      autoComplete="new-password"
-                    />
-                    <button
-                      type="button"
-                      onClick={toggleConfirmPasswordVisibility}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-500 focus:outline-none"
-                      aria-label={
-                        showConfirmPassword ? "Hide password" : "Show password"
-                      }
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff size={18} aria-hidden="true" />
-                      ) : (
-                        <Eye size={18} aria-hidden="true" />
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Password requirements hint */}
-                  <p
-                    className={`mt-2 text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}
-                  >
-                    Password must be at least 8 characters long.
-                  </p>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className={`mt-5 tracking-wide font-semibold ${
+          {/* Form or success content */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >
+            {!success ? (
+              <form onSubmit={handleSetNewPassword} className="space-y-5">
+                {/* New Password Input */}
+                <motion.div whileFocus={{ scale: 1.02 }} className="relative">
+                  <Lock
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 ${
+                      isDark ? "text-gray-400" : "text-gray-500"
+                    }`}
+                    size={18}
+                    aria-hidden="true"
+                  />
+                  <input
+                    className={`w-full pl-10 pr-10 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
                       isDark
-                        ? "bg-sky-600 hover:bg-sky-700"
-                        : "bg-sky-500 hover:bg-sky-600"
-                    } text-white w-full py-4 rounded-lg transition-all duration-300 ease-in-out flex items-center justify-center focus:shadow-outline focus:outline-none ${
-                      loading ? "opacity-70 cursor-not-allowed" : ""
+                        ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-green-400 focus:bg-gray-700/70"
+                        : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-green-500 focus:bg-white/70"
+                    } border focus:outline-none focus:ring-2 focus:ring-green-500/20 shadow-sm`}
+                    type={showPassword ? "text" : "password"}
+                    placeholder="New Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                    required
+                    minLength={8}
+                    name="password"
+                    id="password"
+                    autoComplete="new-password"
+                  />
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    type="button"
+                    onClick={togglePasswordVisibility}
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg transition-colors duration-200 ${
+                      isDark
+                        ? "text-gray-400 hover:text-gray-300 hover:bg-gray-600/50"
+                        : "text-gray-500 hover:text-gray-600 hover:bg-gray-200/50"
+                    } focus:outline-none`}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff size={18} aria-hidden="true" />
+                    ) : (
+                      <Eye size={18} aria-hidden="true" />
+                    )}
+                  </motion.button>
+                </motion.div>
+
+                {/* Confirm Password Input */}
+                <motion.div whileFocus={{ scale: 1.02 }} className="relative">
+                  <Lock
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 ${
+                      isDark ? "text-gray-400" : "text-gray-500"
+                    }`}
+                    size={18}
+                    aria-hidden="true"
+                  />
+                  <input
+                    className={`w-full pl-10 pr-10 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
+                      isDark
+                        ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-green-400 focus:bg-gray-700/70"
+                        : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-green-500 focus:bg-white/70"
+                    } border focus:outline-none focus:ring-2 focus:ring-green-500/20 shadow-sm`}
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm New Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={loading}
+                    required
+                    minLength={8}
+                    name="confirmPassword"
+                    id="confirmPassword"
+                    autoComplete="new-password"
+                  />
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    type="button"
+                    onClick={toggleConfirmPasswordVisibility}
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg transition-colors duration-200 ${
+                      isDark
+                        ? "text-gray-400 hover:text-gray-300 hover:bg-gray-600/50"
+                        : "text-gray-500 hover:text-gray-600 hover:bg-gray-200/50"
+                    } focus:outline-none`}
+                    aria-label={
+                      showConfirmPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff size={18} aria-hidden="true" />
+                    ) : (
+                      <Eye size={18} aria-hidden="true" />
+                    )}
+                  </motion.button>
+                </motion.div>
+
+                {/* Password requirements hint */}
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.6, delay: 0.5 }}
+                  className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"} mt-2`}
+                >
+                  Password must be at least 8 characters long.
+                </motion.p>
+
+                <motion.button
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="submit"
+                  disabled={loading}
+                  className={`w-full font-semibold py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center backdrop-blur-sm shadow-lg ${
+                    isDark
+                      ? "bg-green-600/80 hover:bg-green-700/80 text-white border border-green-500/30"
+                      : "bg-green-500/80 hover:bg-green-600/80 text-white border border-green-400/30"
+                  } ${loading ? "opacity-70 cursor-not-allowed" : "hover:shadow-xl"}`}
+                >
+                  {loading ? (
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        duration: 1,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                      className="w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-2"
+                    />
+                  ) : null}
+                  <span>{loading ? "Updating..." : "Update Password"}</span>
+                </motion.button>
+              </form>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="text-center space-y-4"
+              >
+                <div className="flex justify-center mb-4">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                      isDark ? "bg-green-600/20" : "bg-green-100"
                     }`}
                   >
-                    {loading ? (
-                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    ) : null}
-                    <span>{loading ? "Updating..." : "Update Password"}</span>
-                  </button>
-                </form>
-              ) : (
-                <div className="text-center mt-6">
-                  <p
-                    className={`${isDark ? "text-gray-300" : "text-gray-600"} mb-4`}
-                  >
-                    You will be redirected to the login page shortly.
-                  </p>
+                    <CheckCircle
+                      className={`w-8 h-8 ${isDark ? "text-green-400" : "text-green-600"}`}
+                    />
+                  </motion.div>
                 </div>
-              )}
-
-              <div className="mt-6 text-center">
-                <Link
-                  href="/login"
-                  className={`text-sm ${
-                    isDark
-                      ? "text-sky-400 hover:text-sky-300"
-                      : "text-sky-500 hover:text-sky-600"
-                  }`}
+                <p
+                  className={`${
+                    isDark ? "text-gray-300" : "text-gray-600"
+                  } mb-4`}
                 >
-                  Back to Login
-                </Link>
-              </div>
-            </div>
-          </div>
+                  You will be redirected to the login page shortly.
+                </p>
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="w-6 h-6 mx-auto border-2 border-green-500 border-t-transparent rounded-full animate-spin"
+                />
+              </motion.div>
+            )}
+          </motion.div>
+
+          {/* Back to login link */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="mt-8 text-center"
+          >
+            <Link
+              href="/login"
+              className={`inline-flex items-center text-sm font-medium transition-all duration-200 ${
+                isDark
+                  ? "text-green-400 hover:text-green-300"
+                  : "text-green-500 hover:text-green-600"
+              } hover:underline`}
+            >
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Back to Login
+            </Link>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

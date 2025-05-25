@@ -423,18 +423,18 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
 
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 bg-opacity-50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
           onClick={toggleSidebar}
         />
       )}
 
       {/* Sidebar */}
       <nav
-        className={`fixed left-0 top-0 h-full  ${sidebarOpen ? "w-64" : "w-0"} ${
+        className={`fixed left-0 top-0 h-full ${sidebarOpen ? "w-64" : "w-0"} transition-all duration-300 z-40 overflow-hidden backdrop-blur-md border-r ${
           isDark
-            ? "bg-gray-900/80 text-gray-200 border-r border-gray-800"
-            : "bg-white/50 text-gray-800 border-r border-gray-100"
-        } shadow-lg transition-all duration-300 z-40 overflow-hidden`}
+            ? "bg-gradient-to-b from-gray-900/90 via-gray-800/85 to-gray-900/90 text-gray-200 border-gray-600/30 shadow-xl shadow-gray-900/30"
+            : "bg-gradient-to-b from-white/90 via-gray-50/85 to-white/90 text-gray-800 border-gray-300/30 shadow-xl shadow-gray-300/30"
+        }`}
       >
         <div className={`flex flex-col h-full`}>
           {/* Sidebar Header with Logo */}
