@@ -76,7 +76,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
       <header
         className={`fixed top-0 z-50 w-full transition-all duration-300 backdrop-blur-md border-b ${
           isDark
-            ? "bg-gray-900/80 border-gray-600/30 shadow-gray-900/20"
+            ? "bg-gray-900/90 border-gray-600/30 shadow-gray-900/20"
             : "bg-white/80 border-gray-300/30 shadow-gray-300/20"
         } shadow-lg`}
       >

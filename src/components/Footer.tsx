@@ -25,11 +25,11 @@ const Footer = () => {
   return (
     <>
       <footer
-        className={`py-12 transition-all duration-300 border-t ${
+        className={`py-12 transition-all bg-black w-full  duration-300 backdrop-blur-md border-b ${
           isDark
-            ? "bg-gray-900/80 border-gray-600/30 shadow-gray-900/20 text-white"
+            ? "bg-gray-900 border-gray-600/30 shadow-gray-900/20 text-white"
             : "bg-white/80 border-gray-300/30 shadow-gray-300/20 text-gray-800"
-        }`}
+        }shadow-lg`}
       >
         <div className="mx-auto max-w-7xl px-2 sm:px-3 lg:px-8">
           <div className="text-center">
