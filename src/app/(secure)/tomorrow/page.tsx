@@ -564,9 +564,9 @@ export default function TomorrowPage() {
     >
       {/*  background */}
       {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(147,51,234,0.1)_0%,transparent_50%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0f0d09_20%,#1a1713_40%,#14120e_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(245,158,11,0.09)_0%,transparent_66%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(251,191,36,0.05)_0%,transparent_56%)] before:content-[''] after:content-['']" />
       ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(147,51,234,0.05)_0%,transparent_70%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#fcfbf9_0%,#f7f5f1_25%,#ede9e3_50%,#f6f4f1_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(245,158,11,0.06)_0%,transparent_66%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(251,191,36,0.04)_0%,transparent_56%)] before:content-[''] after:content-['']" />
       )}
 
       <div className="max-w-7xl pl-4 md:pl-20 w-full mx-auto">

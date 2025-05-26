@@ -244,9 +244,9 @@ function LoginWithSearchParams() {
     <div className="min-h-screen w-full relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       {/*  background */}
       {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_left,rgba(59,130,246,0.15)_0%,transparent_50%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#020617_0%,#0f172a_20%,#1e293b_40%,#0f1629_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(37,99,235,0.2)_0%,transparent_58%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(96,165,250,0.12)_0%,transparent_48%)] before:content-[''] after:content-['']" />
       ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_left,rgba(59,130,246,0.08)_0%,transparent_70%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f0f9ff_0%,#e0f2fe_25%,#bae6fd_50%,#e0f2fe_75%,#f8fafc_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.12)_0%,transparent_55%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.08)_0%,transparent_45%)] before:content-[''] after:content-['']" />
       )}
 
       {/* Floating elements */}

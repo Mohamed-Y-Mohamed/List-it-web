@@ -507,11 +507,10 @@ export default function PriorityPage() {
     >
       {/*  background */}
       {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(251,146,60,0.1)_0%,transparent_50%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0b0a0f_20%,#151419_40%,#100f14_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(124,58,237,0.12)_0%,transparent_62%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(196,181,253,0.07)_0%,transparent_52%)] before:content-[''] after:content-['']" />
       ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(251,146,60,0.05)_0%,transparent_70%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#fafbfc_0%,#f3f4f8_25%,#e5e7ef_50%,#f5f6f8_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(124,58,237,0.07)_0%,transparent_62%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(196,181,253,0.05)_0%,transparent_52%)] before:content-[''] after:content-['']" />
       )}
-
       <div className="max-w-7xl pl-4 md:pl-20 w-full mx-auto">
         {/* Header */}
         <motion.header

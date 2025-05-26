@@ -568,9 +568,9 @@ export default function TodayPage() {
     >
       {/*  background */}
       {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(251,146,60,0.1)_0%,transparent_50%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#090f0b_20%,#131a15_40%,#0e1410_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(16,185,129,0.11)_0%,transparent_64%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(110,231,183,0.06)_0%,transparent_54%)] before:content-[''] after:content-['']" />
       ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(251,146,60,0.05)_0%,transparent_70%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f8fcfa_0%,#f1f8f5_25%,#e3f0e8_50%,#f3f8f5_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(16,185,129,0.07)_0%,transparent_64%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(110,231,183,0.04)_0%,transparent_54%)] before:content-[''] after:content-['']" />
       )}
 
       <div className="max-w-7xl pl-20 w-full mx-auto">

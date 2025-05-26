@@ -860,9 +860,9 @@ const Hero: React.FC = () => {
   return (
     <section className="relative min-h-screen flex items-center">
       {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(251,146,60,0.1)_0%,transparent_50%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a0f12_0%,#2d1b20_50%,#1a0f12_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
       ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(251,146,60,0.05)_0%,transparent_70%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f8f6f7_0%,#ffffff_50%,#f8f6f7_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
       )}
 
       <div className="mx-auto max-w-7xl px-4 mb-24 py-16 sm:px-6 lg:px-8 pt-28">
@@ -1353,9 +1353,9 @@ const LandingPage: React.FC = () => {
       {/* Features Section */}
       <section className="py-12 sm:py-16 lg:py-20 relative">
         {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(251,146,60,0.1)_0%,transparent_50%)] before:content-['']" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a0f12_0%,#2d1b20_50%,#1a0f12_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
         ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(251,146,60,0.05)_0%,transparent_70%)] before:content-['']" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f8f6f7_0%,#ffffff_50%,#f8f6f7_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
         )}
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -1424,9 +1424,9 @@ const LandingPage: React.FC = () => {
       {/* Benefits Section */}
       <section className="py-12 sm:py-16 lg:py-20 relative">
         {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_left,rgba(20,184,166,0.1)_0%,transparent_50%)] before:content-['']" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a0f12_0%,#2d1b20_50%,#1a0f12_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
         ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f0fdfa_0%,#ffffff_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_left,rgba(20,184,166,0.05)_0%,transparent_70%)] before:content-['']" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f8f6f7_0%,#ffffff_50%,#f8f6f7_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
         )}
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

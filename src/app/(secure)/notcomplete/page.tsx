@@ -636,9 +636,9 @@ export default function NotCompletedPage() {
     >
       {/*  background */}
       {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(20,184,166,0.1)_0%,transparent_50%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0a0b0f_20%,#141519_40%,#0f1014_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(79,70,229,0.14)_0%,transparent_60%)] after:absolute before:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(129,140,248,0.08)_0%,transparent_50%)] before:content-[''] after:content-['']" />
       ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(20,184,166,0.05)_0%,transparent_70%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f8f9fc_0%,#f1f3f8_25%,#e2e5ef_50%,#f3f4f7_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(79,70,229,0.08)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(129,140,248,0.06)_0%,transparent_50%)] before:content-[''] after:content-['']" />
       )}
 
       <div className="max-w-7xl pl-4 md:pl-20 w-full mx-auto">
