@@ -15,16 +15,24 @@ export async function GET(request: NextRequest) {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ??
     (process.env.NODE_ENV === "production"
-      ? "https://list-it-dom.netlify.app" // ← CHANGE 1: Fixed your domain
+      ? "https://list-it-dom.netlify.app"
       : "http://localhost:3000");
 
+  // 🔧 Helper function to fix double slashes in URLs
+  const fixDoubleSlashes = (url: string): string => {
+    // Replace any double slashes with single slashes, except after the protocol (http:// or https://)
+    return url.replace(/([^:]\/)\/+/g, "$1");
+  };
+
   // 3️⃣ Initialize the Supabase helper, bound to this request's cookies
-  const cookieStore = cookies(); // ← CHANGE 2: Fixed Next.js 15+ issue
+  const cookieStore = cookies();
   const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
   // —— 4️⃣ Handle signup email confirmation ——
   // URL: /auth/callback?type=email&token_hash=…
   if (type === "email" && tokenHash) {
+    console.log("Processing email verification...");
+
     const { error } = await supabase.auth.verifyOtp({
       type: "email",
       token_hash: tokenHash,
@@ -32,19 +40,23 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Email verification failed:", error);
-      // ← CHANGE 3: Redirect to verification page with error
-      return NextResponse.redirect(
-        new URL(
-          `/verification?status=error&message=${encodeURIComponent(error.message)}`,
-          siteUrl
-        )
-      );
+      // Fix double slashes in error redirect URL
+      const errorUrl = `${siteUrl}/verification?status=error&message=${encodeURIComponent(error.message)}`;
+      const fixedErrorUrl = fixDoubleSlashes(errorUrl);
+      console.log("Redirecting to error page:", fixedErrorUrl);
+
+      return NextResponse.redirect(new URL(fixedErrorUrl));
     }
 
-    // ← CHANGE 4: Redirect to verification page with success
-    return NextResponse.redirect(
-      new URL("/verification?status=success", siteUrl)
+    // Success: Fix double slashes in success redirect URL
+    const successUrl = `${siteUrl}/verification?status=success`;
+    const fixedSuccessUrl = fixDoubleSlashes(successUrl);
+    console.log(
+      "Email verification successful, redirecting to:",
+      fixedSuccessUrl
     );
+
+    return NextResponse.redirect(new URL(fixedSuccessUrl));
   }
 
   // —— 5️⃣ Handle password recovery (reset link) —— [UNCHANGED]
