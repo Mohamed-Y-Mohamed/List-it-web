@@ -1,5 +1,4 @@
 // app/auth/callback/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
@@ -31,14 +30,21 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Email verification failed:", error);
-      // Redirect to login with an error message
+      // Redirect to verification page with error status
       return NextResponse.redirect(
-        new URL(`/login?error=${encodeURIComponent(error.message)}`, siteUrl)
+        new URL(
+          `/auth/verification?status=error&message=${encodeURIComponent(
+            error.message
+          )}`,
+          siteUrl
+        )
       );
     }
 
-    // On success, redirect back to login with a "verified" flag
-    return NextResponse.redirect(new URL("/login?verified=1", siteUrl));
+    // On success, redirect to verification page with success status
+    return NextResponse.redirect(
+      new URL("/auth/verification?status=success", siteUrl)
+    );
   }
 
   // —— 5️⃣ Handle password recovery (reset link) ——
