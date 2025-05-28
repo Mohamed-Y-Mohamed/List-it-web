@@ -43,14 +43,10 @@ const EmailVerification = () => {
           "Email verification failed. Please try again or contact support."
       );
     } else {
-      // If no status param, redirect to login
-      router.push("/login");
     }
   }, [searchParams, router]);
 
-  const handleLoginRedirect = () => {
-    router.push("/login");
-  };
+  const handleLoginRedirect = () => {};
 
   if (status === "loading") {
     return (

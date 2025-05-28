@@ -1,5 +1,21 @@
-import type { NextConfig } from "next";
+// next.config.js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Only add this if you're using Next.js 13.0-13.3
+  // experimental: {
+  //   appDir: true,
+  // },
 
-const nextConfig: NextConfig = {};
+  async redirects() {
+    return [
+      // Redirect old verification path to new path
+      {
+        source: "/auth/verification",
+        destination: "/verification",
+        permanent: true,
+      },
+    ];
+  },
+};
 
-export default nextConfig;
+module.exports = nextConfig;

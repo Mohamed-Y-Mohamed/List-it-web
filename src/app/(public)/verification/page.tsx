@@ -1,4 +1,4 @@
-// app/auth/verification/page.tsx
+"use client";
 import { Suspense } from "react";
 import EmailVerification from "@/components/verify/verify";
 

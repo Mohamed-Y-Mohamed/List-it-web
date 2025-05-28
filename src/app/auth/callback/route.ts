@@ -1,4 +1,5 @@
 // app/auth/callback/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
@@ -14,11 +15,12 @@ export async function GET(request: NextRequest) {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ??
     (process.env.NODE_ENV === "production"
-      ? "https://your-production-domain.com"
+      ? "https://list-it-dom.netlify.app" // ← CHANGE 1: Fixed your domain
       : "http://localhost:3000");
 
   // 3️⃣ Initialize the Supabase helper, bound to this request's cookies
-  const supabase = createRouteHandlerClient({ cookies: () => cookies() });
+  const cookieStore = cookies(); // ← CHANGE 2: Fixed Next.js 15+ issue
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
   // —— 4️⃣ Handle signup email confirmation ——
   // URL: /auth/callback?type=email&token_hash=…
@@ -30,24 +32,22 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Email verification failed:", error);
-      // Redirect to verification page with error status
+      // ← CHANGE 3: Redirect to verification page with error
       return NextResponse.redirect(
         new URL(
-          `/auth/verification?status=error&message=${encodeURIComponent(
-            error.message
-          )}`,
+          `/verification?status=error&message=${encodeURIComponent(error.message)}`,
           siteUrl
         )
       );
     }
 
-    // On success, redirect to verification page with success status
+    // ← CHANGE 4: Redirect to verification page with success
     return NextResponse.redirect(
-      new URL("/auth/verification?status=success", siteUrl)
+      new URL("/verification?status=success", siteUrl)
     );
   }
 
-  // —— 5️⃣ Handle password recovery (reset link) ——
+  // —— 5️⃣ Handle password recovery (reset link) —— [UNCHANGED]
   // URL: /auth/callback?type=recovery&token_hash=…
   if (type === "recovery" && tokenHash) {
     const { error } = await supabase.auth.verifyOtp({
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/resetPassword", siteUrl));
   }
 
-  // —— 6️⃣ Handle OAuth callback ——
+  // —— 6️⃣ Handle OAuth callback —— [UNCHANGED]
   // URL: /auth/callback?code=… (e.g. Google sign-in)
   if (code) {
     try {

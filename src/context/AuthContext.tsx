@@ -105,12 +105,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Get site URL
   const getSiteUrl = () => {
     return (
       process.env.NEXT_PUBLIC_SITE_URL ||
       (typeof window !== "undefined" ? window.location.origin : "")
+    );
+  };
+
+  // Check if current page is verification-related
+  const isVerificationFlow = () => {
+    if (typeof window === "undefined") return false;
+    const path = window.location.pathname;
+    const search = window.location.search;
+    return (
+      path.includes("/auth/callback") ||
+      path.includes("/verification") ||
+      search.includes("type=email")
     );
   };
 
@@ -126,7 +139,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
-        if (data.session) {
+        // Only set session if we're not in verification flow
+        if (data.session && !isVerificationFlow()) {
           setUser(data.session.user);
           setIsLoggedIn(true);
         }
@@ -147,14 +161,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log(
+          "Auth state change:",
+          event,
+          "isVerifying:",
+          isVerifying,
+          "isVerificationFlow:",
+          isVerificationFlow()
+        );
+
         if (event === "SIGNED_IN" && session) {
+          // Don't auto-login during verification flow
+          if (isVerificationFlow() || isVerifying) {
+            console.log("Ignoring SIGNED_IN event during verification flow");
+            return;
+          }
           setIsLoggedIn(true);
           setUser(session.user);
         } else if (event === "SIGNED_OUT") {
           setIsLoggedIn(false);
           setUser(null);
+          setIsVerifying(false);
         } else if (event === "USER_UPDATED" && session) {
-          setUser(session.user);
+          // Only update user if not in verification flow
+          if (!isVerificationFlow() && !isVerifying) {
+            setUser(session.user);
+          }
         }
       }
     );
@@ -162,7 +194,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [initialized]);
+  }, [initialized, isVerifying]);
 
   // Login with email/password
   const login = async (email: string, password: string) => {
@@ -214,7 +246,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     error?: AuthError | null;
     emailVerificationSent?: boolean;
   }> => {
-    // ─── ADD THIS ───────────────────────────────────────────────────────────────
     // Check if a user-profile already exists
     const { data: existingUser, error: selectError } = await supabase
       .from("users")
@@ -227,21 +258,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { success: false, error: new AuthError(selectError.message) };
     }
     if (existingUser) {
-      // immediately bail out with the exact message your component expects
       return { success: false, error: new AuthError("already registered") };
     }
-    // ────────────────────────────────────────────────────────────────────────────
 
     try {
       const siteUrl = getSiteUrl();
 
-      // THIS PART IS JUST AS YOU HAD IT:
+      // Set verification flag
+      setIsVerifying(true);
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { full_name: fullName },
-          emailRedirectTo: `${siteUrl}/auth/callback?type=email`,
+          emailRedirectTo: `${siteUrl}/verification?status=success`,
         },
       });
       if (error) throw error;
@@ -252,15 +283,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .insert([{ id: data.user.id, full_name: fullName, email }]);
       }
 
+      // Don't auto-login even if session is returned during signup
       if (data.session) {
-        setIsLoggedIn(true);
-        setUser(data.user);
-        return { success: true };
+        console.log("Session returned during signup, but not auto-logging in");
+        // Sign out immediately to prevent auto-login
+        await supabase.auth.signOut();
+        return { success: true, emailVerificationSent: true };
       } else {
         return { success: true, emailVerificationSent: true };
       }
     } catch (err: unknown) {
       console.error("Signup error:", err);
+      setIsVerifying(false);
       return {
         success: false,
         error:
@@ -296,6 +330,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Update state immediately for responsive UI
       setIsLoggedIn(false);
       setUser(null);
+      setIsVerifying(false);
 
       // Clear auth data
       clearAuthData();
@@ -341,15 +376,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const siteUrl = getSiteUrl();
 
+      // Set verification flag
+      setIsVerifying(true);
+
       const { error } = await supabase.auth.resend({
         type: "signup",
         email,
         options: {
-          emailRedirectTo: `${siteUrl}/auth/callback?type=signup`,
+          emailRedirectTo: `${siteUrl}/auth/callback?type=email`, // Fixed: was type=signup
         },
       });
 
       if (error) {
+        setIsVerifying(false);
         // Handle rate limiting
         if (error.message && error.message.includes("For security purposes")) {
           const timeMatch = error.message.match(/(\d+) seconds/);
@@ -368,6 +407,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { success: true };
     } catch (error) {
       console.error("Error resending verification email:", error);
+      setIsVerifying(false);
       return { success: false, error: error as AuthError };
     }
   };
