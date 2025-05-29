@@ -4,6 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 
+type Metadata = {
+  full_name?: string;
+  name?: string;
+};
+
 export async function GET(request: NextRequest) {
   // 1️⃣ Extract query parameters via Next.js App Router's NextRequest
   const { searchParams } = request.nextUrl;
@@ -89,6 +94,7 @@ export async function GET(request: NextRequest) {
         // Upsert user in users table for web OAuth
         try {
           const { user } = data.session;
+          const metadata = user.user_metadata as Metadata;
           const { data: existing, error: selectError } = await supabase
             .from("users")
             .select("id")
@@ -104,8 +110,7 @@ export async function GET(request: NextRequest) {
             await supabase.from("users").insert({
               id: user.id,
               email: user.email ?? "",
-              full_name:
-                user.user_metadata?.full_name ?? user.user_metadata?.name ?? "",
+              full_name: metadata.full_name ?? metadata.name ?? "",
             });
           }
         } catch (e) {
@@ -137,6 +142,8 @@ export async function GET(request: NextRequest) {
 
       const user = setSessionData.session?.user;
       if (user) {
+        const metadata = user.user_metadata as Metadata;
+
         // Check if row already exists
         const { data: existing, error: selectError } = await supabase
           .from("users")
@@ -153,10 +160,7 @@ export async function GET(request: NextRequest) {
           await supabase.from("users").insert({
             id: user.id,
             email: user.email ?? "",
-            full_name:
-              (user.user_metadata as any).full_name ??
-              (user.user_metadata as any).name ??
-              "",
+            full_name: metadata.full_name ?? metadata.name ?? "",
           });
         }
       }
