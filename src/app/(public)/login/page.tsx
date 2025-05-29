@@ -24,7 +24,7 @@ function LoginWithSearchParams() {
   const isDark = theme === "dark";
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, loginWithGoogle, resendVerificationEmail } = useAuth();
+  const { login, resendVerificationEmail } = useAuth();
 
   // Form state
   const [email, setEmail] = useState("");
@@ -161,21 +161,6 @@ function LoginWithSearchParams() {
           : "Invalid email or password. Please try again.";
       setError(errorMessage);
     } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle Google login
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    try {
-      await loginWithGoogle();
-      // Redirect is handled in the OAuth flow
-    } catch (err: unknown) {
-      console.error("Google login error:", err);
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to log in with Google";
-      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -413,54 +398,6 @@ function LoginWithSearchParams() {
             </AnimatePresence>
 
             <div className="w-full">
-              {/* Google Sign In Button */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="flex flex-col items-center"
-              >
-                <motion.button
-                  whileHover={{ scale: 1.02, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleGoogleLogin}
-                  disabled={loading}
-                  className={`w-full mb-6 py-3 px-4 rounded-xl flex items-center justify-center transition-all duration-300 backdrop-blur-sm border shadow-lg ${
-                    isDark
-                      ? "bg-gray-700/50 hover:bg-gray-600/50 text-white border-gray-600/50 hover:shadow-xl"
-                      : "bg-gray-100/50 hover:bg-gray-200/50 text-gray-800 border-gray-300/50 hover:shadow-xl"
-                  } ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
-                  aria-label="Login with Google"
-                  type="button"
-                >
-                  <div className="bg-white p-1 rounded-full shadow-sm mr-3">
-                    <svg
-                      className="w-5 h-5"
-                      viewBox="0 0 533.5 544.3"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M533.5 278.4c0-18.5-1.5-37.1-4.7-55.3H272.1v104.8h147c-6.1 33.8-25.7 63.7-54.4 82.7v68h87.7c51.5-47.4 81.1-117.4 81.1-200.2z"
-                        fill="#4285f4"
-                      />
-                      <path
-                        d="M272.1 544.3c73.4 0 135.3-24.1 180.4-65.7l-87.7-68c-24.4 16.6-55.9 26-92.6 26-71 0-131.2-47.9-152.8-112.3H28.9v70.1c46.2 91.9 140.3 149.9 243.2 149.9z"
-                        fill="#34a853"
-                      />
-                      <path
-                        d="M119.3 324.3c-11.4-33.8-11.4-70.4 0-104.2V150H28.9c-38.6 76.9-38.6 167.5 0 244.4l90.4-70.1z"
-                        fill="#fbbc04"
-                      />
-                      <path
-                        d="M272.1 107.7c38.8-.6 76.3 14 104.4 40.8l77.7-77.7C405 24.6 339.7-.8 272.1 0 169.2 0 75.1 58 28.9 150l90.4 70.1c21.5-64.5 81.8-112.4 152.8-112.4z"
-                        fill="#ea4335"
-                      />
-                    </svg>
-                  </div>
-                  <span className="font-medium">Log in with Google</span>
-                </motion.button>
-              </motion.div>
-
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -476,7 +413,7 @@ function LoginWithSearchParams() {
                   <span
                     className={`px-4 py-1 rounded-full backdrop-blur-sm ${isDark ? "bg-gray-800/70 text-gray-400" : "bg-white/70 text-gray-600"}`}
                   >
-                    Or log in with email
+                    log in with email
                   </span>
                 </div>
               </motion.div>

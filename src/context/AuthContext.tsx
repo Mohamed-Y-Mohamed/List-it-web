@@ -32,7 +32,7 @@ interface AuthContextType {
     error?: AuthError | null;
     emailVerificationSent?: boolean;
   }>;
-  loginWithGoogle: () => Promise<void>;
+  // loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<{
     success: boolean;
@@ -57,7 +57,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   login: async () => ({ success: false }),
   signup: async () => ({ success: false }),
-  loginWithGoogle: async () => {},
+  // loginWithGoogle: async () => {},
   logout: async () => {},
   resetPassword: async () => ({ success: false }),
   resendVerificationEmail: async () => ({ success: false }),
@@ -306,23 +306,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Google OAuth sign in
-  const loginWithGoogle = async () => {
-    try {
-      const siteUrl = getSiteUrl();
+  // const loginWithGoogle = async () => {
+  //   try {
+  //     const siteUrl = getSiteUrl();
 
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${siteUrl}/auth/callback`,
-        },
-      });
+  //     const { error } = await supabase.auth.signInWithOAuth({
+  //       provider: "google",
+  //       options: {
+  //         redirectTo: `${siteUrl}/auth/callback`,
+  //       },
+  //     });
 
-      if (error) throw error;
-    } catch (error) {
-      console.error("Google login error:", error);
-      throw error;
-    }
-  };
+  //     if (error) throw error;
+  //   } catch (error) {
+  //     console.error("Google login error:", error);
+  //     throw error;
+  //   }
+  // };
 
   // Logout function
   const logout = async () => {
@@ -437,7 +437,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         loading,
         login,
         signup,
-        loginWithGoogle,
+        // loginWithGoogle,
         logout,
         resetPassword,
         resendVerificationEmail,
