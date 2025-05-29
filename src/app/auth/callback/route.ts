@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
 
   // 🔧 Helper function to fix double slashes in URLs
   const fixDoubleSlashes = (url: string): string => {
-    // Replace any double slashes with single slashes, except after the protocol (http:// or https://)
     return url.replace(/([^:]\/)\/+/g, "$1");
   };
 
@@ -29,7 +28,6 @@ export async function GET(request: NextRequest) {
   const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
   // —— 4️⃣ Handle signup email confirmation ——
-  // URL: /auth/callback?type=email&token_hash=…
   if (type === "email" && tokenHash) {
     console.log("Processing email verification...");
 
@@ -40,7 +38,6 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Email verification failed:", error);
-      // Fix double slashes in error redirect URL
       const errorUrl = `${siteUrl}/verification?status=error&message=${encodeURIComponent(error.message)}`;
       const fixedErrorUrl = fixDoubleSlashes(errorUrl);
       console.log("Redirecting to error page:", fixedErrorUrl);
@@ -48,7 +45,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL(fixedErrorUrl));
     }
 
-    // Success: Fix double slashes in success redirect URL
     const successUrl = `${siteUrl}/verification?status=success`;
     const fixedSuccessUrl = fixDoubleSlashes(successUrl);
     console.log(
@@ -59,8 +55,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(fixedSuccessUrl));
   }
 
-  // —— 5️⃣ Handle password recovery (reset link) —— [UNCHANGED]
-  // URL: /auth/callback?type=recovery&token_hash=…
+  // —— 5️⃣ Handle password recovery (reset link) ——
   if (type === "recovery" && tokenHash) {
     const { error } = await supabase.auth.verifyOtp({
       type: "recovery",
@@ -69,18 +64,15 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Password recovery verification failed:", error);
-      // Redirect to login with the error details
       return NextResponse.redirect(
         new URL(`/login?error=${encodeURIComponent(error.message)}`, siteUrl)
       );
     }
 
-    // On success, a temporary recovery session is active → send user to reset form
     return NextResponse.redirect(new URL("/resetPassword", siteUrl));
   }
 
-  // —— 6️⃣ Handle OAuth callback —— [UNCHANGED]
-  // URL: /auth/callback?code=… (e.g. Google sign-in)
+  // —— 6️⃣ Handle OAuth callback (Web only) ——
   if (code) {
     try {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
@@ -90,7 +82,7 @@ export async function GET(request: NextRequest) {
       }
 
       if (data.session) {
-        // Optional: upsert a row in your "users" table
+        // Upsert user in users table for web OAuth
         try {
           const { user } = data.session;
           const { data: existing } = await supabase
@@ -98,6 +90,7 @@ export async function GET(request: NextRequest) {
             .select("id")
             .eq("id", user.id)
             .single();
+
           if (!existing) {
             await supabase.from("users").insert({
               id: user.id,
@@ -110,12 +103,10 @@ export async function GET(request: NextRequest) {
           console.error("Error upserting user record:", e);
         }
 
-        // Redirect to your dashboard on successful OAuth login
         return NextResponse.redirect(new URL("/dashboard", siteUrl));
       }
     } catch (err: unknown) {
       console.error("OAuth exchange error:", err);
-      // Redirect back to login with the OAuth error message
       const errorMessage =
         err instanceof Error ? err.message : "An unknown error occurred";
       return NextResponse.redirect(
