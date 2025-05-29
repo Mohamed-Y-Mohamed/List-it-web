@@ -31,8 +31,6 @@ export async function GET(request: NextRequest) {
 
   // —— 4️⃣ Handle signup email confirmation ——
   if (type === "email" && tokenHash) {
-    console.log("Processing email verification...");
-
     const { error } = await supabase.auth.verifyOtp({
       type: "email",
       token_hash: tokenHash,
@@ -42,17 +40,12 @@ export async function GET(request: NextRequest) {
       console.error("Email verification failed:", error);
       const errorUrl = `${siteUrl}/verification?status=error&message=${encodeURIComponent(error.message)}`;
       const fixedErrorUrl = fixDoubleSlashes(errorUrl);
-      console.log("Redirecting to error page:", fixedErrorUrl);
 
       return NextResponse.redirect(new URL(fixedErrorUrl));
     }
 
     const successUrl = `${siteUrl}/verification?status=success`;
     const fixedSuccessUrl = fixDoubleSlashes(successUrl);
-    console.log(
-      "Email verification successful, redirecting to:",
-      fixedSuccessUrl
-    );
 
     return NextResponse.redirect(new URL(fixedSuccessUrl));
   }
@@ -84,25 +77,40 @@ export async function GET(request: NextRequest) {
       }
 
       if (data.session) {
-        // Upsert user in users table for web OAuth
+        // Check if user exists in users table and create if needed
         try {
           const { user } = data.session;
-          const { data: existing } = await supabase
+
+          // Step 1: Check if user exists in users table
+          const { data: existing, error: selectError } = await supabase
             .from("users")
-            .select("id")
+            .select("id, full_name, email")
             .eq("id", user.id)
             .single();
 
+          if (selectError && selectError.code !== "PGRST116") {
+            // PGRST116 is "not found", which is expected for new users
+            throw selectError;
+          }
+
           if (!existing) {
-            await supabase.from("users").insert({
+            // Step 2: User doesn't exist, create them in users table
+
+            const { error: insertError } = await supabase.from("users").insert({
               id: user.id,
               email: user.email ?? "",
               full_name:
                 user.user_metadata?.full_name ?? user.user_metadata?.name ?? "",
             });
+
+            if (insertError) {
+              throw insertError;
+            }
+          } else {
           }
         } catch (e) {
-          console.error("Error upserting user record:", e);
+          console.error("Error managing user record:", e);
+          // Don't fail the auth flow, just log the error
         }
 
         return NextResponse.redirect(new URL("/dashboard", siteUrl));
