@@ -31,6 +31,8 @@ export async function GET(request: NextRequest) {
 
   // —— 4️⃣ Handle signup email confirmation ——
   if (type === "email" && tokenHash) {
+    console.log("Processing email verification...");
+
     const { error } = await supabase.auth.verifyOtp({
       type: "email",
       token_hash: tokenHash,
@@ -38,14 +40,21 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Email verification failed:", error);
-      const errorUrl = `${siteUrl}/verification?status=error&message=${encodeURIComponent(error.message)}`;
+      const errorUrl = `${siteUrl}/verification?status=error&message=${encodeURIComponent(
+        error.message
+      )}`;
       const fixedErrorUrl = fixDoubleSlashes(errorUrl);
+      console.log("Redirecting to error page:", fixedErrorUrl);
 
       return NextResponse.redirect(new URL(fixedErrorUrl));
     }
 
     const successUrl = `${siteUrl}/verification?status=success`;
     const fixedSuccessUrl = fixDoubleSlashes(successUrl);
+    console.log(
+      "Email verification successful, redirecting to:",
+      fixedSuccessUrl
+    );
 
     return NextResponse.redirect(new URL(fixedSuccessUrl));
   }
@@ -77,40 +86,30 @@ export async function GET(request: NextRequest) {
       }
 
       if (data.session) {
-        // Check if user exists in users table and create if needed
+        // Upsert user in users table for web OAuth
         try {
           const { user } = data.session;
-
-          // Step 1: Check if user exists in users table
           const { data: existing, error: selectError } = await supabase
             .from("users")
-            .select("id, full_name, email")
+            .select("id")
             .eq("id", user.id)
             .single();
 
           if (selectError && selectError.code !== "PGRST116") {
-            // PGRST116 is "not found", which is expected for new users
+            // PGRST116 = no rows found
             throw selectError;
           }
 
           if (!existing) {
-            // Step 2: User doesn't exist, create them in users table
-
-            const { error: insertError } = await supabase.from("users").insert({
+            await supabase.from("users").insert({
               id: user.id,
               email: user.email ?? "",
               full_name:
                 user.user_metadata?.full_name ?? user.user_metadata?.name ?? "",
             });
-
-            if (insertError) {
-              throw insertError;
-            }
-          } else {
           }
         } catch (e) {
-          console.error("Error managing user record:", e);
-          // Don't fail the auth flow, just log the error
+          console.error("Error upserting user record:", e);
         }
 
         return NextResponse.redirect(new URL("/dashboard", siteUrl));
@@ -127,11 +126,49 @@ export async function GET(request: NextRequest) {
 
   // —— 7️⃣ Handle Mobile OAuth Success (with tokens) ——
   if (accessToken && refreshToken) {
-    // This typically comes from mobile OAuth flow
-    // Redirect to mobile app with success
+    try {
+      // Persist the session server-side (so downstream requests see it)
+      const { data: setSessionData, error: setSessionError } =
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+      if (setSessionError) throw setSessionError;
+
+      const user = setSessionData.session?.user;
+      if (user) {
+        // Check if row already exists
+        const { data: existing, error: selectError } = await supabase
+          .from("users")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (selectError) {
+          throw selectError;
+        }
+
+        if (!existing) {
+          // Insert new row for mobile OAuth user
+          await supabase.from("users").insert({
+            id: user.id,
+            email: user.email ?? "",
+            full_name:
+              (user.user_metadata as any).full_name ??
+              (user.user_metadata as any).name ??
+              "",
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Error upserting mobile OAuth user:", err);
+      // Continue to redirect into the app flow regardless
+    }
+
     const mobileCallbackUrl = `listit://auth/callback?access_token=${accessToken}&refresh_token=${refreshToken}`;
     return NextResponse.redirect(new URL(mobileCallbackUrl));
   }
 
+  // Fallback: redirect to login
   return NextResponse.redirect(new URL("/login", siteUrl));
 }
