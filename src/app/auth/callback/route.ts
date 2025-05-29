@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type"); // "email", "recovery", or undefined
   const tokenHash = searchParams.get("token_hash"); // for both email‐confirm and recovery OTP
   const code = searchParams.get("code"); // OAuth authorization code
+  const accessToken = searchParams.get("access_token"); // Direct access token (mobile)
+  const refreshToken = searchParams.get("refresh_token"); // Refresh token (mobile)
 
   // 2️⃣ Determine the base URL for your redirects
   const siteUrl =
@@ -72,7 +74,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/resetPassword", siteUrl));
   }
 
-  // —— 6️⃣ Handle OAuth callback (Web only) ——
+  // —— 6️⃣ Handle OAuth callback (Web) ——
   if (code) {
     try {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
@@ -113,6 +115,14 @@ export async function GET(request: NextRequest) {
         new URL(`/login?error=${encodeURIComponent(errorMessage)}`, siteUrl)
       );
     }
+  }
+
+  // —— 7️⃣ Handle Mobile OAuth Success (with tokens) ——
+  if (accessToken && refreshToken) {
+    // This typically comes from mobile OAuth flow
+    // Redirect to mobile app with success
+    const mobileCallbackUrl = `listit://auth/callback?access_token=${accessToken}&refresh_token=${refreshToken}`;
+    return NextResponse.redirect(new URL(mobileCallbackUrl));
   }
 
   return NextResponse.redirect(new URL("/login", siteUrl));
