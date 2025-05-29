@@ -2,7 +2,7 @@
 
 A modern, feature-rich task management application built with Next.js that helps you organize your tasks, notes, and projects efficiently.
 
-![List It Preview](public/logo.jpeg)
+![List It Preview](public/app-icon.jpeg)
 
 ## 🚀 Live Demo
 
