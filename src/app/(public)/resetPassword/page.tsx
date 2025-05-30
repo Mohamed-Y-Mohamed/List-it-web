@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   AlertCircle,
   CheckCircle,
@@ -21,7 +21,7 @@ const ResetPasswordPage = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const router = useRouter();
-  const { updatePassword } = useAuth();
+  const { updatePassword, logout } = useAuth();
 
   // Form states
   const [password, setPassword] = useState("");
@@ -34,6 +34,43 @@ const ResetPasswordPage = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [countdownInterval, setCountdownInterval] =
+    useState<NodeJS.Timeout | null>(null);
+
+  // Handle redirect when countdown reaches 0
+  useEffect(() => {
+    if (countdown === 0) {
+      // Clear the interval
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        setCountdownInterval(null);
+      }
+
+      const performLogoutAndRedirect = async () => {
+        try {
+          await logout();
+        } catch (logoutError) {
+          console.error(
+            "Error during logout after password reset:",
+            logoutError
+          );
+        }
+        router.push("/login?password_reset=success");
+      };
+
+      performLogoutAndRedirect();
+    }
+  }, [countdown, countdownInterval, logout, router]);
+
+  // Cleanup interval on component unmount
+  useEffect(() => {
+    return () => {
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+      }
+    };
+  }, [countdownInterval]);
 
   // Toggle password visibility
   const togglePasswordVisibility = () => {
@@ -59,14 +96,14 @@ const ResetPasswordPage = () => {
     setError(null);
     setMessage(null);
 
-    // Validate password
+    // 1) Validate password strength
     const passwordError = validatePassword(password);
     if (passwordError) {
       setError(passwordError);
       return;
     }
 
-    // Validate password confirmation
+    // 2) Validate confirmation
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -75,28 +112,41 @@ const ResetPasswordPage = () => {
     setLoading(true);
 
     try {
+      // 3) Attempt to update the password
       const { success, error } = await updatePassword(password);
-
       if (!success) {
-        throw error || new Error("Failed to update password");
+        throw error ?? new Error("Failed to update password");
       }
 
+      // 4) On success, show message and start countdown
       setSuccess(true);
-      setMessage(
-        "Your password has been successfully updated. You will be redirected to the login page."
-      );
+      setMessage("Your password has been successfully updated!");
 
-      // Redirect to login page after 3 seconds
-      setTimeout(() => {
-        router.push("/login?password_reset=success");
-      }, 3000);
+      let secondsLeft = 5;
+      setCountdown(secondsLeft);
+
+      const intervalId = setInterval(() => {
+        secondsLeft -= 1;
+        setCountdown(secondsLeft);
+
+        // 5) When countdown hits zero, clear interval, logout & redirect
+        if (secondsLeft <= 0) {
+          clearInterval(intervalId);
+
+          logout().catch((logoutErr) => {
+            console.error("Error during logout after reset:", logoutErr);
+          });
+
+          router.push("/login?password_reset=success");
+        }
+      }, 1000);
     } catch (err: unknown) {
       console.error("Password update error:", err);
-      const errorMessage =
+      setError(
         err instanceof Error
           ? err.message
-          : "Failed to update password. Please try again.";
-      setError(errorMessage);
+          : "Failed to update password. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -104,7 +154,7 @@ const ResetPasswordPage = () => {
 
   return (
     <div className="min-h-screen w-full relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      {/*  background */}
+      {/* Animated background */}
       {isDark ? (
         <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(16,185,129,0.15)_0%,transparent_50%)] before:content-['']" />
       ) : (
@@ -443,18 +493,76 @@ const ResetPasswordPage = () => {
                     />
                   </motion.div>
                 </div>
-                <p
-                  className={`${
-                    isDark ? "text-gray-300" : "text-gray-600"
-                  } mb-4`}
+
+                <h2
+                  className={`text-xl font-semibold mb-2 ${isDark ? "text-white" : "text-gray-900"}`}
                 >
-                  You will be redirected to the login page shortly.
+                  Password Updated Successfully!
+                </h2>
+
+                <p
+                  className={`${isDark ? "text-gray-300" : "text-gray-600"} mb-4`}
+                >
+                  Your password has been changed. You will be automatically
+                  redirected to the login page.
                 </p>
-                <motion.div
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  className="w-6 h-6 mx-auto border-2 border-green-500 border-t-transparent rounded-full animate-spin"
-                />
+
+                {countdown !== null && countdown > 0 && (
+                  <div className="space-y-3">
+                    <motion.div
+                      animate={{ scale: [1, 1.1, 1] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                      className={`inline-flex items-center justify-center w-12 h-12 rounded-full border-2 ${
+                        isDark
+                          ? "border-green-400 text-green-400"
+                          : "border-green-500 text-green-500"
+                      } font-bold text-lg`}
+                    >
+                      {countdown}
+                    </motion.div>
+                    <p
+                      className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}
+                    >
+                      Redirecting to login page in {countdown} second
+                      {countdown !== 1 ? "s" : ""}...
+                    </p>
+
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={async () => {
+                        // Clear the countdown interval
+                        if (countdownInterval) {
+                          clearInterval(countdownInterval);
+                          setCountdownInterval(null);
+                        }
+                        setCountdown(null);
+
+                        try {
+                          await logout();
+                        } catch (logoutError) {
+                          console.error("Error during logout:", logoutError);
+                        }
+                        router.push("/login?password_reset=success");
+                      }}
+                      className={`mt-4 px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
+                        isDark
+                          ? "bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 border border-gray-600/50"
+                          : "bg-gray-100/50 hover:bg-gray-200/50 text-gray-700 border border-gray-300/50"
+                      }`}
+                    >
+                      Go to Login Now
+                    </motion.button>
+                  </div>
+                )}
+
+                {(countdown === null || countdown === 0) && (
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="w-6 h-6 mx-auto border-2 border-green-500 border-t-transparent rounded-full animate-spin"
+                  />
+                )}
               </motion.div>
             )}
           </motion.div>
