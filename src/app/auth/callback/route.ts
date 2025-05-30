@@ -38,12 +38,18 @@ export async function GET(request: NextRequest) {
       type: "email",
       token_hash: tokenHash,
     });
+
     if (error) {
       const errorUrl = `${siteUrl}/verification?status=error&message=${encodeURIComponent(
         error.message
       )}`;
       return NextResponse.redirect(new URL(fixDoubleSlashes(errorUrl)));
     }
+
+    // ✅ SIGN OUT THE USER AFTER SUCCESSFUL VERIFICATION
+    // This ensures they have to explicitly log in again
+    await supabase.auth.signOut({ scope: "global" });
+
     return NextResponse.redirect(
       new URL(fixDoubleSlashes(`${siteUrl}/verification?status=success`))
     );
@@ -120,7 +126,7 @@ export async function GET(request: NextRequest) {
           .select("id")
           .eq("id", user.id)
           .single();
-        // PGRST116 = “no rows returned”; ignore that one
+        // PGRST116 = "no rows returned"; ignore that one
         if (selectError && selectError.code !== "PGRST116") throw selectError;
 
         if (!existing) {

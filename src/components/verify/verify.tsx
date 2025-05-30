@@ -34,7 +34,7 @@ const EmailVerification = () => {
     if (statusParam === "success") {
       setStatus("success");
       setMessage(
-        "Your email has been successfully verified! You can now log in to your account."
+        "Your email has been successfully verified! Please log in to access your account."
       );
     } else if (statusParam === "error") {
       setStatus("error");
@@ -152,7 +152,7 @@ const EmailVerification = () => {
               transition={{ duration: 0.8, delay: 0.6 }}
               className="text-3xl font-bold text-white mb-6"
             >
-              {status === "success" ? "Welcome Aboard!" : "Verification Issue"}
+              {status === "success" ? "Email Verified!" : "Verification Issue"}
             </motion.h2>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -161,7 +161,7 @@ const EmailVerification = () => {
               className="text-gray-300 mb-8 max-w-sm mx-auto leading-relaxed"
             >
               {status === "success"
-                ? "Your email verification was successful. You're all set to start organizing your tasks and boosting your productivity!"
+                ? "Your email verification was successful. You can now log in to start organizing your tasks and boosting your productivity!"
                 : "Don't worry, these things happen sometimes. You can try verifying again or contact our support team for assistance."}
             </motion.p>
 
@@ -337,7 +337,7 @@ const EmailVerification = () => {
                 }`}
               >
                 <span className="mr-2">
-                  {status === "success" ? "Continue to Login" : "Back to Login"}
+                  {status === "success" ? "Log In Now" : "Back to Login"}
                 </span>
                 <ArrowRight className="h-5 w-5" />
               </motion.button>
