@@ -13,6 +13,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { LIST_COLORS } from "@/types/schema";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
+import { createPortal } from "react-dom"; // Added this import
 
 interface OperationResult {
   success: boolean;
@@ -135,7 +136,6 @@ const NoteDetails = ({
   }, []);
 
   // --- HANDLE CLOSE WITH UNSAVED ---
-  // This needs to be defined before the useEffect that uses it
   const handleClose = useCallback(() => {
     if (isNoteChanged) {
       if (
@@ -177,7 +177,6 @@ const NoteDetails = ({
       if (!isOpen || !note.id || !user) return;
 
       try {
-        // Get the most current data from database
         const { data, error } = await supabase
           .from("note")
           .select("*")
@@ -194,14 +193,12 @@ const NoteDetails = ({
             collection_id: data.collection_id,
           });
 
-          // If database has different values than what was passed in props
           if (data.collection_id !== note.collection_id) {
             console.log("Collection ID mismatch between props and DB!", {
               "props collection_id": note.collection_id,
               "database collection_id": data.collection_id,
             });
 
-            // Use the database version as the source of truth
             setVerifiedNote({
               ...note,
               collection_id: data.collection_id,
@@ -228,7 +225,6 @@ const NoteDetails = ({
       if (data) {
         setCollections(data);
 
-        // Log collection data for debugging
         console.log(
           "Loaded collections:",
           data.map((c) => ({
@@ -243,11 +239,9 @@ const NoteDetails = ({
   // --- UPDATE FORM WHEN VERIFIED NOTE CHANGES ---
   useEffect(() => {
     if (isOpen) {
-      // Correctly set selectedCollection to the verified note's collection_id
       const collectionId = verifiedNote.collection_id || "";
       setSelectedCollection(collectionId);
 
-      // Find and log the current collection for debugging
       const currentCollection = collections.find(
         (c) => c.id === verifiedNote.collection_id
       );
@@ -258,7 +252,6 @@ const NoteDetails = ({
         currentCollectionName: currentCollection?.collection_name,
       });
 
-      // Reset other form fields
       setNoteTitle(verifiedNote.title || "");
       setNoteDescription(verifiedNote.description || "");
       setSelectedColor(verifiedNote.bg_color_hex || LIST_COLORS[0]);
@@ -303,7 +296,6 @@ const NoteDetails = ({
     setSuccessMessage(null);
   }, [isOpen]);
 
-  // Define the handler outside of the conditional return to avoid React Hook issues
   const handleDescriptionChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const v = e.target.value;
@@ -375,7 +367,6 @@ const NoteDetails = ({
         throw new Error(dbError.message);
       }
 
-      // parent callbacks to refresh note card
       if (onNoteUpdate) {
         const r = await onNoteUpdate(
           verifiedNote.id,
@@ -411,11 +402,9 @@ const NoteDetails = ({
       return { success: false, error: "Authentication required" };
     }
 
-    // Convert empty string to null for database
     const collectionIdForDb =
       selectedCollection === "" ? null : selectedCollection;
 
-    // Skip if collection hasn't changed (comparing with proper null handling)
     const currentCollectionId =
       verifiedNote.collection_id === null ? "" : verifiedNote.collection_id;
 
@@ -432,7 +421,6 @@ const NoteDetails = ({
         selectedCollection
       );
 
-      // Update the collection_id in the database
       const { data, error: dbError } = await supabase
         .from("note")
         .update({ collection_id: collectionIdForDb })
@@ -451,13 +439,11 @@ const NoteDetails = ({
         throw new Error(dbError.message);
       }
 
-      // Update our verified note data with the new collection
       setVerifiedNote((prev) => ({
         ...prev,
         collection_id: collectionIdForDb,
       }));
 
-      // Trigger refresh in parent component to reflect the change
       if (onNoteUpdate) {
         const updateResult = await onNoteUpdate(
           verifiedNote.id,
@@ -472,7 +458,6 @@ const NoteDetails = ({
       }
 
       showSuccess("Collection updated successfully");
-      // Close after a brief delay to show success message and trigger refresh in parent
       setTimeout(onClose, 1000);
       return { success: true, data };
     } catch (error: unknown) {
@@ -524,22 +509,18 @@ const NoteDetails = ({
   };
 
   const handleSaveNote = async () => {
-    // First handle basic note fields update
     const res = await updateNoteInDatabase();
     if (!res.success) return;
 
-    // Handle collection change separately
     const currentCollectionId =
       verifiedNote.collection_id === null ? "" : verifiedNote.collection_id;
 
     if (selectedCollection !== currentCollectionId) {
       console.log("Collection changed, updating database...");
       await updateCollectionInDatabase();
-      // updateCollectionInDatabase already handles closing
       return;
     }
 
-    // Close after a brief delay to show success message
     setTimeout(onClose, 1000);
   };
 
@@ -562,7 +543,6 @@ const NoteDetails = ({
       })
     : "Unknown date";
 
-  // Find the current collection for display
   const currentCollection = collections.find(
     (c) => c.id === verifiedNote.collection_id
   );
@@ -575,14 +555,27 @@ const NoteDetails = ({
 
   if (!isOpen) return null;
 
-  return (
+  // Debug: Log when sidebar should be rendering
+  console.log("NoteSidebar rendering with isOpen:", isOpen);
+
+  // NOW USING createPortal TO RENDER AT DOCUMENT BODY LEVEL - MATCHES TaskSidebar EXACTLY
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex justify-end backdrop-blur-md bg-black/20"
+      className="fixed inset-0 z-[9999] flex justify-end backdrop-blur-md bg-black/20"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isProcessing) handleClose();
       }}
       role="dialog"
       aria-modal="true"
+      style={{
+        zIndex: 9999,
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.5)", // More visible backdrop for debugging
+      }}
     >
       <div
         ref={sidebarRef}
@@ -703,19 +696,15 @@ const NoteDetails = ({
                 <span className="text-gray-400">Collection</span>
                 <select
                   id="collection-select"
-                  value={selectedCollection} // This value needs to match one of the option values
+                  value={selectedCollection}
                   onChange={handleCollectionChange}
                   disabled={isProcessing}
                   className="bg-gray-700 border border-gray-600 text-white p-2 rounded-lg focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
                 >
-                  {/* Option for "No Collection" */}
                   <option value="">No Collection</option>
-
-                  {/* List all collections */}
                   {collections.map((col) => (
                     <option key={col.id} value={col.id}>
                       {col.collection_name || "Unnamed Collection"}
-                      {col.id === verifiedNote.collection_id ? " " : ""}
                     </option>
                   ))}
                 </select>
@@ -770,7 +759,10 @@ const NoteDetails = ({
 
         {/* Delete Confirmation */}
         {showDeleteConfirmation && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fadeIn">
+          <div
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 animate-fadeIn"
+            style={{ zIndex: 99999 }}
+          >
             <div
               className="absolute inset-0 bg-black/70"
               onClick={
@@ -831,7 +823,8 @@ const NoteDetails = ({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body // This renders the component at the document body level
   );
 };
 

@@ -11,7 +11,6 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
@@ -37,6 +36,23 @@ const ResetPasswordPage = () => {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [countdownInterval, setCountdownInterval] =
     useState<NodeJS.Timeout | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false); // Added logout loading state
+
+  // Handle back to login with logout
+  const handleBackToLogin = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    setLoggingOut(true);
+    try {
+      await logout();
+      router.push("/login");
+    } catch (err) {
+      console.error("Error during logout:", err);
+      // Continue anyway - don't block user flow
+      router.push("/login");
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   // Handle redirect when countdown reaches 0
   useEffect(() => {
@@ -360,7 +376,7 @@ const ResetPasswordPage = () => {
                     placeholder="New Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    disabled={loading}
+                    disabled={loading || loggingOut}
                     required
                     minLength={8}
                     name="password"
@@ -372,11 +388,12 @@ const ResetPasswordPage = () => {
                     whileTap={{ scale: 0.9 }}
                     type="button"
                     onClick={togglePasswordVisibility}
+                    disabled={loading || loggingOut}
                     className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg transition-colors duration-200 ${
                       isDark
                         ? "text-gray-400 hover:text-gray-300 hover:bg-gray-600/50"
                         : "text-gray-500 hover:text-gray-600 hover:bg-gray-200/50"
-                    } focus:outline-none`}
+                    } focus:outline-none ${loading || loggingOut ? "opacity-50" : ""}`}
                     aria-label={
                       showPassword ? "Hide password" : "Show password"
                     }
@@ -408,7 +425,7 @@ const ResetPasswordPage = () => {
                     placeholder="Confirm New Password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    disabled={loading}
+                    disabled={loading || loggingOut}
                     required
                     minLength={8}
                     name="confirmPassword"
@@ -420,11 +437,12 @@ const ResetPasswordPage = () => {
                     whileTap={{ scale: 0.9 }}
                     type="button"
                     onClick={toggleConfirmPasswordVisibility}
+                    disabled={loading || loggingOut}
                     className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg transition-colors duration-200 ${
                       isDark
                         ? "text-gray-400 hover:text-gray-300 hover:bg-gray-600/50"
                         : "text-gray-500 hover:text-gray-600 hover:bg-gray-200/50"
-                    } focus:outline-none`}
+                    } focus:outline-none ${loading || loggingOut ? "opacity-50" : ""}`}
                     aria-label={
                       showConfirmPassword ? "Hide password" : "Show password"
                     }
@@ -451,14 +469,14 @@ const ResetPasswordPage = () => {
                   whileHover={{ scale: 1.02, y: -2 }}
                   whileTap={{ scale: 0.98 }}
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || loggingOut}
                   className={`w-full font-semibold py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center backdrop-blur-sm shadow-lg ${
                     isDark
                       ? "bg-green-600/80 hover:bg-green-700/80 text-white border border-green-500/30"
                       : "bg-green-500/80 hover:bg-green-600/80 text-white border border-green-400/30"
-                  } ${loading ? "opacity-70 cursor-not-allowed" : "hover:shadow-xl"}`}
+                  } ${loading || loggingOut ? "opacity-70 cursor-not-allowed" : "hover:shadow-xl"}`}
                 >
-                  {loading ? (
+                  {loading || loggingOut ? (
                     <motion.div
                       animate={{ rotate: 360 }}
                       transition={{
@@ -469,7 +487,13 @@ const ResetPasswordPage = () => {
                       className="w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-2"
                     />
                   ) : null}
-                  <span>{loading ? "Updating..." : "Update Password"}</span>
+                  <span>
+                    {loading
+                      ? "Updating..."
+                      : loggingOut
+                        ? "Logging out..."
+                        : "Update Password"}
+                  </span>
                 </motion.button>
               </form>
             ) : (
@@ -574,17 +598,18 @@ const ResetPasswordPage = () => {
             transition={{ duration: 0.6, delay: 0.6 }}
             className="mt-8 text-center"
           >
-            <Link
-              href="/login"
+            <button
+              onClick={handleBackToLogin}
+              disabled={loggingOut}
               className={`inline-flex items-center text-sm font-medium transition-all duration-200 ${
                 isDark
                   ? "text-green-400 hover:text-green-300"
                   : "text-green-500 hover:text-green-600"
-              } hover:underline`}
+              } hover:underline ${loggingOut ? "opacity-70 cursor-not-allowed" : ""}`}
             >
               <ArrowLeft className="w-4 h-4 mr-1" />
-              Back to Login
-            </Link>
+              {loggingOut ? "Logging out..." : "Back to Login"}
+            </button>
           </motion.div>
         </div>
       </motion.div>

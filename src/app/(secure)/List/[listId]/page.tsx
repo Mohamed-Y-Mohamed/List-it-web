@@ -1156,6 +1156,7 @@ export default function ListPage() {
             isOpen={isCollectionModalOpen}
             onClose={handleCloseCollectionModal}
             onSubmit={handleCreateCollection}
+            existingCollections={collections} // Pass existing collections for validation
           />
 
           {/* Task Modal */}

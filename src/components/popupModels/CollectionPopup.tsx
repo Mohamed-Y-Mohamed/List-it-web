@@ -5,11 +5,15 @@ import { X, Check, AlertCircle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { LIST_COLORS } from "@/types/schema";
 import { useAuth } from "@/context/AuthContext";
-// Removed useParams to fix the unused variable error
 
 interface SubmissionResult {
   success: boolean;
   error?: unknown;
+}
+
+interface Collection {
+  id: string;
+  collection_name: string | null;
 }
 
 interface CreateCollectionModalProps {
@@ -21,7 +25,8 @@ interface CreateCollectionModalProps {
   }) => Promise<SubmissionResult> | void;
   initialName?: string;
   initialColor?: string;
-  listId?: string; // Added as prop instead of using useParams
+  listId?: string;
+  existingCollections?: Collection[]; // Added to check for duplicates
 }
 
 const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
@@ -30,7 +35,7 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
   onSubmit,
   initialName = "",
   initialColor = LIST_COLORS[0],
-  // We don't need to use listId here, it will be handled by the parent component
+  existingCollections = [], // Default to empty array
 }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
@@ -48,6 +53,62 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
 
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Validation function to check for duplicate names (case-insensitive)
+  const validateCollectionName = useCallback(
+    (name: string): string | null => {
+      if (!name.trim()) {
+        return "Collection name is required";
+      }
+
+      // Check for case-insensitive name match (prevents both exact and case variations)
+      const caseInsensitiveMatch = existingCollections.some(
+        (collection) =>
+          collection.collection_name &&
+          collection.collection_name.toLowerCase() === name.trim().toLowerCase()
+      );
+
+      if (caseInsensitiveMatch) {
+        // Find the existing name to show user what already exists
+        const existingName = existingCollections.find(
+          (collection) =>
+            collection.collection_name &&
+            collection.collection_name.toLowerCase() ===
+              name.trim().toLowerCase()
+        )?.collection_name;
+
+        return `A collection named "${existingName}" already exists (case-insensitive)`;
+      }
+
+      return null; // Validation passed
+    },
+    [existingCollections]
+  );
+
+  // Real-time validation as user types
+  const handleNameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newName = e.target.value;
+      setCollectionName(newName);
+
+      // Clear error when user starts typing
+      if (error) {
+        setError(null);
+      }
+
+      // Real-time validation
+      if (newName.trim()) {
+        const validationError = validateCollectionName(newName);
+        if (
+          validationError &&
+          validationError !== "Collection name is required"
+        ) {
+          setError(validationError);
+        }
+      }
+    },
+    [error, validateCollectionName]
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -96,8 +157,10 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
     async (e: React.FormEvent) => {
       e.preventDefault();
 
-      if (!collectionName.trim()) {
-        setError("Collection name is required");
+      // Validate collection name before submission
+      const validationError = validateCollectionName(collectionName);
+      if (validationError) {
+        setError(validationError);
         return;
       }
 
@@ -110,8 +173,6 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
       try {
         if (!user || !user.id) throw new Error("User not authenticated");
 
-        // FIXED: Don't insert directly here, just call the onSubmit prop
-        // and let the parent component handle the database operation
         if (onSubmit) {
           const result = await onSubmit({
             collection_name: collectionName.trim(),
@@ -141,6 +202,7 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
       }
     },
     [
+      validateCollectionName,
       collectionName,
       selectedColor,
       isSubmitting,
@@ -150,6 +212,10 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
       user,
     ]
   );
+
+  // Check if form is valid for submit button state
+  const isFormValid =
+    collectionName.trim() && !validateCollectionName(collectionName);
 
   if (!isOpen) return null;
 
@@ -182,7 +248,10 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
           </div>
 
           {error && (
-            <div className="mb-4 p-3 rounded-md bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border border-red-200 dark:border-red-800">
+            <div
+              className={`mb-4 p-3 rounded-md bg-red-100  dark:bg-red-900/30  border border-red-200 dark:border-red-800
+           ${isDark ? "text-red-100" : "text-red-900"}`}
+            >
               <div className="flex items-center">
                 <AlertCircle className="h-5 w-5 mr-2" />
                 <span>{error}</span>
@@ -201,12 +270,38 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
                 ref={inputRef}
                 type="text"
                 value={collectionName}
-                onChange={(e) => setCollectionName(e.target.value)}
-                className={`w-full px-3 py-2 rounded-md border ${isDark ? "bg-gray-700 text-white border-gray-600" : "bg-white border-gray-300 text-black"}`}
+                onChange={handleNameChange}
+                className={`w-full px-3 py-2 rounded-md border ${
+                  error &&
+                  (error.includes("name") || error.includes("already exists"))
+                    ? "border-red-500 focus:border-red-500"
+                    : isDark
+                      ? "bg-gray-700 text-white border-gray-600 focus:border-blue-500"
+                      : "bg-white border-gray-300 text-black focus:border-blue-500"
+                } focus:outline-none focus:ring-1 ${
+                  error &&
+                  (error.includes("name") || error.includes("already exists"))
+                    ? "focus:ring-red-500"
+                    : "focus:ring-blue-500"
+                }`}
                 required
                 maxLength={100}
                 disabled={isLoading}
+                placeholder="Enter collection name..."
               />
+
+              {/* Show validation status for user reference */}
+              {collectionName.trim() &&
+                !error &&
+                existingCollections.length > 0 && (
+                  <div className="mt-1">
+                    <p
+                      className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}
+                    >
+                      ✓ Available name
+                    </p>
+                  </div>
+                )}
             </div>
 
             <div className="mb-4">
@@ -220,14 +315,18 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
                   <button
                     key={color}
                     type="button"
-                    className={`h-8 w-8 rounded-full relative ${selectedColor === color ? "ring-2 ring-offset-2 ring-sky-500" : ""}`}
+                    className={`h-8 w-8 rounded-full relative transition-all duration-200 ${
+                      selectedColor === color
+                        ? "ring-2 ring-offset-2 ring-sky-500 scale-110"
+                        : "hover:scale-105"
+                    }`}
                     style={{ backgroundColor: color }}
                     onClick={() => setSelectedColor(color)}
                     disabled={isLoading}
                   >
                     {selectedColor === color && (
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <Check className="text-white w-4 h-4" />
+                        <Check className="text-white w-4 h-4 drop-shadow-md" />
                       </div>
                     )}
                   </button>
@@ -240,14 +339,24 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
                 type="button"
                 onClick={onClose}
                 disabled={isLoading}
-                className={`px-4 py-2 rounded-md ${isLoading ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-gray-200 hover:bg-gray-300 text-gray-700"}`}
+                className={`px-4 py-2 rounded-md transition-colors duration-200 ${
+                  isLoading
+                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    : isDark
+                      ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                      : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                }`}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={isLoading}
-                className={`px-4 py-2 rounded-md ${isLoading ? "bg-sky-400 cursor-not-allowed" : "bg-sky-500 hover:bg-sky-600"} text-white`}
+                disabled={isLoading || !isFormValid}
+                className={`px-4 py-2 rounded-md transition-colors duration-200 ${
+                  isLoading || !isFormValid
+                    ? "bg-sky-400 cursor-not-allowed opacity-50"
+                    : "bg-sky-500 hover:bg-sky-600"
+                } text-white`}
               >
                 {isLoading ? "Creating..." : "Create"}
               </button>

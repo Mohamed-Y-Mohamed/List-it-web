@@ -546,7 +546,7 @@ export default function CompletedPage() {
 
   const sortedDates = useMemo((): GroupedDate[] => {
     return Object.keys(groupedTasksByDay)
-      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime()) // Ascending order (oldest first)
       .map((dateKey) => ({
         date: new Date(dateKey),
         tasks: groupedTasksByDay[dateKey],

@@ -9,15 +9,16 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 const ForgotPasswordPage: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const { resetPassword } = useAuth();
+  const { resetPassword, logout } = useAuth(); // Changed from signOut to logout
+  const router = useRouter();
 
   // Form state
   const [email, setEmail] = useState<string>("");
@@ -27,6 +28,7 @@ const ForgotPasswordPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
   const [waitTime, setWaitTime] = useState<number>(0);
+  const [signingOut, setSigningOut] = useState<boolean>(false); // Keep name for consistency
 
   // Timer ref for countdown
   const timerRef = useRef<number | null>(null);
@@ -57,6 +59,25 @@ const ForgotPasswordPage: React.FC = () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [waitTime]);
+
+  // Handle logout with error handling - matching reset password page pattern
+  const handleSignOut = async (redirect: boolean = false) => {
+    setSigningOut(true);
+    try {
+      await logout(); // Changed from signOut to logout
+      if (redirect) {
+        router.push("/login");
+      }
+    } catch (err) {
+      console.error("Error during logout:", err);
+      // Don't show error to user for logout, just continue
+      if (redirect) {
+        router.push("/login");
+      }
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,7 +122,9 @@ const ForgotPasswordPage: React.FC = () => {
       }
 
       setSuccess(true);
-      // seed a short cooldown so user can't immediately re-click
+      // Log out the user after successful password reset request
+      await handleSignOut(false);
+      // Set a short cooldown so user can't immediately re-click
       setWaitTime(60);
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -114,6 +137,12 @@ const ForgotPasswordPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle back to login with logout
+  const handleBackToLogin = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    await handleSignOut(true); // Log out and redirect
   };
 
   return (
@@ -293,7 +322,8 @@ const ForgotPasswordPage: React.FC = () => {
                     <CheckCircle className="w-5 h-5 mr-2" />
                   </motion.div>
                   <span>
-                    Reset link sent! Check your inbox (and spam folder).
+                    Reset link sent! Check your inbox (and spam folder). You
+                    have been logged out for security.
                   </span>
                 </div>
               </motion.div>
@@ -328,7 +358,7 @@ const ForgotPasswordPage: React.FC = () => {
                     placeholder="Email Address"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    disabled={loading || waitTime > 0}
+                    disabled={loading || waitTime > 0 || signingOut}
                     required
                   />
                 </motion.div>
@@ -337,14 +367,14 @@ const ForgotPasswordPage: React.FC = () => {
                   whileHover={{ scale: 1.02, y: -2 }}
                   whileTap={{ scale: 0.98 }}
                   type="submit"
-                  disabled={loading || waitTime > 0}
+                  disabled={loading || waitTime > 0 || signingOut}
                   className={`w-full font-semibold py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center backdrop-blur-sm shadow-lg ${
                     isDark
                       ? "bg-blue-600/80 hover:bg-blue-700/80 text-white border border-blue-500/30"
                       : "bg-blue-500/80 hover:bg-blue-600/80 text-white border border-blue-400/30"
-                  } ${loading || waitTime > 0 ? "opacity-70 cursor-not-allowed" : "hover:shadow-xl"}`}
+                  } ${loading || waitTime > 0 || signingOut ? "opacity-70 cursor-not-allowed" : "hover:shadow-xl"}`}
                 >
-                  {loading ? (
+                  {loading || signingOut ? (
                     <motion.div
                       animate={{ rotate: 360 }}
                       transition={{
@@ -360,7 +390,9 @@ const ForgotPasswordPage: React.FC = () => {
                       ? `Wait ${waitTime}s`
                       : loading
                         ? "Sending..."
-                        : "Send Reset Link"}
+                        : signingOut
+                          ? "Signing out..."
+                          : "Send Reset Link"}
                   </span>
                 </motion.button>
               </form>
@@ -381,18 +413,21 @@ const ForgotPasswordPage: React.FC = () => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => {
+                  onClick={async () => {
                     setSuccess(false);
                     setError(null);
                     setEmail("");
+                    // Log out again for security when sending another link
+                    await handleSignOut(false);
                   }}
+                  disabled={signingOut}
                   className={`font-medium px-6 py-2 rounded-xl transition-all duration-300 backdrop-blur-sm shadow-lg ${
                     isDark
                       ? "bg-gray-700/50 hover:bg-gray-600/50 text-white border border-gray-600/30"
                       : "bg-gray-200/50 hover:bg-gray-300/50 text-gray-800 border border-gray-300/30"
-                  } hover:shadow-xl`}
+                  } hover:shadow-xl ${signingOut ? "opacity-70 cursor-not-allowed" : ""}`}
                 >
-                  Send Another Link
+                  {signingOut ? "Logging out..." : "Send Another Link"}
                 </motion.button>
               </motion.div>
             )}
@@ -405,17 +440,18 @@ const ForgotPasswordPage: React.FC = () => {
             transition={{ duration: 0.6, delay: 0.6 }}
             className="mt-8 text-center"
           >
-            <Link
-              href="/login"
+            <button
+              onClick={handleBackToLogin}
+              disabled={signingOut}
               className={`inline-flex items-center text-sm font-medium transition-all duration-200 ${
                 isDark
                   ? "text-blue-400 hover:text-blue-300"
                   : "text-blue-500 hover:text-blue-600"
-              } hover:underline`}
+              } hover:underline ${signingOut ? "opacity-70 cursor-not-allowed" : ""}`}
             >
               <ArrowLeft className="w-4 h-4 mr-1" />
-              Back to Login
-            </Link>
+              {signingOut ? "Logging out..." : "Back to Login"}
+            </button>
           </motion.div>
         </div>
       </motion.div>

@@ -992,6 +992,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         isOpen={isCreateListModalOpen}
         onClose={() => setIsCreateListModalOpen(false)}
         onSubmit={handleCreateList}
+        existingLists={lists} // Add this line - pass existing lists for validation
       />
 
       {/* Delete List Confirmation Modal */}

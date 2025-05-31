@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Calendar, Pin, Clock, Star, Folder, ListTodo } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -272,8 +272,27 @@ const TaskCard = ({
   };
 
   // Check if task is overdue
-  const isOverdue = dueDateObject && !isCompleted && new Date() > dueDateObject;
+  const isOverdue = useMemo(() => {
+    if (!dueDateObject || isCompleted) return false;
 
+    // Get current date without time (start of day)
+    const today = new Date();
+    const currentDateOnly = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+
+    // Get due date without time (start of day)
+    const dueDateOnly = new Date(
+      dueDateObject.getFullYear(),
+      dueDateObject.getMonth(),
+      dueDateObject.getDate()
+    );
+
+    // Task is overdue only if current date is AFTER the due date (not same day)
+    return currentDateOnly > dueDateOnly;
+  }, [dueDateObject, isCompleted]);
   // Skip rendering if no valid ID
   if (!id) {
     return null;

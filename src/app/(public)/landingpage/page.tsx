@@ -990,7 +990,7 @@ const Hero: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 1.2 }}
         className={`absolute bottom-0  w-full ${
-          isDark ? "bg-orange-800/90" : "bg-orange-500/90"
+          isDark ? "bg-orange-500/90" : "bg-orange-500/90"
         } py-6 sm:py-8 text-center text-white backdrop-blur-sm`}
       >
         <div className="mx-auto max-w-3xl px-4">
@@ -1450,7 +1450,7 @@ const LandingPage: React.FC = () => {
         whileInView={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
         className={`py-12 sm:py-16 lg:py-20 text-white relative overflow-hidden ${
-          isDark ? "bg-orange-800/90" : "bg-orange-500/90"
+          isDark ? "bg-orange-500/90" : "bg-orange-500/90"
         } backdrop-blur-sm`}
       >
         {/* Animated background elements */}
@@ -1522,15 +1522,7 @@ const LandingPage: React.FC = () => {
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-              >
-                <Link
-                  href="/aboutus"
-                  className="inline-flex items-center justify-center rounded-xl border-2 border-white/30 text-white hover:bg-white/10 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold transition-all duration-200 backdrop-blur-sm w-full sm:w-auto"
-                >
-                  Learn More
-                  <Shield className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
-                </Link>
-              </motion.div>
+              ></motion.div>
             </motion.div>
 
             {/* Trust indicators */}
