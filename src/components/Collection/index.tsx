@@ -113,7 +113,7 @@ const EnhancedCollectionComponent = ({
         tabHover: "hover:bg-gray-700/50",
         activeTab: "bg-gray-700/60",
         accent: "text-orange-400",
-        accentBg: "bg-orange-900/30",
+        accentBg: "bg-orange-400/30",
       };
     } else {
       return {
@@ -138,8 +138,11 @@ const EnhancedCollectionComponent = ({
   // Memoized sorting functions
   const sortTasks = useCallback((taskList: Task[] = []) => {
     try {
+      // Filter out deleted AND completed tasks
       const validTasks =
-        taskList?.filter((task) => task && !task.is_deleted) || [];
+        taskList?.filter(
+          (task) => task && !task.is_deleted && !task.is_completed
+        ) || [];
       const priority = validTasks.filter((task) => Boolean(task.is_pinned));
       const regular = validTasks.filter((task) => !task.is_pinned);
       return { priority, regular };
@@ -205,7 +208,8 @@ const EnhancedCollectionComponent = ({
 
   // Calculate content counts
   const taskCount =
-    tasks?.filter((task) => task && !task.is_deleted).length || 0;
+    tasks?.filter((task) => task && !task.is_deleted && !task.is_completed)
+      .length || 0;
   const noteCount =
     notes?.filter((note) => note && !note.is_deleted).length || 0;
 
@@ -232,10 +236,20 @@ const EnhancedCollectionComponent = ({
     taskId: string,
     isCompleted: boolean
   ): Promise<{ success: boolean; error?: unknown }> => {
-    return safelyHandleOperation(
+    const result = await safelyHandleOperation(
       () => onTaskComplete(taskId, isCompleted),
       "Failed to update task status"
     );
+
+    // If task was completed successfully, remove it from local state immediately
+    if (result.success && isCompleted) {
+      const updatedTasks = tasks.filter((task) => task.id !== taskId);
+      const { priority, regular } = sortTasks(updatedTasks);
+      setPriorityTasks(priority);
+      setRegularTasks(regular);
+    }
+
+    return result;
   };
 
   const handleTaskPriorityWithErrorHandling = async (
@@ -441,7 +455,7 @@ const EnhancedCollectionComponent = ({
                   <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className={`px-2 py-1 rounded-full text-xs font-medium bg-blue-100/50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400`}
+                    className={`px-2 py-1 rounded-full text-xs font-medium    ${isDark ? "bg-blue-900/30 text-blue-400" : "bg-blue-100/50 text-blue-600"}`}
                   >
                     {noteCount} note{noteCount !== 1 ? "s" : ""}
                   </motion.span>

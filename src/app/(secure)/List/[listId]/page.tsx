@@ -183,6 +183,7 @@ export default function ListPage() {
               .select("*")
               .eq("collection_id", collection.id)
               .eq("is_deleted", false)
+              .eq("is_completed", false) // ADD THIS LINE
               .order("is_pinned", { ascending: false })
               .order("created_at", { ascending: false });
 
@@ -412,8 +413,23 @@ export default function ListPage() {
         if (data && data.length > 0) {
           const updatedTask = data[0] as Task;
 
-          // Update the task in the collections state
-          if (updatedTask.collection_id) {
+          // If task is completed, remove it from the UI entirely
+          if (isCompleted) {
+            setCollections((prevCollections) =>
+              prevCollections.map((collection) => {
+                if (collection.id === updatedTask.collection_id) {
+                  return {
+                    ...collection,
+                    tasks: (collection.tasks || []).filter(
+                      (task) => task.id !== taskId
+                    ),
+                  };
+                }
+                return collection;
+              })
+            );
+          } else {
+            // If task is uncompleted, update it in place
             setCollections((prevCollections) =>
               prevCollections.map((collection) => {
                 if (collection.id === updatedTask.collection_id) {
@@ -444,7 +460,6 @@ export default function ListPage() {
     },
     []
   );
-
   // Handler for task priority
   const handleTaskPriority = useCallback(
     async (taskId: string, isPinned: boolean) => {

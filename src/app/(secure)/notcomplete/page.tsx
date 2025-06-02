@@ -636,7 +636,7 @@ export default function NotCompletedPage() {
     >
       {/*  background */}
       {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0a0b0f_20%,#141519_40%,#0f1014_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(79,70,229,0.14)_0%,transparent_60%)] after:absolute before:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(129,140,248,0.08)_0%,transparent_50%)] before:content-[''] after:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0a0b0f_20%,#141519_40%,#0f1014_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(79,70,229,0.14)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(129,140,248,0.08)_0%,transparent_50%)] before:content-[''] after:content-['']" />
       ) : (
         <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f8f9fc_0%,#f1f3f8_25%,#e2e5ef_50%,#f3f4f7_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(79,70,229,0.08)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(129,140,248,0.06)_0%,transparent_50%)] before:content-[''] after:content-['']" />
       )}
@@ -677,7 +677,7 @@ export default function NotCompletedPage() {
               className={`p-3 rounded-xl transition-all duration-200 shadow-sm ${
                 isDark
                   ? "bg-gray-800/50 hover:bg-gray-700/50 text-gray-300"
-                  : "bg-white/50 hover:bg-gray-100/50 text-gray-700"
+                  : "bg-white/50 hover:bg-gray-100/50 text-gray-900"
               } ${isRefreshing ? "animate-pulse" : ""} backdrop-blur-sm border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
               aria-label="Refresh tasks"
             >
@@ -791,8 +791,8 @@ export default function NotCompletedPage() {
                   <SectionHeader
                     title="Due Today"
                     count={groupedTasks.today.length}
-                    color="text-blue-600 dark:text-blue-400"
-                    bgColor="bg-blue-100 dark:bg-blue-900/30"
+                    color="text-blue-700 dark:text-blue-400"
+                    bgColor="bg-gray-100 dark:bg-blue-300/30"
                     icon={Target}
                     isDark={isDark}
                   />

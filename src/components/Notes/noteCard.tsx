@@ -368,15 +368,15 @@ const NoteCard = ({
           onClick={handlePinClick}
           className={`absolute top-3 right-3 p-2 rounded-lg backdrop-blur-sm transition-all duration-200 z-10 ${
             isDark
-              ? "bg-black/20 hover:bg-black/40 text-white/80 hover:text-white"
-              : "bg-white/20 hover:bg-white/40 text-gray-700/80 hover:text-gray-900"
+              ? "bg-black/20 hover:bg-black/40 text-white/90 hover:text-white"
+              : "bg-white/20 hover:bg-white/40 text-gray-900/80 hover:text-gray-900"
           } ${isProcessing ? "opacity-50" : ""}`}
           aria-label={is_pinned ? "Unpin note" : "Pin note"}
           disabled={isProcessing}
           type="button"
         >
           <Pin
-            className={`h-4 w-4 transition-all duration-200 ${is_pinned ? "fill-current text-orange-400" : ""}`}
+            className={`h-5 w-5 transition-all duration-200 ${is_pinned ? "fill-current text-black" : ""}`}
           />
         </motion.button>
 

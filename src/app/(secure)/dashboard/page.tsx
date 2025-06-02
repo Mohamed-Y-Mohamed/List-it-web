@@ -767,13 +767,6 @@ const NewUserWelcome: React.FC<{ isDark: boolean }> = ({ isDark }) => {
         Start creating tasks to see your productivity insights and track your
         progress over time.
       </p>
-      <Link
-        href="/create"
-        className="inline-flex items-center px-6 py-3 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition-colors duration-200"
-      >
-        <Plus className="h-5 w-5 mr-2" />
-        Create Your First Task
-      </Link>
     </motion.div>
   );
 };

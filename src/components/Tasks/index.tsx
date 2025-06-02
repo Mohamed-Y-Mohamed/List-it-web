@@ -398,12 +398,12 @@ const TaskCard = ({
                     : "text-gray-500 hover:text-orange-400 hover:bg-gray-700/50"
                   : isPinned
                     ? "text-orange-500 bg-orange-100 hover:bg-orange-200"
-                    : "text-gray-400 hover:text-orange-500 hover:bg-orange-50"
+                    : "text-gray-400 hover:text-orange-500/50 hover:bg-orange-50"
               } ${isUpdating ? "opacity-50" : ""}`}
               aria-label={isPinned ? "Unpin task" : "Pin task"}
             >
               <Pin
-                className={`h-4 w-4 transition-transform duration-200 ${isPinned ? "fill-current" : ""}`}
+                className={`h-5 w-5 transition-transform duration-200 ${isPinned ? "fill-current text-black" : ""}`}
               />
             </motion.button>
           </div>
