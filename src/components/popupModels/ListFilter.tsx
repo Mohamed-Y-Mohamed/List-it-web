@@ -238,7 +238,7 @@ const ListFilterPlus: React.FC<ListFilterPlusProps> = ({
                     className={`mr-3 h-5 w-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}
                     aria-hidden="true"
                   />
-                  Manage Collections
+                  Delete Collections
                 </button>
               </>
             )}

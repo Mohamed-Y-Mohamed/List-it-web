@@ -415,6 +415,30 @@ const CreateTaskModal = ({
               </div>
             </div>
 
+            <div className="mb-4">
+              <label
+                htmlFor="task-description"
+                className={`block mb-2 text-sm font-medium ${
+                  isDark ? "text-gray-300" : "text-gray-700"
+                }`}
+              >
+                Description (Optional)
+              </label>
+              <textarea
+                ref={descriptionRef}
+                id="task-description"
+                placeholder="Enter task description"
+                value={taskDescription}
+                onChange={handleDescriptionChange}
+                rows={3}
+                className={`${inputStyle} resize-none min-h-[80px]`}
+                disabled={isSubmitting}
+                maxLength={500}
+              />
+              <div className="mt-1 text-xs text-right text-gray-500">
+                {descriptionCount}/500
+              </div>
+            </div>
             {/* New dedicated row for priority pin */}
             <div className="mb-4">
               <button
@@ -443,32 +467,6 @@ const CreateTaskModal = ({
                 {isPinned ? "Priority task" : "Mark as priority"}
               </button>
             </div>
-
-            <div className="mb-4">
-              <label
-                htmlFor="task-description"
-                className={`block mb-2 text-sm font-medium ${
-                  isDark ? "text-gray-300" : "text-gray-700"
-                }`}
-              >
-                Description (Optional)
-              </label>
-              <textarea
-                ref={descriptionRef}
-                id="task-description"
-                placeholder="Enter task description"
-                value={taskDescription}
-                onChange={handleDescriptionChange}
-                rows={3}
-                className={`${inputStyle} resize-none min-h-[80px]`}
-                disabled={isSubmitting}
-                maxLength={500}
-              />
-              <div className="mt-1 text-xs text-right text-gray-500">
-                {descriptionCount}/500
-              </div>
-            </div>
-
             <div className="mb-4">
               <label
                 htmlFor="due-date"
