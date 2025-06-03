@@ -394,11 +394,11 @@ const TaskCard = ({
               className={`flex-shrink-0 transition-all duration-200 p-2 rounded-lg ${
                 isDark
                   ? isPinned
-                    ? "text-orange-400 bg-orange-900/30 hover:bg-orange-900/50"
+                    ? "text-orange-400 bg-transparent hover:bg-orange-900/50"
                     : "text-gray-500 hover:text-orange-400 hover:bg-gray-700/50"
                   : isPinned
                     ? "text-orange-500 bg-orange-100 hover:bg-orange-200"
-                    : "text-gray-400 hover:text-orange-500/50 hover:bg-orange-50"
+                    : "text-gray-400 hover:text-orange-400/50 hover:bg-orange-50"
               } ${isUpdating ? "opacity-50" : ""}`}
               aria-label={isPinned ? "Unpin task" : "Pin task"}
             >

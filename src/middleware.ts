@@ -17,6 +17,7 @@ export async function middleware(request: NextRequest) {
     "/priority",
     "/today",
     "/List",
+    "/setting",
     "/profile",
     "/settings",
   ];

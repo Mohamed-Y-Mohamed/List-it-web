@@ -29,7 +29,6 @@ function LoginWithSearchParams() {
   // Form state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   // UI state
@@ -43,17 +42,6 @@ function LoginWithSearchParams() {
 
   // Handle URL parameters and load saved email
   useEffect(() => {
-    try {
-      // Load saved email if exists
-      const savedEmail = localStorage.getItem("list_it_email");
-      if (savedEmail) {
-        setEmail(savedEmail);
-        setRememberMe(true);
-      }
-    } catch (err) {
-      console.error("Error loading saved email:", err);
-    }
-
     // Check for hash parameters which often contain error info from Supabase
     if (typeof window !== "undefined") {
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -91,17 +79,6 @@ function LoginWithSearchParams() {
   }, [searchParams, error]);
 
   // Remember email
-  const handleRememberCredentials = () => {
-    try {
-      if (rememberMe && email) {
-        localStorage.setItem("list_it_email", email);
-      } else {
-        localStorage.removeItem("list_it_email");
-      }
-    } catch (err) {
-      console.error("Error saving email preference:", err);
-    }
-  };
 
   // Toggle password visibility
   const togglePasswordVisibility = () => {
@@ -148,9 +125,6 @@ function LoginWithSearchParams() {
           return;
         }
       }
-
-      // Handle remember me
-      handleRememberCredentials();
 
       // If success, the context will navigate us
     } catch (err: unknown) {
@@ -503,28 +477,6 @@ function LoginWithSearchParams() {
                   transition={{ duration: 0.6, delay: 0.7 }}
                   className="flex justify-between items-center"
                 >
-                  <div className="flex items-center">
-                    <input
-                      id="remember-me"
-                      name="remember-me"
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className={`h-4 w-4 rounded focus:ring-2 transition-colors ${
-                        isDark
-                          ? "bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500/30"
-                          : "bg-white border-gray-300 text-blue-500 focus:ring-blue-500/30"
-                      }`}
-                    />
-                    <label
-                      htmlFor="remember-me"
-                      className={`ml-2 block text-sm ${
-                        isDark ? "text-gray-300" : "text-gray-600"
-                      }`}
-                    >
-                      Remember me
-                    </label>
-                  </div>
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}

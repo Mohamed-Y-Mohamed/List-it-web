@@ -21,6 +21,7 @@ import {
   Sun,
   Moon,
   LogOut,
+  Settings,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -948,11 +949,43 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
             </div>
           </div>
 
-          {/* Footer with theme toggle and sign out */}
+          {/* Footer with settings, theme toggle and sign out */}
           <div
             className={`p-4 border-t ${isDark ? "border-gray-800" : "border-gray-200"}`}
           >
             <div className="flex flex-col space-y-2">
+              <button
+                onClick={() => navigateTo("/setting")}
+                className={`flex items-center px-3 py-2 rounded-md ${
+                  currentPath === "/setting"
+                    ? isDark
+                      ? "bg-gray-800"
+                      : "bg-gray-100"
+                    : ""
+                } ${
+                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
+                } transition-colors group`}
+              >
+                <Settings
+                  className={`h-5 w-5 ${
+                    currentPath === "/setting"
+                      ? isDark
+                        ? "text-orange-400"
+                        : "text-sky-500"
+                      : isDark
+                        ? "text-gray-400 group-hover:text-orange-400"
+                        : "text-gray-500 group-hover:text-sky-500"
+                  }`}
+                />
+                <span className="ml-3 text-sm font-medium">Settings</span>
+              </button>
+
+              <div
+                className={`my-2 border-t ${
+                  isDark ? "border-gray-700" : "border-gray-300"
+                }`}
+              />
+
               <button
                 onClick={toggleTheme}
                 className={`flex items-center px-3 py-2 rounded-md ${
