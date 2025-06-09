@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
-import { Collection, List, Task, Note } from "@/types/schema";
+import { Collection, List, Task, Note, ListColor } from "@/types/schema";
 import CollectionComponent from "@/components/Collection/index";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
@@ -14,6 +14,7 @@ import CreateCollectionModal from "@/components/popupModels/CollectionPopup";
 import CreateTaskModal from "@/components/popupModels/TaskPopup";
 import CreateNoteModal from "@/components/popupModels/notepopup";
 import DeleteCollectionModal from "@/components/popupModels/deleteCollectionModal";
+import EditCollectionPopup from "@/components/popupModels/EditCollectionPopup";
 
 // Format date to yyyy-MM-dd'T'HH:mm:ss
 const formatDateForPostgres = (date: Date): string => {
@@ -65,9 +66,14 @@ export default function ListPage() {
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [isDeleteCollectionModalOpen, setIsDeleteCollectionModalOpen] =
     useState(false);
+  const [isEditCollectionModalOpen, setIsEditCollectionModalOpen] =
+    useState(false);
   const [selectedCollectionId, setSelectedCollectionId] = useState<
     string | null
   >();
+  const [collectionToEdit, setCollectionToEdit] = useState<Collection | null>(
+    null
+  );
 
   // Local state for the current list
   const [listData, setListData] = useState<List | null>(null);
@@ -260,6 +266,74 @@ export default function ListPage() {
     fetchListData();
   }, [listId, user, refreshTrigger, isGeneralCollection]);
 
+  // Handler for editing a collection
+  const handleEditCollection = useCallback(async (collection: Collection) => {
+    setCollectionToEdit(collection);
+    setIsEditCollectionModalOpen(true);
+    return { success: true };
+  }, []);
+  useEffect(() => {
+    const handleListUpdated = (event: CustomEvent) => {
+      const { listId: updatedListId, newColor } = event.detail;
+
+      // Check if the updated list is the current list being displayed
+      if (updatedListId === listId) {
+        console.log(
+          `List ${updatedListId} was updated with new color ${newColor}, refreshing collections...`
+        );
+
+        // Refresh the data to reflect the updated list and collections
+        refreshData();
+      }
+    };
+
+    // Add event listener for list updates
+    window.addEventListener("listUpdated", handleListUpdated as EventListener);
+
+    // Cleanup event listener on component unmount
+    return () => {
+      window.removeEventListener(
+        "listUpdated",
+        handleListUpdated as EventListener
+      );
+    };
+  }, [listId, refreshData]);
+  // Handler for submitting collection edits
+  const handleEditCollectionSubmit = useCallback(
+    async (
+      collectionId: string,
+      collectionData: { collection_name: string; bg_color_hex: ListColor }
+    ): Promise<{ success: boolean; error?: unknown }> => {
+      try {
+        // Update the local state immediately for better UX
+        setCollections((prevCollections) =>
+          prevCollections.map((collection) =>
+            collection.id === collectionId
+              ? {
+                  ...collection,
+                  collection_name: collectionData.collection_name,
+                  bg_color_hex: collectionData.bg_color_hex,
+                }
+              : collection
+          )
+        );
+
+        // Close the edit modal
+        setIsEditCollectionModalOpen(false);
+        setCollectionToEdit(null);
+
+        // Refresh the data from the server to ensure consistency
+        await refreshData();
+
+        return { success: true };
+      } catch (err) {
+        console.error("Error handling collection edit:", err);
+        return { success: false, error: err };
+      }
+    },
+    [refreshData]
+  );
+
   // Handler for creating a new collection
   const handleCreateCollection = useCallback(
     async (collectionData: {
@@ -312,10 +386,6 @@ export default function ListPage() {
     },
     [listData, user, isGeneralCollection]
   );
-
-  // Open task modal with specific collection pre-selected
-
-  // Open note modal with specific collection pre-selected
 
   // Handler for creating a new task
   const handleTaskSubmit = useCallback(
@@ -460,6 +530,7 @@ export default function ListPage() {
     },
     []
   );
+
   // Handler for task priority
   const handleTaskPriority = useCallback(
     async (taskId: string, isPinned: boolean) => {
@@ -921,6 +992,7 @@ export default function ListPage() {
     },
     [collections]
   );
+
   // Handler for note deletion
   const handleNoteDelete = useCallback(
     async (noteId: string) => {
@@ -984,17 +1056,11 @@ export default function ListPage() {
     [collections, refreshData]
   );
 
-  // Handler for collection pinning
-
   // Handler for collections deleted from the DeleteCollectionModal
   const handleCollectionsDeleted = useCallback(() => {
     // Refresh data after collections are deleted
     refreshData();
   }, [refreshData]);
-
-  // Open task modal for specific collection
-
-  // Open note modal for specific collection
 
   // Memoized sort function to sort collections by pinned status
   const sortedCollections = useMemo(() => {
@@ -1032,6 +1098,11 @@ export default function ListPage() {
 
   const handleCloseDeleteModal = useCallback(() => {
     setIsDeleteCollectionModalOpen(false);
+  }, []);
+
+  const handleCloseEditCollectionModal = useCallback(() => {
+    setIsEditCollectionModalOpen(false);
+    setCollectionToEdit(null);
   }, []);
 
   return (
@@ -1144,6 +1215,7 @@ export default function ListPage() {
                       onNoteColorChange={handleNoteColorChange}
                       onNoteUpdate={handleNoteUpdate}
                       onNoteDelete={handleNoteDelete}
+                      onCollectionEdit={handleEditCollection}
                       collections={collections} // Pass all collections
                     />
                   ))}
@@ -1201,6 +1273,15 @@ export default function ListPage() {
             onClose={handleCloseDeleteModal}
             collections={collections}
             onCollectionsDeleted={handleCollectionsDeleted}
+          />
+
+          {/* Edit Collection Modal */}
+          <EditCollectionPopup
+            isOpen={isEditCollectionModalOpen}
+            onClose={handleCloseEditCollectionModal}
+            onSubmit={handleEditCollectionSubmit}
+            existingCollections={collections}
+            currentCollection={collectionToEdit}
           />
         </>
       )}

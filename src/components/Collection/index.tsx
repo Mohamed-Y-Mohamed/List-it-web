@@ -7,6 +7,7 @@ import {
   StickyNote,
   AlertCircle,
   X,
+  Edit3,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import TaskCard from "@/components/Tasks/index";
@@ -62,6 +63,7 @@ interface CollectionComponentProps {
     updatedDescription?: string
   ) => Promise<OperationResult>;
   onNoteDelete?: (noteId: string) => Promise<OperationResult>;
+  onCollectionEdit?: (collection: Collection) => Promise<OperationResult>;
   collections?: Collection[];
   className?: string;
 }
@@ -70,6 +72,7 @@ const EnhancedCollectionComponent = ({
   id,
   collection_name,
   bg_color_hex,
+  created_at,
   tasks = [],
   notes = [],
   onTaskComplete,
@@ -81,6 +84,7 @@ const EnhancedCollectionComponent = ({
   onNoteColorChange,
   onNoteUpdate,
   onNoteDelete,
+  onCollectionEdit,
   collections = [],
   className = "",
 }: CollectionComponentProps) => {
@@ -97,6 +101,11 @@ const EnhancedCollectionComponent = ({
   const [errorTimeout, setErrorTimeout] = useState<NodeJS.Timeout | null>(null);
   /* eslint-disable @typescript-eslint/no-unused-vars */
   const [isHovered, setIsHovered] = useState(false);
+
+  // Check if this is a "General" collection (case-insensitive)
+  const isGeneralCollection = useCallback(() => {
+    return collection_name?.toLowerCase().trim() === "general";
+  }, [collection_name]);
 
   // Enhanced color scheme that complements our elegant background
   const getColorScheme = () => {
@@ -186,7 +195,15 @@ const EnhancedCollectionComponent = ({
     const sorted = sortNotes(notes);
     setSortedNotes(sorted);
   }, [notes, sortNotes]);
-
+  useEffect(() => {
+    // Force re-render when bg_color_hex prop changes
+    // This ensures the UI updates immediately when parent updates the color
+  }, [bg_color_hex]);
+  const getEffectiveColor = useCallback(() => {
+    // For General collections, the color might be updated externally
+    // Return the current bg_color_hex prop
+    return bg_color_hex || "#fb923c";
+  }, [bg_color_hex]);
   // Auto-dismiss error after 5 seconds
   useEffect(() => {
     if (error) {
@@ -228,6 +245,29 @@ const EnhancedCollectionComponent = ({
       console.error(`${errorMessage}:`, err);
       setError(errorMessage);
       return { success: false, error: err };
+    }
+  };
+
+  // Handle collection edit
+  const handleCollectionEdit = async () => {
+    if (!onCollectionEdit) return;
+
+    const collectionData: Collection = {
+      id: id,
+      collection_name: collection_name || "",
+      bg_color_hex: bg_color_hex || "",
+      created_at: created_at,
+      list_id: "", // This will be populated by the parent
+      user_id: "", // This will be populated by the parent
+      tasks: tasks || [],
+      notes: notes || [],
+    };
+
+    try {
+      await onCollectionEdit(collectionData);
+    } catch (err) {
+      console.error("Error editing collection:", err);
+      setError("Failed to edit collection");
     }
   };
 
@@ -399,7 +439,7 @@ const EnhancedCollectionComponent = ({
         {/* Accent border with collection color */}
         <div
           className="absolute top-0 left-0 right-0 h-1 opacity-80"
-          style={{ backgroundColor: bg_color_hex || "#fb923c" }}
+          style={{ backgroundColor: getEffectiveColor() }}
         />
 
         <motion.div
@@ -420,13 +460,13 @@ const EnhancedCollectionComponent = ({
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg backdrop-blur-sm"
               style={{
-                backgroundColor: bg_color_hex || "#fb923c",
-                boxShadow: `0 4px 20px ${bg_color_hex || "#fb923c"}30`,
+                backgroundColor: getEffectiveColor(),
+                boxShadow: `0 4px 20px ${getEffectiveColor()}30`,
               }}
             ></div>
             <div
               className="absolute inset-0 rounded-xl opacity-30 blur-md"
-              style={{ backgroundColor: bg_color_hex || "#fb923c" }}
+              style={{ backgroundColor: getEffectiveColor() }}
             />
           </motion.div>
 
@@ -468,20 +508,39 @@ const EnhancedCollectionComponent = ({
             </p>
           </div>
 
-          {/* Expand/Collapse button */}
-          <motion.button
-            className={`p-2 rounded-lg ${colors.textSecondary} ${colors.hover} transition-colors duration-200`}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            aria-label={isExpanded ? "Collapse" : "Expand"}
-          >
-            <motion.div
-              animate={{ rotate: isExpanded ? 0 : -90 }}
-              transition={{ duration: 0.3 }}
+          {/* Action buttons */}
+          <div className="flex items-center space-x-2 ml-4">
+            {/* Edit button - only show if not General collection */}
+            {!isGeneralCollection() && onCollectionEdit && (
+              <motion.button
+                className={`p-2 rounded-lg ${colors.textSecondary} ${colors.hover} transition-colors duration-200`}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCollectionEdit();
+                }}
+                aria-label="Edit collection"
+              >
+                <Edit3 className="h-4 w-4" />
+              </motion.button>
+            )}
+
+            {/* Expand/Collapse button */}
+            <motion.button
+              className={`p-2 rounded-lg ${colors.textSecondary} ${colors.hover} transition-colors duration-200`}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              aria-label={isExpanded ? "Collapse" : "Expand"}
             >
-              <ChevronDown className="h-5 w-5" />
-            </motion.div>
-          </motion.button>
+              <motion.div
+                animate={{ rotate: isExpanded ? 0 : -90 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ChevronDown className="h-5 w-5" />
+              </motion.div>
+            </motion.button>
+          </div>
         </motion.div>
 
         {/* Error notification */}
@@ -567,7 +626,7 @@ const EnhancedCollectionComponent = ({
                     <motion.div
                       layoutId="activeTab"
                       className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full"
-                      style={{ backgroundColor: bg_color_hex || "#fb923c" }}
+                      style={{ backgroundColor: getEffectiveColor() }}
                       transition={{ duration: 0.3 }}
                     />
                   )}

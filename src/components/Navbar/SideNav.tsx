@@ -22,13 +22,15 @@ import {
   Moon,
   LogOut,
   Settings,
+  Edit3,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
 import CreateListModal from "@/components/popupModels/ListPopup";
 import { supabase } from "@/utils/client";
-import { List } from "@/types/schema";
+import { List, ListColor } from "@/types/schema";
+import EditListPopup from "@/components/popupModels/editListPopup";
 
 interface SideNavProps {
   children?: React.ReactNode;
@@ -46,9 +48,12 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
   const [isMounted, setIsMounted] = useState<boolean>(false);
   const [isCreateListModalOpen, setIsCreateListModalOpen] =
     useState<boolean>(false);
+  const [isEditListModalOpen, setIsEditListModalOpen] =
+    useState<boolean>(false);
   const [isDeleteListModalOpen, setIsDeleteListModalOpen] =
     useState<boolean>(false);
   const [listToDelete, setListToDelete] = useState<string | null>(null);
+  const [listToEdit, setListToEdit] = useState<List | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_isTablet, setIsTablet] = useState<boolean>(false);
   const [lists, setLists] = useState<List[]>([]);
@@ -67,7 +72,8 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   };
 
-  // Helper function to fetch lists
+  // Helper function to refresh collections when list color changes
+
   const fetchLists = useCallback(
     async (forceFetch = false) => {
       if (!isLoggedIn || !user) {
@@ -105,7 +111,34 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
     },
     [isLoggedIn, user, lists.length]
   );
+  const refreshCollectionsColor = useCallback(
+    async (newColor: string, listId: string) => {
+      // ADD listId parameter
+      try {
+        if (!user?.id) return;
 
+        // Update only "General" collections for the specific list
+        const { error } = await supabase
+          .from("collection")
+          .update({ bg_color_hex: newColor })
+          .eq("user_id", user.id)
+          .eq("list_id", listId) // ADD THIS LINE to be specific to the list
+          .ilike("collection_name", "general");
+
+        if (error) {
+          console.error("Error updating collection colors:", error);
+        } else {
+          console.log(
+            "Successfully updated General collections for list:",
+            listId
+          );
+        }
+      } catch (error) {
+        console.error("Error in refreshCollectionsColor:", error);
+      }
+    },
+    [user?.id]
+  );
   useEffect(() => {
     fetchLists();
   }, [fetchLists]);
@@ -163,6 +196,69 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
     );
   };
 
+  const handleEditList = (list: List): void => {
+    setListToEdit(list);
+    setIsEditListModalOpen(true);
+  };
+
+  const handleEditListSubmit = async (
+    listId: string,
+    listData: { list_name: string; bg_color_hex: ListColor }
+  ): Promise<{ success: boolean; error?: unknown }> => {
+    try {
+      // Check if the color changed
+      const currentList = lists.find((list) => list.id === listId);
+      const colorChanged =
+        currentList && currentList.bg_color_hex !== listData.bg_color_hex;
+
+      // Update the local state immediately for better UX
+      setLists((prevLists) =>
+        prevLists.map((list) =>
+          list.id === listId
+            ? {
+                ...list,
+                list_name: listData.list_name,
+                bg_color_hex: listData.bg_color_hex,
+              }
+            : list
+        )
+      );
+
+      // If color changed, update General collections to match
+      if (colorChanged) {
+        console.log(
+          "Color changed, updating General collections to:",
+          listData.bg_color_hex
+        );
+        await refreshCollectionsColor(listData.bg_color_hex, listId);
+      }
+
+      // Close the edit modal
+      setIsEditListModalOpen(false);
+      setListToEdit(null);
+
+      // Refresh the lists from the server to ensure consistency
+      await fetchLists(true); // Force refresh
+
+      // Dispatch custom event to notify ListPage component about the update
+      if (colorChanged) {
+        window.dispatchEvent(
+          new CustomEvent("listUpdated", {
+            detail: {
+              listId: listId,
+              newColor: listData.bg_color_hex,
+              listName: listData.list_name,
+            },
+          })
+        );
+      }
+
+      return { success: true };
+    } catch (err) {
+      console.error("Error handling list edit:", err);
+      return { success: false, error: err };
+    }
+  };
   const handleCreateList = async (
     listData: Omit<List, "id" | "created_at">
   ): Promise<{ success: boolean; error?: unknown }> => {
@@ -778,8 +874,8 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
               </button>
             </div>
 
-            {/* Lists Container - 3D Cards */}
-            <div className="px-3 space-y-2">
+            {/* Lists Container - Updated Layout */}
+            <div className="px-3 space-y-3">
               {isLoadingLists ? (
                 <div className="flex justify-center py-4">
                   <div
@@ -839,22 +935,22 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                         />
                       )}
 
-                      {/* Card Content */}
-                      <div
-                        onClick={() => handleListClick(list.id)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            handleListClick(list.id);
-                          }
-                        }}
-                        className="w-full text-left p-4 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-1 rounded-lg cursor-pointer"
-                      >
-                        <div className="flex items-center justify-between">
-                          {/* Left Side - Icon and Name */}
-                          <div className="flex items-center min-w-0 flex-1">
+                      {/* Card Content - Updated Layout */}
+                      <div className="p-4">
+                        {/* First Row - List Name and Icon */}
+                        <div
+                          onClick={() => handleListClick(list.id)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleListClick(list.id);
+                            }
+                          }}
+                          className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-1 rounded-lg mb-3"
+                        >
+                          <div className="flex items-center">
                             {/* List Icon */}
                             <div
                               className="w-8 h-8 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 shadow-sm"
@@ -900,46 +996,62 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                               </div>
                             </div>
                           </div>
+                        </div>
 
-                          {/* Right Side - Actions */}
-                          <div className="flex space-x-1 ml-3 flex-shrink-0">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleTogglePinList(list.id);
-                              }}
-                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 ${
-                                list.is_pinned
-                                  ? isDark
-                                    ? "bg-orange-400/20 text-orange-400 hover:bg-orange-400/30 shadow-sm"
-                                    : "bg-sky-100 text-sky-600 hover:bg-sky-200 shadow-sm"
-                                  : isDark
-                                    ? "bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-orange-400 shadow-sm"
-                                    : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-sky-600 shadow-sm"
-                              }`}
-                              title={list.is_pinned ? "Unpin" : "Pin"}
-                              disabled={isDeletingList}
-                            >
-                              <Pin className="w-3.5 h-3.5" />
-                            </button>
+                        {/* Second Row - Action Icons */}
+                        <div className="flex justify-end space-x-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTogglePinList(list.id);
+                            }}
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
+                              list.is_pinned
+                                ? isDark
+                                  ? "bg-orange-400/20 text-orange-400 hover:bg-orange-400/30 shadow-sm"
+                                  : "bg-sky-100 text-sky-600 hover:bg-sky-200 shadow-sm"
+                                : isDark
+                                  ? "bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-orange-400 shadow-sm"
+                                  : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-sky-600 shadow-sm"
+                            }`}
+                            title={list.is_pinned ? "Unpin" : "Pin"}
+                            disabled={isDeletingList}
+                          >
+                            <Pin className="w-4 h-4" />
+                          </button>
 
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setListToDelete(list.id);
-                                setIsDeleteListModalOpen(true);
-                              }}
-                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 ${
-                                isDark
-                                  ? "bg-gray-700 text-gray-400 hover:bg-red-500/20 hover:text-red-400 shadow-sm"
-                                  : "bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 shadow-sm"
-                              }`}
-                              title="Delete"
-                              disabled={isDeletingList}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditList(list);
+                            }}
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
+                              isDark
+                                ? "bg-gray-700 text-gray-400 hover:bg-blue-500/20 hover:text-blue-400 shadow-sm"
+                                : "bg-gray-100 text-gray-500 hover:bg-blue-50 hover:text-blue-600 shadow-sm"
+                            }`}
+                            title="Edit"
+                            disabled={isDeletingList}
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setListToDelete(list.id);
+                              setIsDeleteListModalOpen(true);
+                            }}
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
+                              isDark
+                                ? "bg-gray-700 text-gray-400 hover:bg-red-500/20 hover:text-red-400 shadow-sm"
+                                : "bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 shadow-sm"
+                            }`}
+                            title="Delete"
+                            disabled={isDeletingList}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1025,7 +1137,19 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         isOpen={isCreateListModalOpen}
         onClose={() => setIsCreateListModalOpen(false)}
         onSubmit={handleCreateList}
-        existingLists={lists} // Add this line - pass existing lists for validation
+        existingLists={lists}
+      />
+
+      {/* Render the EditListPopup component */}
+      <EditListPopup
+        isOpen={isEditListModalOpen}
+        onClose={() => {
+          setIsEditListModalOpen(false);
+          setListToEdit(null);
+        }}
+        onSubmit={handleEditListSubmit}
+        existingLists={lists}
+        currentList={listToEdit}
       />
 
       {/* Delete List Confirmation Modal */}
