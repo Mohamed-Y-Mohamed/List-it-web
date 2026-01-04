@@ -28,7 +28,7 @@
     "date-fns": "^4.1.0",
     "framer-motion": "^12.12.2",
     "lucide-react": "^0.487.0",
-    "next": "15.2",
+    "next": "15.2.1",
     "next-sitemap": "^4.2.3",
     "pinst": "^3.0.0",
     "postcss": "^8.5.3",
