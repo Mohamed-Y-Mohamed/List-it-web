@@ -54,7 +54,7 @@ const CreateNoteModal = ({
 
   const [noteTitle, setNoteTitle] = useState("");
   const [noteDescription, setNoteDescription] = useState("");
-  const [selectedColor, setSelectedColor] = useState<string>(LIST_COLORS[0]);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedCollection, setSelectedCollection] = useState<string>("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,10 +85,6 @@ const CreateNoteModal = ({
       } else {
         const def = getDefaultCollection();
         setSelectedCollection(def?.id ?? "");
-      }
-      // Set default color if not already set
-      if (!selectedColor) {
-        setSelectedColor(LIST_COLORS[0]);
       }
       // Only focus the input field when modal first opens
       if (shouldFocusInput) {
@@ -134,7 +130,7 @@ const CreateNoteModal = ({
     if (!isOpen) {
       setNoteTitle("");
       setNoteDescription("");
-      setSelectedColor(LIST_COLORS[0]);
+      setSelectedColor(null);
       setSelectedCollection("");
       setIsSubmitting(false);
       setError(null);
@@ -171,13 +167,18 @@ const CreateNoteModal = ({
 
       const collectionId = selectedCollection || getDefaultCollection()?.id;
 
+      // Use collection color if no color is selected
+      const collection = collections.find((c) => c.id === collectionId);
+      const finalColor =
+        selectedColor || collection?.bg_color_hex || LIST_COLORS[0];
+
       // UPDATED: Create a proper Date object with UTC timezone for iOS compatibility
       const createDate = createUTCDate();
 
       const notePayload = {
         title: noteTitle.trim(),
         description: noteDescription.trim() || null,
-        bg_color_hex: selectedColor,
+        bg_color_hex: finalColor,
         collection_id: collectionId ?? null,
         user_id: user.id,
         list_id: listId || null,
@@ -199,7 +200,7 @@ const CreateNoteModal = ({
           {
             title: notePayload.title,
             description: notePayload.description ?? undefined,
-            bg_color_hex: selectedColor,
+            bg_color_hex: finalColor,
             collection_id: collectionId ?? undefined,
           },
           data[0] as Note
@@ -289,8 +290,30 @@ const CreateNoteModal = ({
               <label
                 className={`block mb-2 text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-700"}`}
               >
-                Color
+                Color (Optional)
               </label>
+              {!selectedColor &&
+                selectedCollection &&
+                (() => {
+                  const collection = collections.find(
+                    (c) => c.id === selectedCollection
+                  );
+                  return collection ? (
+                    <div
+                      className={`mb-2 text-xs ${isDark ? "text-gray-400" : "text-gray-600"} flex items-center gap-2`}
+                    >
+                      <span>Default:</span>
+                      <div
+                        className="w-4 h-4 rounded-full border border-gray-300 dark:border-gray-600"
+                        style={{
+                          backgroundColor:
+                            collection.bg_color_hex || LIST_COLORS[0],
+                        }}
+                      />
+                      <span>Collection Color</span>
+                    </div>
+                  ) : null;
+                })()}
               <div ref={colorSectionRef} className="flex gap-2 flex-wrap">
                 {LIST_COLORS.map((color) => (
                   <button
