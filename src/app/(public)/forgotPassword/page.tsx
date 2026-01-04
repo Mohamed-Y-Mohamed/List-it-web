@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/utils/client";
 
 const ForgotPasswordPage: React.FC = () => {
   const { theme } = useTheme();
@@ -64,7 +65,8 @@ const ForgotPasswordPage: React.FC = () => {
   const handleSignOut = async (redirect: boolean = false) => {
     setSigningOut(true);
     try {
-      await logout(); // Changed from signOut to logout
+      // Sign out directly without redirecting
+      await supabase.auth.signOut({ scope: "global" });
       if (redirect) {
         router.push("/login");
       }

@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/utils/client";
 
 const ResetPasswordPage = () => {
   const { theme } = useTheme();
@@ -65,7 +66,8 @@ const ResetPasswordPage = () => {
 
       const performLogoutAndRedirect = async () => {
         try {
-          await logout();
+          // Sign out directly without redirecting
+          await supabase.auth.signOut({ scope: "global" });
         } catch (logoutError) {
           console.error(
             "Error during logout after password reset:",
@@ -149,7 +151,8 @@ const ResetPasswordPage = () => {
         if (secondsLeft <= 0) {
           clearInterval(intervalId);
 
-          logout().catch((logoutErr) => {
+          // Sign out directly without redirecting
+          supabase.auth.signOut({ scope: "global" }).catch((logoutErr) => {
             console.error("Error during logout after reset:", logoutErr);
           });
 
