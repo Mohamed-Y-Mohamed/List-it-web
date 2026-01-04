@@ -18,7 +18,7 @@ import { supabase } from "@/utils/client";
 const ForgotPasswordPage: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const { resetPassword, logout } = useAuth(); // Changed from signOut to logout
+  const { resetPassword } = useAuth();
   const router = useRouter();
 
   // Form state
