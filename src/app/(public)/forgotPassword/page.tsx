@@ -324,8 +324,7 @@ const ForgotPasswordPage: React.FC = () => {
                     <CheckCircle className="w-5 h-5 mr-2" />
                   </motion.div>
                   <span>
-                    Reset link sent! Check your inbox (and spam folder). You
-                    have been logged out for security.
+                    Reset link sent! Check your inbox (and spam folder).
                   </span>
                 </div>
               </motion.div>
