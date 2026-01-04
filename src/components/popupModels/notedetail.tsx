@@ -89,9 +89,6 @@ const NoteDetails = ({
   const [titleCharCount, setTitleCharCount] = useState(
     (verifiedNote.title || "").length
   );
-  const [descriptionCharCount, setDescriptionCharCount] = useState(
-    (verifiedNote.description || "").length
-  );
   const [isNoteChanged, setIsNoteChanged] = useState(false);
 
   // --- UI STATE ---
@@ -256,7 +253,6 @@ const NoteDetails = ({
       setNoteDescription(verifiedNote.description || "");
       setSelectedColor(verifiedNote.bg_color_hex || LIST_COLORS[0]);
       setTitleCharCount((verifiedNote.title || "").length);
-      setDescriptionCharCount((verifiedNote.description || "").length);
       setIsPinned(verifiedNote.is_pinned || false);
       setError(null);
       setSuccessMessage(null);
@@ -300,7 +296,6 @@ const NoteDetails = ({
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const v = e.target.value;
       setNoteDescription(v);
-      setDescriptionCharCount(v.length);
       autoResizeTextarea(e.target);
     },
     [autoResizeTextarea]
@@ -647,14 +642,10 @@ const NoteDetails = ({
               id="note-description"
               value={noteDescription}
               onChange={handleDescriptionChange}
-              maxLength={500}
               disabled={isProcessing}
               placeholder="Add a description (optional)"
               className="w-full p-4 rounded-2xl bg-gray-800 text-white border border-gray-700 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 min-h-[120px]"
             />
-            <div className="text-right text-gray-500 text-xs mt-1">
-              {descriptionCharCount}/500
-            </div>
           </div>
 
           {/* Color */}
