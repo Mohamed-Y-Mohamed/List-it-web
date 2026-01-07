@@ -188,17 +188,31 @@ const NoteDetails = ({
         if (data) {
           console.log("Direct DB verification for note:", {
             collection_id: data.collection_id,
+            list_id: data.list_id,
           });
 
-          if (data.collection_id !== note.collection_id) {
-            console.log("Collection ID mismatch between props and DB!", {
+          // Always use the verified data from database
+          setVerifiedNote({
+            id: data.id,
+            title: data.title,
+            description: data.description,
+            bg_color_hex: data.bg_color_hex,
+            created_at: data.created_at,
+            collection_id: data.collection_id,
+            is_pinned: data.is_pinned,
+            is_deleted: data.is_deleted,
+            list_id: data.list_id,
+          });
+
+          if (
+            data.collection_id !== note.collection_id ||
+            data.list_id !== note.list_id
+          ) {
+            console.log("Note data mismatch between props and DB!", {
               "props collection_id": note.collection_id,
               "database collection_id": data.collection_id,
-            });
-
-            setVerifiedNote({
-              ...note,
-              collection_id: data.collection_id,
+              "props list_id": note.list_id,
+              "database list_id": data.list_id,
             });
           }
         }
