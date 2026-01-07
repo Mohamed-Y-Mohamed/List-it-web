@@ -82,6 +82,7 @@ export const LIST_COLORS = [
   "#5856D6",
   "#00C7BE",
   "#FF9500",
+  "#ff6984",
 ] as const;
 
 // Type for List Color
