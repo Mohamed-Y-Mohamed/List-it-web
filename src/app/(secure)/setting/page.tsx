@@ -344,38 +344,47 @@ export default function SettingsPage() {
       });
 
       const result = await response.json();
+      console.log("Delete account response:", {
+        status: response.status,
+        result,
+      });
 
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to delete account");
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error || result.details || "Failed to delete account"
+        );
       }
 
+      // Account successfully deleted
       showNotification(
         "success",
-        "Account deleted successfully. You will be signed out..."
+        "Account deleted successfully. Signing you out..."
       );
 
-      // Clear local storage and sign out
+      // Clear local storage and sign out immediately
       setTimeout(async () => {
-        // Clear any local storage
-        if (typeof window !== "undefined") {
-          localStorage.clear();
-          sessionStorage.clear();
+        try {
+          // Clear any local storage
+          if (typeof window !== "undefined") {
+            localStorage.clear();
+            sessionStorage.clear();
+          }
+
+          // Sign out and redirect
+          await supabase.auth.signOut({ scope: "global" });
+          await logout();
+        } catch (logoutError) {
+          console.error("Error during logout:", logoutError);
+          // Force redirect even if logout fails
+          window.location.href = "/login";
         }
-
-        // Sign out and redirect
-        await supabase.auth.signOut();
-        await logout();
-
-        // Force redirect to home page
-        window.location.href = "/";
-      }, 2000);
+      }, 1500);
     } catch (error) {
       console.error("Error deleting account:", error);
       showNotification(
         "error",
         error instanceof Error ? error.message : "Failed to delete account"
       );
-    } finally {
       setIsSaving(false);
     }
   };
