@@ -196,6 +196,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [initialized, isVerifying]);
 
+  // Periodic session validation to detect deleted accounts
+  // This runs every 5 minutes to check if the user's account still exists
+  useEffect(() => {
+    if (!isLoggedIn || !user) return;
+
+    const validateSession = async () => {
+      try {
+        // Get current session to verify it's still valid
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error || !session) {
+          console.log("Session invalid or expired, logging out");
+          await logout();
+          return;
+        }
+
+        // Check if user record still exists in database
+        const { data: userData, error: dbError } = await supabase
+          .from("users")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        // If user doesn't exist in database, account was deleted
+        if (dbError || !userData) {
+          console.log("User account no longer exists, logging out");
+          await logout();
+        }
+      } catch (error) {
+        console.error("Session validation error:", error);
+        // Don't log out on network errors, only on auth/db issues
+      }
+    };
+
+    // Initial validation after 10 seconds
+    const initialTimeout = setTimeout(validateSession, 10000);
+
+    // Then validate every 5 minutes
+    const validationInterval = setInterval(validateSession, 5 * 60 * 1000);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(validationInterval);
+    };
+  }, [isLoggedIn, user]);
+
   // Login with email/password
   const login = async (email: string, password: string) => {
     try {
