@@ -119,9 +119,16 @@ const NoteCard = ({
     }
 
     // Light colors that need dark text
-    const lightColors = ["#FFD60A", "#34C759", "#00C7BE", "#FF9F0A", "#30D158"];
+    const lightColors = [
+      "#FFD60A",
+      "#34C759",
+      "#00C7BE",
+      "#FF9F0A",
+      "#30D158",
+      "#ff69B4",
+    ];
     const isLightBackground =
-      lightColors.includes(noteBackgroundColor) ||
+      lightColors.includes(noteBackgroundColor.toLowerCase()) ||
       (noteBackgroundColor.includes("#") &&
         parseInt(noteBackgroundColor.slice(1, 3), 16) +
           parseInt(noteBackgroundColor.slice(3, 5), 16) +

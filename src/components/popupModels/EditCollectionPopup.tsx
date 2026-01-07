@@ -382,28 +382,50 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
                 role="radiogroup"
                 aria-label="Collection color"
               >
-                {LIST_COLORS.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    className={`h-8 w-8 rounded-full flex items-center justify-center transition-all duration-200 ${
-                      selectedColor === color
-                        ? isDark
-                          ? "ring-2 ring-offset-2 ring-offset-gray-800 ring-white scale-110"
-                          : "ring-2 ring-offset-2 ring-offset-gray-100 ring-gray-800 scale-110"
-                        : "hover:scale-105"
-                    }`}
-                    style={{ backgroundColor: color }}
-                    onClick={() => setSelectedColor(color)}
-                    aria-label={`Select ${color} color`}
-                    aria-pressed={selectedColor === color}
-                    disabled={isLoading}
-                  >
-                    {selectedColor === color && (
-                      <Check className="h-4 w-4 text-white drop-shadow-md" />
-                    )}
-                  </button>
-                ))}
+                {LIST_COLORS.map((color) => {
+                  // Determine if this is a light color that needs dark checkmark
+                  const lightColors = [
+                    "#FFD60A",
+                    "#34C759",
+                    "#00C7BE",
+                    "#FF9F0A",
+                    "#30D158",
+                    "#ff69B4",
+                  ];
+                  const isLight =
+                    lightColors.includes(color.toLowerCase()) ||
+                    (color.includes("#") &&
+                      parseInt(color.slice(1, 3), 16) +
+                        parseInt(color.slice(3, 5), 16) +
+                        parseInt(color.slice(5, 7), 16) >
+                        384);
+                  const checkColor = isLight ? "text-gray-800" : "text-white";
+
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      className={`h-8 w-8 rounded-full flex items-center justify-center transition-all duration-200 ${
+                        selectedColor === color
+                          ? isDark
+                            ? "ring-2 ring-offset-2 ring-offset-gray-800 ring-white scale-110"
+                            : "ring-2 ring-offset-2 ring-offset-gray-100 ring-gray-800 scale-110"
+                          : "hover:scale-105"
+                      }`}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setSelectedColor(color)}
+                      aria-label={`Select ${color} color`}
+                      aria-pressed={selectedColor === color}
+                      disabled={isLoading}
+                    >
+                      {selectedColor === color && (
+                        <Check
+                          className={`h-4 w-4 ${checkColor} drop-shadow-md`}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

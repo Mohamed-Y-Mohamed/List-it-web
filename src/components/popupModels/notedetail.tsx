@@ -652,26 +652,48 @@ const NoteDetails = ({
           <div>
             <h3 className="text-xl font-semibold mb-4">Note Color</h3>
             <div className="flex flex-wrap gap-4">
-              {LIST_COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => handleColorSelect(c)}
-                  disabled={isProcessing}
-                  aria-pressed={c === selectedColor}
-                  aria-label={`Select color ${c}`}
-                  className={`h-10 w-10 rounded-full relative shadow-md hover:shadow-lg transition-all duration-200 border-2 ${
-                    c === selectedColor
-                      ? "border-orange-500"
-                      : "border-transparent"
-                  } ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
-                  style={{ backgroundColor: c }}
-                  type="button"
-                >
-                  {c === selectedColor && (
-                    <Check className="absolute top-2 left-2 h-5 w-5 text-white drop-shadow-md" />
-                  )}
-                </button>
-              ))}
+              {LIST_COLORS.map((c) => {
+                // Determine if this is a light color that needs dark checkmark
+                const lightColors = [
+                  "#FFD60A",
+                  "#34C759",
+                  "#00C7BE",
+                  "#FF9F0A",
+                  "#30D158",
+                  "#ff69B4",
+                ];
+                const isLight =
+                  lightColors.includes(c.toLowerCase()) ||
+                  (c.includes("#") &&
+                    parseInt(c.slice(1, 3), 16) +
+                      parseInt(c.slice(3, 5), 16) +
+                      parseInt(c.slice(5, 7), 16) >
+                      384);
+                const checkColor = isLight ? "text-gray-800" : "text-white";
+
+                return (
+                  <button
+                    key={c}
+                    onClick={() => handleColorSelect(c)}
+                    disabled={isProcessing}
+                    aria-pressed={c === selectedColor}
+                    aria-label={`Select color ${c}`}
+                    className={`h-10 w-10 rounded-full relative shadow-md hover:shadow-lg transition-all duration-200 border-2 ${
+                      c === selectedColor
+                        ? "border-orange-500"
+                        : "border-transparent"
+                    } ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
+                    style={{ backgroundColor: c }}
+                    type="button"
+                  >
+                    {c === selectedColor && (
+                      <Check
+                        className={`absolute top-2 left-2 h-5 w-5 ${checkColor} drop-shadow-md`}
+                      />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

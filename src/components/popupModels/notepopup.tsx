@@ -315,28 +315,48 @@ const CreateNoteModal = ({
                   ) : null;
                 })()}
               <div ref={colorSectionRef} className="flex gap-2 flex-wrap">
-                {LIST_COLORS.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    className={`h-8 w-8 rounded-full relative ${selectedColor === color ? "ring-2 ring-offset-2 ring-sky-500" : ""}`}
-                    style={{ backgroundColor: color }}
-                    onClick={(e) => {
-                      e.preventDefault(); // Prevent form submission
-                      handleColorSelect(color);
-                    }}
-                    onMouseDown={(e) => {
-                      // Prevent default to avoid any focus-related browser behaviors
-                      e.preventDefault();
-                    }}
-                  >
-                    {selectedColor === color && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Check className="text-white w-4 h-4" />
-                      </div>
-                    )}
-                  </button>
-                ))}
+                {LIST_COLORS.map((color) => {
+                  // Determine if this is a light color that needs dark checkmark
+                  const lightColors = [
+                    "#FFD60A",
+                    "#34C759",
+                    "#00C7BE",
+                    "#FF9F0A",
+                    "#30D158",
+                    "#ff69B4",
+                  ];
+                  const isLight =
+                    lightColors.includes(color.toLowerCase()) ||
+                    (color.includes("#") &&
+                      parseInt(color.slice(1, 3), 16) +
+                        parseInt(color.slice(3, 5), 16) +
+                        parseInt(color.slice(5, 7), 16) >
+                        384);
+                  const checkColor = isLight ? "text-gray-800" : "text-white";
+
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      className={`h-8 w-8 rounded-full relative ${selectedColor === color ? "ring-2 ring-offset-2 ring-sky-500" : ""}`}
+                      style={{ backgroundColor: color }}
+                      onClick={(e) => {
+                        e.preventDefault(); // Prevent form submission
+                        handleColorSelect(color);
+                      }}
+                      onMouseDown={(e) => {
+                        // Prevent default to avoid any focus-related browser behaviors
+                        e.preventDefault();
+                      }}
+                    >
+                      {selectedColor === color && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Check className={`${checkColor} w-4 h-4`} />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
