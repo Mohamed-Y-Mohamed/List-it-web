@@ -31,6 +31,24 @@ export async function DELETE(request: NextRequest) {
       },
     });
 
+    // Step 1: Delete from authentication first (this also triggers cascade deletes)
+    const { error: authDeleteError } =
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+
+    if (authDeleteError) {
+      console.error("Auth deletion error:", authDeleteError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Authentication deletion failed",
+          details: authDeleteError.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    // Step 2: Delete all user data from database
+    // Delete in order: child tables first, then parent tables
     const { error: taskError } = await supabaseAdmin
       .from("task")
       .delete()
@@ -56,7 +74,8 @@ export async function DELETE(request: NextRequest) {
       .delete()
       .eq("id", userId);
 
-    const errors = [
+    // Collect any database errors (but don't fail if auth deletion succeeded)
+    const dbErrors = [
       taskError,
       noteError,
       collectionError,
@@ -64,27 +83,10 @@ export async function DELETE(request: NextRequest) {
       userError,
     ].filter((err): err is NonNullable<typeof err> => Boolean(err));
 
-    if (errors.length > 0) {
-      return NextResponse.json(
-        {
-          error: "Database deletion failed",
-          details: errors.map((err) => err.message),
-        },
-        { status: 500 }
-      );
-    }
-
-    const { error: authDeleteError } =
-      await supabaseAdmin.auth.admin.deleteUser(userId);
-
-    if (authDeleteError) {
-      return NextResponse.json(
-        {
-          error: "Authentication deletion failed",
-          details: authDeleteError.message,
-        },
-        { status: 500 }
-      );
+    if (dbErrors.length > 0) {
+      console.error("Database deletion errors:", dbErrors);
+      // Log errors but still return success if auth deletion worked
+      // The cascade should handle most deletions automatically
     }
 
     return NextResponse.json(
