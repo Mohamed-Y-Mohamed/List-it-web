@@ -1,50 +1,44 @@
-# 📝 List It - Smart Task Management Application
+# 📝 List It - Organise Everything!
 
-A modern, feature-rich task management application built with Next.js that helps you organize your tasks, notes, and projects efficiently.
+A modern cross-platform, feature-rich task & note management in ONE application built with Next.js that helps you organize yourself.
 
-![List It Preview](public/app-icon.jpeg)
+---
 
-## 🚀 Live Demo
+## 🌐 Website
 
-**Try List It now:** [https://list-it-dom.netlify.app/landingpage](https://list-it-dom.netlify.app/landingpage)
+### Our platform is free for all users here:
+- [Website](https://list-it-dom.netlify.app/landingpage)
+- [iOS](https://apps.apple.com/gb/app/list-it-organise-everything/id6746731233)
 
-Experience the full functionality of List It with our live demo. Create an account or sign in with Google to start organizing your tasks and notes immediately!
+---
 
-### Demo Features
-- 🎯 **Full Functionality**: All features are available in the demo
+### Application Features
 - 🔐 **Secure Authentication**: Real Google OAuth and email registration
-- 💾 **Persistent Data**: Your lists, tasks, and notes are saved
-- 📱 **Mobile Responsive**: Test on any device
+- 💾 **Persistent Data**: Your lists, collection, tasks, and notes are saved available cross-platform
 - ⚡ **Real-time Updates**: Experience instant synchronization
 
-### Quick Start Guide
-1. Visit the [demo link](https://list-it-dom.netlify.app/landingpage)
-2. Click "Get Started Free" or "Sign up with Google"
-3. Create your first list from the sidebar
-4. Add tasks and notes to the default "General" collection
-5. Explore different views: Today, Tomorrow, Priority, Completed
-6. Check out the Dashboard for productivity insights
+---
 
 ## ✨ Features
 
 ### 🎯 Core Functionality
-- **Smart Lists**: Create multiple lists to organize different projects or areas of your life
-- **Collections**: Group related tasks and notes within lists using customizable color-coded collections
-- **Task Management**: Create, prioritize, complete, and track tasks with due dates and descriptions
-- **Note Taking**: Rich note-taking with color customization and pinning capabilities
+- **Smart Lists**: Create multiple `Lists` to organize different areas of your life
+- **Collections**: Group related `tasks` & `notes` within color codded `Collections` 
+- **Task Management**: Create, prioritize, track and complete tasks with due dates and descriptions
+- **Note Taking**: Rich note taking with color customization and pinning capabilities
 - **Dashboard Analytics**: Track your productivity with interactive charts and statistics
 
 ### 🗂️ Smart Views
 - **Today's Tasks**: Focus on tasks due today
 - **Tomorrow's Planning**: Prepare for upcoming tasks
 - **Priority Tasks**: Starred/pinned high-priority items
-- **Overdue Tasks**: Never miss important deadlines
+- **Overdue Tasks**: Instantly see what you need to catch up on
 - **Completed Tasks**: Review your accomplishments
 - **Active Tasks**: View all incomplete tasks organized by due date
 
 ### 🎨 User Experience
 - **Dark/Light Theme**: Seamless theme switching
-- **Responsive Design**: Works perfectly on desktop, tablet, and mobile
+- **Responsive Design**: Designed for all displays
 - **Smooth Animations**: Framer Motion powered interactions
 - **Intuitive Navigation**: Clean sidebar with easy list management
 - **Real-time Updates**: Instant synchronization across devices
@@ -55,14 +49,20 @@ Experience the full functionality of List It with our live demo. Create an accou
 - **Email Verification**: Secure account creation process
 - **Session Management**: Persistent login across browser sessions
 
+---
+
 ## 🛠️ Technology Stack
 
-### Frontend
+### Website
 - **Next.js 13+** - React framework with App Router
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Utility-first styling
 - **Framer Motion** - Smooth animations and transitions
 - **Lucide React** - Beautiful icons
+
+### iOS Native
+- **Swift** - Used for application logic, async networking, and integration with the backend `(Supabase)`
+- - **SwiftUI** - Apple’s declarative UI framework used to build responsive and modern interfaces
 
 ### Backend & Database
 - **Supabase** - Backend as a Service
@@ -75,17 +75,18 @@ Experience the full functionality of List It with our live demo. Create an accou
 - **React Context** - Global state management
 - **React Hooks** - Local component state
 
+---
 
 ## 🎯 How It Works
 
 ### 📋 List Management
-1. **Create Lists**: Click the "Create New List" button in the sidebar
-2. **Dynamic Routing**: Each list gets its own URL (`/List/[listId]`)
-3. **Default Collection**: Every new list automatically gets a "General" collection
-4. **List Actions**: Pin, rename, or delete lists from the sidebar
+- **Create Lists**: Click the "Create New List" button in the sidebar
+- **Dynamic Routing**: Each list gets its own URL (`/List/[listId]`)
+- **Default Collection**: Every new list automatically gets a "General" collection
+- **List Actions**: Pin, rename, or delete lists from the sidebar
 
 ### 🗂️ Collection System
-- **Dual Organization**: Each collection contains both tasks and notes
+- **Dual Organization**: Each `collection` contains both `tasks` and `notes`
 - **Color Coding**: Customize collection colors for visual organization
 - **Tab Interface**: Switch between tasks and notes views
 - **Default Collection**: "General" collection cannot be deleted (only when list is deleted)
@@ -109,54 +110,7 @@ Experience the full functionality of List It with our live demo. Create an accou
 - **Recent Activity**: Timeline of completed and created tasks
 - **Completion Trends**: 7-day activity charts
 
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js 18+ 
-- npm/yarn/pnpm
-- Supabase account
-
-### Installation
-
-1. **Clone the repository**
-```bash
-git clone https://github.com/yourusername/list-it.git
-cd list-it
-```
-
-2. **Install dependencies**
-```bash
-npm install
-# or
-yarn install
-# or
-pnpm install
-```
-
-3. **Environment Setup**
-Create a `.env.local` file in the root directory:
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-```
-
-4. **Database Setup**
-- Create a new Supabase project
-- Run the SQL schema (create tables for users, lists, collections, tasks, notes)
-- Enable Row Level Security (RLS) policies
-- Configure Google OAuth in Supabase Auth settings
-
-5. **Run the development server**
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) to view the application.
+---
 
 ## 📱 Database Schema
 
@@ -173,65 +127,8 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 - Collections → Tasks (1:many)
 - Collections → Notes (1:many)
 
-## 🎨 Design System
-
-### Color Themes
-- **Light Mode**: Clean whites and grays with colorful accents
-- **Dark Mode**: Rich dark grays with warm orange accents
-- **Collection Colors**: Customizable color coding for organization
-
-### Typography
-- **Headings**: Bold, clean sans-serif
-- **Body Text**: Readable font weights with proper line height
-- **Code**: Monospace for technical elements
-
-### Animations
-- **Page Transitions**: Smooth enter/exit animations
-- **Hover Effects**: Subtle scale and color changes
-- **Loading States**: Skeleton screens and spinners
-- **Gesture Feedback**: Tap and swipe animations
-
-## 🚀 Deployment
-
-### Vercel (Recommended)
-1. Connect your GitHub repository to Vercel
-2. Add environment variables in Vercel dashboard
-3. Deploy automatically on push to main branch
-
-### Other Platforms
-- **Netlify**: Add build command `npm run build`
-- **Railway**: Configure environment variables
-- **Self-hosted**: Build with `npm run build` and serve the `out` folder
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Supabase** - For providing an excellent backend-as-a-service
-- **Vercel** - For Next.js and deployment platform
-- **Tailwind CSS** - For the utility-first CSS framework
-- **Framer Motion** - For beautiful animations
-- **Lucide** - For the icon library
-
-## 📞 Support
-
-If you have any questions or run into issues, please:
-1. Check the [Issues](https://github.com/yourusername/list-it/issues) page
-2. Create a new issue with detailed information
-3. Contact the maintainers
-
 ---
 
-**Made with ❤️ by [Your Name]**
+**Made by [@Mohamed](https://github.com/Mohamed-Y-Mohamed) & [@Abdul](https://github.com/A-Moiz)**
 
-*Transform your productivity with smart task management.*
+*Transform your productivity with List It.*
