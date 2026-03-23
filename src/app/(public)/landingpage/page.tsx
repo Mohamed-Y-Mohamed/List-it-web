@@ -881,7 +881,7 @@ const Hero: React.FC = () => {
                 isDark ? "text-gray-100" : "text-gray-900"
               } md:text-5xl`}
             >
-              Organize Your Tasks with{" "}
+              Organize Your Tasks & Notes with{" "}
               <span
                 className={`${isDark ? "text-orange-400" : "text-orange-500"} relative`}
               >
@@ -995,7 +995,7 @@ const Hero: React.FC = () => {
       >
         <div className="mx-auto max-w-3xl px-4">
           <h2 className="mb-2 sm:mb-4 text-xl sm:text-2xl md:text-3xl font-bold">
-            The simplest way to manage your tasks
+            The simplest way to manage your tasks & notes
           </h2>
           <p className="text-sm sm:text-base md:text-lg opacity-90">
             Get organized and boost your productivity with LIST IT
@@ -1321,7 +1321,7 @@ const LandingPage: React.FC = () => {
           <SectionTitle
             title="How"
             highlight="LIST IT Works"
-            description="A structured approach to task management with hierarchical organization"
+            description="A structured approach to task & note management with hierarchical organization in ONE platform"
           />
 
           <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -1493,7 +1493,7 @@ const LandingPage: React.FC = () => {
             </h2>
             <p className="text-base sm:text-lg md:text-xl opacity-90 mb-6 sm:mb-8 px-4">
               Join thousands of users who have already streamlined their
-              workflow with LIST IT. Start organizing your tasks today!
+              workflow with LIST IT. Begin organizing your life now!
             </p>
 
             <motion.div

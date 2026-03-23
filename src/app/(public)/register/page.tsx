@@ -625,38 +625,6 @@ const Signup = () => {
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ duration: 0.6, delay: 0.8 }}
-                  className={`text-xs text-center ${isDark ? "text-gray-400" : "text-gray-600"}`}
-                >
-                  By signing up, you agree to LIST IT&apos;s{" "}
-                  <motion.a
-                    whileHover={{ scale: 1.05 }}
-                    href="#"
-                    className={`${
-                      isDark
-                        ? "text-orange-400 hover:text-orange-300"
-                        : "text-orange-500 hover:text-orange-600"
-                    } underline`}
-                  >
-                    Terms of Service
-                  </motion.a>{" "}
-                  and{" "}
-                  <motion.a
-                    whileHover={{ scale: 1.05 }}
-                    href="#"
-                    className={`${
-                      isDark
-                        ? "text-orange-400 hover:text-orange-300"
-                        : "text-orange-500 hover:text-orange-600"
-                    } underline`}
-                  >
-                    Privacy Policy
-                  </motion.a>
-                </motion.p>
-
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
                   transition={{ duration: 0.6, delay: 0.9 }}
                   className={`text-sm text-center ${isDark ? "text-gray-400" : "text-gray-600"}`}
                 >
