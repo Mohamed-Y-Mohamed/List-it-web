@@ -3,18 +3,10 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Check, AlertCircle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { LIST_COLORS } from "@/types/schema";
+import { LIST_COLORS, Collection, OperationResult } from "@/types/schema";
 import { useAuth } from "@/context/AuthContext";
 
-interface SubmissionResult {
-  success: boolean;
-  error?: unknown;
-}
-
-interface Collection {
-  id: string;
-  collection_name: string | null;
-}
+type SubmissionResult = OperationResult;
 
 interface CreateCollectionModalProps {
   isOpen: boolean;

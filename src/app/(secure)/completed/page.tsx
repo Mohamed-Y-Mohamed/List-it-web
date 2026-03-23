@@ -16,13 +16,10 @@ import {
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 
-interface DisplayTask {
-  id: string;
-  title: string;
-  description?: string | null;
-  createdDate: Date;
-  completedDate: Date;
-  isCompleted: boolean;
+import { DisplayTask as BaseDisplayTask } from "@/types/schema";
+
+// Extend the shared DisplayTask with page-specific optional fields
+interface DisplayTask extends BaseDisplayTask {
   priority?: string;
   category?: string;
 }

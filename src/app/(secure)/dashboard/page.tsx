@@ -32,7 +32,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
-import { format, subDays, isValid } from "date-fns";
+import { format, subDays } from "date-fns";
+import { formatDisplayDate, formatTimeAgo } from "@/utils/dateUtils";
 
 // Interfaces
 interface TaskStats {
@@ -81,51 +82,6 @@ const safeCalculatePercentage = (
     return 0;
   const result = (numerator / denominator) * 100;
   return Number.isFinite(result) ? Math.min(result, 100) : 0;
-};
-
-const formatDate = (dateString: string): string => {
-  try {
-    if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    if (!isValid(date)) return "Invalid date";
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year:
-        date.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
-    });
-  } catch {
-    return "Invalid date";
-  }
-};
-
-const formatTimeAgo = (dateString: string): string => {
-  try {
-    if (!dateString) return "Unknown";
-    const date = new Date(dateString);
-    if (!isValid(date)) return "Invalid date";
-
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffSec = Math.floor(diffMs / 1000);
-    const diffMin = Math.floor(diffSec / 60);
-    const diffHour = Math.floor(diffMin / 60);
-    const diffDay = Math.floor(diffHour / 24);
-
-    if (diffDay > 6) {
-      return formatDate(dateString);
-    } else if (diffDay > 0) {
-      return diffDay === 1 ? "Yesterday" : `${diffDay} days ago`;
-    } else if (diffHour > 0) {
-      return `${diffHour}h ago`;
-    } else if (diffMin > 0) {
-      return `${diffMin}m ago`;
-    } else {
-      return "Just now";
-    }
-  } catch {
-    return "Unknown";
-  }
 };
 
 // Loading skeleton component
@@ -603,7 +559,7 @@ const PriorityTasks: React.FC<{
                     className={`text-xs flex items-center mt-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}
                   >
                     <Clock className="h-3 w-3 mr-1" />
-                    {formatDate(task.due_date)}
+                    {formatDisplayDate(task.due_date)}
                   </p>
                 )}
               </div>

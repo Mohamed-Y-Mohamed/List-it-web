@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
-import { Collection, List, Task, Note, ListColor } from "@/types/schema";
+import { Collection, List, Task, Note, ListColor, OperationResult } from "@/types/schema";
 import CollectionComponent from "@/components/Collection/index";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
@@ -46,12 +46,7 @@ const handleTaskDelete = async (taskId: string) => {
     return { success: false, error: err };
   }
 };
-interface OperationResult {
-  success: boolean;
-  error?: unknown;
-  data?: unknown;
-  warning?: string;
-}
+
 export default function ListPage() {
   const params = useParams();
   const listId = params?.listId as string;

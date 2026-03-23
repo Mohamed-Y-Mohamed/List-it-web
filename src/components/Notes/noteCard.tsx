@@ -5,14 +5,9 @@ import { Pin, AlertCircle, Star, Edit3, Calendar } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
 import NoteSidebar from "@/components/popupModels/notedetail";
-import { Note } from "@/types/schema";
+import { Note, OperationResult } from "@/types/schema";
+import { formatDisplayDate } from "@/utils/dateUtils";
 import { useRouter } from "next/navigation";
-
-// Define a proper result type for operations
-interface OperationResult {
-  success: boolean;
-  error?: unknown;
-}
 
 interface NoteCardProps {
   id: string;
@@ -139,23 +134,6 @@ const NoteCard = ({
   };
 
   const textColor = getTextColor();
-
-  // Format date for display
-  const formatDate = (date: Date | string) => {
-    try {
-      const dateObj = date instanceof Date ? date : new Date(date);
-      return dateObj.toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-        year:
-          dateObj.getFullYear() !== new Date().getFullYear()
-            ? "numeric"
-            : undefined,
-      });
-    } catch {
-      return "Invalid date";
-    }
-  };
 
   // Safe error handling function
   const showError = (errorMessage: string) => {
@@ -455,7 +433,7 @@ const NoteCard = ({
                 className={`flex items-center text-xs ${textColor} opacity-70`}
               >
                 <Calendar className="h-3 w-3 mr-1" />
-                <span>{formatDate(created_at)}</span>
+                <span>{formatDisplayDate(created_at)}</span>
               </div>
 
               <motion.div

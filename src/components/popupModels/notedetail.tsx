@@ -10,17 +10,10 @@ import {
   Pin,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { LIST_COLORS } from "@/types/schema";
+import { LIST_COLORS, OperationResult } from "@/types/schema";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
-import { createPortal } from "react-dom"; // Added this import
-
-interface OperationResult {
-  success: boolean;
-  error?: unknown;
-  data?: unknown;
-  warning?: string;
-}
+import { createPortal } from "react-dom";
 
 interface NoteSidebarProps {
   isOpen: boolean;

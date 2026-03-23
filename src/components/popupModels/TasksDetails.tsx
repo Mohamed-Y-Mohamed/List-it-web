@@ -11,17 +11,10 @@ import {
   Pin,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { Collection } from "@/types/schema";
+import { Collection, OperationResult } from "@/types/schema";
 import { createPortal } from "react-dom";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
-
-interface OperationResult {
-  success: boolean;
-  error?: unknown;
-  data?: unknown;
-  warning?: string;
-}
 
 interface TaskSidebarProps {
   isOpen: boolean;
@@ -298,25 +291,9 @@ const TaskSidebar = ({
   };
 
   // --- FORMATTED DATE ---
-  const formatDate = (date: Date | string | null | undefined): string => {
-    if (!date) return "Unknown date";
-    try {
-      const dateObj = date instanceof Date ? date : new Date(date);
-      return dateObj.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return "Invalid date";
-    }
-  };
-
-  const formattedCreatedDate = formatDate(task.created_at);
+  const formattedCreatedDate = formatDetailDate(task.created_at);
   const formattedCompletedDate = task.date_completed
-    ? formatDate(task.date_completed)
+    ? formatDetailDate(task.date_completed)
     : null;
 
   // Get the current date for min date in the date picker
