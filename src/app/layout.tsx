@@ -50,22 +50,35 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Only render GA scripts when a valid-format measurement ID is configured.
+  // Validates that the ID matches Google's GA4 (G-XXXXXXXXXX) or
+  // Universal Analytics (UA-XXXXXXXX-X) format to prevent accidental injection.
+  const gaIdPattern = /^(G-[A-Z0-9]+|UA-\d+-\d+)$/;
+  const gaId =
+    process.env.NEXT_PUBLIC_GA_ID &&
+    gaIdPattern.test(process.env.NEXT_PUBLIC_GA_ID)
+      ? process.env.NEXT_PUBLIC_GA_ID
+      : null;
+
   return (
     <html lang="en" className="w-full h-full">
       <head>
-        <script
-          async
-          src="https://www.googletagmanager.com/gtag/js?id=G-WJE2Z8G3QZ"
-        ></script>
-        <script id="google-analytics">
-          {`
+        {gaId && (
+          <>
+            <script
+              async
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+            ></script>
+            <script id="google-analytics">
+              {`
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-
-  gtag('config', 'G-WJE2Z8G3QZ');
-    `}
-        </script>
+  gtag('config', '${gaId}');
+              `}
+            </script>
+          </>
+        )}
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased w-full min-h-screen`}

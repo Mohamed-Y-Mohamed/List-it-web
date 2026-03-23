@@ -13,7 +13,7 @@ export const toDateObject = (
   if (!date) return null;
   try {
     const d = date instanceof Date ? date : new Date(date);
-    return isNaN(d.getTime()) ? null : d;
+    return isValid(d) ? d : null;
   } catch {
     return null;
   }
@@ -30,7 +30,7 @@ export const formatDisplayDate = (
   if (!date) return "No date";
   try {
     const d = date instanceof Date ? date : new Date(date);
-    if (isNaN(d.getTime())) return "Invalid date";
+    if (!isValid(d)) return "Invalid date";
     return d.toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
@@ -53,7 +53,7 @@ export const formatDisplayTime = (
   if (!date) return "";
   try {
     const d = date instanceof Date ? date : new Date(date);
-    if (isNaN(d.getTime())) return "";
+    if (!isValid(d)) return "";
     return d.toLocaleTimeString(undefined, {
       hour: "2-digit",
       minute: "2-digit",

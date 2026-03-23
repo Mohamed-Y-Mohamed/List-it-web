@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Collection, OperationResult } from "@/types/schema";
+import { formatDetailDate } from "@/utils/dateUtils";
 import { createPortal } from "react-dom";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";

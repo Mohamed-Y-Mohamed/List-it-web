@@ -42,7 +42,7 @@ export function useUser() {
       try {
         const { data, error } = await supabase
           .from("users")
-          .select("*")
+          .select("id, email, display_name, avatar_url, created_at, last_login")
           .eq("id", userId)
           .single();
 
