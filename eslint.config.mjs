@@ -10,6 +10,7 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  { ignores: ["**/app/not-found.tsx"] },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
 ];
 
