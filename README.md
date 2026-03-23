@@ -75,36 +75,6 @@ Experience the full functionality of List It with our live demo. Create an accou
 - **React Context** - Global state management
 - **React Hooks** - Local component state
 
-## 🏗️ Project Structure
-
-```
-├── app/                          # Next.js App Router
-│   ├── (auth)/                   # Authentication routes
-│   │   ├── login/               
-│   │   ├── register/            
-│   │   └── auth/callback/       # OAuth callback handler
-│   ├── List/[listId]/           # Dynamic list pages
-│   ├── dashboard/               # Analytics dashboard
-│   ├── today/                   # Today's tasks view
-│   ├── tomorrow/                # Tomorrow's tasks view
-│   ├── priority/                # Priority tasks view
-│   ├── overdue/                 # Overdue tasks view
-│   ├── completed/               # Completed tasks view
-│   ├── notcomplete/             # Active tasks view
-│   └── landingpage/             # Marketing landing page
-├── components/                   # Reusable components
-│   ├── Collection/              # Collection management
-│   ├── Tasks/                   # Task components
-│   ├── Notes/                   # Note components
-│   ├── popupModels/             # Modal dialogs
-│   └── SideNav.tsx              # Main navigation
-├── context/                     # React Context providers
-│   ├── AuthContext.tsx          # Authentication state
-│   └── ThemeContext.tsx         # Theme management
-├── types/                       # TypeScript definitions
-├── utils/                       # Utility functions
-└── public/                      # Static assets
-```
 
 ## 🎯 How It Works
 
