@@ -1,17 +1,16 @@
-/**
- * @jest-environment node
- *
- * Unit tests for GET | PATCH /api/user/profile
- */
+/** @jest-environment node */
 
 import { NextRequest } from "next/server";
 
-// ---------------------------------------------------------------------------
 // Mocks
-// ---------------------------------------------------------------------------
 jest.mock("next/headers", () => ({ cookies: jest.fn(() => ({})) }));
 jest.mock("@/lib/logger", () => ({
-  logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
+  logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 jest.mock("@/lib/api-auth", () => ({ requireAuth: jest.fn() }));
 
@@ -22,7 +21,7 @@ for (const m of ["select", "update", "eq", "single"]) {
 }
 mockChain.single = jest.fn(() => Promise.resolve(dbResult));
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mockChain.then = (res: any, rej?: any) =>
+mockChain.then = (res: any, rej?: any) =>
   Promise.resolve(dbResult).then(res, rej);
 
 const mockSupabaseClient = { from: jest.fn().mockReturnValue(mockChain) };
@@ -30,37 +29,43 @@ jest.mock("@supabase/auth-helpers-nextjs", () => ({
   createServerComponentClient: jest.fn(() => mockSupabaseClient),
 }));
 
-// ---------------------------------------------------------------------------
 // Imports
-// ---------------------------------------------------------------------------
 import { GET, PATCH } from "@/app/api/user/profile/route";
 import { requireAuth } from "@/lib/api-auth";
 
 const mockRequireAuth = requireAuth as jest.MockedFunction<typeof requireAuth>;
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
 const fakeSession = (userId = "user-1") => ({
   user: { id: userId, email: "user@example.com" },
   access_token: "tok",
 });
 
 function authOk() {
-  mockRequireAuth.mockResolvedValue({ session: fakeSession() as never, error: null });
+  mockRequireAuth.mockResolvedValue({
+    session: fakeSession() as never,
+    error: null,
+  });
 }
 function authFail() {
-  const { NextResponse } = jest.requireActual<typeof import("next/server")>("next/server");
+  const { NextResponse } =
+    jest.requireActual<typeof import("next/server")>("next/server");
   mockRequireAuth.mockResolvedValue({
     session: null,
-    error: NextResponse.json({ error: "Authentication required" }, { status: 401 }),
+    error: NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 },
+    ),
   });
 }
 function makeReq(method: string, body?: unknown) {
   return new NextRequest("http://localhost/api/user/profile", {
     method,
     ...(body
-      ? { body: JSON.stringify(body), headers: { "Content-Type": "application/json" } }
+      ? {
+          body: JSON.stringify(body),
+          headers: { "Content-Type": "application/json" },
+        }
       : {}),
   });
 }
@@ -79,9 +84,7 @@ beforeEach(() => {
   mockSupabaseClient.from.mockReturnValue(mockChain);
 });
 
-// ---------------------------------------------------------------------------
 // GET /api/user/profile
-// ---------------------------------------------------------------------------
 describe("GET /api/user/profile", () => {
   it("returns 401 when unauthenticated", async () => {
     authFail();
@@ -117,9 +120,7 @@ describe("GET /api/user/profile", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // PATCH /api/user/profile
-// ---------------------------------------------------------------------------
 describe("PATCH /api/user/profile", () => {
   it("returns 401 when unauthenticated", async () => {
     authFail();
@@ -140,9 +141,9 @@ describe("PATCH /api/user/profile", () => {
     authOk();
     dbResult.data = { id: "user-1", full_name: "New Name" };
     await PATCH(makeReq("PATCH", { id: "injected-id", full_name: "New Name" }));
-    // The update call should NOT include the id field
+    // id should not be updated
     expect(mockChain.update).toHaveBeenCalledWith(
-      expect.not.objectContaining({ id: "injected-id" })
+      expect.not.objectContaining({ id: "injected-id" }),
     );
   });
 
