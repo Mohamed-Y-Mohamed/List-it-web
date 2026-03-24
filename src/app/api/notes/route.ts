@@ -8,7 +8,7 @@ import { requireAuth } from "@/lib/api-auth";
 import { logger } from "@/lib/logger";
 
 // GET /api/notes
-// Query params: list_id, collection_id, is_deleted, is_pinned
+// Query params: id (returns single note), list_id, collection_id, is_deleted, is_pinned
 export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
@@ -18,6 +18,24 @@ export async function GET(request: NextRequest) {
   const supabase = createServerComponentClient({ cookies });
 
   try {
+    const id = searchParams.get("id");
+
+    if (id) {
+      const { data, error } = await supabase
+        .from("note")
+        .select("*")
+        .eq("id", id)
+        .eq("user_id", session.user.id)
+        .single();
+
+      if (error) {
+        logger.error("GET /api/notes error", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ data });
+    }
+
     let query = supabase
       .from("note")
       .select("*")
@@ -84,6 +102,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
     const { id, ...updates } = body;
+    delete updates.user_id;
 
     if (!id) {
       return NextResponse.json({ error: "Note ID is required" }, { status: 400 });

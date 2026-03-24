@@ -26,12 +26,34 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify current password by attempting to sign in with the public anon key
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      logger.error(
+        "POST /api/user/password configuration error: missing Supabase env vars"
+      );
+      return NextResponse.json(
+        { error: "Server configuration error: Supabase is not configured" },
+        { status: 500 }
+      );
+    }
+
+    const userEmail = session?.user?.email;
+    if (!userEmail) {
+      logger.error(
+        "POST /api/user/password configuration error: session is missing user email"
+      );
+      return NextResponse.json(
+        { error: "Server configuration error: user email not available" },
+        { status: 500 }
+      );
+    }
+
     const anonClient = createClient(supabaseUrl, supabaseAnonKey);
 
     const { error: signInError } = await anonClient.auth.signInWithPassword({
-      email: session.user.email!,
+      email: userEmail,
       password: currentPassword,
     });
 

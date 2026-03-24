@@ -90,6 +90,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
     const { id, ...updates } = body;
+    delete updates.user_id;
 
     if (!id) {
       return NextResponse.json({ error: "List ID is required" }, { status: 400 });

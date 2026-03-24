@@ -213,6 +213,15 @@ describe("PATCH /api/tasks", () => {
     const res = await PATCH(makeReq("PATCH", "/api/tasks", { id: "t1", text: "New" }));
     expect(res.status).toBe(500);
   });
+
+  it("strips user_id from the update payload", async () => {
+    authOk();
+    dbResult.data = { id: "t1", text: "New" };
+    await PATCH(makeReq("PATCH", "/api/tasks", { id: "t1", text: "New", user_id: "hacked" }));
+    expect(mockChain.update).toHaveBeenCalledWith(
+      expect.not.objectContaining({ user_id: "hacked" })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -134,6 +134,17 @@ describe("GET /api/notes", () => {
     const res = await GET(makeReq("GET", "/api/notes"));
     expect(res.status).toBe(500);
   });
+
+  it("returns a single note when id query param is provided", async () => {
+    authOk();
+    dbResult.data = { id: "n1", title: "Solo note" };
+    const res = await GET(makeReq("GET", "/api/notes?id=n1"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toEqual(dbResult.data);
+    expect(mockChain.eq).toHaveBeenCalledWith("id", "n1");
+    expect(mockChain.single).toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -204,6 +215,15 @@ describe("PATCH /api/notes", () => {
     dbResult.error = { message: "Update failed" };
     const res = await PATCH(makeReq("PATCH", "/api/notes", { id: "n1", title: "New" }));
     expect(res.status).toBe(500);
+  });
+
+  it("strips user_id from the update payload", async () => {
+    authOk();
+    dbResult.data = { id: "n1", title: "New" };
+    await PATCH(makeReq("PATCH", "/api/notes", { id: "n1", title: "New", user_id: "hacked" }));
+    expect(mockChain.update).toHaveBeenCalledWith(
+      expect.not.objectContaining({ user_id: "hacked" })
+    );
   });
 });
 

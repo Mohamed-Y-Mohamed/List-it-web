@@ -122,4 +122,25 @@ describe("POST /api/user/password", () => {
     const body = await res.json();
     expect(body.success).toBe(true);
   });
+
+  it("returns 500 when Supabase env vars are missing", async () => {
+    authOk();
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const res = await POST(makeReq({ currentPassword: "old123", newPassword: "new123" }));
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toMatch(/configuration/i);
+  });
+
+  it("returns 500 when session email is missing", async () => {
+    mockRequireAuth.mockResolvedValue({
+      session: { user: { id: "user-1", email: undefined }, access_token: "tok" } as never,
+      error: null,
+    });
+    const res = await POST(makeReq({ currentPassword: "old123", newPassword: "new123" }));
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toMatch(/email/i);
+  });
 });

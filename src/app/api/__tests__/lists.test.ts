@@ -199,6 +199,15 @@ describe("PATCH /api/lists", () => {
     const res = await PATCH(makeReq("PATCH", "/api/lists", { id: "l1", name: "New" }));
     expect(res.status).toBe(500);
   });
+
+  it("strips user_id from the update payload", async () => {
+    authOk();
+    dbResult.data = { id: "l1", name: "New" };
+    await PATCH(makeReq("PATCH", "/api/lists", { id: "l1", name: "New", user_id: "hacked" }));
+    expect(mockChain.update).toHaveBeenCalledWith(
+      expect.not.objectContaining({ user_id: "hacked" })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
