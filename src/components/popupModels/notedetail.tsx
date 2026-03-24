@@ -343,23 +343,16 @@ const NoteDetails = ({
 
       console.log("Updating note basic fields:", updateData);
 
-      const { data, error: dbError } = await supabase
-        .from("note")
-        .update(updateData)
-        .eq("id", verifiedNote.id)
-        .select("*");
-
-      if (dbError) {
-        if (
-          dbError.code === "42501" ||
-          dbError.message?.includes("row-level security")
-        ) {
-          throw new Error(
-            "Permission denied. Make sure you're authorized to update this note."
-          );
-        }
-        throw new Error(dbError.message);
+      const patchRes = await fetch("/api/notes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: verifiedNote.id, ...updateData }),
+      });
+      if (!patchRes.ok) {
+        const errBody = await patchRes.json();
+        throw new Error(errBody.error || "Failed to update note");
       }
+      const { data } = await patchRes.json();
 
       if (onNoteUpdate) {
         const r = await onNoteUpdate(
@@ -415,23 +408,16 @@ const NoteDetails = ({
         selectedCollection
       );
 
-      const { data, error: dbError } = await supabase
-        .from("note")
-        .update({ collection_id: collectionIdForDb })
-        .eq("id", verifiedNote.id)
-        .select("*");
-
-      if (dbError) {
-        if (
-          dbError.code === "42501" ||
-          dbError.message?.includes("row-level security")
-        ) {
-          throw new Error(
-            "Permission denied. Make sure you're authorized to update this note."
-          );
-        }
-        throw new Error(dbError.message);
+      const patchRes = await fetch("/api/notes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: verifiedNote.id, collection_id: collectionIdForDb }),
+      });
+      if (!patchRes.ok) {
+        const errBody = await patchRes.json();
+        throw new Error(errBody.error || "Failed to update note collection");
       }
+      const { data } = await patchRes.json();
 
       setVerifiedNote((prev) => ({
         ...prev,
@@ -470,20 +456,14 @@ const NoteDetails = ({
     }
     try {
       setIsDeleting(true);
-      const { error: dbError } = await supabase
-        .from("note")
-        .delete()
-        .eq("id", verifiedNote.id);
-      if (dbError) {
-        if (
-          dbError.code === "42501" ||
-          dbError.message?.includes("row-level security")
-        ) {
-          throw new Error(
-            "Permission denied. Make sure you're authorized to delete this note."
-          );
-        }
-        throw new Error(dbError.message);
+      const deleteRes = await fetch("/api/notes", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: verifiedNote.id, hard: true }),
+      });
+      if (!deleteRes.ok) {
+        const errBody = await deleteRes.json();
+        throw new Error(errBody.error || "Failed to delete note");
       }
       if (onNoteDelete) await onNoteDelete(verifiedNote.id);
       showSuccess("Note permanently deleted");
