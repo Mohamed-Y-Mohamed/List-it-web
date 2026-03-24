@@ -1,21 +1,20 @@
-/**
- * @jest-environment node
- *
- * Unit tests for POST /api/user/password
- */
+/** @jest-environment node */
 
 import { NextRequest } from "next/server";
 
-// ---------------------------------------------------------------------------
 // Mocks
-// ---------------------------------------------------------------------------
 jest.mock("next/headers", () => ({ cookies: jest.fn(() => ({})) }));
 jest.mock("@/lib/logger", () => ({
-  logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
+  logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 jest.mock("@/lib/api-auth", () => ({ requireAuth: jest.fn() }));
 
-// Anon client (createClient from @supabase/supabase-js) for password verify
+// Anon client mock
 const mockSignIn = jest.fn();
 jest.mock("@supabase/supabase-js", () => ({
   createClient: jest.fn(() => ({
@@ -23,7 +22,7 @@ jest.mock("@supabase/supabase-js", () => ({
   })),
 }));
 
-// Session client (createServerComponentClient) for updateUser
+// Session client mock
 const mockUpdateUser = jest.fn();
 jest.mock("@supabase/auth-helpers-nextjs", () => ({
   createServerComponentClient: jest.fn(() => ({
@@ -31,37 +30,43 @@ jest.mock("@supabase/auth-helpers-nextjs", () => ({
   })),
 }));
 
-// ---------------------------------------------------------------------------
 // Imports
-// ---------------------------------------------------------------------------
 import { POST } from "@/app/api/user/password/route";
 import { requireAuth } from "@/lib/api-auth";
 
 const mockRequireAuth = requireAuth as jest.MockedFunction<typeof requireAuth>;
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
 const fakeSession = () => ({
   user: { id: "user-1", email: "user@example.com" },
   access_token: "tok",
 });
 
 function authOk() {
-  mockRequireAuth.mockResolvedValue({ session: fakeSession() as never, error: null });
+  mockRequireAuth.mockResolvedValue({
+    session: fakeSession() as never,
+    error: null,
+  });
 }
 function authFail() {
-  const { NextResponse } = jest.requireActual<typeof import("next/server")>("next/server");
+  const { NextResponse } =
+    jest.requireActual<typeof import("next/server")>("next/server");
   mockRequireAuth.mockResolvedValue({
     session: null,
-    error: NextResponse.json({ error: "Authentication required" }, { status: 401 }),
+    error: NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 },
+    ),
   });
 }
 function makeReq(body?: unknown) {
   return new NextRequest("http://localhost/api/user/password", {
     method: "POST",
     ...(body
-      ? { body: JSON.stringify(body), headers: { "Content-Type": "application/json" } }
+      ? {
+          body: JSON.stringify(body),
+          headers: { "Content-Type": "application/json" },
+        }
       : {}),
   });
 }
@@ -72,13 +77,13 @@ beforeEach(() => {
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
 });
 
-// ---------------------------------------------------------------------------
 // POST /api/user/password
-// ---------------------------------------------------------------------------
 describe("POST /api/user/password", () => {
   it("returns 401 when unauthenticated", async () => {
     authFail();
-    const res = await POST(makeReq({ currentPassword: "old", newPassword: "new" }));
+    const res = await POST(
+      makeReq({ currentPassword: "old", newPassword: "new" }),
+    );
     expect(res.status).toBe(401);
   });
 
@@ -99,7 +104,9 @@ describe("POST /api/user/password", () => {
   it("returns 401 when current password is incorrect", async () => {
     authOk();
     mockSignIn.mockResolvedValue({ error: { message: "Invalid credentials" } });
-    const res = await POST(makeReq({ currentPassword: "wrong", newPassword: "new123" }));
+    const res = await POST(
+      makeReq({ currentPassword: "wrong", newPassword: "new123" }),
+    );
     expect(res.status).toBe(401);
     const body = await res.json();
     expect(body.error).toMatch(/incorrect/i);
@@ -109,7 +116,9 @@ describe("POST /api/user/password", () => {
     authOk();
     mockSignIn.mockResolvedValue({ error: null });
     mockUpdateUser.mockResolvedValue({ error: { message: "Update failed" } });
-    const res = await POST(makeReq({ currentPassword: "old123", newPassword: "new123" }));
+    const res = await POST(
+      makeReq({ currentPassword: "old123", newPassword: "new123" }),
+    );
     expect(res.status).toBe(500);
   });
 
@@ -117,7 +126,9 @@ describe("POST /api/user/password", () => {
     authOk();
     mockSignIn.mockResolvedValue({ error: null });
     mockUpdateUser.mockResolvedValue({ error: null });
-    const res = await POST(makeReq({ currentPassword: "old123", newPassword: "new123" }));
+    const res = await POST(
+      makeReq({ currentPassword: "old123", newPassword: "new123" }),
+    );
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
@@ -127,7 +138,9 @@ describe("POST /api/user/password", () => {
     authOk();
     delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const res = await POST(makeReq({ currentPassword: "old123", newPassword: "new123" }));
+    const res = await POST(
+      makeReq({ currentPassword: "old123", newPassword: "new123" }),
+    );
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.error).toMatch(/configuration/i);
@@ -135,10 +148,15 @@ describe("POST /api/user/password", () => {
 
   it("returns 500 when session email is missing", async () => {
     mockRequireAuth.mockResolvedValue({
-      session: { user: { id: "user-1", email: undefined }, access_token: "tok" } as never,
+      session: {
+        user: { id: "user-1", email: undefined },
+        access_token: "tok",
+      } as never,
       error: null,
     });
-    const res = await POST(makeReq({ currentPassword: "old123", newPassword: "new123" }));
+    const res = await POST(
+      makeReq({ currentPassword: "old123", newPassword: "new123" }),
+    );
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.error).toMatch(/email/i);

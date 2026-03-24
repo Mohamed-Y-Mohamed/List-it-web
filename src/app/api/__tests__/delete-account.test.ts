@@ -1,28 +1,18 @@
-/**
- * @jest-environment node
- *
- * Unit tests for DELETE /api/delete-account
- *
- * This route performs its own session check (no requireAuth helper), uses
- * createServerComponentClient for session verification, and createClient from
- * @supabase/supabase-js for the admin client.
- */
+/** @jest-environment node */
 
 import { NextRequest } from "next/server";
 
-// ---------------------------------------------------------------------------
 // Mocks
-// ---------------------------------------------------------------------------
 jest.mock("next/headers", () => ({ cookies: jest.fn(() => ({})) }));
 
-// Mock admin client (createClient from @supabase/supabase-js)
+// Admin client mock
 const mockAdminDeleteUser = jest.fn();
 const mockAdminChain: Record<string, jest.Mock> & { then?: unknown } = {};
 for (const m of ["delete", "eq"]) {
   mockAdminChain[m] = jest.fn().mockReturnValue(mockAdminChain);
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mockAdminChain.then = (res: any, rej?: any) =>
+mockAdminChain.then = (res: any, rej?: any) =>
   Promise.resolve({ error: null }).then(res, rej);
 
 const mockAdminClient = {
@@ -34,7 +24,7 @@ jest.mock("@supabase/supabase-js", () => ({
   createClient: jest.fn(() => mockAdminClient),
 }));
 
-// Mock session client (createServerComponentClient)
+// Session client mock
 const mockGetSession = jest.fn();
 const mockSessionClient = {
   auth: { getSession: mockGetSession },
@@ -45,19 +35,18 @@ jest.mock("@supabase/auth-helpers-nextjs", () => ({
   createServerComponentClient: jest.fn(() => mockSessionClient),
 }));
 
-// ---------------------------------------------------------------------------
 // Imports
-// ---------------------------------------------------------------------------
 import { DELETE } from "@/app/api/delete-account/route";
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
 function makeReq(body?: unknown) {
   return new NextRequest("http://localhost/api/delete-account", {
     method: "DELETE",
     ...(body
-      ? { body: JSON.stringify(body), headers: { "Content-Type": "application/json" } }
+      ? {
+          body: JSON.stringify(body),
+          headers: { "Content-Type": "application/json" },
+        }
       : {}),
   });
 }
@@ -82,9 +71,7 @@ beforeEach(() => {
   mockAdminClient.from.mockReturnValue(mockAdminChain);
 });
 
-// ---------------------------------------------------------------------------
 // Tests
-// ---------------------------------------------------------------------------
 describe("DELETE /api/delete-account", () => {
   it("returns 400 when userId is missing", async () => {
     const res = await DELETE(makeReq({}));

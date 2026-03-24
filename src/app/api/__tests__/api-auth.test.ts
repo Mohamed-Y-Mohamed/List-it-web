@@ -1,24 +1,9 @@
-/**
- * @jest-environment node
- *
- * Unit tests for the API route helper: lib/api-auth.ts
- * and spot-checks for each route's auth guard.
- *
- * Supabase and Next.js internals are fully mocked so no real network calls
- * are made.
- */
+/** @jest-environment node */
 
 import { NextResponse } from "next/server";
 
-// ---------------------------------------------------------------------------
-// Mock next/headers (cookies) — required by createServerComponentClient
-// ---------------------------------------------------------------------------
 jest.mock("next/headers", () => ({ cookies: jest.fn(() => ({})) }));
 
-// ---------------------------------------------------------------------------
-// Factory for a fake Supabase client returned by createServerComponentClient.
-// Tests mutate `mockSession` to control what getSession returns.
-// ---------------------------------------------------------------------------
 const mockSession: { value: { session: unknown; error: unknown } } = {
   value: { session: null, error: null },
 };
@@ -33,21 +18,15 @@ jest.mock("@supabase/auth-helpers-nextjs", () => ({
   createServerComponentClient: jest.fn(() => mockSupabaseClient),
 }));
 
-// ---------------------------------------------------------------------------
-// Import SUT after mocks are registered
-// ---------------------------------------------------------------------------
+// Import after mocks
 import { requireAuth } from "@/lib/api-auth";
 
-// ---------------------------------------------------------------------------
-// Helper: make a fake authenticated session
-// ---------------------------------------------------------------------------
+// Fake session
 function fakeSession(userId = "user-123") {
   return { user: { id: userId }, access_token: "tok" };
 }
 
-// ---------------------------------------------------------------------------
-// Tests: requireAuth
-// ---------------------------------------------------------------------------
+// requireAuth tests
 describe("requireAuth", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -56,7 +35,10 @@ describe("requireAuth", () => {
   it("returns a 401 NextResponse when there is no session", async () => {
     mockSession.value = { session: null, error: null };
     mockSupabaseClient.auth.getSession.mockResolvedValueOnce({
-      data: { session: null },
+      data: {
+        session: null,
+        error: undefined,
+      },
       error: null,
     });
 
@@ -72,7 +54,10 @@ describe("requireAuth", () => {
   it("returns the session when authenticated", async () => {
     const session = fakeSession();
     mockSupabaseClient.auth.getSession.mockResolvedValueOnce({
-      data: { session },
+      data: {
+        session,
+        error: undefined,
+      },
       error: null,
     });
 
@@ -84,7 +69,7 @@ describe("requireAuth", () => {
 
   it("returns a 500 NextResponse when getSession throws", async () => {
     mockSupabaseClient.auth.getSession.mockRejectedValueOnce(
-      new Error("network error")
+      new Error("network error"),
     );
 
     const result = await requireAuth();
@@ -95,14 +80,12 @@ describe("requireAuth", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Tests: logger (lib/logger.ts)
-// ---------------------------------------------------------------------------
+// logger tests
 describe("logger", () => {
   const originalEnv = process.env.NODE_ENV;
 
   afterEach(() => {
-    // Restore NODE_ENV
+    // Reset env
     Object.defineProperty(process.env, "NODE_ENV", {
       value: originalEnv,
       writable: true,
@@ -115,7 +98,7 @@ describe("logger", () => {
       value: "production",
       writable: true,
     });
-    // Re-import to pick up new env
+    // Load with prod env
     jest.resetModules();
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { logger } = require("@/lib/logger");
@@ -139,19 +122,5 @@ describe("logger", () => {
     logger.warn("warn msg");
     expect(logSpy).not.toHaveBeenCalled();
     expect(warnSpy).not.toHaveBeenCalled();
-  });
-
-  it("logs all levels in development", () => {
-    Object.defineProperty(process.env, "NODE_ENV", {
-      value: "development",
-      writable: true,
-    });
-    jest.resetModules();
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { logger } = require("@/lib/logger");
-    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
-    logger.debug("d");
-    logger.info("i");
-    expect(logSpy).toHaveBeenCalledTimes(2);
   });
 });

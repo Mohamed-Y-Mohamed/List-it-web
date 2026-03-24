@@ -1,31 +1,39 @@
-/**
- * @jest-environment node
- *
- * Unit tests for GET | POST | PATCH | DELETE /api/notes
- */
+/** @jest-environment node */
 
 import { NextRequest } from "next/server";
 
-// ---------------------------------------------------------------------------
 // Mocks
-// ---------------------------------------------------------------------------
 jest.mock("next/headers", () => ({ cookies: jest.fn(() => ({})) }));
 jest.mock("@/lib/logger", () => ({
-  logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
+  logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 jest.mock("@/lib/api-auth", () => ({ requireAuth: jest.fn() }));
 
 const dbResult: { data: unknown; error: unknown } = { data: null, error: null };
 const mockChain: Record<string, jest.Mock> & { then?: unknown } = {};
 for (const m of [
-  "select", "insert", "update", "delete",
-  "eq", "in", "lt", "gte", "lte", "order", "limit",
+  "select",
+  "insert",
+  "update",
+  "delete",
+  "eq",
+  "in",
+  "lt",
+  "gte",
+  "lte",
+  "order",
+  "limit",
 ]) {
   mockChain[m] = jest.fn().mockReturnValue(mockChain);
 }
 mockChain.single = jest.fn(() => Promise.resolve(dbResult));
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mockChain.then = (res: any, rej?: any) =>
+mockChain.then = (res: any, rej?: any) =>
   Promise.resolve(dbResult).then(res, rej);
 
 const mockSupabaseClient = { from: jest.fn().mockReturnValue(mockChain) };
@@ -33,37 +41,43 @@ jest.mock("@supabase/auth-helpers-nextjs", () => ({
   createServerComponentClient: jest.fn(() => mockSupabaseClient),
 }));
 
-// ---------------------------------------------------------------------------
 // Imports
-// ---------------------------------------------------------------------------
 import { GET, POST, PATCH, DELETE } from "@/app/api/notes/route";
 import { requireAuth } from "@/lib/api-auth";
 
 const mockRequireAuth = requireAuth as jest.MockedFunction<typeof requireAuth>;
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
 const fakeSession = (userId = "user-1") => ({
   user: { id: userId, email: "a@b.com" },
   access_token: "tok",
 });
 
 function authOk() {
-  mockRequireAuth.mockResolvedValue({ session: fakeSession() as never, error: null });
+  mockRequireAuth.mockResolvedValue({
+    session: fakeSession() as never,
+    error: null,
+  });
 }
 function authFail() {
-  const { NextResponse } = jest.requireActual<typeof import("next/server")>("next/server");
+  const { NextResponse } =
+    jest.requireActual<typeof import("next/server")>("next/server");
   mockRequireAuth.mockResolvedValue({
     session: null,
-    error: NextResponse.json({ error: "Authentication required" }, { status: 401 }),
+    error: NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 },
+    ),
   });
 }
 function makeReq(method: string, url: string, body?: unknown) {
   return new NextRequest(`http://localhost${url}`, {
     method,
     ...(body
-      ? { body: JSON.stringify(body), headers: { "Content-Type": "application/json" } }
+      ? {
+          body: JSON.stringify(body),
+          headers: { "Content-Type": "application/json" },
+        }
       : {}),
   });
 }
@@ -73,8 +87,17 @@ beforeEach(() => {
   dbResult.data = null;
   dbResult.error = null;
   for (const m of [
-    "select", "insert", "update", "delete",
-    "eq", "in", "lt", "gte", "lte", "order", "limit",
+    "select",
+    "insert",
+    "update",
+    "delete",
+    "eq",
+    "in",
+    "lt",
+    "gte",
+    "lte",
+    "order",
+    "limit",
   ]) {
     mockChain[m].mockReturnValue(mockChain);
   }
@@ -85,9 +108,7 @@ beforeEach(() => {
   mockSupabaseClient.from.mockReturnValue(mockChain);
 });
 
-// ---------------------------------------------------------------------------
 // GET /api/notes
-// ---------------------------------------------------------------------------
 describe("GET /api/notes", () => {
   it("returns 401 when unauthenticated", async () => {
     authFail();
@@ -147,9 +168,7 @@ describe("GET /api/notes", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // POST /api/notes
-// ---------------------------------------------------------------------------
 describe("POST /api/notes", () => {
   it("returns 401 when unauthenticated", async () => {
     authFail();
@@ -171,7 +190,7 @@ describe("POST /api/notes", () => {
     dbResult.data = { id: "n1", title: "Note 1", user_id: "user-1" };
     await POST(makeReq("POST", "/api/notes", { title: "Note 1" }));
     expect(mockChain.insert).toHaveBeenCalledWith(
-      expect.objectContaining({ user_id: "user-1" })
+      expect.objectContaining({ user_id: "user-1" }),
     );
   });
 
@@ -183,13 +202,13 @@ describe("POST /api/notes", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // PATCH /api/notes
-// ---------------------------------------------------------------------------
 describe("PATCH /api/notes", () => {
   it("returns 401 when unauthenticated", async () => {
     authFail();
-    const res = await PATCH(makeReq("PATCH", "/api/notes", { id: "n1", title: "New" }));
+    const res = await PATCH(
+      makeReq("PATCH", "/api/notes", { id: "n1", title: "New" }),
+    );
     expect(res.status).toBe(401);
   });
 
@@ -204,7 +223,9 @@ describe("PATCH /api/notes", () => {
   it("returns 200 with the updated note", async () => {
     authOk();
     dbResult.data = { id: "n1", title: "New" };
-    const res = await PATCH(makeReq("PATCH", "/api/notes", { id: "n1", title: "New" }));
+    const res = await PATCH(
+      makeReq("PATCH", "/api/notes", { id: "n1", title: "New" }),
+    );
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data).toEqual(dbResult.data);
@@ -213,23 +234,29 @@ describe("PATCH /api/notes", () => {
   it("returns 500 on database error", async () => {
     authOk();
     dbResult.error = { message: "Update failed" };
-    const res = await PATCH(makeReq("PATCH", "/api/notes", { id: "n1", title: "New" }));
+    const res = await PATCH(
+      makeReq("PATCH", "/api/notes", { id: "n1", title: "New" }),
+    );
     expect(res.status).toBe(500);
   });
 
   it("strips user_id from the update payload", async () => {
     authOk();
     dbResult.data = { id: "n1", title: "New" };
-    await PATCH(makeReq("PATCH", "/api/notes", { id: "n1", title: "New", user_id: "hacked" }));
+    await PATCH(
+      makeReq("PATCH", "/api/notes", {
+        id: "n1",
+        title: "New",
+        user_id: "hacked",
+      }),
+    );
     expect(mockChain.update).toHaveBeenCalledWith(
-      expect.not.objectContaining({ user_id: "hacked" })
+      expect.not.objectContaining({ user_id: "hacked" }),
     );
   });
 });
 
-// ---------------------------------------------------------------------------
 // DELETE /api/notes
-// ---------------------------------------------------------------------------
 describe("DELETE /api/notes", () => {
   it("returns 401 when unauthenticated", async () => {
     authFail();
@@ -256,7 +283,9 @@ describe("DELETE /api/notes", () => {
   it("hard-deletes a note when hard=true", async () => {
     authOk();
     dbResult.error = null;
-    const res = await DELETE(makeReq("DELETE", "/api/notes", { id: "n1", hard: true }));
+    const res = await DELETE(
+      makeReq("DELETE", "/api/notes", { id: "n1", hard: true }),
+    );
     expect(res.status).toBe(200);
     expect(mockChain.delete).toHaveBeenCalled();
     expect(mockChain.update).not.toHaveBeenCalled();
