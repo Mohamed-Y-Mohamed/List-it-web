@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { LIST_COLORS, OperationResult } from "@/types/schema";
-import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
 import { createPortal } from "react-dom";
 
@@ -167,16 +166,12 @@ const NoteDetails = ({
       if (!isOpen || !note.id || !user) return;
 
       try {
-        const { data, error } = await supabase
-          .from("note")
-          .select("*")
-          .eq("id", note.id)
-          .single();
-
-        if (error) {
-          console.error("Error verifying note data:", error);
+        const res = await fetch(`/api/notes?id=${note.id}`);
+        if (!res.ok) {
+          console.error("Error verifying note data");
           return;
         }
+        const { data } = await res.json();
 
         if (data) {
           console.log("Direct DB verification for note:", {
@@ -219,25 +214,22 @@ const NoteDetails = ({
 
   useEffect(() => {
     if (!isOpen || !user) return;
-    let query = supabase.from("collection").select("id,collection_name");
-    if (verifiedNote.list_id) {
-      query = query.eq("list_id", verifiedNote.list_id);
-    } else {
-      query = query.eq("user_id", user.id);
-    }
-    query.order("collection_name", { ascending: true }).then(({ data }) => {
-      if (data) {
-        setCollections(data);
-
-        console.log(
-          "Loaded collections:",
-          data.map((c) => ({
-            id: c.id,
-            name: c.collection_name,
-          }))
-        );
-      }
-    });
+    const params = new URLSearchParams();
+    if (verifiedNote.list_id) params.set("list_id", verifiedNote.list_id);
+    fetch(`/api/collections?${params}`)
+      .then((r) => r.json())
+      .then(({ data }) => {
+        if (data) {
+          setCollections(data);
+          console.log(
+            "Loaded collections:",
+            data.map((c: { id: string; collection_name: string }) => ({
+              id: c.id,
+              name: c.collection_name,
+            }))
+          );
+        }
+      });
   }, [isOpen, verifiedNote.list_id, user]);
 
   // --- UPDATE FORM WHEN VERIFIED NOTE CHANGES ---

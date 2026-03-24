@@ -8,14 +8,33 @@ import { requireAuth } from "@/lib/api-auth";
 import { logger } from "@/lib/logger";
 
 // GET /api/lists
-export async function GET() {
+// Query params: id (optional – returns single list when provided)
+export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
   const { session } = auth;
 
+  const { searchParams } = new URL(request.url);
   const supabase = createServerComponentClient({ cookies });
+  const id = searchParams.get("id");
 
   try {
+    if (id) {
+      const { data, error } = await supabase
+        .from("list")
+        .select("*")
+        .eq("id", id)
+        .eq("user_id", session.user.id)
+        .single();
+
+      if (error) {
+        logger.error("GET /api/lists error", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ data });
+    }
+
     const { data, error } = await supabase
       .from("list")
       .select("*")

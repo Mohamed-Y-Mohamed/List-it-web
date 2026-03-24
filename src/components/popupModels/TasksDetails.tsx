@@ -14,7 +14,6 @@ import { useTheme } from "@/context/ThemeContext";
 import { Collection, OperationResult } from "@/types/schema";
 import { formatDetailDate } from "@/utils/dateUtils";
 import { createPortal } from "react-dom";
-import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
 
 interface TaskSidebarProps {
@@ -82,15 +81,13 @@ const TaskSidebar = ({
 
   useEffect(() => {
     if (!isOpen || !user) return;
-    let query = supabase.from("collection").select("id,collection_name");
-    if (task.list_id) {
-      query = query.eq("list_id", task.list_id);
-    } else {
-      query = query.eq("user_id", user.id);
-    }
-    query.order("collection_name", { ascending: true }).then(({ data }) => {
-      if (data) setCollections(data);
-    });
+    const params = new URLSearchParams();
+    if (task.list_id) params.set("list_id", task.list_id);
+    fetch(`/api/collections?${params}`)
+      .then((r) => r.json())
+      .then(({ data }) => {
+        if (data) setCollections(data);
+      });
   }, [isOpen, task.list_id, user]);
 
   // --- FORM STATE ---
