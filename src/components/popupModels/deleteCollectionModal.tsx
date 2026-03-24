@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { X, Trash2, AlertTriangle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Collection } from "@/types/schema";
-import { supabase } from "@/utils/client";
 
 interface DeleteCollectionModalProps {
   isOpen: boolean;
@@ -75,39 +74,21 @@ const DeleteCollectionModal = ({
 
     setIsDeleting(true);
     try {
-      // Delete all tasks and notes in these collections first
-      // This is necessary to maintain referential integrity
+      const res = await fetch("/api/collections", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedCollections }),
+      });
 
-      // 1. Delete tasks
-      const { error: tasksError } = await supabase
-        .from("task")
-        .delete()
-        .in("collection_id", selectedCollections);
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error || "Failed to delete collections");
+      }
 
-      if (tasksError) throw tasksError;
-
-      // 2. Delete notes
-      const { error: notesError } = await supabase
-        .from("note")
-        .delete()
-        .in("collection_id", selectedCollections);
-
-      if (notesError) throw notesError;
-
-      // 3. Delete the collections
-      const { error: collectionsError } = await supabase
-        .from("collection")
-        .delete()
-        .in("id", selectedCollections);
-
-      if (collectionsError) throw collectionsError;
-
-      // Success - close modal and refresh data
       onCollectionsDeleted();
       onClose();
     } catch (error) {
       console.error("Error deleting collections:", error);
-      // You could add error handling UI here
     } finally {
       setIsDeleting(false);
       setShowConfirmation(false);

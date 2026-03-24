@@ -28,7 +28,6 @@ import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
 import CreateListModal from "@/components/popupModels/ListPopup";
-import { supabase } from "@/utils/client";
 import { List, ListColor } from "@/types/schema";
 import EditListPopup from "@/components/popupModels/editListPopup";
 
@@ -60,18 +59,6 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
   const [isLoadingLists, setIsLoadingLists] = useState<boolean>(true);
   const [isDeletingList, setIsDeletingList] = useState<boolean>(false);
 
-  // Helper function to format date for Postgres
-  const formatDateForPostgres = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const seconds = String(date.getSeconds()).padStart(2, "0");
-
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-  };
-
   // Helper function to refresh collections when list color changes
 
   const fetchLists = useCallback(
@@ -83,28 +70,25 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
       }
 
       try {
-        // Only set loading if this isn't a background refresh
         if (forceFetch || lists.length === 0) {
           setIsLoadingLists(true);
         }
 
-        // Request lists with proper ordering for consistent display
-        const { data, error } = await supabase
-          .from("list")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("is_pinned", { ascending: false }) // Pinned first
-          .order("created_at", { ascending: false }); // Then newest first
+        const res = await fetch("/api/lists");
+        if (!res.ok) throw new Error("Failed to fetch lists");
+        const { data } = await res.json();
 
-        if (error) {
-          throw error;
-        }
-
-        // Update the lists state with the fresh data
-        setLists(data || []);
+        // Sort: pinned first, then newest
+        const sorted = (data || []).sort(
+          (a: List, b: List) => {
+            if (a.is_pinned && !b.is_pinned) return -1;
+            if (!a.is_pinned && b.is_pinned) return 1;
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          }
+        );
+        setLists(sorted);
       } catch (error) {
         console.error("Error fetching lists:", error);
-        // Don't clear lists on error to preserve user experience
       } finally {
         setIsLoadingLists(false);
       }
@@ -113,26 +97,22 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
   );
   const refreshCollectionsColor = useCallback(
     async (newColor: string, listId: string) => {
-      // ADD listId parameter
       try {
         if (!user?.id) return;
-
-        // Update only "General" collections for the specific list
-        const { error } = await supabase
-          .from("collection")
-          .update({ bg_color_hex: newColor })
-          .eq("user_id", user.id)
-          .eq("list_id", listId) // ADD THIS LINE to be specific to the list
-          .ilike("collection_name", "general");
-
-        if (error) {
-          console.error("Error updating collection colors:", error);
-        } else {
-          console.log(
-            "Successfully updated General collections for list:",
-            listId
-          );
-        }
+        // Find the "General" collection for this list, then update its color
+        const res = await fetch(`/api/collections?list_id=${listId}`);
+        if (!res.ok) return;
+        const { data: cols } = await res.json();
+        const general = (cols || []).find(
+          (c: { id: string; collection_name: string | null }) =>
+            c.collection_name?.toLowerCase().trim() === "general"
+        );
+        if (!general) return;
+        await fetch("/api/collections", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: general.id, bg_color_hex: newColor }),
+        });
       } catch (error) {
         console.error("Error in refreshCollectionsColor:", error);
       }
@@ -178,14 +158,14 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
     const currentList = lists.find((list) => list.id === listId);
     if (!currentList) return;
 
-    const { error } = await supabase
-      .from("list")
-      .update({ is_pinned: !currentList.is_pinned })
-      .eq("id", listId)
-      .eq("user_id", user.id);
+    const res = await fetch("/api/lists", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: listId, is_pinned: !currentList.is_pinned }),
+    });
 
-    if (error) {
-      console.error("Error updating list pin status:", error);
+    if (!res.ok) {
+      console.error("Error updating list pin status");
       return;
     }
 
@@ -271,80 +251,53 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         return { success: false, error: "No authenticated user" };
       }
 
-      // First, check if a list with the same name already exists
-      const { data: existingLists, error: checkError } = await supabase
-        .from("list")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("list_name", listData.list_name?.trim())
-        .limit(1);
-
-      if (checkError) {
-        console.error("Error checking existing lists:", checkError);
-      } else if (existingLists && existingLists.length > 0) {
-        // If a list with this name already exists, navigate to it instead of creating a duplicate
-        await fetchLists();
-        navigateTo(`/List/${existingLists[0].id}`);
-        setIsLoadingLists(false);
-        return { success: true };
-      }
-
-      // If no existing list was found, create a new one with created_at
-      const { data: newList, error: createListError } = await supabase
-        .from("list")
-        .insert([
-          {
-            ...listData,
-            user_id: user.id,
-            created_at: formatDateForPostgres(new Date()),
-          },
-        ])
-        .select();
-
-      if (createListError) {
-        console.error("Error creating list:", createListError);
-        setIsLoadingLists(false);
-        return { success: false, error: createListError };
-      }
-
-      if (!newList || newList.length === 0) {
-        console.error("No list created");
-        setIsLoadingLists(false);
-        return { success: false, error: "No list created" };
-      }
-
-      const createdList = newList[0];
-
-      // Create a default collection for the new list with created_at
-      const { error: createCollectionError } = await supabase
-        .from("collection")
-        .insert([
-          {
-            list_id: createdList.id,
-            collection_name: "General",
-            bg_color_hex: createdList.bg_color_hex,
-            user_id: user.id,
-            created_at: formatDateForPostgres(new Date()),
-          },
-        ]);
-
-      if (createCollectionError) {
-        console.error(
-          "Error creating General collection:",
-          createCollectionError
+      // Check for duplicate name via API
+      const checkRes = await fetch("/api/lists");
+      if (checkRes.ok) {
+        const { data: existingLists } = await checkRes.json();
+        const dup = (existingLists || []).find(
+          (l: List) =>
+            l.list_name?.trim().toLowerCase() ===
+            listData.list_name?.trim().toLowerCase()
         );
+        if (dup) {
+          await fetchLists();
+          navigateTo(`/List/${dup.id}`);
+          setIsLoadingLists(false);
+          return { success: true };
+        }
       }
 
-      // Update the local lists state immediately to show the new list
+      // Create list
+      const createRes = await fetch("/api/lists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(listData),
+      });
+
+      if (!createRes.ok) {
+        const body = await createRes.json();
+        console.error("Error creating list:", body.error);
+        setIsLoadingLists(false);
+        return { success: false, error: body.error };
+      }
+
+      const { data: createdList } = await createRes.json();
+
+      // Create a default "General" collection for the new list
+      await fetch("/api/collections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          list_id: createdList.id,
+          collection_name: "General",
+          bg_color_hex: createdList.bg_color_hex,
+        }),
+      });
+
       setLists((prevLists) => [createdList, ...prevLists]);
-
-      // Also refresh lists from the server to ensure complete data
       await fetchLists();
-
-      // Close the create list modal
       setIsCreateListModalOpen(false);
-
-      // Navigate to the new list
       navigateTo(`/List/${createdList.id}`);
       return { success: true };
     } catch (err) {
@@ -361,88 +314,21 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
     try {
       setIsDeletingList(true);
 
-      // Get all collections for this list
-      const { data: collections, error: collectionsQueryError } = await supabase
-        .from("collection")
-        .select("id")
-        .eq("list_id", listId);
+      const res = await fetch("/api/lists", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: listId }),
+      });
 
-      if (collectionsQueryError) {
-        throw collectionsQueryError;
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error || "Failed to delete list");
       }
 
-      const collectionIds = collections?.map((c) => c.id) || [];
-
-      // Delete tasks related to collections in this list
-      if (collectionIds.length > 0) {
-        // Use 'in' filter for multiple collection IDs
-        const { error: tasksError } = await supabase
-          .from("task")
-          .delete()
-          .in("collection_id", collectionIds);
-
-        if (tasksError) {
-          console.error("Error deleting tasks from collections:", tasksError);
-        }
-
-        // Delete notes related to collections in this list
-        const { error: notesError } = await supabase
-          .from("note")
-          .delete()
-          .in("collection_id", collectionIds);
-
-        if (notesError) {
-          console.error("Error deleting notes from collections:", notesError);
-        }
-      }
-
-      // Also delete any tasks directly associated with the list (not via collection)
-      const { error: listTasksError } = await supabase
-        .from("task")
-        .delete()
-        .eq("list_id", listId);
-
-      if (listTasksError) {
-        console.error("Error deleting list tasks:", listTasksError);
-      }
-
-      // Also delete any notes directly associated with the list (not via collection)
-      const { error: listNotesError } = await supabase
-        .from("note")
-        .delete()
-        .eq("list_id", listId);
-
-      if (listNotesError) {
-        console.error("Error deleting list notes:", listNotesError);
-      }
-
-      // Delete all collections for this list
-      const { error: collectionsError } = await supabase
-        .from("collection")
-        .delete()
-        .eq("list_id", listId);
-
-      if (collectionsError) {
-        console.error("Error deleting collections:", collectionsError);
-      }
-
-      // Finally delete the list itself
-      const { error: listError } = await supabase
-        .from("list")
-        .delete()
-        .eq("id", listId)
-        .eq("user_id", user.id);
-
-      if (listError) {
-        throw listError;
-      }
-
-      navigateTo("/dashboard"); // Update local state
+      navigateTo("/dashboard");
       setLists((prevLists) => prevLists.filter((list) => list.id !== listId));
 
-      // If we deleted the current list, navigate to another list or dashboard
       if (currentListId === listId) {
-        // If there are other lists, navigate to the first one
         if (lists.length > 1) {
           const nextList = lists.find((list) => list.id !== listId);
           if (nextList) {
@@ -451,14 +337,12 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
             navigateTo("/dashboard");
           }
         } else {
-          // If this was the last list, navigate to dashboard
           navigateTo("/dashboard");
         }
       }
     } catch (error) {
       console.error("Error deleting list:", error);
     } finally {
-      // Close the modal and reset state
       setListToDelete(null);
       setIsDeleteListModalOpen(false);
       setIsDeletingList(false);
