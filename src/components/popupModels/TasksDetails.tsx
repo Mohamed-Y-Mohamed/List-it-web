@@ -11,17 +11,10 @@ import {
   Pin,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { Collection } from "@/types/schema";
+import { Collection, OperationResult } from "@/types/schema";
+import { formatDetailDate } from "@/utils/dateUtils";
 import { createPortal } from "react-dom";
-import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
-
-interface OperationResult {
-  success: boolean;
-  error?: unknown;
-  data?: unknown;
-  warning?: string;
-}
 
 interface TaskSidebarProps {
   isOpen: boolean;
@@ -88,15 +81,13 @@ const TaskSidebar = ({
 
   useEffect(() => {
     if (!isOpen || !user) return;
-    let query = supabase.from("collection").select("id,collection_name");
-    if (task.list_id) {
-      query = query.eq("list_id", task.list_id);
-    } else {
-      query = query.eq("user_id", user.id);
-    }
-    query.order("collection_name", { ascending: true }).then(({ data }) => {
-      if (data) setCollections(data);
-    });
+    const params = new URLSearchParams();
+    if (task.list_id) params.set("list_id", task.list_id);
+    fetch(`/api/collections?${params}`)
+      .then((r) => r.json())
+      .then(({ data }) => {
+        if (data) setCollections(data);
+      });
   }, [isOpen, task.list_id, user]);
 
   // --- FORM STATE ---
@@ -298,25 +289,9 @@ const TaskSidebar = ({
   };
 
   // --- FORMATTED DATE ---
-  const formatDate = (date: Date | string | null | undefined): string => {
-    if (!date) return "Unknown date";
-    try {
-      const dateObj = date instanceof Date ? date : new Date(date);
-      return dateObj.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return "Invalid date";
-    }
-  };
-
-  const formattedCreatedDate = formatDate(task.created_at);
+  const formattedCreatedDate = formatDetailDate(task.created_at);
   const formattedCompletedDate = task.date_completed
-    ? formatDate(task.date_completed)
+    ? formatDetailDate(task.date_completed)
     : null;
 
   // Get the current date for min date in the date picker
@@ -357,23 +332,16 @@ const TaskSidebar = ({
       };
 
       // Update the task in the database
-      const { data, error: dbError } = await supabase
-        .from("task")
-        .update(updateData)
-        .eq("id", task.id)
-        .select("*");
-
-      if (dbError) {
-        if (
-          dbError.code === "42501" ||
-          dbError.message?.includes("row-level security")
-        ) {
-          throw new Error(
-            "Permission denied. Make sure you're authorized to update this task."
-          );
-        }
-        throw new Error(dbError.message);
+      const patchRes = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: task.id, ...updateData }),
+      });
+      if (!patchRes.ok) {
+        const errBody = await patchRes.json();
+        throw new Error(errBody.error || "Failed to update task");
       }
+      const { data } = await patchRes.json();
 
       // Call parent callbacks if they exist
       if (onTaskUpdate) {
@@ -470,19 +438,20 @@ const TaskSidebar = ({
         return { success: true };
       }
 
-      // Fall back to direct database update if no collection change handler
+      // Fall back to direct API update if no collection change handler
       console.warn(
         "No onCollectionChange provided, updating database directly"
       );
-      const { data, error: dbError } = await supabase
-        .from("task")
-        .update({ collection_id: collectionIdForDb })
-        .eq("id", task.id)
-        .select("*");
-
-      if (dbError) {
-        throw new Error(dbError.message);
+      const patchRes = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: task.id, collection_id: collectionIdForDb }),
+      });
+      if (!patchRes.ok) {
+        const errBody = await patchRes.json();
+        throw new Error(errBody.error || "Failed to update task collection");
       }
+      const { data } = await patchRes.json();
 
       // Try to update UI through other means
       if (onTaskUpdate) {
@@ -538,22 +507,15 @@ const TaskSidebar = ({
     try {
       setIsDeleting(true);
 
-      // Update is_deleted flag (soft delete) rather than hard delete
-      const { error: dbError } = await supabase
-        .from("task")
-        .update({ is_deleted: true })
-        .eq("id", task.id);
-
-      if (dbError) {
-        if (
-          dbError.code === "42501" ||
-          dbError.message?.includes("row-level security")
-        ) {
-          throw new Error(
-            "Permission denied. Make sure you're authorized to delete this task."
-          );
-        }
-        throw new Error(dbError.message);
+      // Soft-delete via API (sets is_deleted = true)
+      const deleteRes = await fetch("/api/tasks", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: task.id }),
+      });
+      if (!deleteRes.ok) {
+        const errBody = await deleteRes.json();
+        throw new Error(errBody.error || "Failed to delete task");
       }
 
       // Call parent delete handler to update UI

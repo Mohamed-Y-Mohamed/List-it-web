@@ -2,10 +2,9 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
-import { Collection, List, Task, Note, ListColor } from "@/types/schema";
+import { Collection, List, Task, Note, ListColor, OperationResult } from "@/types/schema";
 import CollectionComponent from "@/components/Collection/index";
 import { useTheme } from "@/context/ThemeContext";
-import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
 
 // Import components
@@ -32,26 +31,22 @@ const formatDateForPostgres = (date: Date): string => {
 // Add a handler for task deletion
 const handleTaskDelete = async (taskId: string) => {
   try {
-    // Update the task in the database - soft delete
-    const { error } = await supabase
-      .from("task")
-      .update({ is_deleted: true })
-      .eq("id", taskId);
-
-    if (error) throw error;
-
+    const res = await fetch("/api/tasks", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: taskId }),
+    });
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || "Failed to delete task");
+    }
     return { success: true };
   } catch (err) {
     console.error("Error deleting task:", err);
     return { success: false, error: err };
   }
 };
-interface OperationResult {
-  success: boolean;
-  error?: unknown;
-  data?: unknown;
-  warning?: string;
-}
+
 export default function ListPage() {
   const params = useParams();
   const listId = params?.listId as string;
@@ -130,16 +125,12 @@ export default function ListPage() {
 
       try {
         // Fetch the list data
-        const { data: listData, error: listError } = await supabase
-          .from("list")
-          .select("*")
-          .eq("id", listId)
-          .eq("user_id", user.id)
-          .single();
-
-        if (listError) {
-          throw listError;
+        const listRes = await fetch(`/api/lists?id=${listId}`);
+        if (!listRes.ok) {
+          const errData = await listRes.json();
+          throw new Error(errData.error || "Failed to fetch list");
         }
+        const { data: listData } = await listRes.json();
 
         if (!listData) {
           throw new Error("List not found");
@@ -149,69 +140,53 @@ export default function ListPage() {
         setLoadingMessage("Loading collections and content...");
 
         // Fetch collections for this list
-        const { data: collectionsData, error: collectionsError } =
-          await supabase
-            .from("collection")
-            .select(
-              `
-              id,
-              collection_name,
-              bg_color_hex,
-              created_at,
-              list_id,
-              user_id
-            `
-            )
-            .eq("list_id", listId)
-            .order("collection_name", { ascending: true });
-
-        if (collectionsError) {
-          throw collectionsError;
+        const collectionsRes = await fetch(
+          `/api/collections?list_id=${listId}`
+        );
+        if (!collectionsRes.ok) {
+          const errData = await collectionsRes.json();
+          throw new Error(errData.error || "Failed to fetch collections");
         }
+        const { data: collectionsData } = await collectionsRes.json();
 
         // Initialize collections with tasks and notes arrays
-        const collectionsWithData = collectionsData.map((collection) => ({
-          ...collection,
-          tasks: [] as Task[],
-          notes: [] as Note[],
-          isPinned: false,
-          // Mark if this is a General collection (replacing is_default)
-          is_default: isGeneralCollection(collection.collection_name),
-        }));
+        const collectionsWithData = (collectionsData || []).map(
+          (collection: Collection) => ({
+            ...collection,
+            tasks: [] as Task[],
+            notes: [] as Note[],
+            isPinned: false,
+            is_default: isGeneralCollection(collection.collection_name),
+          })
+        );
 
         setCollections(collectionsWithData as Collection[]);
 
-        // Fetch tasks for each collection
+        // Fetch tasks and notes for each collection
         for (const collection of collectionsWithData) {
           try {
-            const { data: tasks, error: tasksError } = await supabase
-              .from("task")
-              .select("*")
-              .eq("collection_id", collection.id)
-              .eq("is_deleted", false)
-              .eq("is_completed", false) // ADD THIS LINE
-              .order("is_pinned", { ascending: false })
-              .order("created_at", { ascending: false });
-
-            if (tasksError) {
-              console.error(
-                `Error fetching tasks for collection ${collection.id}:`,
-                tasksError
-              );
-              continue;
-            }
-
-            // Update the collection with tasks - ensure proper typing
-            setCollections((prevCollections) =>
-              prevCollections.map((c) =>
-                c.id === collection.id
-                  ? {
-                      ...c,
-                      tasks: Array.isArray(tasks) ? (tasks as Task[]) : [],
-                    }
-                  : c
-              )
+            const tasksRes = await fetch(
+              `/api/tasks?collection_id=${collection.id}&is_deleted=false&is_completed=false`
             );
+            if (!tasksRes.ok) {
+              console.error(
+                `Error fetching tasks for collection ${collection.id}`
+              );
+            } else {
+              const { data: tasks } = await tasksRes.json();
+              const sorted = ((tasks as Task[]) || []).sort((a, b) => {
+                if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+                return (
+                  new Date(b.created_at).getTime() -
+                  new Date(a.created_at).getTime()
+                );
+              });
+              setCollections((prev) =>
+                prev.map((c) =>
+                  c.id === collection.id ? { ...c, tasks: sorted } : c
+                )
+              );
+            }
           } catch (taskError) {
             console.error(
               `Failed to process tasks for collection ${collection.id}:`,
@@ -220,34 +195,28 @@ export default function ListPage() {
           }
 
           try {
-            // Fetch notes for each collection
-            const { data: notes, error: notesError } = await supabase
-              .from("note")
-              .select("*")
-              .eq("collection_id", collection.id)
-              .eq("is_deleted", false)
-              .order("is_pinned", { ascending: false })
-              .order("created_at", { ascending: false });
-
-            if (notesError) {
-              console.error(
-                `Error fetching notes for collection ${collection.id}:`,
-                notesError
-              );
-              continue;
-            }
-
-            // Update the collection with notes - ensure proper typing
-            setCollections((prevCollections) =>
-              prevCollections.map((c) =>
-                c.id === collection.id
-                  ? {
-                      ...c,
-                      notes: Array.isArray(notes) ? (notes as Note[]) : [],
-                    }
-                  : c
-              )
+            const notesRes = await fetch(
+              `/api/notes?collection_id=${collection.id}&is_deleted=false`
             );
+            if (!notesRes.ok) {
+              console.error(
+                `Error fetching notes for collection ${collection.id}`
+              );
+            } else {
+              const { data: notes } = await notesRes.json();
+              const sorted = ((notes as Note[]) || []).sort((a, b) => {
+                if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+                return (
+                  new Date(b.created_at).getTime() -
+                  new Date(a.created_at).getTime()
+                );
+              });
+              setCollections((prev) =>
+                prev.map((c) =>
+                  c.id === collection.id ? { ...c, notes: sorted } : c
+                )
+              );
+            }
           } catch (noteError) {
             console.error(
               `Failed to process notes for collection ${collection.id}:`,
@@ -348,26 +317,27 @@ export default function ListPage() {
       }
 
       try {
-        // Insert the new collection with created_at
-        const { data, error } = await supabase
-          .from("collection")
-          .insert([
-            {
-              list_id: listData.id,
-              collection_name: collectionData.collection_name,
-              bg_color_hex: collectionData.bg_color_hex,
-              user_id: user.id, // Include user_id for RLS policy
-              created_at: formatDateForPostgres(new Date()), // Add this line
-            },
-          ])
-          .select();
+        // Insert the new collection
+        const res = await fetch("/api/collections", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            list_id: listData.id,
+            collection_name: collectionData.collection_name,
+            bg_color_hex: collectionData.bg_color_hex,
+            created_at: formatDateForPostgres(new Date()),
+          }),
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to create collection");
+        }
+        const { data } = await res.json();
 
-        if (error) throw error;
-
-        if (data && data.length > 0) {
+        if (data) {
           // Add the new collection to the state
           const newCollection: Collection = {
-            ...(data[0] as Collection),
+            ...(data as Collection),
             tasks: [],
             notes: [],
             isPinned: false,
@@ -407,30 +377,31 @@ export default function ListPage() {
           taskData.collection_id || selectedCollectionId || defaultCollectionId;
 
         // Create the task in the database with all required fields
-        const { data, error } = await supabase
-          .from("task")
-          .insert([
-            {
-              text: taskData.text,
-              description: taskData.description || null,
-              is_pinned: taskData.is_pinned || false,
-              due_date: taskData.due_date
-                ? formatDateForPostgres(taskData.due_date)
-                : null,
-              collection_id: collectionId,
-              list_id: listData.id, // Make sure this is included
-              is_completed: false,
-              is_deleted: false,
-              user_id: user.id,
-              created_at: formatDateForPostgres(new Date()), // Add this required field
-            },
-          ])
-          .select();
+        const res = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: taskData.text,
+            description: taskData.description || null,
+            is_pinned: taskData.is_pinned || false,
+            due_date: taskData.due_date
+              ? formatDateForPostgres(taskData.due_date)
+              : null,
+            collection_id: collectionId,
+            list_id: listData.id,
+            is_completed: false,
+            is_deleted: false,
+            created_at: formatDateForPostgres(new Date()),
+          }),
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to create task");
+        }
+        const { data } = await res.json();
 
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          const newTask = data[0] as Task;
+        if (data) {
+          const newTask = data as Task;
 
           // Get the collection this task belongs to
           if (newTask.collection_id) {
@@ -467,27 +438,29 @@ export default function ListPage() {
     async (taskId: string, isCompleted: boolean) => {
       try {
         // Update the task in the database
-        const { data, error } = await supabase
-          .from("task")
-          .update({
+        const res = await fetch("/api/tasks", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: taskId,
             is_completed: isCompleted,
             date_completed: isCompleted
               ? formatDateForPostgres(new Date())
               : null,
-          })
-          .eq("id", taskId)
-          .select();
+          }),
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to update task");
+        }
+        const { data: updatedTask } = await res.json();
 
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          const updatedTask = data[0] as Task;
-
+        if (updatedTask) {
           // If task is completed, remove it from the UI entirely
           if (isCompleted) {
             setCollections((prevCollections) =>
               prevCollections.map((collection) => {
-                if (collection.id === updatedTask.collection_id) {
+                if (collection.id === (updatedTask as Task).collection_id) {
                   return {
                     ...collection,
                     tasks: (collection.tasks || []).filter(
@@ -502,7 +475,7 @@ export default function ListPage() {
             // If task is uncompleted, update it in place
             setCollections((prevCollections) =>
               prevCollections.map((collection) => {
-                if (collection.id === updatedTask.collection_id) {
+                if (collection.id === (updatedTask as Task).collection_id) {
                   return {
                     ...collection,
                     tasks: (collection.tasks || []).map((task) =>
@@ -536,22 +509,23 @@ export default function ListPage() {
     async (taskId: string, isPinned: boolean) => {
       try {
         // Update the task in the database
-        const { data, error } = await supabase
-          .from("task")
-          .update({ is_pinned: isPinned })
-          .eq("id", taskId)
-          .select();
+        const res = await fetch("/api/tasks", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: taskId, is_pinned: isPinned }),
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to update task");
+        }
+        const { data: updatedTask } = await res.json();
 
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          const updatedTask = data[0] as Task;
-
+        if (updatedTask) {
           // Update the task in the collections state
-          if (updatedTask.collection_id) {
+          if ((updatedTask as Task).collection_id) {
             setCollections((prevCollections) =>
               prevCollections.map((collection) => {
-                if (collection.id === updatedTask.collection_id) {
+                if (collection.id === (updatedTask as Task).collection_id) {
                   return {
                     ...collection,
                     tasks: (collection.tasks || []).map((task) =>
@@ -589,33 +563,35 @@ export default function ListPage() {
     ) => {
       try {
         // Update the task in the database
-        const { data, error } = await supabase
-          .from("task")
-          .update({
+        const res = await fetch("/api/tasks", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: taskId,
             text: taskData.text,
             description: taskData.description ?? null,
             due_date: taskData.due_date
               ? formatDateForPostgres(taskData.due_date)
               : null,
             is_pinned: taskData.is_pinned,
-          })
-          .eq("id", taskId)
-          .select();
+          }),
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to update task");
+        }
+        const { data: updatedTask } = await res.json();
 
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          const updatedTask = data[0] as Task;
-
+        if (updatedTask) {
           // Update the task in the collections state
-          if (updatedTask.collection_id) {
+          if ((updatedTask as Task).collection_id) {
             setCollections((prevCollections) =>
               prevCollections.map((collection) => {
-                if (collection.id === updatedTask.collection_id) {
+                if (collection.id === (updatedTask as Task).collection_id) {
                   return {
                     ...collection,
                     tasks: (collection.tasks || []).map((task) =>
-                      task.id === taskId ? updatedTask : task
+                      task.id === taskId ? (updatedTask as Task) : task
                     ),
                   };
                 }
@@ -702,26 +678,27 @@ export default function ListPage() {
           noteData.collection_id || selectedCollectionId || defaultCollectionId;
 
         // Create the note in the database if we don't have newNoteData
-        const { data, error } = await supabase
-          .from("note")
-          .insert([
-            {
-              title: noteData.title,
-              description: noteData.description || null,
-              bg_color_hex: noteData.bg_color_hex,
-              collection_id: collectionId,
-              list_id: listData.id, // Include list_id
-              is_deleted: false,
-              is_pinned: false,
-              user_id: user.id, // Include user_id for RLS policy
-            },
-          ])
-          .select();
+        const res = await fetch("/api/notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: noteData.title,
+            description: noteData.description || null,
+            bg_color_hex: noteData.bg_color_hex,
+            collection_id: collectionId,
+            list_id: listData.id,
+            is_deleted: false,
+            is_pinned: false,
+          }),
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to create note");
+        }
+        const { data } = await res.json();
 
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          const newNote = data[0] as Note;
+        if (data) {
+          const newNote = data as Note;
 
           // Get the collection this note belongs to
           if (newNote.collection_id) {
@@ -757,22 +734,23 @@ export default function ListPage() {
     async (noteId: string, isPinned: boolean) => {
       try {
         // Update the note in the database
-        const { data, error } = await supabase
-          .from("note")
-          .update({ is_pinned: isPinned })
-          .eq("id", noteId)
-          .select();
+        const res = await fetch("/api/notes", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: noteId, is_pinned: isPinned }),
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to update note");
+        }
+        const { data: updatedNote } = await res.json();
 
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          const updatedNote = data[0] as Note;
-
+        if (updatedNote) {
           // Update the note in the collections state
-          if (updatedNote.collection_id) {
+          if ((updatedNote as Note).collection_id) {
             setCollections((prevCollections) =>
               prevCollections.map((collection) => {
-                if (collection.id === updatedNote.collection_id) {
+                if (collection.id === (updatedNote as Note).collection_id) {
                   return {
                     ...collection,
                     notes: (collection.notes || []).map((note) =>
@@ -802,22 +780,23 @@ export default function ListPage() {
     async (noteId: string, color: string) => {
       try {
         // Update the note in the database
-        const { data, error } = await supabase
-          .from("note")
-          .update({ bg_color_hex: color })
-          .eq("id", noteId)
-          .select();
+        const res = await fetch("/api/notes", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: noteId, bg_color_hex: color }),
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to update note");
+        }
+        const { data: updatedNote } = await res.json();
 
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          const updatedNote = data[0] as Note;
-
+        if (updatedNote) {
           // Update the note in the collections state
-          if (updatedNote.collection_id) {
+          if ((updatedNote as Note).collection_id) {
             setCollections((prevCollections) =>
               prevCollections.map((collection) => {
-                if (collection.id === updatedNote.collection_id) {
+                if (collection.id === (updatedNote as Note).collection_id) {
                   return {
                     ...collection,
                     notes: (collection.notes || []).map((note) =>
@@ -860,26 +839,27 @@ export default function ListPage() {
           updateData.description = updatedDescription || null;
         }
 
-        const { data, error } = await supabase
-          .from("note")
-          .update(updateData)
-          .eq("id", noteId)
-          .select("*");
+        const res = await fetch("/api/notes", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: noteId, ...updateData }),
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to update note");
+        }
+        const { data: updatedNote } = await res.json();
 
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          const updatedNote = data[0] as Note;
-
+        if (updatedNote) {
           // Update the note in the collections state
-          if (updatedNote.collection_id) {
+          if ((updatedNote as Note).collection_id) {
             setCollections((prevCollections) =>
               prevCollections.map((collection) => {
-                if (collection.id === updatedNote.collection_id) {
+                if (collection.id === (updatedNote as Note).collection_id) {
                   return {
                     ...collection,
                     notes: (collection.notes || []).map((note) =>
-                      note.id === noteId ? updatedNote : note
+                      note.id === noteId ? (updatedNote as Note) : note
                     ),
                   };
                 }
@@ -899,6 +879,7 @@ export default function ListPage() {
         return { success: false, error: err };
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
@@ -929,12 +910,15 @@ export default function ListPage() {
         }
 
         // Update the collection_id in the database
-        const { error } = await supabase
-          .from("task")
-          .update({ collection_id: newCollectionId })
-          .eq("id", taskId);
-
-        if (error) throw error;
+        const res = await fetch("/api/tasks", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: taskId, collection_id: newCollectionId }),
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to update task collection");
+        }
 
         // Update local state to move the task between collections
         setCollections((prevCollections) => {
@@ -1010,10 +994,16 @@ export default function ListPage() {
           }
         }
 
-        // Update is_deleted flag in the database
-        const { error } = await supabase.from("note").delete().eq("id", noteId);
-
-        if (error) throw error;
+        // Hard-delete the note
+        const res = await fetch("/api/notes", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: noteId, hard: true }),
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to delete note");
+        }
 
         // Immediately update the UI to remove the note
         if (noteCollectionId) {

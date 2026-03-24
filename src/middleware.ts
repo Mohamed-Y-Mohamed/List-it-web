@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
       path: "/",
       maxAge: 0,
       sameSite: "lax",
-      httpOnly: false,
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
     });
 
@@ -55,7 +55,7 @@ export async function middleware(request: NextRequest) {
       path: "/",
       maxAge: 0,
       sameSite: "lax",
-      httpOnly: false,
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
     });
 
@@ -97,7 +97,7 @@ export async function middleware(request: NextRequest) {
           path: "/",
           maxAge: 0,
           sameSite: "lax",
-          httpOnly: false,
+          httpOnly: true,
           secure: process.env.NODE_ENV === "production",
         });
 
@@ -105,7 +105,7 @@ export async function middleware(request: NextRequest) {
           path: "/",
           maxAge: 0,
           sameSite: "lax",
-          httpOnly: false,
+          httpOnly: true,
           secure: process.env.NODE_ENV === "production",
         });
 
@@ -146,7 +146,7 @@ export async function middleware(request: NextRequest) {
           path: "/",
           maxAge: cookieExpiry,
           sameSite: "lax",
-          httpOnly: false,
+          httpOnly: true,
           secure: process.env.NODE_ENV === "production",
         });
 
@@ -154,7 +154,7 @@ export async function middleware(request: NextRequest) {
           path: "/",
           maxAge: cookieExpiry,
           sameSite: "lax",
-          httpOnly: false,
+          httpOnly: true,
           secure: process.env.NODE_ENV === "production",
         });
       }

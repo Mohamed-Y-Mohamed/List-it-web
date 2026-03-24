@@ -1,5 +1,13 @@
 // types/schema.ts
 
+// Generic operation result returned by data-mutation handlers
+export interface OperationResult {
+  success: boolean;
+  error?: unknown;
+  data?: unknown;
+  warning?: string;
+}
+
 // Note Interface
 export interface Note {
   id: string;

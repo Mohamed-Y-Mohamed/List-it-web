@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/utils/client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings,
@@ -199,17 +198,13 @@ export default function SettingsPage() {
     try {
       setIsLoading(true);
 
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-
-      if (error) {
-        console.error("Error fetching user profile:", error);
+      const res = await fetch("/api/user/profile");
+      if (!res.ok) {
+        console.error("Error fetching user profile");
         showNotification("error", "Failed to load user profile");
         return;
       }
+      const { data } = await res.json();
 
       if (data) {
         setUserProfile(data);
@@ -240,13 +235,14 @@ export default function SettingsPage() {
     try {
       setIsSaving(true);
 
-      const { error } = await supabase
-        .from("users")
-        .update({ full_name: fullName.trim() })
-        .eq("id", user.id);
+      const res = await fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ full_name: fullName.trim() }),
+      });
 
-      if (error) {
-        console.error("Error updating profile:", error);
+      if (!res.ok) {
+        console.error("Error updating profile");
         showNotification("error", "Failed to update profile");
         return;
       }
@@ -285,25 +281,19 @@ export default function SettingsPage() {
     try {
       setIsSaving(true);
 
-      // First verify current password by attempting to sign in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: userProfile?.email || "",
-        password: currentPassword,
+      // Verify current password and update to new password via API
+      const res = await fetch("/api/user/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
       });
 
-      if (signInError) {
-        showNotification("error", "Current password is incorrect");
-        return;
-      }
-
-      // Update password using Supabase Auth
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
-      if (error) {
-        console.error("Error updating password:", error);
-        showNotification("error", "Failed to update password");
+      if (!res.ok) {
+        const errData = await res.json();
+        showNotification(
+          "error",
+          errData.error || "Failed to update password"
+        );
         return;
       }
 
@@ -371,7 +361,6 @@ export default function SettingsPage() {
           }
 
           // Sign out and redirect
-          await supabase.auth.signOut({ scope: "global" });
           await logout();
         } catch (logoutError) {
           console.error("Error during logout:", logoutError);

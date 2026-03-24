@@ -12,14 +12,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import TaskCard from "@/components/Tasks/index";
 import NoteCard from "@/components/Notes/noteCard";
-import { Task, Note, Collection } from "@/types/schema";
+import { Task, Note, Collection, OperationResult } from "@/types/schema";
 import { useTheme } from "@/context/ThemeContext";
 
-// Define types for operation results
-interface OperationResult {
-  success: boolean;
-  error?: unknown;
-}
 
 interface CollectionComponentProps {
   id: string;

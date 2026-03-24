@@ -1,18 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Calendar, Pin, Clock, Star, Folder, ListTodo } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
 import TaskSidebar from "@/components/popupModels/TasksDetails";
-import { Collection } from "@/types/schema";
-
-interface OperationResult {
-  success: boolean;
-  error?: unknown;
-  data?: unknown;
-  warning?: string;
-}
+import { Collection, OperationResult } from "@/types/schema";
+import {
+  formatDisplayDate,
+  formatDisplayTime,
+  toDateObject,
+} from "@/utils/dateUtils";
+import { getTaskBorderColor, getTaskAccentColor } from "@/utils/taskColorUtils";
 
 interface TaskCardProps {
   id: string;
@@ -98,41 +97,9 @@ const TaskCard = ({
     setTaskDueDate(due_date);
   }, [is_completed, is_pinned, text, description, due_date]);
 
-  // Improved date formatting with proper null/undefined handling
-  const formatDate = useCallback((date: Date | string | null | undefined) => {
-    if (!date) return "No date";
-    try {
-      const dateObj = date instanceof Date ? date : new Date(date);
-      return dateObj.toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-        year:
-          dateObj.getFullYear() !== new Date().getFullYear()
-            ? "numeric"
-            : undefined,
-      });
-    } catch {
-      console.error("Invalid date:", date);
-      return "Invalid date";
-    }
-  }, []);
-
-  // Format time for display
-  const formatTime = useCallback((date: Date | string | null | undefined) => {
-    if (!date) return "";
-    try {
-      const dateObj = date instanceof Date ? date : new Date(date);
-      return dateObj.toLocaleTimeString(undefined, {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return "";
-    }
-  }, []);
-
-  const dueDateFormatted = taskDueDate ? formatDate(taskDueDate) : null;
-  const dueTimeFormatted = taskDueDate ? formatTime(taskDueDate) : null;
+  // Memoised formatted values using shared date utilities
+  const dueDateFormatted = taskDueDate ? formatDisplayDate(taskDueDate) : null;
+  const dueTimeFormatted = taskDueDate ? formatDisplayTime(taskDueDate) : null;
 
   const handlePriorityToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -208,68 +175,15 @@ const TaskCard = ({
   };
 
   // Ensure we have a valid Date object for TaskSidebar
-  const getDateObject = (date: Date | string | null | undefined) => {
-    if (!date) return null;
-    try {
-      return date instanceof Date ? date : new Date(date);
-    } catch {
-      console.error("Invalid date:", date);
-      return null;
-    }
-  };
-
-  const createdAtDate = getDateObject(created_at);
-  const dueDateObject = getDateObject(due_date);
-  const dateCompletedObject = getDateObject(date_completed);
+  const createdAtDate = toDateObject(created_at);
+  const dueDateObject = toDateObject(due_date);
+  const dateCompletedObject = toDateObject(date_completed);
 
   //  border color generation
-  const getBorderColor = () => {
-    if (!collection_id)
-      return isDark ? "border-gray-700/50" : "border-gray-300/50";
-
-    const colors = [
-      "border-blue-500",
-      "border-emerald-500",
-      "border-purple-500",
-      "border-orange-500",
-      "border-pink-500",
-      "border-indigo-500",
-      "border-teal-500",
-      "border-cyan-500",
-      "border-amber-500",
-      "border-red-500",
-    ];
-
-    const charSum = collection_id
-      .split("")
-      .reduce((sum, char) => sum + char.charCodeAt(0), 0);
-
-    return colors[charSum % colors.length];
-  };
+  const getBorderColor = () => getTaskBorderColor(collection_id, isDark);
 
   // Get accent color for tags
-  const getAccentColor = () => {
-    if (!collection_id) return isDark ? "text-orange-400" : "text-orange-500";
-
-    const colors = [
-      "text-blue-500",
-      "text-emerald-500",
-      "text-purple-500",
-      "text-orange-500",
-      "text-pink-500",
-      "text-indigo-500",
-      "text-teal-500",
-      "text-cyan-500",
-      "text-amber-500",
-      "text-red-500",
-    ];
-
-    const charSum = collection_id
-      .split("")
-      .reduce((sum, char) => sum + char.charCodeAt(0), 0);
-
-    return colors[charSum % colors.length];
-  };
+  const getAccentColor = () => getTaskAccentColor(collection_id, isDark);
 
   // Check if task is overdue
   const isOverdue = useMemo(() => {
