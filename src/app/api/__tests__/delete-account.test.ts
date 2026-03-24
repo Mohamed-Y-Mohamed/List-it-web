@@ -21,7 +21,8 @@ const mockAdminChain: Record<string, jest.Mock> & { then?: unknown } = {};
 for (const m of ["delete", "eq"]) {
   mockAdminChain[m] = jest.fn().mockReturnValue(mockAdminChain);
 }
-mockAdminChain.then = (res: (v: unknown) => unknown, rej?: (v: unknown) => unknown) =>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mockAdminChain.then = (res: any, rej?: any) =>
   Promise.resolve({ error: null }).then(res, rej);
 
 const mockAdminClient = {
@@ -75,7 +76,8 @@ beforeEach(() => {
   for (const m of ["delete", "eq"]) {
     mockAdminChain[m].mockReturnValue(mockAdminChain);
   }
-  mockAdminChain.then = (res: (v: unknown) => unknown, rej?: (v: unknown) => unknown) =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mockAdminChain.then = (res: any, rej?: any) =>
     Promise.resolve({ error: null }).then(res, rej);
   mockAdminClient.from.mockReturnValue(mockAdminChain);
 });

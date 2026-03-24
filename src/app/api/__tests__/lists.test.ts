@@ -24,7 +24,8 @@ for (const m of [
   mockChain[m] = jest.fn().mockReturnValue(mockChain);
 }
 mockChain.single = jest.fn(() => Promise.resolve(dbResult));
-mockChain.then = (res: (v: unknown) => unknown, rej?: (v: unknown) => unknown) =>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mockChain.then = (res: any, rej?: any) =>
   Promise.resolve(dbResult).then(res, rej);
 
 const mockSupabaseClient = { from: jest.fn().mockReturnValue(mockChain) };
@@ -78,7 +79,8 @@ beforeEach(() => {
     mockChain[m].mockReturnValue(mockChain);
   }
   mockChain.single.mockImplementation(() => Promise.resolve(dbResult));
-  mockChain.then = (res: (v: unknown) => unknown, rej?: (v: unknown) => unknown) =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mockChain.then = (res: any, rej?: any) =>
     Promise.resolve(dbResult).then(res, rej);
   mockSupabaseClient.from.mockReturnValue(mockChain);
 });
@@ -228,8 +230,9 @@ describe("DELETE /api/lists", () => {
 
   it("returns 200 on successful deletion (with cascaded children)", async () => {
     authOk();
-    // First .single() call (ownership check) returns the list
-    dbResult.data = { id: "l1" };
+    // Use an array so both the .single() ownership check (truthy) and the
+    // direct-await collections query (needs .map()) work with the same dbResult.
+    dbResult.data = [{ id: "l1" }];
     dbResult.error = null;
     const res = await DELETE(makeReq("DELETE", "/api/lists", { id: "l1" }));
     expect(res.status).toBe(200);
@@ -249,7 +252,8 @@ describe("DELETE /api/lists", () => {
       if (callCount === 1) return Promise.resolve({ data: { id: "l1" }, error: null });
       return Promise.resolve({ data: null, error: { message: "Delete failed" } });
     });
-    mockChain.then = (res: (v: unknown) => unknown) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockChain.then = (res: any) =>
       Promise.resolve({ data: null, error: { message: "Delete failed" } }).then(res);
 
     const response = await DELETE(makeReq("DELETE", "/api/lists", { id: "l1" }));

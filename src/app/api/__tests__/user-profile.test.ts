@@ -21,7 +21,8 @@ for (const m of ["select", "update", "eq", "single"]) {
   mockChain[m] = jest.fn().mockReturnValue(mockChain);
 }
 mockChain.single = jest.fn(() => Promise.resolve(dbResult));
-mockChain.then = (res: (v: unknown) => unknown, rej?: (v: unknown) => unknown) =>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mockChain.then = (res: any, rej?: any) =>
   Promise.resolve(dbResult).then(res, rej);
 
 const mockSupabaseClient = { from: jest.fn().mockReturnValue(mockChain) };
@@ -72,7 +73,8 @@ beforeEach(() => {
     mockChain[m].mockReturnValue(mockChain);
   }
   mockChain.single.mockImplementation(() => Promise.resolve(dbResult));
-  mockChain.then = (res: (v: unknown) => unknown, rej?: (v: unknown) => unknown) =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  mockChain.then = (res: any, rej?: any) =>
     Promise.resolve(dbResult).then(res, rej);
   mockSupabaseClient.from.mockReturnValue(mockChain);
 });
