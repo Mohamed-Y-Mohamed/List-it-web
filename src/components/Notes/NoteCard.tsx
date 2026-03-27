@@ -4,7 +4,7 @@ import React, { useEffect, useState, memo } from "react";
 import { Pin, AlertCircle, Star, Edit3, Calendar } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
-import NoteSidebar from "@/components/popupModels/notedetail";
+import NoteSidebar from "@/components/popupModels/NoteDetail";
 import { Note, OperationResult } from "@/types/schema";
 import { formatDisplayDate } from "@/utils/dateUtils";
 import { useRouter } from "next/navigation";

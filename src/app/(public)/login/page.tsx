@@ -196,7 +196,7 @@ function LoginWithSearchParams() {
 
   // Handle forgot password
   const handleForgotPassword = () => {
-    router.push("/forgotPassword");
+    router.push("/forgot-password");
   };
 
   return (

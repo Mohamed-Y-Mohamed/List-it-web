@@ -109,7 +109,7 @@ describe("GET /api/dashboard", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns 200 with stats and priorityTasks", async () => {
+  it("returns 200 with stats, priorityTasks, dailyMetrics, and recentActivity", async () => {
     authOk();
     dbResult.count = 5;
     dbResult.data = [{ id: "t1", text: "Priority task", is_pinned: true }];
@@ -120,6 +120,12 @@ describe("GET /api/dashboard", () => {
     const body = await res.json();
     expect(body).toHaveProperty("stats");
     expect(body).toHaveProperty("priorityTasks");
+    expect(body).toHaveProperty("dailyMetrics");
+    expect(body).toHaveProperty("recentActivity");
+
+    expect(Array.isArray(body.dailyMetrics)).toBe(true);
+    expect(body.dailyMetrics).toHaveLength(7);
+    expect(Array.isArray(body.recentActivity)).toBe(true);
 
     const { stats } = body;
     expect(typeof stats.total).toBe("number");

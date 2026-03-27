@@ -11,8 +11,8 @@ import { useAuth } from "@/context/AuthContext";
 import ListFilterPlus from "@/components/popupModels/ListFilter";
 import CreateCollectionModal from "@/components/popupModels/CollectionPopup";
 import CreateTaskModal from "@/components/popupModels/TaskPopup";
-import CreateNoteModal from "@/components/popupModels/notepopup";
-import DeleteCollectionModal from "@/components/popupModels/deleteCollectionModal";
+import CreateNoteModal from "@/components/popupModels/NotePopup";
+import DeleteCollectionModal from "@/components/popupModels/DeleteCollectionModal";
 import EditCollectionPopup from "@/components/popupModels/EditCollectionPopup";
 
 // Format date to yyyy-MM-dd'T'HH:mm:ss

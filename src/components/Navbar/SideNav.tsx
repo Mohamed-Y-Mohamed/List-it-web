@@ -29,7 +29,7 @@ import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
 import CreateListModal from "@/components/popupModels/ListPopup";
 import { List, ListColor } from "@/types/schema";
-import EditListPopup from "@/components/popupModels/editListPopup";
+import EditListPopup from "@/components/popupModels/EditListPopup";
 
 interface SideNavProps {
   children?: React.ReactNode;
@@ -149,7 +149,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
   };
 
   const handleListClick = (listId: string): void => {
-    navigateTo(`/List/${listId}`);
+    navigateTo(`/list/${listId}`);
   };
 
   const handleTogglePinList = async (listId: string): Promise<void> => {
@@ -262,7 +262,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         );
         if (dup) {
           await fetchLists();
-          navigateTo(`/List/${dup.id}`);
+          navigateTo(`/list/${dup.id}`);
           setIsLoadingLists(false);
           return { success: true };
         }
@@ -298,7 +298,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
       setLists((prevLists) => [createdList, ...prevLists]);
       await fetchLists();
       setIsCreateListModalOpen(false);
-      navigateTo(`/List/${createdList.id}`);
+      navigateTo(`/list/${createdList.id}`);
       return { success: true };
     } catch (err) {
       console.error("Error handling list creation:", err);
@@ -332,7 +332,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         if (lists.length > 1) {
           const nextList = lists.find((list) => list.id !== listId);
           if (nextList) {
-            navigateTo(`/List/${nextList.id}`);
+            navigateTo(`/list/${nextList.id}`);
           } else {
             navigateTo("/dashboard");
           }

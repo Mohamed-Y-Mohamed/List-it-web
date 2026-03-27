@@ -3,8 +3,8 @@
 // Generic operation result returned by data-mutation handlers
 export interface OperationResult {
   success: boolean;
-  error?: unknown;
-  data?: unknown;
+  error?: string | Error | Record<string, unknown>;
+  data?: Record<string, unknown> | unknown[];
   warning?: string;
 }
 
@@ -45,10 +45,9 @@ export interface Collection {
   bg_color_hex: string | null;
   created_at: Date;
   list_id: string | null;
-  user_id: string | null; // Added
-  // Note: is_default doesn't exist in your database schema
-  // If needed, add it to your database with: ALTER TABLE collection ADD COLUMN is_default boolean;
-  is_default?: boolean; // Make optional since it's not in the database
+  user_id: string | null;
+  /** Optional flag used client-side only; not present in the database schema. */
+  is_default?: boolean;
   tasks?: Task[]; // Frontend only
   notes?: Note[]; // Frontend only
   isPinned?: boolean; // Frontend only
@@ -97,6 +96,7 @@ export const LIST_COLORS = [
 export type ListColor = (typeof LIST_COLORS)[number];
 
 // DisplayTask Interface (used in CompletedPage)
+// Uses camelCase intentionally for display/UI layer to distinguish from raw DB row fields.
 export interface DisplayTask {
   id: string;
   title: string;
@@ -104,4 +104,38 @@ export interface DisplayTask {
   createdDate: Date;
   completedDate: Date;
   isCompleted: boolean;
+}
+
+// Dashboard-specific types
+export interface DashboardTaskStats {
+  total: number;
+  completed: number;
+  pending: number;
+  overdue: number;
+  dueToday: number;
+  completionRate: number;
+  todayCompleted: number;
+  todayCreated: number;
+}
+
+export interface DailyMetric {
+  date: string;
+  completed: number;
+  created: number;
+  pending: number;
+}
+
+export interface DashboardPriorityTask {
+  id: string;
+  text: string | null;
+  due_date: string | null;
+  is_pinned: boolean;
+  created_at: string;
+}
+
+export interface DashboardActivityItem {
+  id: string;
+  type: "completed" | "created";
+  description: string;
+  timestamp: string;
 }

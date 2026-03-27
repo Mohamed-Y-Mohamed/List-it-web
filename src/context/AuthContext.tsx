@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { supabase } from "@/utils/client";
 import { User, AuthError } from "@supabase/supabase-js";
+import { logger } from "@/lib/logger";
 
 // Auth context type
 interface AuthContextType {
@@ -93,7 +94,7 @@ const clearAuthData = () => {
       }
     });
   } catch (err) {
-    console.error("Error clearing localStorage:", err);
+    logger.error("Error clearing localStorage", err);
   }
 };
 
@@ -133,7 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
-          console.error("Session error:", error);
+          logger.error("Session error", error);
           return;
         }
 
@@ -143,7 +144,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setIsLoggedIn(true);
         }
       } catch (error) {
-        console.error("Error initializing auth:", error);
+        logger.error("Error initializing auth", error);
       } finally {
         setLoading(false);
         setInitialized(true);
@@ -159,19 +160,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log(
-          "Auth state change:",
-          event,
-          "isVerifying:",
-          isVerifying,
-          "isVerificationFlow:",
-          isVerificationFlow()
+        logger.debug(
+          `Auth state change: ${event} isVerifying=${isVerifying} isVerificationFlow=${isVerificationFlow()}`
         );
 
         if (event === "SIGNED_IN" && session) {
           // Don't auto-login during verification flow
           if (isVerificationFlow() || isVerifying) {
-            console.log("Ignoring SIGNED_IN event during verification flow");
+            logger.debug("Ignoring SIGNED_IN event during verification flow");
             return;
           }
           setIsLoggedIn(true);
@@ -208,7 +204,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } = await supabase.auth.getSession();
 
         if (error || !session) {
-          console.log("Session invalid or expired, logging out");
+          logger.debug("Session invalid or expired, logging out");
           await logout();
           return;
         }
@@ -222,11 +218,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // If user doesn't exist in database, account was deleted
         if (dbError || !userData) {
-          console.log("User account no longer exists, logging out");
+          logger.debug("User account no longer exists, logging out");
           await logout();
         }
       } catch (error) {
-        console.error("Session validation error:", error);
+        logger.error("Session validation error", error);
         // Don't log out on network errors, only on auth/db issues
       }
     };
@@ -278,7 +274,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         error: new Error("No session returned") as unknown as AuthError,
       };
     } catch (error) {
-      console.error("Login error:", error);
+      logger.error("Login error", error);
       return { success: false, error: error as AuthError };
     }
   };
@@ -301,7 +297,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .maybeSingle();
 
     if (selectError) {
-      console.error("Error checking existing user:", selectError);
+      logger.error("Error checking existing user", selectError);
       return { success: false, error: new AuthError(selectError.message) };
     }
     if (existingUser) {
@@ -332,7 +328,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Don't auto-login even if session is returned during signup
       if (data.session) {
-        console.log("Session returned during signup, but not auto-logging in");
+        logger.debug("Session returned during signup, signing out to require explicit login");
         // Sign out immediately to prevent auto-login
         await supabase.auth.signOut();
         return { success: true, emailVerificationSent: true };
@@ -340,7 +336,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { success: true, emailVerificationSent: true };
       }
     } catch (err: unknown) {
-      console.error("Signup error:", err);
+      logger.error("Signup error", err);
       setIsVerifying(false);
       return {
         success: false,
@@ -369,13 +365,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) {
-        console.error("Error during signOut:", error);
+        logger.error("Error during signOut", error);
       }
 
-      // Redirect to login page
+      // Redirect to login page — window.location.href is used here
+      // intentionally to perform a full-page reload that clears all client
+      // state after logout.
       window.location.href = "/login?logout=true";
     } catch (error) {
-      console.error("Logout process error:", error);
+      logger.error("Logout process error", error);
       clearAuthData();
       window.location.href = "/login?logout=true&error=true";
     }
@@ -394,7 +392,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return { success: true };
     } catch (error) {
-      console.error("Reset password error:", error);
+      logger.error("Reset password error", error);
       return { success: false, error: error as AuthError };
     }
   };
@@ -434,7 +432,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return { success: true };
     } catch (error) {
-      console.error("Error resending verification email:", error);
+      logger.error("Error resending verification email", error);
       setIsVerifying(false);
       return { success: false, error: error as AuthError };
     }
@@ -451,7 +449,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return { success: true };
     } catch (error) {
-      console.error("Update password error:", error);
+      logger.error("Update password error", error);
       return { success: false, error: error as AuthError };
     }
   };

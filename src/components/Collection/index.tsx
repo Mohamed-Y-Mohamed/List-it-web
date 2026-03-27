@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import TaskCard from "@/components/Tasks/index";
-import NoteCard from "@/components/Notes/noteCard";
+import NoteCard from "@/components/Notes/NoteCard";
 import { Task, Note, Collection, OperationResult } from "@/types/schema";
 import { useTheme } from "@/context/ThemeContext";
 

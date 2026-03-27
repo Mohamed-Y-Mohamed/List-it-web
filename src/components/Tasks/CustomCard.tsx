@@ -11,7 +11,7 @@ import {
   formatDisplayTime,
   toDateObject,
 } from "@/utils/dateUtils";
-import { getTaskBorderColor, getTaskAccentColor } from "@/utils/taskColorUtils";
+import { getTaskBorderColor, getTaskAccentColor, getTaskBgGlowColor, getTaskBgSolidColor } from "@/utils/taskColorUtils";
 
 interface TodayTaskCardProps {
   id: string;
@@ -200,7 +200,7 @@ const TodayTaskCard = ({
         {/* Subtle glow effect */}
         <div
           className={`absolute inset-0 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 
-          ${getBorderColor().replace("border-", "bg-").replace("-500", "-500/20")}`}
+          ${getTaskBgGlowColor(collection_id, isDark)}`}
         />
 
         <div className="flex flex-col space-y-3 relative z-10">
@@ -394,7 +394,7 @@ const TodayTaskCard = ({
           transition={{ duration: 0.2 }}
         >
           <div
-            className={`w-2 h-2 rounded-full ${getBorderColor().replace("border-", "bg-")}`}
+            className={`w-2 h-2 rounded-full ${getTaskBgSolidColor(collection_id, isDark)}`}
           />
         </motion.div>
       </motion.div>

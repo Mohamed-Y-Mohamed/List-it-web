@@ -60,7 +60,7 @@ export const ForgotPassword: React.FC = () => {
         (typeof window !== "undefined" ? window.location.origin : "");
 
       // IMPORTANT: Use the exact path to your reset password page - /resetPassword with camelCase
-      const resetUrl = `${siteUrl}/resetPassword`;
+      const resetUrl = `${siteUrl}/reset-password`;
 
       // For debugging
 

@@ -4,10 +4,10 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@utils/client";
 import { useAuth } from "@/context/AuthContext";
-import TodayTaskCard from "@/components/Tasks/customcard";
+import TodayTaskCard from "@/components/Tasks/CustomCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { CalendarClock, RefreshCw, Target, CheckCircle2 } from "lucide-react";
-import EmptyState from "@/components/popupModels/emptystate";
+import EmptyState from "@/components/popupModels/EmptyState";
 import { Collection as SchemaCollection } from "@/types/schema";
 
 // Define types for better type safety

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/utils/client";
-import { User } from "@supabase/supabase-js";
+import { logger } from "@/lib/logger";
+import { useAuth } from "@/context/AuthContext";
 
 interface UserProfile {
   id: string;
@@ -13,70 +14,48 @@ interface UserProfile {
   last_login: string;
 }
 
+/**
+ * Returns the authenticated user (from AuthContext) together with their
+ * extended profile row from the `users` table.
+ *
+ * Auth state management is fully delegated to AuthContext so there is only
+ * one active auth listener in the application.
+ */
 export function useUser() {
-  const [user, setUser] = useState<User | null>(null);
+  // Reuse the existing auth subscription from AuthContext — no duplicate listener.
+  const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+    if (authLoading) return;
 
-        if (session) {
-          setUser(session.user);
-          await fetchProfile(session.user.id);
-        }
-      } catch (error) {
-        console.error("Error getting initial session:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!user) {
+      setProfile(null);
+      setProfileLoading(false);
+      return;
+    }
 
-    // Fetch user profile from our users table
-    const fetchProfile = async (userId: string) => {
+    const fetchProfile = async () => {
       try {
         const { data, error } = await supabase
           .from("users")
           .select("id, email, display_name, avatar_url, created_at, last_login")
-          .eq("id", userId)
+          .eq("id", user.id)
           .single();
 
-        if (error) {
-          throw error;
-        }
-
+        if (error) throw error;
         setProfile(data as UserProfile);
       } catch (error) {
-        console.error("Error fetching user profile:", error);
+        logger.error("Error fetching user profile", error);
         setProfile(null);
+      } finally {
+        setProfileLoading(false);
       }
     };
 
-    getInitialSession();
+    fetchProfile();
+  }, [user, authLoading]);
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session) {
-        setUser(session.user);
-        await fetchProfile(session.user.id);
-      } else {
-        setUser(null);
-        setProfile(null);
-      }
-      setLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  return { user, profile, loading };
+  return { user, profile, loading: authLoading || profileLoading };
 }

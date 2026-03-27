@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
         new URL(`/login?error=${encodeURIComponent(error.message)}`, siteUrl)
       );
     }
-    return NextResponse.redirect(new URL("/resetPassword", siteUrl));
+    return NextResponse.redirect(new URL("/reset-password", siteUrl));
   }
 
   // —— 6️⃣ Handle Mobile OAuth Success (with tokens) ——

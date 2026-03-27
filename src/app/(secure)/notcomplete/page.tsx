@@ -5,7 +5,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
-import TodayTaskCard from "@/components/Tasks/customcard";
+import TodayTaskCard from "@/components/Tasks/CustomCard";
 import {
   ClipboardCheck,
   RefreshCw,
@@ -14,7 +14,7 @@ import {
   Clock,
   Infinity,
 } from "lucide-react";
-import EmptyState from "@/components/popupModels/emptystate";
+import EmptyState from "@/components/popupModels/EmptyState";
 import { Collection as SchemaCollection } from "@/types/schema";
 
 // Define types for better type safety
