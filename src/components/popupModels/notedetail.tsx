@@ -10,9 +10,10 @@ import {
   Pin,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { LIST_COLORS, OperationResult } from "@/types/schema";
+import { OperationResult } from "@/types/schema";
 import { useAuth } from "@/context/AuthContext";
 import { createPortal } from "react-dom";
+import { useAppColors } from "@/hooks/useAppColors";
 
 interface NoteSidebarProps {
   isOpen: boolean;
@@ -55,6 +56,7 @@ const NoteDetails = ({
   const { user } = useAuth();
   const isDark = theme === "dark";
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const { colors: appColors, loading: colorsLoading } = useAppColors();
 
   // --- STATE FOR DB-VERIFIED VALUES ---
   const [verifiedNote, setVerifiedNote] = useState(note);
@@ -71,7 +73,7 @@ const NoteDetails = ({
     verifiedNote.description || ""
   );
   const [selectedColor, setSelectedColor] = useState<string>(
-    verifiedNote.bg_color_hex || LIST_COLORS[0]
+    verifiedNote.bg_color_hex || ""
   );
   const [selectedCollection, setSelectedCollection] = useState<string>(
     verifiedNote.collection_id || ""
@@ -250,7 +252,7 @@ const NoteDetails = ({
 
       setNoteTitle(verifiedNote.title || "");
       setNoteDescription(verifiedNote.description || "");
-      setSelectedColor(verifiedNote.bg_color_hex || LIST_COLORS[0]);
+      setSelectedColor(verifiedNote.bg_color_hex || "");
       setTitleCharCount((verifiedNote.title || "").length);
       setIsPinned(verifiedNote.is_pinned || false);
       setError(null);
@@ -264,7 +266,7 @@ const NoteDetails = ({
     const changed =
       noteTitle !== (verifiedNote.title || "") ||
       noteDescription !== (verifiedNote.description || "") ||
-      selectedColor !== (verifiedNote.bg_color_hex || LIST_COLORS[0]) ||
+      selectedColor !== (verifiedNote.bg_color_hex || "") ||
       isPinned !== (verifiedNote.is_pinned || false) ||
       selectedCollection !== verifiedNote.collection_id;
     setIsNoteChanged(changed);
@@ -631,48 +633,43 @@ const NoteDetails = ({
           <div>
             <h3 className="text-xl font-semibold mb-4">Note Color</h3>
             <div className="flex flex-wrap gap-4">
-              {LIST_COLORS.map((c) => {
-                // Determine if this is a light color that needs dark checkmark
-                const lightColors = [
-                  "#FFD60A",
-                  "#34C759",
-                  "#00C7BE",
-                  "#FF9F0A",
-                  "#30D158",
-                  "#ff69B4",
-                ];
-                const isLight =
-                  lightColors.includes(c.toLowerCase()) ||
-                  (c.includes("#") &&
-                    parseInt(c.slice(1, 3), 16) +
-                      parseInt(c.slice(3, 5), 16) +
-                      parseInt(c.slice(5, 7), 16) >
-                      384);
-                const checkColor = isLight ? "text-gray-800" : "text-white";
+              {colorsLoading ? (
+                <span className="text-sm text-gray-400">Loading colors…</span>
+              ) : (
+                appColors.map(({ color_hex, color_name }) => {
+                  const isLight =
+                    color_hex.startsWith("#") &&
+                    parseInt(color_hex.slice(1, 3), 16) +
+                      parseInt(color_hex.slice(3, 5), 16) +
+                      parseInt(color_hex.slice(5, 7), 16) >
+                      384;
+                  const checkColor = isLight ? "text-gray-800" : "text-white";
 
-                return (
-                  <button
-                    key={c}
-                    onClick={() => handleColorSelect(c)}
-                    disabled={isProcessing}
-                    aria-pressed={c === selectedColor}
-                    aria-label={`Select color ${c}`}
-                    className={`h-10 w-10 rounded-full relative shadow-md hover:shadow-lg transition-all duration-200 border-2 ${
-                      c === selectedColor
-                        ? "border-orange-500"
-                        : "border-transparent"
-                    } ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
-                    style={{ backgroundColor: c }}
-                    type="button"
-                  >
-                    {c === selectedColor && (
-                      <Check
-                        className={`absolute top-2 left-2 h-5 w-5 ${checkColor} drop-shadow-md`}
-                      />
-                    )}
-                  </button>
-                );
-              })}
+                  return (
+                    <button
+                      key={color_hex}
+                      onClick={() => handleColorSelect(color_hex)}
+                      disabled={isProcessing}
+                      aria-pressed={color_hex === selectedColor}
+                      aria-label={`Select ${color_name} color`}
+                      title={color_name}
+                      className={`h-10 w-10 rounded-full relative shadow-md hover:shadow-lg transition-all duration-200 border-2 ${
+                        color_hex === selectedColor
+                          ? "border-orange-500"
+                          : "border-transparent"
+                      } ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
+                      style={{ backgroundColor: color_hex }}
+                      type="button"
+                    >
+                      {color_hex === selectedColor && (
+                        <Check
+                          className={`absolute top-2 left-2 h-5 w-5 ${checkColor} drop-shadow-md`}
+                        />
+                      )}
+                    </button>
+                  );
+                })
+              )}
             </div>
           </div>
 
