@@ -69,6 +69,8 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
   // Refs for UI interactions
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Tracks whether the initial color has been set for the current modal session
+  const colorInitializedRef = useRef(false);
 
   // Fetch existing lists for validation when modal opens
   useEffect(() => {
@@ -139,18 +141,20 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
     [error, validateListName]
   );
 
-  // Set initial color when colors are loaded or modal opens
+  // Set initial color from API when colors load and none is pre-selected
   useEffect(() => {
-    if (isOpen && !selectedColor && appColors.length > 0) {
+    if (isOpen && !colorInitializedRef.current && appColors.length > 0) {
       setSelectedColor(appColors[0].color_hex);
+      colorInitializedRef.current = true;
     }
-  }, [isOpen, appColors, selectedColor]);
+  }, [isOpen, appColors]);
 
   // Focus input when modal opens
   useEffect(() => {
     if (isOpen) {
       setListName("");
       setSelectedColor("");
+      colorInitializedRef.current = false;
       setError(null);
       setSuccessMessage(null);
       setIsSubmitting(false);

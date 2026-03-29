@@ -43,6 +43,7 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
 
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const colorInitializedRef = useRef(false);
 
   // Validation function to check for duplicate names (case-insensitive)
   const validateCollectionName = useCallback(
@@ -104,6 +105,7 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
     if (isOpen) {
       setCollectionName(initialName);
       setSelectedColor(initialColor || "");
+      colorInitializedRef.current = !!(initialColor);
       setError(null);
       setIsSubmitting(false);
       setTimeout(() => {
@@ -114,10 +116,11 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
 
   // Set initial color from API when colors load and no color is pre-selected
   useEffect(() => {
-    if (isOpen && !selectedColor && !colorsLoading && appColors.length > 0) {
+    if (isOpen && !colorInitializedRef.current && appColors.length > 0) {
       setSelectedColor(appColors[0].color_hex);
+      colorInitializedRef.current = true;
     }
-  }, [isOpen, selectedColor, colorsLoading, appColors]);
+  }, [isOpen, appColors]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

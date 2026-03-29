@@ -15,7 +15,10 @@ export function useAppColors() {
     let cancelled = false;
 
     fetch("/api/app-settings")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((json) => {
         if (!cancelled) {
           setColors(json.data ?? []);
