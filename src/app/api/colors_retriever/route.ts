@@ -8,7 +8,8 @@ import { requireAuth } from "@/lib/api-auth";
 import { logger } from "@/lib/logger";
 
 // GET /api/colors_retriever
-// Returns all rows from the app_settings table (color palette).
+// Returns all rows from the app_colors table (color palette).
+
 export async function GET() {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
@@ -17,7 +18,7 @@ export async function GET() {
 
   try {
     const { data, error } = await supabase
-      .from("app_settings")
+      .from("app_colors")
       .select("*")
       .order("id", { ascending: true });
 
