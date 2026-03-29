@@ -3,9 +3,10 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Check, AlertCircle, ChevronDown } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { Collection, LIST_COLORS, Note } from "@/types/schema";
+import { Collection, Note } from "@/types/schema";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
+import { useAppColors } from "@/hooks/useAppColors";
 
 interface CreateNoteModalProps {
   isOpen: boolean;
@@ -51,6 +52,7 @@ const CreateNoteModal = ({
   const { theme } = useTheme();
   const { user } = useAuth();
   const isDark = theme === "dark";
+  const { colors: appColors, loading: colorsLoading } = useAppColors();
 
   const [noteTitle, setNoteTitle] = useState("");
   const [noteDescription, setNoteDescription] = useState("");
@@ -170,7 +172,7 @@ const CreateNoteModal = ({
       // Use collection color if no color is selected
       const collection = collections.find((c) => c.id === collectionId);
       const finalColor =
-        selectedColor || collection?.bg_color_hex || LIST_COLORS[0];
+        selectedColor || collection?.bg_color_hex || appColors[0]?.color_hex || "";
 
       // UPDATED: Create a proper Date object with UTC timezone for iOS compatibility
       const createDate = createUTCDate();
@@ -307,7 +309,7 @@ const CreateNoteModal = ({
                         className="w-4 h-4 rounded-full border border-gray-300 dark:border-gray-600"
                         style={{
                           backgroundColor:
-                            collection.bg_color_hex || LIST_COLORS[0],
+                            collection.bg_color_hex || appColors[0]?.color_hex || "",
                         }}
                       />
                       <span>Collection Color</span>
@@ -315,48 +317,46 @@ const CreateNoteModal = ({
                   ) : null;
                 })()}
               <div ref={colorSectionRef} className="flex gap-2 flex-wrap">
-                {LIST_COLORS.map((color) => {
-                  // Determine if this is a light color that needs dark checkmark
-                  const lightColors = [
-                    "#FFD60A",
-                    "#34C759",
-                    "#00C7BE",
-                    "#FF9F0A",
-                    "#30D158",
-                    "#ff69B4",
-                  ];
-                  const isLight =
-                    lightColors.includes(color.toLowerCase()) ||
-                    (color.includes("#") &&
-                      parseInt(color.slice(1, 3), 16) +
-                        parseInt(color.slice(3, 5), 16) +
-                        parseInt(color.slice(5, 7), 16) >
-                        384);
-                  const checkColor = isLight ? "text-gray-800" : "text-white";
+                {colorsLoading ? (
+                  <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                    Loading colors…
+                  </span>
+                ) : (
+                  appColors.map(({ color_hex, color_name }) => {
+                    const isLight =
+                      color_hex.startsWith("#") &&
+                      parseInt(color_hex.slice(1, 3), 16) +
+                        parseInt(color_hex.slice(3, 5), 16) +
+                        parseInt(color_hex.slice(5, 7), 16) >
+                        384;
+                    const checkColor = isLight ? "text-gray-800" : "text-white";
 
-                  return (
-                    <button
-                      key={color}
-                      type="button"
-                      className={`h-8 w-8 rounded-full relative ${selectedColor === color ? "ring-2 ring-offset-2 ring-sky-500" : ""}`}
-                      style={{ backgroundColor: color }}
-                      onClick={(e) => {
-                        e.preventDefault(); // Prevent form submission
-                        handleColorSelect(color);
-                      }}
-                      onMouseDown={(e) => {
-                        // Prevent default to avoid any focus-related browser behaviors
-                        e.preventDefault();
-                      }}
-                    >
-                      {selectedColor === color && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <Check className={`${checkColor} w-4 h-4`} />
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={color_hex}
+                        type="button"
+                        title={color_name}
+                        className={`h-8 w-8 rounded-full relative ${selectedColor === color_hex ? "ring-2 ring-offset-2 ring-sky-500" : ""}`}
+                        style={{ backgroundColor: color_hex }}
+                        aria-label={`Select ${color_name} color`}
+                        aria-pressed={selectedColor === color_hex}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleColorSelect(color_hex);
+                        }}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                        }}
+                      >
+                        {selectedColor === color_hex && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Check className={`${checkColor} w-4 h-4`} />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
 

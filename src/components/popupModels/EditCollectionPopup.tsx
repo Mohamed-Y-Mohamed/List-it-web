@@ -5,7 +5,8 @@ import { X, Check, AlertCircle, Edit3 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/client";
-import { Collection, ListColor, LIST_COLORS } from "@/types/schema";
+import { Collection } from "@/types/schema";
+import { useAppColors } from "@/hooks/useAppColors";
 
 // Define a proper result type for submission
 interface SubmissionResult {
@@ -18,7 +19,7 @@ interface EditCollectionPopupProps {
   onClose: () => void;
   onSubmit: (
     collectionId: string,
-    collectionData: { collection_name: string; bg_color_hex: ListColor }
+    collectionData: { collection_name: string; bg_color_hex: string }
   ) => Promise<SubmissionResult> | void;
   existingCollections?: Collection[];
   currentCollection: Collection | null;
@@ -37,10 +38,11 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
   const { theme } = useTheme();
   const { user } = useAuth();
   const isDark = theme === "dark";
+  const { colors: appColors, loading: colorsLoading } = useAppColors();
 
   // Form state
   const [collectionName, setCollectionName] = useState("");
-  const [selectedColor, setSelectedColor] = useState<ListColor>("#FF3B30");
+  const [selectedColor, setSelectedColor] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -54,13 +56,7 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
   useEffect(() => {
     if (isOpen && currentCollection) {
       setCollectionName(currentCollection.collection_name || "");
-      // Ensure the color is a valid ListColor, fallback to default if not
-      const validColor = LIST_COLORS.includes(
-        currentCollection.bg_color_hex as ListColor
-      )
-        ? (currentCollection.bg_color_hex as ListColor)
-        : "#FF3B30";
-      setSelectedColor(validColor);
+      setSelectedColor(currentCollection.bg_color_hex || "");
       setError(null);
       setSuccessMessage(null);
       setIsSubmitting(false);
@@ -245,7 +241,7 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
   // Check if form is valid and has changes
   const hasChanges =
     collectionName.trim() !== (currentCollection?.collection_name || "") ||
-    selectedColor !== (currentCollection?.bg_color_hex || "#FF3B30");
+    selectedColor !== (currentCollection?.bg_color_hex || "");
 
   const isFormValid =
     collectionName.trim() &&
@@ -382,50 +378,47 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
                 role="radiogroup"
                 aria-label="Collection color"
               >
-                {LIST_COLORS.map((color) => {
-                  // Determine if this is a light color that needs dark checkmark
-                  const lightColors = [
-                    "#FFD60A",
-                    "#34C759",
-                    "#00C7BE",
-                    "#FF9F0A",
-                    "#30D158",
-                    "#ff69B4",
-                  ];
-                  const isLight =
-                    lightColors.includes(color.toLowerCase()) ||
-                    (color.includes("#") &&
-                      parseInt(color.slice(1, 3), 16) +
-                        parseInt(color.slice(3, 5), 16) +
-                        parseInt(color.slice(5, 7), 16) >
-                        384);
-                  const checkColor = isLight ? "text-gray-800" : "text-white";
+                {colorsLoading ? (
+                  <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                    Loading colors…
+                  </span>
+                ) : (
+                  appColors.map(({ color_hex, color_name }) => {
+                    const isLight =
+                      color_hex.startsWith("#") &&
+                      parseInt(color_hex.slice(1, 3), 16) +
+                        parseInt(color_hex.slice(3, 5), 16) +
+                        parseInt(color_hex.slice(5, 7), 16) >
+                        384;
+                    const checkColor = isLight ? "text-gray-800" : "text-white";
 
-                  return (
-                    <button
-                      key={color}
-                      type="button"
-                      className={`h-8 w-8 rounded-full flex items-center justify-center transition-all duration-200 ${
-                        selectedColor === color
-                          ? isDark
-                            ? "ring-2 ring-offset-2 ring-offset-gray-800 ring-white scale-110"
-                            : "ring-2 ring-offset-2 ring-offset-gray-100 ring-gray-800 scale-110"
-                          : "hover:scale-105"
-                      }`}
-                      style={{ backgroundColor: color }}
-                      onClick={() => setSelectedColor(color)}
-                      aria-label={`Select ${color} color`}
-                      aria-pressed={selectedColor === color}
-                      disabled={isLoading}
-                    >
-                      {selectedColor === color && (
-                        <Check
-                          className={`h-4 w-4 ${checkColor} drop-shadow-md`}
-                        />
-                      )}
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={color_hex}
+                        type="button"
+                        title={color_name}
+                        className={`h-8 w-8 rounded-full flex items-center justify-center transition-all duration-200 ${
+                          selectedColor === color_hex
+                            ? isDark
+                              ? "ring-2 ring-offset-2 ring-offset-gray-800 ring-white scale-110"
+                              : "ring-2 ring-offset-2 ring-offset-gray-100 ring-gray-800 scale-110"
+                            : "hover:scale-105"
+                        }`}
+                        style={{ backgroundColor: color_hex }}
+                        onClick={() => setSelectedColor(color_hex)}
+                        aria-label={`Select ${color_name} color`}
+                        aria-pressed={selectedColor === color_hex}
+                        disabled={isLoading}
+                      >
+                        {selectedColor === color_hex && (
+                          <Check
+                            className={`h-4 w-4 ${checkColor} drop-shadow-md`}
+                          />
+                        )}
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
 

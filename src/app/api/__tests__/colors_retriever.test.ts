@@ -117,11 +117,13 @@ describe("GET /api/colors_retriever", () => {
     expect(body.error).toBe("DB error");
   });
 
+
   it("queries the app_colors table ordered by id ascending", async () => {
     authOk();
     dbResult.data = [];
     await GET();
     expect(mockSupabaseClient.from).toHaveBeenCalledWith("app_colors");
+
     expect(mockChain.select).toHaveBeenCalledWith("*");
     expect(mockChain.order).toHaveBeenCalledWith("id", { ascending: true });
   });

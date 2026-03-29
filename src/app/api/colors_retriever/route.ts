@@ -9,6 +9,7 @@ import { logger } from "@/lib/logger";
 
 // GET /api/colors_retriever
 // Returns all rows from the app_colors table (color palette).
+
 export async function GET() {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
