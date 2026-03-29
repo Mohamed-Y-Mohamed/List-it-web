@@ -28,7 +28,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
 import CreateListModal from "@/components/popupModels/ListPopup";
-import { List, ListColor } from "@/types/schema";
+import { List } from "@/types/schema";
 import EditListPopup from "@/components/popupModels/editListPopup";
 
 interface SideNavProps {
@@ -183,7 +183,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
 
   const handleEditListSubmit = async (
     listId: string,
-    listData: { list_name: string; bg_color_hex: ListColor }
+    listData: { list_name: string; bg_color_hex: string }
   ): Promise<{ success: boolean; error?: unknown }> => {
     try {
       // Check if the color changed

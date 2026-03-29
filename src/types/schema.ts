@@ -79,22 +79,12 @@ export interface User {
   // which is unusual but this interface will work with it
 }
 
-// Color Constants
-export const LIST_COLORS = [
-  "#FF3B30",
-  "#007AFF",
-  "#34C759",
-  "#FFD60A",
-  "#AF52DE",
-  "#FF2D55",
-  "#5856D6",
-  "#00C7BE",
-  "#FF9500",
-  "#ff69B4",
-] as const;
-
-// Type for List Color
-export type ListColor = (typeof LIST_COLORS)[number];
+// AppSetting Interface (row from the app_settings table)
+export interface AppSetting {
+  id: string | number;
+  color_hex: string;
+  color_name: string;
+}
 
 // DisplayTask Interface (used in CompletedPage)
 export interface DisplayTask {

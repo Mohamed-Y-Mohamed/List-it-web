@@ -3,8 +3,9 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Check, AlertCircle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { LIST_COLORS, Collection, OperationResult } from "@/types/schema";
+import { Collection, OperationResult } from "@/types/schema";
 import { useAuth } from "@/context/AuthContext";
+import { useAppColors } from "@/hooks/useAppColors";
 
 type SubmissionResult = OperationResult;
 
@@ -26,25 +27,23 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
   onClose,
   onSubmit,
   initialName = "",
-  initialColor = LIST_COLORS[0],
+  initialColor = "",
   existingCollections = [], // Default to empty array
 }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const isDark = theme === "dark";
+  const { colors: appColors, loading: colorsLoading } = useAppColors();
 
   const [collectionName, setCollectionName] = useState(initialName);
-  const [selectedColor, setSelectedColor] = useState(
-    LIST_COLORS.includes(initialColor as (typeof LIST_COLORS)[number])
-      ? (initialColor as (typeof LIST_COLORS)[number])
-      : LIST_COLORS[0]
-  );
+  const [selectedColor, setSelectedColor] = useState(initialColor);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const colorInitializedRef = useRef(false);
 
   // Validation function to check for duplicate names (case-insensitive)
   const validateCollectionName = useCallback(
@@ -105,11 +104,8 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setCollectionName(initialName);
-      setSelectedColor(
-        LIST_COLORS.includes(initialColor as (typeof LIST_COLORS)[number])
-          ? (initialColor as (typeof LIST_COLORS)[number])
-          : LIST_COLORS[0]
-      );
+      setSelectedColor(initialColor || "");
+      colorInitializedRef.current = !!(initialColor);
       setError(null);
       setIsSubmitting(false);
       setTimeout(() => {
@@ -117,6 +113,14 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
       }, 100);
     }
   }, [isOpen, initialName, initialColor]);
+
+  // Set initial color from API when colors load and no color is pre-selected
+  useEffect(() => {
+    if (isOpen && !colorInitializedRef.current && appColors.length > 0) {
+      setSelectedColor(appColors[0].color_hex);
+      colorInitializedRef.current = true;
+    }
+  }, [isOpen, appColors]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -303,48 +307,47 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
                 Color
               </label>
               <div className="flex gap-2 flex-wrap">
-                {LIST_COLORS.map((color) => {
-                  // Determine if this is a light color that needs dark checkmark
-                  const lightColors = [
-                    "#FFD60A",
-                    "#34C759",
-                    "#00C7BE",
-                    "#FF9F0A",
-                    "#30D158",
-                    "#ff69B4",
-                  ];
-                  const isLight =
-                    lightColors.includes(color.toLowerCase()) ||
-                    (color.includes("#") &&
-                      parseInt(color.slice(1, 3), 16) +
-                        parseInt(color.slice(3, 5), 16) +
-                        parseInt(color.slice(5, 7), 16) >
-                        384);
-                  const checkColor = isLight ? "text-gray-800" : "text-white";
+                {colorsLoading ? (
+                  <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                    Loading colors…
+                  </span>
+                ) : (
+                  appColors.map(({ color_hex, color_name }) => {
+                    const isLight =
+                      color_hex.startsWith("#") &&
+                      parseInt(color_hex.slice(1, 3), 16) +
+                        parseInt(color_hex.slice(3, 5), 16) +
+                        parseInt(color_hex.slice(5, 7), 16) >
+                        384;
+                    const checkColor = isLight ? "text-gray-800" : "text-white";
 
-                  return (
-                    <button
-                      key={color}
-                      type="button"
-                      className={`h-8 w-8 rounded-full relative transition-all duration-200 ${
-                        selectedColor === color
-                          ? "ring-2 ring-offset-2 ring-sky-500 scale-110"
-                          : "hover:scale-105"
-                      }`}
-                      style={{ backgroundColor: color }}
-                      onClick={() => setSelectedColor(color)}
-                      disabled={isLoading}
-                    >
-                      {selectedColor === color && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <Check
-                            className={`${checkColor} w-4 h-4 drop-shadow-md`}
-                          />
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={color_hex}
+                        type="button"
+                        title={color_name}
+                        className={`h-8 w-8 rounded-full relative transition-all duration-200 ${
+                          selectedColor === color_hex
+                            ? "ring-2 ring-offset-2 ring-sky-500 scale-110"
+                            : "hover:scale-105"
+                        }`}
+                        style={{ backgroundColor: color_hex }}
+                        onClick={() => setSelectedColor(color_hex)}
+                        aria-label={`Select ${color_name} color`}
+                        aria-pressed={selectedColor === color_hex}
+                        disabled={isLoading}
+                      >
+                        {selectedColor === color_hex && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Check
+                              className={`${checkColor} w-4 h-4 drop-shadow-md`}
+                            />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
 
