@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { AppSetting } from "@/types/schema";
 
 /**
- * Hook that fetches the available color palette from the app_settings API.
+ * Hook that fetches the available color palette from the colors_retriever API.
  * Returns the list of colors and a loading flag.
  */
 export function useAppColors() {
@@ -14,7 +14,7 @@ export function useAppColors() {
   useEffect(() => {
     let cancelled = false;
 
-    fetch("/api/app-settings")
+    fetch("/api/colors_retriever")
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();

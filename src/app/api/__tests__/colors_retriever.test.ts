@@ -1,7 +1,5 @@
 /** @jest-environment node */
 
-import { NextRequest } from "next/server";
-
 // Mocks
 jest.mock("next/headers", () => ({ cookies: jest.fn(() => ({})) }));
 jest.mock("@/lib/logger", () => ({
@@ -30,7 +28,7 @@ jest.mock("@supabase/auth-helpers-nextjs", () => ({
 }));
 
 // Imports
-import { GET } from "@/app/api/app-settings/route";
+import { GET } from "@/app/api/colors_retriever/route";
 import { requireAuth } from "@/lib/api-auth";
 
 const mockRequireAuth = requireAuth as jest.MockedFunction<typeof requireAuth>;
@@ -58,9 +56,6 @@ function authFail() {
     ),
   });
 }
-function makeReq(method: string, url: string) {
-  return new NextRequest(`http://localhost${url}`, { method });
-}
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -76,8 +71,8 @@ beforeEach(() => {
   mockSupabaseClient.from.mockReturnValue(mockChain);
 });
 
-// GET /api/app-settings
-describe("GET /api/app-settings", () => {
+// GET /api/colors_retriever
+describe("GET /api/colors_retriever", () => {
   it("returns 401 when unauthenticated", async () => {
     authFail();
     const res = await GET();
@@ -94,8 +89,14 @@ describe("GET /api/app-settings", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data).toHaveLength(2);
-    expect(body.data[0]).toMatchObject({ color_hex: "#FF3B30", color_name: "Red" });
-    expect(body.data[1]).toMatchObject({ color_hex: "#007AFF", color_name: "Blue" });
+    expect(body.data[0]).toMatchObject({
+      color_hex: "#FF3B30",
+      color_name: "Red",
+    });
+    expect(body.data[1]).toMatchObject({
+      color_hex: "#007AFF",
+      color_name: "Blue",
+    });
   });
 
   it("returns 200 with an empty array when the table has no rows", async () => {

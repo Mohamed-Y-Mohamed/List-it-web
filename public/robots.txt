@@ -11,7 +11,7 @@ Disallow: /overdue
 Disallow: /api/
 
 # Host
-Host: http://localhost:3000
+Host: https://list-it-dom.netlify.app
 
 # Sitemaps
-Sitemap: http://localhost:3000/sitemap.xml
+Sitemap: https://list-it-dom.netlify.app/sitemap.xml
