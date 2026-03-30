@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Footer from "@/components/Footer";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
+import PWAProvider from "@/components/PWAProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,6 +20,12 @@ export const metadata: Metadata = {
   title: "List It - Smart Task Management",
   description:
     "Organize your tasks, notes, and projects efficiently with List It",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "List It",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -44,6 +51,14 @@ export const metadata: Metadata = {
       },
     ],
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#4f46e5",
+  width: "device-width",
+  initialScale: 1,
+  minimumScale: 1,
+  viewportFit: "cover",
 };
 export default function RootLayout({
   children,
@@ -85,10 +100,12 @@ export default function RootLayout({
       >
         <AuthProvider>
           <ThemeProvider>
-            <div className="flex flex-col w-full min-h-50">
-              {children}
-              <Footer />
-            </div>
+            <PWAProvider>
+              <div className="flex flex-col w-full min-h-50">
+                {children}
+                <Footer />
+              </div>
+            </PWAProvider>
           </ThemeProvider>
         </AuthProvider>
       </body>
