@@ -1,21 +1,32 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
+# R8 rules for the List It Android shell.
 #
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Capacitor resolves plugins by name at runtime — it reads the class list out of
+# the generated plugin registration, instantiates each by reflection, and matches
+# @PluginMethod members against the method name the JavaScript side asks for.
+# R8 sees none of those call sites, so without the keeps below it renames or
+# removes the plugins and every native call fails at runtime with a
+# "plugin not implemented" error that never appears in a debug build.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep the Capacitor bridge and every plugin that extends it.
+-keep public class * extends com.getcapacitor.Plugin { *; }
+-keep @com.getcapacitor.annotation.CapacitorPlugin public class * { *; }
+-keep class com.getcapacitor.** { *; }
+-keep class com.capacitorjs.** { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Methods the WebView calls by name, and the annotations used to find them.
+-keepclassmembers class * {
+    @com.getcapacitor.PluginMethod <methods>;
+}
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keepattributes *Annotation*, JavascriptInterface
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Cordova plugins bridged through Capacitor are resolved the same reflective way.
+-keep class org.apache.cordova.** { *; }
+
+# Keep enough of the stack trace to read a crash report. Play symbolicates
+# obfuscated traces from the mapping file that ships in the bundle, but line
+# numbers have to survive for that to be worth anything.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

@@ -14,6 +14,7 @@ import CreateNoteModal from "@/components/popupModels/notepopup";
 import DeleteCollectionModal from "@/components/popupModels/deleteCollectionModal";
 import EditCollectionPopup from "@/components/popupModels/EditCollectionPopup";
 import { apiFetch } from "@/lib/apiFetch";
+import { useSetScreenTitle } from "@/components/native/ScreenTitleContext";
 
 // Format date to yyyy-MM-dd'T'HH:mm:ss
 const formatDateForPostgres = (date: Date): string => {
@@ -70,6 +71,10 @@ export default function ListDetailView({ listId }: { listId: string }) {
 
   // Local state for the current list
   const [listData, setListData] = useState<List | null>(null);
+
+  // Give the native back bar this list's name instead of a generic "List".
+  // No-op on the web, which has no back bar.
+  useSetScreenTitle(listData?.list_name ?? null);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
