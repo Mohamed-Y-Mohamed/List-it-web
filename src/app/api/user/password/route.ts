@@ -2,10 +2,8 @@
 // Verify the current password then update to a new one.
 
 import { createClient } from "@supabase/supabase-js";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, getRouteClient } from "@/lib/api-auth";
 import { logger } from "@/lib/logger";
 
 // POST /api/user/password
@@ -13,7 +11,7 @@ import { logger } from "@/lib/logger";
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
   try {
     const { currentPassword, newPassword } = await request.json();
@@ -39,7 +37,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userEmail = session?.user?.email;
+    const userEmail = user?.email;
     if (!userEmail) {
       logger.error(
         "POST /api/user/password configuration error: session is missing user email"
@@ -65,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update password using the session-scoped server client
-    const supabase = createServerComponentClient({ cookies });
+    const supabase = await getRouteClient();
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     });

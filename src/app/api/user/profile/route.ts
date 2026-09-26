@@ -1,25 +1,23 @@
 // app/api/user/profile/route.ts
 // Read and update the authenticated user's profile row in the `users` table.
 
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, getRouteClient } from "@/lib/api-auth";
 import { logger } from "@/lib/logger";
 
 // GET /api/user/profile
 export async function GET() {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = await getRouteClient();
 
   try {
     const { data, error } = await supabase
       .from("users")
       .select("*")
-      .eq("id", session.user.id)
+      .eq("id", user.id)
       .single();
 
     if (error) {
@@ -38,7 +36,7 @@ export async function GET() {
 export async function PATCH(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
   try {
     const body = await request.json();
@@ -46,12 +44,12 @@ export async function PATCH(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id: _id, ...updates } = body;
 
-    const supabase = createServerComponentClient({ cookies });
+    const supabase = await getRouteClient();
 
     const { data, error } = await supabase
       .from("users")
       .update(updates)
-      .eq("id", session.user.id)
+      .eq("id", user.id)
       .select()
       .single();
 

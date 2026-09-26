@@ -2,81 +2,175 @@
 
 import { NextResponse } from "next/server";
 
-jest.mock("next/headers", () => ({ cookies: jest.fn(() => ({})) }));
+const mockHeaderStore: { authorization: string | null } = { authorization: null };
 
-const mockSession: { value: { session: unknown; error: unknown } } = {
-  value: { session: null, error: null },
-};
+jest.mock("next/headers", () => ({
+  cookies: jest.fn(() => ({})),
+  headers: jest.fn(async () => ({
+    get: (name: string) =>
+      name.toLowerCase() === "authorization" ? mockHeaderStore.authorization : null,
+  })),
+}));
 
-const mockSupabaseClient = {
+const mockCookieClient = {
   auth: {
-    getSession: jest.fn(async () => ({ data: mockSession.value, error: null })),
+    getSession: jest.fn(async () => ({ data: { session: null }, error: null })),
   },
 };
 
 jest.mock("@supabase/auth-helpers-nextjs", () => ({
-  createServerComponentClient: jest.fn(() => mockSupabaseClient),
+  createServerComponentClient: jest.fn(() => mockCookieClient),
+}));
+
+const mockGetUser = jest.fn();
+const mockCreateClient = jest.fn(() => ({ auth: { getUser: mockGetUser } }));
+
+jest.mock("@supabase/supabase-js", () => ({
+  createClient: (...args: unknown[]) => mockCreateClient(...(args as [])),
 }));
 
 // Import after mocks
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, getRouteClient } from "@/lib/api-auth";
 
-// Fake session
-function fakeSession(userId = "user-123") {
-  return { user: { id: userId }, access_token: "tok" };
-}
+const BEARER_USER = { id: "user-bearer", email: "native@example.com" };
+const COOKIE_USER = { id: "user-cookie", email: "web@example.com" };
 
-// requireAuth tests
-describe("requireAuth", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockHeaderStore.authorization = null;
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://project.supabase.co";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+  mockCookieClient.auth.getSession.mockResolvedValue({
+    data: { session: null },
+    error: null,
   });
+});
 
-  it("returns a 401 NextResponse when there is no session", async () => {
-    mockSession.value = { session: null, error: null };
-    mockSupabaseClient.auth.getSession.mockResolvedValueOnce({
-      data: {
-        session: null,
-        error: undefined,
-      },
+describe("requireAuth — cookie path (web)", () => {
+  it("returns the user when a cookie session exists", async () => {
+    mockCookieClient.auth.getSession.mockResolvedValueOnce({
+      data: { session: { user: COOKIE_USER, access_token: "tok" } },
       error: null,
-    });
+    } as never);
 
     const result = await requireAuth();
 
-    expect(result.session).toBeNull();
+    expect(result.error).toBeNull();
+    expect(result.user).toEqual(COOKIE_USER);
+    // A cookie session must never trigger a bearer verification round-trip.
+    expect(mockGetUser).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 when getSession reports an error", async () => {
+    mockCookieClient.auth.getSession.mockResolvedValueOnce({
+      data: { session: null },
+      error: new Error("boom"),
+    } as never);
+
+    const result = await requireAuth();
+
+    expect(result.user).toBeNull();
+    expect((result.error as NextResponse).status).toBe(500);
+  });
+
+  it("returns 500 when getSession throws", async () => {
+    mockCookieClient.auth.getSession.mockRejectedValueOnce(
+      new Error("network error")
+    );
+
+    const result = await requireAuth();
+
+    expect(result.user).toBeNull();
+    expect((result.error as NextResponse).status).toBe(500);
+  });
+});
+
+describe("requireAuth — bearer path (native)", () => {
+  it("returns 401 when there is neither a cookie session nor a bearer token", async () => {
+    const result = await requireAuth();
+
+    expect(result.user).toBeNull();
     expect(result.error).toBeInstanceOf(NextResponse);
     const body = await (result.error as NextResponse).json();
     expect(body.error).toMatch(/authentication required/i);
     expect((result.error as NextResponse).status).toBe(401);
   });
 
-  it("returns the session when authenticated", async () => {
-    const session = fakeSession();
-    mockSupabaseClient.auth.getSession.mockResolvedValueOnce({
-      data: {
-        session,
-        error: undefined,
-      },
-      error: null,
-    });
+  it("returns the user for a valid bearer token", async () => {
+    mockHeaderStore.authorization = "Bearer valid-token";
+    mockGetUser.mockResolvedValueOnce({ data: { user: BEARER_USER }, error: null });
 
     const result = await requireAuth();
 
     expect(result.error).toBeNull();
-    expect(result.session).toEqual(session);
+    expect(result.user).toEqual(BEARER_USER);
+    // The token must be verified against Supabase, not merely decoded.
+    expect(mockGetUser).toHaveBeenCalledWith("valid-token");
   });
 
-  it("returns a 500 NextResponse when getSession throws", async () => {
-    mockSupabaseClient.auth.getSession.mockRejectedValueOnce(
-      new Error("network error"),
-    );
+  it("accepts a lowercase bearer scheme", async () => {
+    mockHeaderStore.authorization = "bearer valid-token";
+    mockGetUser.mockResolvedValueOnce({ data: { user: BEARER_USER }, error: null });
 
     const result = await requireAuth();
 
-    expect(result.session).toBeNull();
-    expect(result.error).toBeInstanceOf(NextResponse);
-    expect((result.error as NextResponse).status).toBe(500);
+    expect(result.user).toEqual(BEARER_USER);
+  });
+
+  it("returns 401 when the bearer token is rejected by Supabase", async () => {
+    mockHeaderStore.authorization = "Bearer expired-token";
+    mockGetUser.mockResolvedValueOnce({
+      data: { user: null },
+      error: new Error("jwt expired"),
+    });
+
+    const result = await requireAuth();
+
+    expect(result.user).toBeNull();
+    expect((result.error as NextResponse).status).toBe(401);
+  });
+
+  it("returns 401 for a non-bearer authorization scheme", async () => {
+    mockHeaderStore.authorization = "Basic dXNlcjpwYXNz";
+
+    const result = await requireAuth();
+
+    expect(result.user).toBeNull();
+    expect((result.error as NextResponse).status).toBe(401);
+    expect(mockGetUser).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when the bearer scheme carries no token", async () => {
+    mockHeaderStore.authorization = "Bearer ";
+
+    const result = await requireAuth();
+
+    expect(result.user).toBeNull();
+    expect((result.error as NextResponse).status).toBe(401);
+    expect(mockGetUser).not.toHaveBeenCalled();
+  });
+});
+
+describe("getRouteClient", () => {
+  it("returns the cookie-scoped client when no bearer token is present", async () => {
+    const client = await getRouteClient();
+
+    expect(client).toBe(mockCookieClient);
+    expect(mockCreateClient).not.toHaveBeenCalled();
+  });
+
+  it("forwards the bearer token so row-level security sees the real user", async () => {
+    mockHeaderStore.authorization = "Bearer valid-token";
+
+    await getRouteClient();
+
+    expect(mockCreateClient).toHaveBeenCalledWith(
+      "https://project.supabase.co",
+      "anon-key",
+      expect.objectContaining({
+        global: { headers: { Authorization: "Bearer valid-token" } },
+      })
+    );
   });
 });
 

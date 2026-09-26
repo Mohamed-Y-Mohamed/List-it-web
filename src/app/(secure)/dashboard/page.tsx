@@ -1,6 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
+import { IS_NATIVE_BUILD } from "@/lib/platform";
+
+// Loaded as its own chunk so the web bundle does not carry the native lists
+// screen it never renders. On native the chunk is requested as the component
+// mounts, while the launch splash is still covering the screen.
+const NativeHome = dynamic(() => import("@/components/native/NativeHome"), {
+  ssr: false,
+});
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/client";
@@ -727,8 +736,8 @@ const NewUserWelcome: React.FC<{ isDark: boolean }> = ({ isDark }) => {
   );
 };
 
-// Main Dashboard Component
-export default function Dashboard() {
+// Main Dashboard Component (web)
+function WebDashboard() {
   const { theme } = useTheme();
   const { user } = useAuth();
   const isDark = theme === "dark";
@@ -1276,4 +1285,12 @@ export default function Dashboard() {
       </div>
     </main>
   );
+}
+
+// The native app opens on the iOS-style lists screen, matching the published
+// iOS app, rather than this analytics dashboard. IS_NATIVE_BUILD is fixed at
+// build time, so each bundle keeps only the branch it uses and there is no
+// hydration mismatch.
+export default function DashboardPage() {
+  return IS_NATIVE_BUILD ? <NativeHome /> : <WebDashboard />;
 }

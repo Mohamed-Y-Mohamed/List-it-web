@@ -1,13 +1,95 @@
 @import "tailwindcss";
-body
 
+/* Tailwind v4 is configured from CSS, not from a `tailwind.config.js` file.
+   No `@config` directive was ever present, so the old v3-style config (and its
+   `darkMode: "class"` setting) was silently ignored — which left the `dark:`
+   utilities following the OS colour scheme while `ThemeContext` toggled a
+   `.dark` class on <html>. Binding the variant to that class makes the `dark:`
+   utilities agree with the in-app theme toggle. */
+@custom-variant dark (&:where(.dark, .dark *));
 
-
-
-
-body {
-  background: white;
-  
-  font-family: Arial, Helvetica, sans-serif;
+@theme {
+  /* Device inset sizes, usable as `pt-safe-top`, `pb-safe-bottom`, etc. These
+     resolve to 0 in a desktop browser, so the same markup is correct on both. */
+  --spacing-safe-top: env(safe-area-inset-top, 0px);
+  --spacing-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --spacing-safe-left: env(safe-area-inset-left, 0px);
+  --spacing-safe-right: env(safe-area-inset-right, 0px);
 }
 
+:root {
+  /* Kept in step with the on-screen keyboard by NativeShell, so sheets and
+     sticky footers can lift clear of it. Always 0 on the web. */
+  --keyboard-offset: 0px;
+
+  /* Motion curves. The browser's built-in easings are too weak to read as
+     deliberate, so these are the stronger equivalents used throughout. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  /* The curve iOS uses to push a screen in from the edge. */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* The minimum comfortable hit area on a touch screen, per Apple's HIG and
+   Material's equivalent guidance. Applied to native-only controls. */
+@utility touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* ---------------------------------------------------------------------------
+   Native-only rules.
+
+   Everything below is scoped to `html.capacitor-native`, a class NativeShell
+   adds at runtime inside the Capacitor WebView. The web app never carries it,
+   so none of this can alter the published site — which matters because some of
+   these rules (suppressing text selection, disabling overscroll) are correct in
+   an app and wrong in a browser.
+   --------------------------------------------------------------------------- */
+
+html.capacitor-native {
+  /* Stop the viewport rescaling text when the device rotates. */
+  -webkit-text-size-adjust: 100%;
+
+  /* No rubber-band overscroll or pull-to-refresh: this is an app, not a page. */
+  overscroll-behavior: none;
+
+  /* Android 15 and above force every app edge-to-edge and ignore the status bar
+     colour an app asks for, so the WebView really does start behind the status
+     bar and the gesture pill. This colour fills the inset bands left by the body
+     padding below, giving the same opaque bar iOS draws. */
+  background-color: #ffffff;
+}
+
+html.capacitor-native.dark {
+  background-color: #111827;
+}
+
+/* Inset the whole document once, rather than per screen, so no page can collide
+   with the status bar. Fixed-position UI — sheets, context menus — sits outside
+   this and applies the insets itself. */
+html.capacitor-native body {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html.capacitor-native body {
+  /* Long-pressing a list item should open its context menu, not start a text
+     selection. Inputs opt back in below. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+
+  /* Suppress the grey flash Android draws over tapped elements; components
+     provide their own :active feedback instead. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Text entry still needs selection, and 16px is the threshold below which a
+   WebView zooms in on focus. */
+html.capacitor-native input,
+html.capacitor-native textarea {
+  -webkit-user-select: text;
+  user-select: text;
+  font-size: max(16px, 1em);
+}

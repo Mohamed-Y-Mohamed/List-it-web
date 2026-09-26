@@ -1,10 +1,8 @@
 // app/api/collections/route.ts
 // Server-side API routes for collection CRUD, scoped to authenticated user.
 
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, getRouteClient } from "@/lib/api-auth";
 import { logger } from "@/lib/logger";
 
 // GET /api/collections
@@ -12,16 +10,16 @@ import { logger } from "@/lib/logger";
 export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
   const { searchParams } = new URL(request.url);
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = await getRouteClient();
 
   try {
     let query = supabase
       .from("collection")
       .select("id, collection_name, bg_color_hex, created_at, list_id, user_id")
-      .eq("user_id", session.user.id);
+      .eq("user_id", user.id);
 
     const listId = searchParams.get("list_id");
     if (listId) query = query.eq("list_id", listId);
@@ -44,15 +42,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
   try {
     const body = await request.json();
-    const supabase = createServerComponentClient({ cookies });
+    const supabase = await getRouteClient();
 
     const { data, error } = await supabase
       .from("collection")
-      .insert({ ...body, user_id: session.user.id })
+      .insert({ ...body, user_id: user.id })
       .select()
       .single();
 
@@ -72,7 +70,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
   try {
     const body = await request.json();
@@ -83,13 +81,13 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Collection ID is required" }, { status: 400 });
     }
 
-    const supabase = createServerComponentClient({ cookies });
+    const supabase = await getRouteClient();
 
     const { data, error } = await supabase
       .from("collection")
       .update(updates)
       .eq("id", id)
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
       .select()
       .single();
 
@@ -110,7 +108,7 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
   try {
     const body = await request.json();
@@ -120,14 +118,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Collection IDs are required" }, { status: 400 });
     }
 
-    const supabase = createServerComponentClient({ cookies });
+    const supabase = await getRouteClient();
 
     // Verify ownership of each collection before deleting
     const { data: owned, error: ownershipError } = await supabase
       .from("collection")
       .select("id")
       .in("id", ids)
-      .eq("user_id", session.user.id);
+      .eq("user_id", user.id);
 
     if (ownershipError) {
       logger.error("DELETE /api/collections ownership check error", ownershipError);

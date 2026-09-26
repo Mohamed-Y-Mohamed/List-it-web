@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { X, Trash2, AlertTriangle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Collection } from "@/types/schema";
+import { apiFetch } from "@/lib/apiFetch";
 
 interface DeleteCollectionModalProps {
   isOpen: boolean;
@@ -74,7 +75,7 @@ const DeleteCollectionModal = ({
 
     setIsDeleting(true);
     try {
-      const res = await fetch("/api/collections", {
+      const res = await apiFetch("/api/collections", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: selectedCollections }),

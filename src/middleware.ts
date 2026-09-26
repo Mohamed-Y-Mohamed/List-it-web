@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
+import { corsHeaders, isAllowedOrigin } from "@/lib/cors";
 
 export async function middleware(request: NextRequest) {
   // Create a response object that we'll modify and return
@@ -8,6 +9,34 @@ export async function middleware(request: NextRequest) {
 
   // Get the current path and query parameters
   const { pathname } = request.nextUrl;
+
+  // Cross-origin access for the native app. Handled here rather than in each
+  // route handler so there is a single place to reason about it. Same-origin
+  // browser requests send no Origin header and fall straight through, so the
+  // web app is unaffected.
+  if (pathname.startsWith("/api")) {
+    const origin = request.headers.get("origin");
+
+    if (isAllowedOrigin(origin)) {
+      const headers = corsHeaders(origin as string);
+
+      // Answer the preflight here; it never needs to reach the route handler.
+      if (request.method === "OPTIONS") {
+        return new NextResponse(null, { status: 204, headers });
+      }
+
+      for (const [key, value] of Object.entries(headers)) {
+        response.headers.set(key, value);
+      }
+      return response;
+    }
+
+    // A disallowed cross-origin preflight gets no CORS headers, so the browser
+    // blocks the real request. Same-origin requests continue as before.
+    if (request.method === "OPTIONS" && origin) {
+      return new NextResponse(null, { status: 403 });
+    }
+  }
 
   // Define protected routes that require authentication
   const protectedRoutes = [

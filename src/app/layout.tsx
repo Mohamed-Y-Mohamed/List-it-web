@@ -5,6 +5,8 @@ import Footer from "@/components/Footer";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
 import PWAProvider from "@/components/PWAProvider";
+import NativeShell from "@/components/native/NativeShell";
+import { IS_NATIVE_BUILD } from "@/lib/platform";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -100,10 +102,16 @@ export default function RootLayout({
       >
         <AuthProvider>
           <ThemeProvider>
+            {/* Renders nothing; every effect is a no-op outside the native shell. */}
+            <NativeShell />
             <PWAProvider>
               <div className="flex flex-col w-full min-h-50">
                 {children}
-                <Footer />
+                {/* The footer carries App Store links, company links and social
+                    icons — a website's furniture. An installed app should not be
+                    advertising its own store listing, and the iOS app has no
+                    equivalent, so it is web-only. */}
+                {!IS_NATIVE_BUILD && <Footer />}
               </div>
             </PWAProvider>
           </ThemeProvider>

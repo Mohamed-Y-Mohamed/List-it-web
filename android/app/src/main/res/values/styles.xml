@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+    </style>
+
+    <!--
+      Launch theme.
+
+      Android 12 replaced the old "draw a full-screen image" splash with the
+      system SplashScreen API, which ignores android:background and instead
+      composes windowSplashScreenBackground with the app icon. Pointing that at
+      the same indigo the web splash uses makes the hand-off continuous: the
+      system paints the brand colour, then SplashScreen.tsx animates the logo and
+      wordmark in on an identical field, so the two read as one screen coming to
+      life rather than two screens swapping.
+    -->
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splashBackground</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+
+        <!-- Android 11 and below still use the legacy full-screen drawable. -->
+        <item name="android:background">@drawable/splash</item>
+    </style>
+</resources>

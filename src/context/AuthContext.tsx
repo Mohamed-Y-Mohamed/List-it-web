@@ -8,6 +8,8 @@ import React, {
   ReactNode,
 } from "react";
 import { supabase } from "@/utils/client";
+import { getApiBaseUrl, isNativeApp } from "@/lib/platform";
+import { logoutRedirectUrl } from "@/lib/routes";
 import { User, AuthError } from "@supabase/supabase-js";
 
 // Auth context type
@@ -105,12 +107,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [initialized, setInitialized] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
 
-  // Get site URL
+  // Get site URL. This ends up inside verification and password-reset emails, so
+  // it has to be an address the recipient can actually open. Inside the native
+  // shell `window.location.origin` is the WebView's own `https://localhost`,
+  // which would produce a dead link — fall back to the hosted origin there.
   const getSiteUrl = () => {
-    return (
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      (typeof window !== "undefined" ? window.location.origin : "")
-    );
+    if (process.env.NEXT_PUBLIC_SITE_URL) {
+      return process.env.NEXT_PUBLIC_SITE_URL;
+    }
+    if (isNativeApp()) {
+      return getApiBaseUrl();
+    }
+    return typeof window !== "undefined" ? window.location.origin : "";
   };
 
   // Check if current page is verification-related
@@ -373,11 +381,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Redirect to login page
-      window.location.href = "/login?logout=true";
+      window.location.href = logoutRedirectUrl(isNativeApp());
     } catch (error) {
       console.error("Logout process error:", error);
       clearAuthData();
-      window.location.href = "/login?logout=true&error=true";
+      window.location.href = logoutRedirectUrl(isNativeApp(), true);
     }
   };
 

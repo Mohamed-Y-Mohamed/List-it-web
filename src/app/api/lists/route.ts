@@ -1,10 +1,8 @@
 // app/api/lists/route.ts
 // Server-side API routes for list CRUD, scoped to authenticated user.
 
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, getRouteClient } from "@/lib/api-auth";
 import { logger } from "@/lib/logger";
 
 // GET /api/lists
@@ -12,10 +10,10 @@ import { logger } from "@/lib/logger";
 export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
   const { searchParams } = new URL(request.url);
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = await getRouteClient();
   const id = searchParams.get("id");
 
   try {
@@ -24,7 +22,7 @@ export async function GET(request: NextRequest) {
         .from("list")
         .select("*")
         .eq("id", id)
-        .eq("user_id", session.user.id)
+        .eq("user_id", user.id)
         .single();
 
       if (error) {
@@ -38,7 +36,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from("list")
       .select("*")
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
       .order("created_at", { ascending: true });
 
     if (error) {
@@ -57,15 +55,22 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
   try {
     const body = await request.json();
-    const supabase = createServerComponentClient({ cookies });
+    const supabase = await getRouteClient();
 
+    // `list.created_at` is NOT NULL with no database default, so an insert that
+    // omits it is rejected outright. Callers that supply their own timestamp
+    // still win, since `body` is spread afterwards.
     const { data, error } = await supabase
       .from("list")
-      .insert({ ...body, user_id: session.user.id })
+      .insert({
+        created_at: new Date().toISOString(),
+        ...body,
+        user_id: user.id,
+      })
       .select()
       .single();
 
@@ -85,7 +90,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
   try {
     const body = await request.json();
@@ -96,13 +101,13 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "List ID is required" }, { status: 400 });
     }
 
-    const supabase = createServerComponentClient({ cookies });
+    const supabase = await getRouteClient();
 
     const { data, error } = await supabase
       .from("list")
       .update(updates)
       .eq("id", id)
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
       .select()
       .single();
 
@@ -123,7 +128,7 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
   try {
     const body = await request.json();
@@ -133,14 +138,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "List ID is required" }, { status: 400 });
     }
 
-    const supabase = createServerComponentClient({ cookies });
+    const supabase = await getRouteClient();
 
     // Verify ownership
     const { data: list, error: listCheckError } = await supabase
       .from("list")
       .select("id")
       .eq("id", id)
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
       .single();
 
     if (listCheckError || !list) {
@@ -169,7 +174,7 @@ export async function DELETE(request: NextRequest) {
       .from("list")
       .delete()
       .eq("id", id)
-      .eq("user_id", session.user.id);
+      .eq("user_id", user.id);
 
     if (error) {
       logger.error("DELETE /api/lists error", error);

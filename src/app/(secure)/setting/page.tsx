@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
+import { isNativeApp } from "@/lib/platform";
+import { logoutRedirectUrl } from "@/lib/routes";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings,
@@ -19,6 +21,7 @@ import {
   AlertCircle,
   Shield,
 } from "lucide-react";
+import { apiFetch } from "@/lib/apiFetch";
 
 // Types
 interface UserProfile {
@@ -198,7 +201,7 @@ export default function SettingsPage() {
     try {
       setIsLoading(true);
 
-      const res = await fetch("/api/user/profile");
+      const res = await apiFetch("/api/user/profile");
       if (!res.ok) {
         console.error("Error fetching user profile");
         showNotification("error", "Failed to load user profile");
@@ -235,7 +238,7 @@ export default function SettingsPage() {
     try {
       setIsSaving(true);
 
-      const res = await fetch("/api/user/profile", {
+      const res = await apiFetch("/api/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ full_name: fullName.trim() }),
@@ -282,7 +285,7 @@ export default function SettingsPage() {
       setIsSaving(true);
 
       // Verify current password and update to new password via API
-      const res = await fetch("/api/user/password", {
+      const res = await apiFetch("/api/user/password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword }),
@@ -325,7 +328,7 @@ export default function SettingsPage() {
       setIsSaving(true);
 
       // Call our API route to delete the user account completely
-      const response = await fetch("/api/delete-account", {
+      const response = await apiFetch("/api/delete-account", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -365,7 +368,7 @@ export default function SettingsPage() {
         } catch (logoutError) {
           console.error("Error during logout:", logoutError);
           // Force redirect even if logout fails
-          window.location.href = "/login";
+          window.location.href = logoutRedirectUrl(isNativeApp());
         }
       }, 1500);
     } catch (error) {

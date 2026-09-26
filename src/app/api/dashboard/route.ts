@@ -1,10 +1,8 @@
 // app/api/dashboard/route.ts
 // Aggregate dashboard statistics for the authenticated user.
 
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, getRouteClient } from "@/lib/api-auth";
 import { logger } from "@/lib/logger";
 
 function formatDateForPostgres(date: Date): string {
@@ -15,10 +13,10 @@ function formatDateForPostgres(date: Date): string {
 export async function GET() {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
-  const supabase = createServerComponentClient({ cookies });
-  const userId = session.user.id;
+  const supabase = await getRouteClient();
+  const userId = user.id;
 
   try {
     const today = new Date();

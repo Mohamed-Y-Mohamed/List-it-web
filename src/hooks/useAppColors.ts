@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppSetting } from "@/types/schema";
+import { apiFetch } from "@/lib/apiFetch";
 
 /**
  * Hook that fetches the available color palette from the colors_retriever API.
@@ -14,7 +15,7 @@ export function useAppColors() {
   useEffect(() => {
     let cancelled = false;
 
-    fetch("/api/colors_retriever")
+    apiFetch("/api/colors_retriever")
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();

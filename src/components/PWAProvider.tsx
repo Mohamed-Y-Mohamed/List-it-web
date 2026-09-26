@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import SplashScreen from "@/components/SplashScreen";
 import { isPWAStandalone } from "@/utils/pwaUtils";
+import { isNativeApp } from "@/lib/platform";
 
 interface PWAProviderProps {
   children: React.ReactNode;
@@ -26,8 +27,10 @@ export default function PWAProvider({ children }: PWAProviderProps) {
       setShowSplash(true);
     }
 
-    // Register service worker
-    if ("serviceWorker" in navigator) {
+    // Register service worker. Skipped in the native shell: the bundle already
+    // ships on the device, so a worker caching `https://localhost` adds nothing
+    // but a second stale copy of the app to reason about on every update.
+    if ("serviceWorker" in navigator && !isNativeApp()) {
       navigator.serviceWorker
         .register("/sw.js", { scope: "/" })
         .catch((err) => {

@@ -77,8 +77,11 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
       className={`${isDark ? "bg-gray-100 text-gray-200" : "bg-white text-gray-800"}`}
     >
       {/* Top Navigation Bar */}
+      {/* `pt-safe-top` lets the bar's background run behind the status bar while
+          its contents sit below it, the way an opaque iOS navigation bar does.
+          The inset is zero in a desktop browser, so this is inert on the web. */}
       <header
-        className={`fixed top-0 z-50 w-full transition-all duration-300 backdrop-blur-md border-b ${
+        className={`fixed top-0 z-50 w-full pt-safe-top transition-all duration-300 backdrop-blur-md border-b ${
           isDark
             ? "bg-gray-900/90 border-gray-600/30 shadow-gray-900/20"
             : "bg-white/80 border-gray-300/30 shadow-gray-300/20"

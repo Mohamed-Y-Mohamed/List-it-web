@@ -15,6 +15,7 @@ import { Collection, OperationResult } from "@/types/schema";
 import { formatDetailDate } from "@/utils/dateUtils";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/apiFetch";
 
 interface TaskSidebarProps {
   isOpen: boolean;
@@ -83,7 +84,7 @@ const TaskSidebar = ({
     if (!isOpen || !user) return;
     const params = new URLSearchParams();
     if (task.list_id) params.set("list_id", task.list_id);
-    fetch(`/api/collections?${params}`)
+    apiFetch(`/api/collections?${params}`)
       .then((r) => r.json())
       .then(({ data }) => {
         if (data) setCollections(data);
@@ -332,7 +333,7 @@ const TaskSidebar = ({
       };
 
       // Update the task in the database
-      const patchRes = await fetch("/api/tasks", {
+      const patchRes = await apiFetch("/api/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: task.id, ...updateData }),
@@ -442,7 +443,7 @@ const TaskSidebar = ({
       console.warn(
         "No onCollectionChange provided, updating database directly"
       );
-      const patchRes = await fetch("/api/tasks", {
+      const patchRes = await apiFetch("/api/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: task.id, collection_id: collectionIdForDb }),
@@ -508,7 +509,7 @@ const TaskSidebar = ({
       setIsDeleting(true);
 
       // Soft-delete via API (sets is_deleted = true)
-      const deleteRes = await fetch("/api/tasks", {
+      const deleteRes = await apiFetch("/api/tasks", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: task.id }),

@@ -14,6 +14,7 @@ import { OperationResult } from "@/types/schema";
 import { useAuth } from "@/context/AuthContext";
 import { createPortal } from "react-dom";
 import { useAppColors } from "@/hooks/useAppColors";
+import { apiFetch } from "@/lib/apiFetch";
 
 interface NoteSidebarProps {
   isOpen: boolean;
@@ -168,7 +169,7 @@ const NoteDetails = ({
       if (!isOpen || !note.id || !user) return;
 
       try {
-        const res = await fetch(`/api/notes?id=${note.id}`);
+        const res = await apiFetch(`/api/notes?id=${note.id}`);
         if (!res.ok) {
           console.error("Error verifying note data");
           return;
@@ -218,7 +219,7 @@ const NoteDetails = ({
     if (!isOpen || !user) return;
     const params = new URLSearchParams();
     if (verifiedNote.list_id) params.set("list_id", verifiedNote.list_id);
-    fetch(`/api/collections?${params}`)
+    apiFetch(`/api/collections?${params}`)
       .then((r) => r.json())
       .then(({ data }) => {
         if (data) {
@@ -345,7 +346,7 @@ const NoteDetails = ({
 
       console.log("Updating note basic fields:", updateData);
 
-      const patchRes = await fetch("/api/notes", {
+      const patchRes = await apiFetch("/api/notes", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: verifiedNote.id, ...updateData }),
@@ -410,7 +411,7 @@ const NoteDetails = ({
         selectedCollection
       );
 
-      const patchRes = await fetch("/api/notes", {
+      const patchRes = await apiFetch("/api/notes", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: verifiedNote.id, collection_id: collectionIdForDb }),
@@ -458,7 +459,7 @@ const NoteDetails = ({
     }
     try {
       setIsDeleting(true);
-      const deleteRes = await fetch("/api/notes", {
+      const deleteRes = await apiFetch("/api/notes", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: verifiedNote.id, hard: true }),
