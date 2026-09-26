@@ -13,6 +13,7 @@ import React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { useScreenTitle } from "./ScreenTitleContext";
 
 // The screen the app opens on. Nothing sits above it in the stack.
 const ROOT_PATH = "/dashboard";
@@ -27,6 +28,7 @@ const SCREEN_TITLES: Record<string, string> = {
   "/notcomplete": "Not Completed",
   "/overdue": "Overdue",
   "/setting": "Settings",
+  "/stats": "Dashboard",
   "/List": "List",
 };
 
@@ -41,10 +43,13 @@ export default function NativeBackBar() {
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const reportedTitle = useScreenTitle();
 
   if (pathname === ROOT_PATH || pathname === "/") return null;
 
-  const title = SCREEN_TITLES[pathname] ?? "";
+  // A screen that knows its own name wins — a list shows the list's name
+  // rather than the generic "List".
+  const title = reportedTitle ?? SCREEN_TITLES[pathname] ?? "";
 
   return (
     <div

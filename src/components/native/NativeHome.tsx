@@ -17,6 +17,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Circle,
+  LayoutDashboard,
   ListChecks,
   Pencil,
   Pin,
@@ -263,6 +264,11 @@ export default function NativeHome() {
     (event: React.MouseEvent<HTMLButtonElement>) => {
       const rect = event.currentTarget.getBoundingClientRect();
       setMenuItems([
+        {
+          label: "Dashboard",
+          icon: <LayoutDashboard size={18} />,
+          onSelect: () => router.push(appPath("/stats")),
+        },
         {
           label: "Settings",
           icon: <Settings size={18} />,

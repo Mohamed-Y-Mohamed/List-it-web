@@ -18,8 +18,8 @@ android {
         applicationId "com.list_it.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "0.1.0"
+        versionCode 2
+        versionName "0.2.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -44,13 +44,18 @@ android {
                 signingConfig signingConfigs.release
             }
 
-            // Left off for the first release, which is about getting a working
-            // build in front of Play. Turning R8 on changes what ships, so it
-            // belongs with the pass that can be tested properly on a device —
-            // an untested shrink is the classic cause of a release-only crash.
-            minifyEnabled false
-            shrinkResources false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // R8 shrinks and obfuscates the release build. The mapping file it
+            // produces is packaged into the AAB automatically, which is what
+            // clears Play's "no deobfuscation file associated with this App
+            // Bundle" warning and makes crash reports readable.
+            //
+            // Capacitor resolves plugins reflectively, so this only works with
+            // the keeps in proguard-rules.pro. Smoke-test a release build on a
+            // device after changing either — plugin breakage from over-shrinking
+            // never shows up in a debug build.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }

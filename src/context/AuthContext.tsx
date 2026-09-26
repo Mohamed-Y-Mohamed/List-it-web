@@ -137,11 +137,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Get current session
-        const { data, error } = await supabase.auth.getSession();
+        // Read the stored session, retrying once on failure.
+        //
+        // A read can fail transiently on a cold document load — a deep link, a
+        // notification tap, a WebView reload — before storage is ready. Treating
+        // that first failure as "signed out" is what threw users back to the
+        // login screen with a perfectly valid session sitting on disk. Only a
+        // clean read that genuinely finds nothing counts as signed out.
+        let { data, error } = await supabase.auth.getSession();
 
         if (error) {
-          console.error("Session error:", error);
+          console.error("Session error, retrying:", error);
+          await new Promise((resolve) => setTimeout(resolve, 150));
+          ({ data, error } = await supabase.auth.getSession());
+        }
+
+        if (error) {
+          console.error("Session unreadable after retry:", error);
           return;
         }
 

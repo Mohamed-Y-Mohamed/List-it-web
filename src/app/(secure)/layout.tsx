@@ -8,6 +8,9 @@ import { useAuth } from "@/context/AuthContext";
 import { useIsNative } from "@/hooks/useIsNative";
 import NativeTransition from "@/components/native/NativeTransition";
 import NativeBackBar from "@/components/native/NativeBackBar";
+import { ScreenTitleProvider } from "@/components/native/ScreenTitleContext";
+import { supabase } from "@/utils/client";
+import { appPath } from "@/lib/routes";
 
 export default function SecureLayout({
   children,
@@ -31,8 +34,25 @@ export default function SecureLayout({
 
   useEffect(() => {
     if (loading || isLoggedIn || hasRedirected.current) return;
-    hasRedirected.current = true;
-    router.replace("/login");
+
+    // Confirm with the client before bouncing anyone out. On a cold document
+    // load — a deep link, a notification tap, a WebView reload — the provider can
+    // settle on "no session" before the stored one has finished being read, and
+    // redirecting on that alone threw signed-in users back to the login screen.
+    // A direct read here is the authoritative answer.
+    let cancelled = false;
+
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (cancelled || data.session) return;
+
+      hasRedirected.current = true;
+      router.replace(appPath("/login"));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [loading, isLoggedIn, router]);
 
   // Hold the first paint on native only, until the stored session has been read.
@@ -58,10 +78,10 @@ export default function SecureLayout({
         </Suspense>
       )}
       {isNative ? (
-        <>
+        <ScreenTitleProvider>
           <NativeBackBar />
           <NativeTransition>{children}</NativeTransition>
-        </>
+        </ScreenTitleProvider>
       ) : (
         children
       )}
