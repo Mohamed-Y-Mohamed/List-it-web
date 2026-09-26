@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
+import { IS_NATIVE_BUILD, isNativeApp } from "@/lib/platform";
+import { logoutRedirectUrl } from "@/lib/routes";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings,
@@ -18,7 +20,11 @@ import {
   Mail,
   AlertCircle,
   Shield,
+  Sun,
+  Moon,
+  LogOut,
 } from "lucide-react";
+import { apiFetch } from "@/lib/apiFetch";
 
 // Types
 interface UserProfile {
@@ -62,6 +68,17 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
     description: "Account deletion and data management",
   },
 ];
+
+// On the web the theme toggle lives in the sidebar. The native app has no
+// sidebar, so without this there is no way to change the theme in the app at all.
+if (IS_NATIVE_BUILD) {
+  SETTINGS_SECTIONS.splice(1, 0, {
+    id: "appearance",
+    title: "Appearance",
+    icon: Sun,
+    description: "Light and dark theme",
+  });
+}
 
 // Notification component
 const Notification: React.FC<{
@@ -174,7 +191,7 @@ export default function SettingsPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
-  const { theme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const isDark = theme === "dark";
 
@@ -198,7 +215,7 @@ export default function SettingsPage() {
     try {
       setIsLoading(true);
 
-      const res = await fetch("/api/user/profile");
+      const res = await apiFetch("/api/user/profile");
       if (!res.ok) {
         console.error("Error fetching user profile");
         showNotification("error", "Failed to load user profile");
@@ -235,7 +252,7 @@ export default function SettingsPage() {
     try {
       setIsSaving(true);
 
-      const res = await fetch("/api/user/profile", {
+      const res = await apiFetch("/api/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ full_name: fullName.trim() }),
@@ -282,7 +299,7 @@ export default function SettingsPage() {
       setIsSaving(true);
 
       // Verify current password and update to new password via API
-      const res = await fetch("/api/user/password", {
+      const res = await apiFetch("/api/user/password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword }),
@@ -325,7 +342,7 @@ export default function SettingsPage() {
       setIsSaving(true);
 
       // Call our API route to delete the user account completely
-      const response = await fetch("/api/delete-account", {
+      const response = await apiFetch("/api/delete-account", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -365,7 +382,7 @@ export default function SettingsPage() {
         } catch (logoutError) {
           console.error("Error during logout:", logoutError);
           // Force redirect even if logout fails
-          window.location.href = "/login";
+          window.location.href = logoutRedirectUrl(isNativeApp());
         }
       }, 1500);
     } catch (error) {
@@ -381,6 +398,77 @@ export default function SettingsPage() {
   // Render section content
   const renderSectionContent = () => {
     switch (activeSection) {
+      case "appearance":
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="space-y-6"
+          >
+            <div>
+              <h2
+                className={`text-2xl font-semibold ${isDark ? "text-white" : "text-gray-900"}`}
+              >
+                Appearance
+              </h2>
+              <p
+                className={`mt-1 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}
+              >
+                Choose how List It looks. It follows your device until you pick.
+              </p>
+            </div>
+
+            <div
+              className={`flex items-center justify-between rounded-lg border p-4 ${
+                isDark
+                  ? "border-gray-700 bg-gray-800/50"
+                  : "border-gray-200 bg-white"
+              }`}
+            >
+              <div className="flex items-center space-x-3">
+                {isDark ? (
+                  <Moon className="h-5 w-5 text-orange-400" />
+                ) : (
+                  <Sun className="h-5 w-5 text-sky-500" />
+                )}
+                <div>
+                  <div
+                    className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}
+                  >
+                    Dark mode
+                  </div>
+                  <div
+                    className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    {isDark ? "On" : "Off"}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isDark}
+                aria-label="Toggle dark mode"
+                onClick={toggleTheme}
+                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 ${
+                  isDark ? "bg-orange-500" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  // `left-0` anchors the knob to the track. Without it the knob
+                  // takes its static position at the end of the button and the
+                  // translate then pushes it clean outside the pill.
+                  className={`absolute left-0 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                    isDark ? "translate-x-[26px]" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+          </motion.div>
+        );
+
       case "profile":
         return (
           <motion.div
@@ -917,6 +1005,32 @@ export default function SettingsPage() {
                     </button>
                   );
                 })}
+
+                {/* Sign out. On the web this lives in the sidebar, which the
+                    native app does not have — without it there is no way to
+                    leave the account on Android. Placed here and tinted orange
+                    to match the iOS SettingsView, which lists Sign Out directly
+                    above Delete Account. */}
+                {IS_NATIVE_BUILD && (
+                  <button
+                    onClick={logout}
+                    className={`mt-2 flex w-full items-start space-x-3 rounded-lg border border-transparent p-3 text-left transition-all duration-200 ${
+                      isDark
+                        ? "text-orange-300 hover:bg-orange-500/10"
+                        : "text-orange-600 hover:bg-orange-50"
+                    }`}
+                  >
+                    <LogOut className="mt-0.5 h-5 w-5 flex-shrink-0" />
+                    <div>
+                      <div className="font-medium">Sign Out</div>
+                      <div
+                        className={`text-xs ${isDark ? "text-gray-500" : "text-gray-500"}`}
+                      >
+                        Leave this account on this device
+                      </div>
+                    </div>
+                  </button>
+                )}
               </nav>
             </div>
           </motion.div>

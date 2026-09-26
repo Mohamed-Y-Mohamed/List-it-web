@@ -3,10 +3,8 @@
 // authenticated user; direct Supabase queries should not be made from client
 // components.
 
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, getRouteClient } from "@/lib/api-auth";
 import { logger } from "@/lib/logger";
 
 // GET /api/tasks
@@ -14,16 +12,16 @@ import { logger } from "@/lib/logger";
 export async function GET(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
   const { searchParams } = new URL(request.url);
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = await getRouteClient();
 
   try {
     let query = supabase
       .from("task")
       .select("*")
-      .eq("user_id", session.user.id);
+      .eq("user_id", user.id);
 
     const listId = searchParams.get("list_id");
     const collectionId = searchParams.get("collection_id");
@@ -55,15 +53,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
   try {
     const body = await request.json();
-    const supabase = createServerComponentClient({ cookies });
+    const supabase = await getRouteClient();
 
     const { data, error } = await supabase
       .from("task")
-      .insert({ ...body, user_id: session.user.id })
+      .insert({ ...body, user_id: user.id })
       .select()
       .single();
 
@@ -83,7 +81,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
   try {
     const body = await request.json();
@@ -94,13 +92,13 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
     }
 
-    const supabase = createServerComponentClient({ cookies });
+    const supabase = await getRouteClient();
 
     const { data, error } = await supabase
       .from("task")
       .update(updates)
       .eq("id", id)
-      .eq("user_id", session.user.id)
+      .eq("user_id", user.id)
       .select()
       .single();
 
@@ -120,7 +118,7 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
-  const { session } = auth;
+  const { user } = auth;
 
   try {
     const body = await request.json();
@@ -130,7 +128,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
     }
 
-    const supabase = createServerComponentClient({ cookies });
+    const supabase = await getRouteClient();
 
     let error;
     if (hard) {
@@ -138,13 +136,13 @@ export async function DELETE(request: NextRequest) {
         .from("task")
         .delete()
         .eq("id", id)
-        .eq("user_id", session.user.id));
+        .eq("user_id", user.id));
     } else {
       ({ error } = await supabase
         .from("task")
         .update({ is_deleted: true })
         .eq("id", id)
-        .eq("user_id", session.user.id));
+        .eq("user_id", user.id));
     }
 
     if (error) {

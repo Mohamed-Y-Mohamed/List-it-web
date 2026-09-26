@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import {
   LogIn,
   Mail,
@@ -17,6 +17,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
+import { useIsNative } from "@/hooks/useIsNative";
 
 // Inner component that uses useSearchParams
 function LoginWithSearchParams() {
@@ -24,7 +25,26 @@ function LoginWithSearchParams() {
   const isDark = theme === "dark";
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, resendVerificationEmail } = useAuth();
+  const {
+    login,
+    resendVerificationEmail,
+    isLoggedIn,
+    loading: authLoading,
+  } = useAuth();
+  const isNative = useIsNative();
+
+  // Capped at one redirect per mount; see the matching guard in (secure)/layout.
+  const hasRedirected = useRef(false);
+
+  // On the web, middleware.ts bounces an already-signed-in visitor off the login
+  // page. The native build has no middleware, so without this the app relaunches
+  // to a sign-in form every time even though the session is still valid.
+  useEffect(() => {
+    if (!isNative || authLoading || !isLoggedIn) return;
+    if (hasRedirected.current) return;
+    hasRedirected.current = true;
+    router.replace("/dashboard");
+  }, [isNative, authLoading, isLoggedIn, router]);
 
   // Form state
   const [email, setEmail] = useState("");

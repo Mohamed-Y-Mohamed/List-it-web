@@ -1,7 +1,6 @@
 // app/api/delete-account/route.ts
+import { requireAuth } from "@/lib/api-auth";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function DELETE(request: NextRequest) {
@@ -16,22 +15,15 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Verify that the authenticated session belongs to the user making the request.
-    // This prevents any caller from deleting an arbitrary account by supplying a userId.
-    const supabaseSession = createServerComponentClient({ cookies });
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabaseSession.auth.getSession();
+    // Verify that the authenticated caller owns the account being deleted.
+    // This prevents any caller from deleting an arbitrary account by supplying a
+    // userId. `requireAuth` accepts either the web session cookie or the native
+    // app's bearer token, so this check holds on both platforms.
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
-    if (sessionError || !session) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-
-    if (session.user.id !== userId) {
+    if (user.id !== userId) {
       return NextResponse.json(
         { error: "You are not authorized to delete this account" },
         { status: 403 }

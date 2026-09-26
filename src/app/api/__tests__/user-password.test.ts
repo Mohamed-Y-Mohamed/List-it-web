@@ -12,7 +12,10 @@ jest.mock("@/lib/logger", () => ({
     debug: jest.fn(),
   },
 }));
-jest.mock("@/lib/api-auth", () => ({ requireAuth: jest.fn() }));
+jest.mock("@/lib/api-auth", () => ({
+  requireAuth: jest.fn(),
+  getRouteClient: jest.fn(),
+}));
 
 // Anon client mock
 const mockSignIn = jest.fn();
@@ -22,19 +25,21 @@ jest.mock("@supabase/supabase-js", () => ({
   })),
 }));
 
-// Session client mock
+// Session client mock — the route now receives this from getRouteClient.
 const mockUpdateUser = jest.fn();
+const mockSessionClient = { auth: { updateUser: mockUpdateUser } };
 jest.mock("@supabase/auth-helpers-nextjs", () => ({
-  createServerComponentClient: jest.fn(() => ({
-    auth: { updateUser: mockUpdateUser },
-  })),
+  createServerComponentClient: jest.fn(() => mockSessionClient),
 }));
 
 // Imports
 import { POST } from "@/app/api/user/password/route";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, getRouteClient } from "@/lib/api-auth";
 
 const mockRequireAuth = requireAuth as jest.MockedFunction<typeof requireAuth>;
+const mockGetRouteClient = getRouteClient as jest.MockedFunction<
+  typeof getRouteClient
+>;
 
 // Helpers
 const fakeSession = () => ({
@@ -44,7 +49,7 @@ const fakeSession = () => ({
 
 function authOk() {
   mockRequireAuth.mockResolvedValue({
-    session: fakeSession() as never,
+    user: fakeSession().user as never,
     error: null,
   });
 }
@@ -52,7 +57,7 @@ function authFail() {
   const { NextResponse } =
     jest.requireActual<typeof import("next/server")>("next/server");
   mockRequireAuth.mockResolvedValue({
-    session: null,
+    user: null,
     error: NextResponse.json(
       { error: "Authentication required" },
       { status: 401 },
@@ -73,6 +78,7 @@ function makeReq(body?: unknown) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockGetRouteClient.mockResolvedValue(mockSessionClient as never);
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
 });
@@ -148,10 +154,7 @@ describe("POST /api/user/password", () => {
 
   it("returns 500 when session email is missing", async () => {
     mockRequireAuth.mockResolvedValue({
-      session: {
-        user: { id: "user-1", email: undefined },
-        access_token: "tok",
-      } as never,
+      user: { id: "user-1", email: undefined } as never,
       error: null,
     });
     const res = await POST(

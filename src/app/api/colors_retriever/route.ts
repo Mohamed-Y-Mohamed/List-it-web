@@ -1,10 +1,8 @@
 // app/api/colors_retriever/route.ts
 // Server-side API route to retrieve available colors.
 
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, getRouteClient } from "@/lib/api-auth";
 import { logger } from "@/lib/logger";
 
 // GET /api/colors_retriever
@@ -14,7 +12,7 @@ export async function GET() {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
 
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = await getRouteClient();
 
   try {
     const { data, error } = await supabase

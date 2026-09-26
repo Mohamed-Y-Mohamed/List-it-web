@@ -14,6 +14,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { isPWAStandalone } from "@/utils/pwaUtils";
 
 interface TopNavigationProps {
   children?: React.ReactNode;
@@ -28,6 +29,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isMounted, setIsMounted] = useState<boolean>(false);
+  const [isPWA, setIsPWA] = useState<boolean>(false);
 
   // Navigate to specified path
   const navigateTo = (path: string): void => {
@@ -47,6 +49,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
 
   useEffect(() => {
     setIsMounted(true);
+    // Detect PWA/standalone mode (Android, Windows, iOS "Add to Home Screen")
+    setIsPWA(isPWAStandalone());
   }, []);
 
   // Handle clicking outside the user menu to close it
@@ -73,8 +77,11 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
       className={`${isDark ? "bg-gray-100 text-gray-200" : "bg-white text-gray-800"}`}
     >
       {/* Top Navigation Bar */}
+      {/* `pt-safe-top` lets the bar's background run behind the status bar while
+          its contents sit below it, the way an opaque iOS navigation bar does.
+          The inset is zero in a desktop browser, so this is inert on the web. */}
       <header
-        className={`fixed top-0 z-50 w-full transition-all duration-300 backdrop-blur-md border-b ${
+        className={`fixed top-0 z-50 w-full pt-safe-top transition-all duration-300 backdrop-blur-md border-b ${
           isDark
             ? "bg-gray-900/90 border-gray-600/30 shadow-gray-900/20"
             : "bg-white/80 border-gray-300/30 shadow-gray-300/20"
@@ -104,29 +111,31 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
               </div>
             </div>
 
-            {/* Desktop Navigation Links */}
-            <div className="hidden lg:flex items-center space-x-4">
-              <button
-                onClick={() => navigateTo("/landingpage")}
-                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 ${
-                  isDark
-                    ? "text-gray-300 hover:text-orange-400"
-                    : "text-gray-700 hover:text-orange-500"
-                }`}
-              >
-                Home
-              </button>
-              <button
-                onClick={() => navigateTo("/aboutus")}
-                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 ${
-                  isDark
-                    ? "text-gray-300 hover:text-orange-400"
-                    : "text-gray-700 hover:text-orange-500"
-                }`}
-              >
-                About
-              </button>
-            </div>
+            {/* Desktop Navigation Links - hidden in PWA/standalone mode */}
+            {!isPWA && (
+              <div className="hidden lg:flex items-center space-x-4">
+                <button
+                  onClick={() => navigateTo("/landingpage")}
+                  className={`rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                    isDark
+                      ? "text-gray-300 hover:text-orange-400"
+                      : "text-gray-700 hover:text-orange-500"
+                  }`}
+                >
+                  Home
+                </button>
+                <button
+                  onClick={() => navigateTo("/aboutus")}
+                  className={`rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                    isDark
+                      ? "text-gray-300 hover:text-orange-400"
+                      : "text-gray-700 hover:text-orange-500"
+                  }`}
+                >
+                  About
+                </button>
+              </div>
+            )}
 
             <div className="flex items-center space-x-4">
               <button
@@ -256,26 +265,31 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
                 isDark ? "bg-gray-900" : "bg-white"
               }`}
             >
-              <button
-                onClick={() => navigateTo("/landingpage")}
-                className={`block w-full text-left rounded-md px-3 py-2 text-base font-medium ${
-                  isDark
-                    ? "text-gray-300 hover:text-orange-400"
-                    : "text-gray-700 hover:text-orange-500"
-                }`}
-              >
-                Home
-              </button>
-              <button
-                onClick={() => navigateTo("/aboutus")}
-                className={`block w-full text-left rounded-md px-3 py-2 text-base font-medium ${
-                  isDark
-                    ? "text-gray-300 hover:text-orange-400"
-                    : "text-gray-700 hover:text-orange-500"
-                }`}
-              >
-                About
-              </button>
+              {/* Home and About links hidden in PWA/standalone mode */}
+              {!isPWA && (
+                <>
+                  <button
+                    onClick={() => navigateTo("/landingpage")}
+                    className={`block w-full text-left rounded-md px-3 py-2 text-base font-medium ${
+                      isDark
+                        ? "text-gray-300 hover:text-orange-400"
+                        : "text-gray-700 hover:text-orange-500"
+                    }`}
+                  >
+                    Home
+                  </button>
+                  <button
+                    onClick={() => navigateTo("/aboutus")}
+                    className={`block w-full text-left rounded-md px-3 py-2 text-base font-medium ${
+                      isDark
+                        ? "text-gray-300 hover:text-orange-400"
+                        : "text-gray-700 hover:text-orange-500"
+                    }`}
+                  >
+                    About
+                  </button>
+                </>
+              )}
 
               {!isLoggedIn && (
                 <>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   CalendarCheck,
@@ -30,6 +30,9 @@ import Image from "next/image";
 import CreateListModal from "@/components/popupModels/ListPopup";
 import { List } from "@/types/schema";
 import EditListPopup from "@/components/popupModels/editListPopup";
+import { apiFetch } from "@/lib/apiFetch";
+import { activeListId, listHref } from "@/lib/routes";
+import { useIsNative } from "@/hooks/useIsNative";
 
 interface SideNavProps {
   children?: React.ReactNode;
@@ -38,6 +41,8 @@ interface SideNavProps {
 const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isNative = useIsNative();
   const { theme, toggleTheme } = useTheme();
   const { isLoggedIn, user, logout } = useAuth();
   const isDark = theme === "dark";
@@ -74,7 +79,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
           setIsLoadingLists(true);
         }
 
-        const res = await fetch("/api/lists");
+        const res = await apiFetch("/api/lists");
         if (!res.ok) throw new Error("Failed to fetch lists");
         const { data } = await res.json();
 
@@ -100,7 +105,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
       try {
         if (!user?.id) return;
         // Find the "General" collection for this list, then update its color
-        const res = await fetch(`/api/collections?list_id=${listId}`);
+        const res = await apiFetch(`/api/collections?list_id=${listId}`);
         if (!res.ok) return;
         const { data: cols } = await res.json();
         const general = (cols || []).find(
@@ -108,7 +113,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
             c.collection_name?.toLowerCase().trim() === "general"
         );
         if (!general) return;
-        await fetch("/api/collections", {
+        await apiFetch("/api/collections", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: general.id, bg_color_hex: newColor }),
@@ -131,9 +136,10 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
     });
   }, [lists]);
 
+  // Reads either URL shape, since native navigates to /List?id=… — see listHref.
   const currentListId = useMemo(() => {
-    return pathname.includes("/List/") ? pathname.split("/List/")[1] : null;
-  }, [pathname]);
+    return activeListId(pathname, searchParams);
+  }, [pathname, searchParams]);
 
   const toggleSidebar = (): void => {
     setSidebarOpen((prev) => !prev);
@@ -149,7 +155,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
   };
 
   const handleListClick = (listId: string): void => {
-    navigateTo(`/List/${listId}`);
+    navigateTo(listHref(listId, isNative));
   };
 
   const handleTogglePinList = async (listId: string): Promise<void> => {
@@ -158,7 +164,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
     const currentList = lists.find((list) => list.id === listId);
     if (!currentList) return;
 
-    const res = await fetch("/api/lists", {
+    const res = await apiFetch("/api/lists", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: listId, is_pinned: !currentList.is_pinned }),
@@ -252,7 +258,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
       }
 
       // Check for duplicate name via API
-      const checkRes = await fetch("/api/lists");
+      const checkRes = await apiFetch("/api/lists");
       if (checkRes.ok) {
         const { data: existingLists } = await checkRes.json();
         const dup = (existingLists || []).find(
@@ -262,14 +268,14 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         );
         if (dup) {
           await fetchLists();
-          navigateTo(`/List/${dup.id}`);
+          navigateTo(listHref(dup.id, isNative));
           setIsLoadingLists(false);
           return { success: true };
         }
       }
 
       // Create list
-      const createRes = await fetch("/api/lists", {
+      const createRes = await apiFetch("/api/lists", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(listData),
@@ -285,7 +291,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
       const { data: createdList } = await createRes.json();
 
       // Create a default "General" collection for the new list
-      await fetch("/api/collections", {
+      await apiFetch("/api/collections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -298,7 +304,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
       setLists((prevLists) => [createdList, ...prevLists]);
       await fetchLists();
       setIsCreateListModalOpen(false);
-      navigateTo(`/List/${createdList.id}`);
+      navigateTo(listHref(createdList.id, isNative));
       return { success: true };
     } catch (err) {
       console.error("Error handling list creation:", err);
@@ -314,7 +320,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
     try {
       setIsDeletingList(true);
 
-      const res = await fetch("/api/lists", {
+      const res = await apiFetch("/api/lists", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: listId }),
@@ -332,7 +338,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         if (lists.length > 1) {
           const nextList = lists.find((list) => list.id !== listId);
           if (nextList) {
-            navigateTo(`/List/${nextList.id}`);
+            navigateTo(listHref(nextList.id, isNative));
           } else {
             navigateTo("/dashboard");
           }

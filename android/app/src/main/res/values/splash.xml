@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Brand indigo. Shared by the Android 12+ system splash theme, the web splash
+      in src/components/SplashScreen.tsx, and the SplashScreen plugin config in
+      capacitor.config.ts. Change it in all three or the launch will flicker.
+    -->
+    <color name="splashBackground">#4F46E5</color>
+</resources>

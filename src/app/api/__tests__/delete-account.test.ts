@@ -3,7 +3,13 @@
 import { NextRequest } from "next/server";
 
 // Mocks
-jest.mock("next/headers", () => ({ cookies: jest.fn(() => ({})) }));
+// `requireAuth` reads the Authorization header to choose between the cookie and
+// bearer paths, so `headers` must be mocked alongside `cookies`. Returning null
+// here keeps these tests on the cookie path.
+jest.mock("next/headers", () => ({
+  cookies: jest.fn(() => ({})),
+  headers: jest.fn(async () => ({ get: () => null })),
+}));
 
 // Admin client mock
 const mockAdminDeleteUser = jest.fn();
@@ -61,6 +67,7 @@ function setSession(userId: string) {
 beforeEach(() => {
   jest.clearAllMocks();
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
   for (const m of ["delete", "eq"]) {
     mockAdminChain[m].mockReturnValue(mockAdminChain);

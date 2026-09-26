@@ -5,6 +5,11 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "build:native": "node scripts/build-native.mjs",
+    "android:sync": "npm run build:native && cap sync android",
+    "android:open": "cap open android",
+    "android:run": "npm run android:sync && cap run android",
+    "android:local": "cross-env CAP_LOCAL_API=1 NEXT_PUBLIC_API_BASE_URL=http://10.0.2.2:3000 npm run android:sync",
     "start": "next start",
     "lint": "next lint",
     "format": "npx prettier . --write",
@@ -14,7 +19,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "prepare": "husky install",
-    "pre-push": ".husky/pre-push"
+    "pre-push": ".husky/pre-push",
+    "android:release": "npm run build:native && cap sync android && cd android && gradlew.bat bundleRelease"
   },
   "lint-staged": {
     "*.{js,ts,tsx}": [
@@ -22,6 +28,13 @@
     ]
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/keyboard": "^8.0.5",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.49.4",
     "crypto-js": "^4.2.0",
@@ -39,6 +52,7 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
     "@eslint/eslintrc": "^3",
     "@next/bundle-analyzer": "^15.2.3",
     "@tailwindcss/postcss": "^4.0.14",
@@ -47,6 +61,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "daisyui": "^5.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.2.1",

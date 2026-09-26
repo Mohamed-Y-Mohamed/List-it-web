@@ -12,7 +12,10 @@ jest.mock("@/lib/logger", () => ({
     debug: jest.fn(),
   },
 }));
-jest.mock("@/lib/api-auth", () => ({ requireAuth: jest.fn() }));
+jest.mock("@/lib/api-auth", () => ({
+  requireAuth: jest.fn(),
+  getRouteClient: jest.fn(),
+}));
 
 const dbResult: { data: unknown; error: unknown } = { data: null, error: null };
 const mockChain: Record<string, jest.Mock> & { then?: unknown } = {};
@@ -31,9 +34,12 @@ jest.mock("@supabase/auth-helpers-nextjs", () => ({
 
 // Imports
 import { GET, PATCH } from "@/app/api/user/profile/route";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuth, getRouteClient } from "@/lib/api-auth";
 
 const mockRequireAuth = requireAuth as jest.MockedFunction<typeof requireAuth>;
+const mockGetRouteClient = getRouteClient as jest.MockedFunction<
+  typeof getRouteClient
+>;
 
 // Helpers
 const fakeSession = (userId = "user-1") => ({
@@ -43,7 +49,7 @@ const fakeSession = (userId = "user-1") => ({
 
 function authOk() {
   mockRequireAuth.mockResolvedValue({
-    session: fakeSession() as never,
+    user: fakeSession().user as never,
     error: null,
   });
 }
@@ -51,7 +57,7 @@ function authFail() {
   const { NextResponse } =
     jest.requireActual<typeof import("next/server")>("next/server");
   mockRequireAuth.mockResolvedValue({
-    session: null,
+    user: null,
     error: NextResponse.json(
       { error: "Authentication required" },
       { status: 401 },
@@ -72,6 +78,7 @@ function makeReq(method: string, body?: unknown) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockGetRouteClient.mockResolvedValue(mockSupabaseClient as never);
   dbResult.data = null;
   dbResult.error = null;
   for (const m of ["select", "update", "eq"]) {
