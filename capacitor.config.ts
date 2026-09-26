@@ -7,9 +7,11 @@ import { KeyboardResize } from "@capacitor/keyboard";
 // copy it into the native project. The iOS app is a separate SwiftUI codebase and
 // is not managed from here.
 const config: CapacitorConfig = {
-  // iOS uses com.abdul.List-It, but an Android applicationId cannot contain a
-  // hyphen, so the closest valid equivalent is used instead.
-  appId: "com.abdul.listit",
+  // Fixed permanently once the app is first uploaded: Play ties the store
+  // listing to the applicationId and it can never be changed afterwards.
+  // Deliberately not mirroring the iOS bundle id (com.abdul.List-It), which is
+  // not a legal Android package name anyway because of the hyphen.
+  appId: "com.list_it.app",
   appName: "List It",
   webDir: "out",
 

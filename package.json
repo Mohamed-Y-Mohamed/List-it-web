@@ -19,7 +19,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "prepare": "husky install",
-    "pre-push": ".husky/pre-push"
+    "pre-push": ".husky/pre-push",
+    "android:release": "npm run build:native && cap sync android && cd android && gradlew.bat bundleRelease"
   },
   "lint-staged": {
     "*.{js,ts,tsx}": [

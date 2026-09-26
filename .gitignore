@@ -44,3 +44,8 @@ next-env.d.ts
 .native-build-stash/
 out/
 android/app/src/main/assets/public/
+
+# Android signing — never commit keys or their passwords
+android/keystore.properties
+*.jks
+*.keystore

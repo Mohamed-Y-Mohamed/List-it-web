@@ -54,44 +54,28 @@ export function CountBadge({ count }: { count: number }) {
   );
 }
 
-/** Circular icon with the list's colour as a diagonal gradient. 30pt on iOS. */
-export function ListIcon({ list }: { list: List }) {
+/**
+ * The list's colour, carried by a rounded-square icon chip rather than a circle.
+ * The squircle reads as an app glyph rather than an avatar, and is the single
+ * place colour appears at full strength — everything else on the card only tints.
+ */
+export function ListIcon({ list, size = 34 }: { list: List; size?: number }) {
   const color = listColor(list);
   const Icon = iconForList(list);
 
   return (
     <span
-      className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full"
+      className="flex shrink-0 items-center justify-center rounded-[11px]"
       style={{
-        backgroundImage: `linear-gradient(135deg, ${color} 0%, ${color}b3 100%)`,
+        width: size,
+        height: size,
+        backgroundImage: `linear-gradient(140deg, ${color} 0%, ${color}cc 100%)`,
+        // A colour-matched lift, kept low so cards do not look like stickers.
+        boxShadow: `0 2px 6px ${color}40`,
       }}
     >
-      <Icon size={16} className="text-white" strokeWidth={2.25} />
+      <Icon size={Math.round(size * 0.5)} className="text-white" strokeWidth={2.2} />
     </span>
-  );
-}
-
-/** The coloured bar down the leading edge of a card. */
-export function ListSideBar({
-  list,
-  width,
-  inset,
-}: {
-  list: List;
-  width: number;
-  inset?: boolean;
-}) {
-  return (
-    <span
-      className="absolute left-0 rounded-l-[9px]"
-      style={{
-        width,
-        backgroundColor: listColor(list),
-        top: inset ? 10 : 0,
-        bottom: inset ? 10 : 0,
-      }}
-      aria-hidden="true"
-    />
   );
 }
 
@@ -124,15 +108,25 @@ export function ListInfo({
   // room for a second line.
   const showCounts = !list.is_default && !isPinnedCard;
 
+  // The pinned rail lays out horizontally, so its label sits left-aligned on a
+  // single line; the grid card centres a name that may wrap to two.
   return (
-    <span className="flex min-w-0 flex-col items-center">
-      <span className="line-clamp-3 text-center text-[14px] font-semibold leading-tight">
+    <span
+      className={`flex min-w-0 flex-col ${isPinnedCard ? "items-start" : "items-center"}`}
+    >
+      <span
+        className={`text-[13.5px] font-semibold leading-snug tracking-[-0.01em] ${
+          isPinnedCard
+            ? "max-w-[9.5rem] truncate"
+            : "line-clamp-2 text-center"
+        }`}
+      >
         {list.list_name || "Untitled"}
       </span>
       {showCounts && (
-        <span className="mt-0.5 text-[10px] text-gray-500">
-          {taskCount} {taskCount === 1 ? "Task" : "Tasks"} • {noteCount}{" "}
-          {noteCount === 1 ? "Note" : "Notes"}
+        <span className="mt-1 text-[10.5px] font-medium tracking-[0.01em] text-gray-500 dark:text-gray-400">
+          {taskCount} {taskCount === 1 ? "task" : "tasks"} · {noteCount}{" "}
+          {noteCount === 1 ? "note" : "notes"}
         </span>
       )}
     </span>

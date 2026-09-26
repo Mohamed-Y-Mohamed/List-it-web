@@ -1,4 +1,4 @@
-package com.abdul.listit;
+package com.list_it.app;
 
 import com.getcapacitor.BridgeActivity;
 

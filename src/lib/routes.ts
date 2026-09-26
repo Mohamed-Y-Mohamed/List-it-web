@@ -1,6 +1,29 @@
 // lib/routes.ts
 // URL shapes that differ between the web app and the native shell.
 
+import { IS_NATIVE_BUILD } from "@/lib/platform";
+
+/**
+ * Normalises an in-app path for the current build.
+ *
+ * The native build is exported with `trailingSlash: true`, so every route on disk
+ * is a directory: /setting is really /setting/index.html. Pushing the slash-less
+ * form gives the client router nothing to match, so Next falls back to a full
+ * document load — which remounts the auth provider mid-navigation and briefly
+ * looks signed-out, bouncing the user through /login. Keeping the trailing slash
+ * keeps navigation client-side, and the app state with it.
+ *
+ * On web the path is returned untouched.
+ */
+export function appPath(path: string): string {
+  if (!IS_NATIVE_BUILD) return path;
+  if (path.startsWith("http") || path.includes("#")) return path;
+
+  const [pathname, query] = path.split("?");
+  const withSlash = pathname.endsWith("/") ? pathname : `${pathname}/`;
+  return query ? `${withSlash}?${query}` : withSlash;
+}
+
 /**
  * Link to a list's detail screen.
  *
@@ -10,7 +33,7 @@
  */
 export function listHref(listId: string, isNative: boolean): string {
   return isNative
-    ? `/List?id=${encodeURIComponent(listId)}`
+    ? `/List/?id=${encodeURIComponent(listId)}`
     : `/List/${listId}`;
 }
 

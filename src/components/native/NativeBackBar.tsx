@@ -48,25 +48,35 @@ export default function NativeBackBar() {
 
   return (
     <div
-      className={`sticky top-0 z-40 flex items-center gap-1 px-2 py-2 backdrop-blur-xl ${
-        isDark ? "bg-gray-950/80 text-white" : "bg-white/80 text-gray-900"
+      // Pinned and opaque: `pt-safe-top` clears the status bar, and content
+      // scrolling past goes behind this rather than into the system UI. The
+      // hairline underneath separates it without drawing a heavy rule.
+      className={`sticky top-0 z-40 pt-safe-top backdrop-blur-xl ${
+        isDark
+          ? "bg-gray-950/85 text-white shadow-[inset_0_-1px_0_rgba(255,255,255,0.08)]"
+          : "bg-white/85 text-gray-900 shadow-[inset_0_-1px_0_rgba(16,24,40,0.07)]"
       }`}
     >
-      <button
-        type="button"
-        onClick={() => router.back()}
-        aria-label="Back"
-        className="touch-target flex items-center rounded-full pr-2 text-[17px] text-blue-500 active:opacity-50"
-      >
-        <ChevronLeft size={26} strokeWidth={2.5} />
-        <span className="-ml-1">Back</span>
-      </button>
+      <div className="relative flex h-11 items-center px-1.5">
+        {/* Icon only. The word "Back" repeated the chevron and pushed the title
+            off centre; a circular tap target keeps the 44px minimum. */}
+        <button
+          type="button"
+          onClick={() => router.back()}
+          aria-label="Back"
+          className={`touch-target flex items-center justify-center rounded-full transition-colors ${
+            isDark ? "active:bg-white/10" : "active:bg-black/5"
+          }`}
+        >
+          <ChevronLeft size={24} strokeWidth={2.4} />
+        </button>
 
-      {title && (
-        <span className="pointer-events-none absolute inset-x-0 text-center text-[17px] font-semibold">
-          {title}
-        </span>
-      )}
+        {title && (
+          <span className="pointer-events-none absolute inset-x-0 truncate px-14 text-center text-[16px] font-semibold tracking-[-0.01em]">
+            {title}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

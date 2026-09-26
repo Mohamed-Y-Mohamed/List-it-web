@@ -5,14 +5,15 @@
 //   * grid   — 100pt tall, three to a row, icon above a centred name and counts
 //   * pinned — 50pt tall, laid out horizontally, scrolls sideways
 //
-// Both carry a 1.5px border and a soft shadow in the list's own colour, and both
-// open their context menu on a long press.
+// Colour identifies a list through a faint wash and a hairline edge, with the
+// icon chip carrying it at full strength. Both variants open their context menu
+// on a long press.
 
 import React from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { useLongPress } from "@/hooks/useLongPress";
 import type { List, Note, Task } from "@/types/schema";
-import { ListIcon, ListInfo, ListSideBar, listColor } from "./listVisuals";
+import { ListIcon, ListInfo, listColor } from "./listVisuals";
 
 interface NativeListCardProps {
   list: List;
@@ -35,6 +36,22 @@ export default function NativeListCard({
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const color = listColor(list);
+  const isGrid = variant === "grid";
+
+  // Colour identifies the list without shouting: a faint wash over the surface
+  // and a hairline edge, with the icon carrying it at full strength. The earlier
+  // treatment stacked a 1.5px solid border, a solid side bar and a coloured
+  // shadow on every card, which read as clutter once six of them shared a screen.
+  const surface = isDark ? "#0b0f17" : "#ffffff";
+  const cardStyle: React.CSSProperties = {
+    backgroundImage: `linear-gradient(${surface}, ${surface}), linear-gradient(160deg, ${color}${isDark ? "26" : "14"}, ${color}00 65%)`,
+    backgroundOrigin: "border-box",
+    backgroundClip: "padding-box, border-box",
+    borderColor: `${color}${isDark ? "3d" : "2e"}`,
+    boxShadow: isDark
+      ? "0 1px 2px rgba(0,0,0,0.5)"
+      : "0 1px 2px rgba(16,24,40,0.05), 0 4px 10px -4px rgba(16,24,40,0.08)",
+  };
 
   const gestureHandlers = useLongPress({
     onLongPress: onLongPress ?? (() => {}),
@@ -47,33 +64,24 @@ export default function NativeListCard({
     ? gestureHandlers
     : { onClick: onOpen, onContextMenu: gestureHandlers.onContextMenu };
 
-  // iOS: .shadow(color: bgColor.opacity(dark ? 0.5 : 0.3/0.2), radius: 3, y: 2)
-  const shadowAlpha =
-    variant === "grid" ? (isDark ? 0.5 : 0.3) : isDark ? 0.5 : 0.2;
-
-  const isGrid = variant === "grid";
-
   return (
     <button
       type="button"
       {...pressHandlers}
       aria-label={`Open list ${list.list_name || "Untitled"}`}
-      className={`relative flex touch-manipulation select-none items-center overflow-hidden rounded-[10px] border-[1.5px] transition-transform active:scale-[0.97] ${
-        isDark ? "bg-black text-white" : "bg-white text-gray-900"
-      } ${isGrid ? "h-[100px] w-full flex-col justify-between py-3" : "h-[50px] shrink-0 pr-3"}`}
-      style={{
-        borderColor: color,
-        boxShadow: `0 2px 3px ${color}${Math.round(shadowAlpha * 255)
-          .toString(16)
-          .padStart(2, "0")}`,
-      }}
+      className={`relative flex touch-manipulation select-none items-center overflow-hidden rounded-2xl border transition-transform duration-100 active:scale-[0.97] ${
+        isDark ? "text-white" : "text-gray-900"
+      } ${
+        isGrid
+          ? "h-[112px] w-full flex-col justify-center gap-2 px-2 py-3"
+          : "h-[56px] shrink-0 gap-3 px-3.5"
+      }`}
+      style={cardStyle}
     >
-      <ListSideBar list={list} width={isGrid ? 5 : 4} inset={isGrid} />
-
       {isGrid ? (
         <>
           <ListIcon list={list} />
-          <span className="w-full px-2">
+          <span className="w-full">
             <ListInfo
               list={list}
               tasks={tasks}
@@ -83,10 +91,10 @@ export default function NativeListCard({
           </span>
         </>
       ) : (
-        <span className="flex items-center gap-3 pl-[16px]">
-          <ListIcon list={list} />
+        <>
+          <ListIcon list={list} size={30} />
           <ListInfo list={list} tasks={tasks} notes={notes} isPinnedCard />
-        </span>
+        </>
       )}
     </button>
   );

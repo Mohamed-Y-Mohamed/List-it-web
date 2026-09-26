@@ -65,11 +65,30 @@ html.capacitor-native.dark {
   background-color: #111827;
 }
 
-/* Inset the whole document once, rather than per screen, so no page can collide
-   with the status bar. Fixed-position UI — sheets, context menus — sits outside
-   this and applies the insets itself. */
+/* An opaque band behind the status bar, pinned to the viewport.
+
+   Padding on the body cannot do this job: padding scrolls with the document, so
+   content rides up underneath the clock and battery as soon as the page moves.
+   A fixed pseudo-element stays put, so whatever scrolls past disappears behind a
+   solid bar instead of colliding with the system UI. Screens pin their own
+   headers on top of it with `pt-safe-top`. */
+html.capacitor-native::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background-color: inherit;
+  /* Above every layer the app draws, including sheets and menus, so the status
+     bar stays legible the way it does on iOS. */
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Clear of the gesture pill. This one is safe as padding — it is the end of the
+   document, so nothing scrolls past it. */
 html.capacitor-native body {
-  padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 

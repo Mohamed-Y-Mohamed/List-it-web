@@ -1,14 +1,25 @@
 apply plugin: 'com.android.application'
 
+// Upload-key credentials, deliberately kept out of version control. Copy
+// android/keystore.properties.example to android/keystore.properties and point it
+// at your .jks. When that file is absent the release build is simply unsigned, so
+// a fresh checkout and CI still build — only `bundleRelease` needs it.
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+def hasSigningConfig = keystorePropertiesFile.exists()
+if (hasSigningConfig) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
-    namespace = "com.abdul.listit"
+    namespace = "com.list_it.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.abdul.listit"
+        applicationId "com.list_it.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "0.1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,9 +27,29 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasSigningConfig) {
+            release {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (hasSigningConfig) {
+                signingConfig signingConfigs.release
+            }
+
+            // Left off for the first release, which is about getting a working
+            // build in front of Play. Turning R8 on changes what ships, so it
+            // belongs with the pass that can be tested properly on a device —
+            // an untested shrink is the classic cause of a release-only crash.
             minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }

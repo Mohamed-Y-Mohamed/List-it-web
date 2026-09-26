@@ -31,7 +31,7 @@ import {
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
-import { listHref } from "@/lib/routes";
+import { appPath, listHref } from "@/lib/routes";
 import type { List, Note, Task } from "@/types/schema";
 import CreateListModal from "@/components/popupModels/ListPopup";
 import EditListPopup from "@/components/popupModels/editListPopup";
@@ -266,7 +266,7 @@ export default function NativeHome() {
         {
           label: "Settings",
           icon: <Settings size={18} />,
-          onSelect: () => router.push("/setting"),
+          onSelect: () => router.push(appPath("/setting")),
         },
         {
           label: "Create List",
@@ -276,7 +276,7 @@ export default function NativeHome() {
         ...QUICK_ACTIONS.map(({ label, href, icon: Icon }) => ({
           label,
           icon: <Icon size={18} />,
-          onSelect: () => router.push(href),
+          onSelect: () => router.push(appPath(href)),
         })),
       ]);
       setMenuOrigin({ x: rect.right - 40, y: rect.bottom });
@@ -373,9 +373,15 @@ export default function NativeHome() {
 
   return (
     <div className={`min-h-screen ${surface}`}>
-      {/* Navigation bar. The status bar inset is applied to the body in
-          globals.css, so this only needs its own spacing. */}
-      <div className="flex items-center justify-between px-4">
+      {/* Navigation bar and search, pinned together. `pt-safe-top` clears the
+          status bar and the opaque background means the grid scrolls underneath
+          rather than colliding with it. */}
+      <div
+        className={`sticky top-0 z-30 pt-safe-top ${
+          isDark ? "bg-gray-950" : "bg-white"
+        }`}
+      >
+        <div className="flex items-center justify-between px-4">
         <h1 className="py-3 text-[17px] font-semibold">Welcome Back 👋</h1>
         <button
           type="button"
@@ -403,6 +409,7 @@ export default function NativeHome() {
             aria-label="Search List"
             className="w-full bg-transparent outline-none placeholder:text-gray-500"
           />
+        </div>
         </div>
       </div>
 
@@ -512,7 +519,7 @@ export default function NativeHome() {
                 tasks={tasks}
                 notes={notes}
                 variant="grid"
-                onOpen={() => router.push(list.href)}
+                onOpen={() => router.push(appPath(list.href))}
               />
             ))}
 

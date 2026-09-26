@@ -46,6 +46,21 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
       "dark",
       savedTheme === "dark" || (!savedTheme && prefersDark)
     );
+
+    // Keep following the system for as long as the user has never chosen for
+    // themselves. Once they use the toggle that choice is stored and wins —
+    // changing the device theme should not quietly undo it. Without this the
+    // system setting was only ever read once, at first launch, so switching the
+    // phone to dark mode later appeared to do nothing.
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const followSystem = (event: MediaQueryListEvent) => {
+      if (localStorage.getItem("theme")) return;
+      setTheme(event.matches ? "dark" : "light");
+      document.documentElement.classList.toggle("dark", event.matches);
+    };
+
+    media.addEventListener("change", followSystem);
+    return () => media.removeEventListener("change", followSystem);
   }, []);
 
   const toggleTheme = () => {

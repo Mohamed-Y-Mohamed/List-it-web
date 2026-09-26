@@ -1,0 +1,32 @@
+<!doctype html>
+<!--
+  Netlify Forms detection stub.
+
+  Netlify discovers forms by parsing the HTML it receives at deploy time. The
+  deletion form on /data-deletion is rendered by React, so it does not exist in
+  any built HTML file and Netlify would never register it. This static file does:
+  it ships in the deploy, Netlify's parser finds the form below, and submissions
+  posted from the React page under the same `form-name` are accepted.
+
+  The field names here must stay in step with the React form in
+  src/app/(public)/data-deletion/page.tsx. If you add a field there, add it here
+  or its value is silently dropped.
+
+  This page is never linked to and is not meant to be visited.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>Form registration</title>
+  </head>
+  <body>
+    <form name="account-deletion" data-netlify="true" netlify-honeypot="bot-field" hidden>
+      <input type="hidden" name="form-name" value="account-deletion" />
+      <input type="email" name="email" />
+      <input type="text" name="full_name" />
+      <textarea name="reason"></textarea>
+      <input type="text" name="bot-field" />
+    </form>
+  </body>
+</html>
