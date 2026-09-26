@@ -13,8 +13,10 @@ import { App as CapacitorApp } from "@capacitor/app";
 import { Keyboard } from "@capacitor/keyboard";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { StatusBar, Style } from "@capacitor/status-bar";
+import { LocalNotifications } from "@capacitor/local-notifications";
 import { useTheme } from "@/context/ThemeContext";
 import { useIsNative } from "@/hooks/useIsNative";
+import { appPath } from "@/lib/routes";
 
 // Matches the app's own surfaces: white in light mode, gray-900 in dark mode.
 const STATUS_BAR_BACKGROUND = { light: "#ffffff", dark: "#111827" } as const;
@@ -71,6 +73,24 @@ export default function NativeShell() {
         CapacitorApp.exitApp();
       }
     });
+
+    return () => {
+      listener.then((handle) => handle.remove()).catch(() => {});
+    };
+  }, [isNative, router]);
+
+  // Tapping the due-today reminder opens the Today view, which is the list of
+  // exactly what the notification was about. The notification is a summary, so
+  // there is no single task to open.
+  useEffect(() => {
+    if (!isNative) return;
+
+    const listener = LocalNotifications.addListener(
+      "localNotificationActionPerformed",
+      () => {
+        router.push(appPath("/today"));
+      }
+    );
 
     return () => {
       listener.then((handle) => handle.remove()).catch(() => {});

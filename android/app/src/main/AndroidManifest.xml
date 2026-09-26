@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!--
       allowBackup is off deliberately. The signed-in session is held in the
       WebView's localStorage, and Android's auto-backup would copy it to the
@@ -42,4 +43,25 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Android 13+ requires an explicit grant to post notifications. Asked for
+         lazily, only once there is actually a reminder to schedule. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      The local-notifications plugin declares the exact-alarm permissions by
+      default. Both are dropped here.
+
+      SCHEDULE_EXACT_ALARM sends the user into system Settings to grant "Alarms &
+      reminders", and Play restricts it to alarm clocks and calendars — a to-do
+      reminder is unlikely to qualify and shipping it invites a policy rejection.
+      A "this is due today" nudge does not need to land on the second, so the
+      reminder is scheduled inexactly instead and neither permission is needed.
+    -->
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.USE_EXACT_ALARM"
+        tools:node="remove" />
 </manifest>

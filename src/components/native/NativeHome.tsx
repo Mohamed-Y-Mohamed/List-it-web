@@ -33,6 +33,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { appPath, listHref } from "@/lib/routes";
+import { useDueTodayNotifications } from "@/hooks/useDueTodayNotifications";
 import type { List, Note, Task } from "@/types/schema";
 import CreateListModal from "@/components/popupModels/ListPopup";
 import EditListPopup from "@/components/popupModels/editListPopup";
@@ -136,6 +137,11 @@ export default function NativeHome() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // These are the user's open, undeleted tasks — exactly the set a due-today
+  // reminder should consider. Scheduling from here means it refreshes whenever
+  // the screen does, without a second fetch.
+  useDueTodayNotifications(tasks);
 
   const matchesSearch = useCallback(
     (list: List) =>
