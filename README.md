@@ -1,134 +1,78 @@
-# 📝 List It - Organise Everything!
+# List It
 
-A modern cross-platform, feature-rich task & note management in ONE application built with Next.js that helps you organize yourself.
+List It is a Next.js task and note management application with public account pages and an authenticated application for organising lists, collections, tasks and notes.
 
----
+## Features
 
-## 🌐 Website
+- Create and manage lists and collections.
+- Organise tasks and notes within the application.
+- Use dedicated views for current and upcoming work.
+- Register, sign in and recover an account through the public authentication pages.
+- View productivity information and charts in the application interface.
+- Use a responsive interface built with React and Tailwind CSS.
+- Generate a sitemap as part of the production build.
 
-### Our platform is free for all users here:
-- [Website](https://list-it-dom.netlify.app/landingpage)
-- [iOS](https://apps.apple.com/gb/app/list-it-organise-everything/id6746731233)
+## Tech stack
 
----
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 15 |
+| UI | React 19, Tailwind CSS 4, DaisyUI |
+| Backend client | Supabase JavaScript client |
+| Animation | Framer Motion |
+| Charts | Recharts |
+| Tests | Jest |
+| Code quality | ESLint, Prettier, Husky |
 
-### Application Features
-- 🔐 **Secure Authentication**: Real Google OAuth and email registration
-- 💾 **Persistent Data**: Your lists, collection, tasks, and notes are saved available cross-platform
-- ⚡ **Real-time Updates**: Experience instant synchronization
+## Requirements
 
----
+- Node.js `22.14.0`.
+- npm `11.2.0` as declared by the repository.
+- Backend configuration for the Supabase services used by the application.
 
-## ✨ Features
+## Installation
 
-### 🎯 Core Functionality
-- **Smart Lists**: Create multiple `Lists` to organize different areas of your life
-- **Collections**: Group related `tasks` & `notes` within color codded `Collections` 
-- **Task Management**: Create, prioritize, track and complete tasks with due dates and descriptions
-- **Note Taking**: Rich note taking with color customization and pinning capabilities
-- **Dashboard Analytics**: Track your productivity with interactive charts and statistics
+```bash
+git clone https://github.com/Mohamed-Y-Mohamed/List-it-web.git
+cd List-it-web
+npm install
+```
 
-### 🗂️ Smart Views
-- **Today's Tasks**: Focus on tasks due today
-- **Tomorrow's Planning**: Prepare for upcoming tasks
-- **Priority Tasks**: Starred/pinned high-priority items
-- **Overdue Tasks**: Instantly see what you need to catch up on
-- **Completed Tasks**: Review your accomplishments
-- **Active Tasks**: View all incomplete tasks organized by due date
+`npm install` runs the repository's `prepare` script, which installs Husky hooks.
 
-### 🎨 User Experience
-- **Dark/Light Theme**: Seamless theme switching
-- **Responsive Design**: Designed for all displays
-- **Smooth Animations**: Framer Motion powered interactions
-- **Intuitive Navigation**: Clean sidebar with easy list management
-- **Real-time Updates**: Instant synchronization across devices
+## Running locally
 
-### 🔐 Authentication & Security
-- **Google OAuth**: Quick sign-in with Google
-- **Email/Password**: Traditional authentication option
-- **Email Verification**: Secure account creation process
-- **Session Management**: Persistent login across browser sessions
+```bash
+npm run dev
+```
 
----
+The development command is `next dev --turbopack`.
 
-## 🛠️ Technology Stack
+## Building
 
-### Website
-- **Next.js 13+** - React framework with App Router
-- **TypeScript** - Type-safe development
-- **Tailwind CSS** - Utility-first styling
-- **Framer Motion** - Smooth animations and transitions
-- **Lucide React** - Beautiful icons
+```bash
+npm run build
+```
 
-### iOS Native
-- **Swift** - Used for application logic, async networking, and integration with the backend `(Supabase)`
-- - **SwiftUI** - Apple’s declarative UI framework used to build responsive and modern interfaces
+The `postbuild` script then runs `next-sitemap`.
 
-### Backend & Database
-- **Supabase** - Backend as a Service
-  - PostgreSQL database
-  - Real-time subscriptions
-  - Row Level Security (RLS)
-  - Authentication & user management
+## Testing and checks
 
-### State Management
-- **React Context** - Global state management
-- **React Hooks** - Local component state
+```bash
+npm test
+npm run type-check
+npm run format
+npm run audit
+```
 
----
+The repository contains Jest configuration and setup files. A Husky pre-commit hook is also committed.
 
-## 🎯 How It Works
+## Licence
 
-### 📋 List Management
-- **Create Lists**: Click the "Create New List" button in the sidebar
-- **Dynamic Routing**: Each list gets its own URL (`/List/[listId]`)
-- **Default Collection**: Every new list automatically gets a "General" collection
-- **List Actions**: Pin, rename, or delete lists from the sidebar
+This repository is licensed under GNU GPL v3. See [LICENSE](LICENSE).
 
-### 🗂️ Collection System
-- **Dual Organization**: Each `collection` contains both `tasks` and `notes`
-- **Color Coding**: Customize collection colors for visual organization
-- **Tab Interface**: Switch between tasks and notes views
-- **Default Collection**: "General" collection cannot be deleted (only when list is deleted)
+The licence has not been changed automatically because the repository README identifies the project as jointly authored. Changing a shared project's licence requires agreement from all relevant copyright holders.
 
-### ✅ Task Features
-- **Rich Tasks**: Title, description, due date, priority status
-- **Priority System**: Pin important tasks to the top
-- **Due Date Tracking**: Smart categorization by due date
-- **Completion Tracking**: Mark tasks as complete with timestamp
-- **Cross-Collection**: Move tasks between collections
+## Authors
 
-### 📝 Note Features
-- **Color Customization**: Choose from multiple background colors
-- **Pin System**: Keep important notes at the top
-- **Rich Text**: Title and description support
-- **Quick Edit**: Click to open detailed editing sidebar
-
-### 📊 Dashboard Analytics
-- **Task Statistics**: Total, completed, pending, and overdue counts
-- **Progress Charts**: Visual representation of productivity
-- **Recent Activity**: Timeline of completed and created tasks
-- **Completion Trends**: 7-day activity charts
-
----
-
-## 📱 Database Schema
-
-### Core Tables
-- **users** - User profiles and preferences
-- **list** - User-created lists with names and colors
-- **collection** - Themed collections within lists
-- **task** - Individual tasks with metadata
-- **note** - Rich notes with color customization
-
-### Key Relationships
-- Users → Lists (1:many)
-- Lists → Collections (1:many) 
-- Collections → Tasks (1:many)
-- Collections → Notes (1:many)
-
----
-
-**Made by [@Mohamed](https://github.com/Mohamed-Y-Mohamed) & [@Abdul](https://github.com/A-Moiz)**
-
-*Transform your productivity with List It.*
+The existing project documentation credits Mohamed Yusuf Mohamed and Abdul (`A-Moiz`) as authors.
