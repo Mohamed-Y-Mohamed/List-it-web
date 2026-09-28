@@ -14,13 +14,22 @@ import { isNativeApp } from "@/lib/platform";
 import { syncDueTodayNotifications } from "@/lib/notifications";
 import type { Task } from "@/types/schema";
 
-export function useDueTodayNotifications(tasks: Task[]) {
+/**
+ * @param tasks  The caller's open, undeleted tasks.
+ * @param loaded Whether `tasks` reflects a completed fetch. Required, because an
+ *   empty array means two opposite things and only the caller can tell them
+ *   apart.
+ */
+export function useDueTodayNotifications(tasks: Task[], loaded: boolean) {
   useEffect(() => {
     if (!isNativeApp()) return;
 
-    // Nothing loaded yet — syncing now would cancel today's reminders and
-    // schedule nothing in their place.
-    if (tasks.length === 0) return;
+    // An empty list is only meaningless before the first fetch resolves. Once it
+    // has, empty means the user genuinely has nothing open — and that has to
+    // reach the scheduler, because it is exactly what completing the last task
+    // looks like. Bailing on `tasks.length === 0` instead left that reminder
+    // pending, so it fired hours later for a task already ticked off.
+    if (!loaded) return;
 
     let cancelled = false;
     const sync = () => {
@@ -37,5 +46,5 @@ export function useDueTodayNotifications(tasks: Task[]) {
       cancelled = true;
       listener.then((handle) => handle.remove()).catch(() => {});
     };
-  }, [tasks]);
+  }, [tasks, loaded]);
 }

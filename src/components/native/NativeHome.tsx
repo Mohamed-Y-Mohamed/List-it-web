@@ -1,32 +1,28 @@
 "use client";
 
-// The Android home screen, matching AllListsView from the published iOS app:
-// a greeting, search, a horizontal row of pinned lists, then all lists in a
-// three-column grid. Long-pressing a card opens its context menu; the toolbar menu
-// holds settings, list creation and the six default list views.
+// The Android home screen — the Lists tab — matching AllListsView from the
+// published iOS app: a greeting, search, a horizontal row of pinned lists, then
+// the built-in views and the user's own lists as two three-column grids with a
+// rule between them. Long-pressing a card opens its context menu.
+//
+// Settings and Progress used to live in a toolbar menu here; they are tab bar
+// destinations now, so the menu is gone. The six default views it also held were
+// always duplicated by the grid cards, so nothing was lost with it.
 //
 // Rendered only in the native build — the web dashboard is untouched. See
 // src/app/(secure)/dashboard/page.tsx.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import {
-  AlertCircle,
   ArrowUpDown,
-  Calendar,
-  CalendarClock,
-  CheckCircle2,
-  Circle,
-  LayoutDashboard,
   ListChecks,
   Pencil,
   Pin,
   PinOff,
   Plus,
   Search,
-  Settings,
-  SlidersHorizontal,
-  Star,
   Trash2,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
@@ -46,6 +42,10 @@ import { CountBadge } from "./listVisuals";
 // Mirrors SortOption in the iOS app.
 type SortOption = "newest" | "oldest" | "az" | "za";
 
+// Ordered as they appear in the chip row. Oldest is first because it is the
+// default, and a selected chip at the left edge needs no scrolling to see.
+const SORT_ORDER: readonly SortOption[] = ["oldest", "newest", "az", "za"];
+
 const SORT_LABELS: Record<SortOption, string> = {
   oldest: "Oldest",
   newest: "Newest",
@@ -53,22 +53,13 @@ const SORT_LABELS: Record<SortOption, string> = {
   za: "Z-A",
 };
 
-// The six default views, in the order the iOS toolbar menu lists them.
-const QUICK_ACTIONS = [
-  { label: "Today's Tasks", href: "/today", icon: Calendar },
-  { label: "Tomorrow's Tasks", href: "/tomorrow", icon: CalendarClock },
-  { label: "Priority Tasks", href: "/priority", icon: Star },
-  { label: "Completed Tasks", href: "/completed", icon: CheckCircle2 },
-  { label: "Not Completed Tasks", href: "/notcomplete", icon: Circle },
-  { label: "Overdue Tasks", href: "/overdue", icon: AlertCircle },
-] as const;
-
 /**
- * The built-in lists, always present at the top of the grid exactly as they are
- * on iOS. They are views over the user's tasks rather than rows in the `list`
- * table, so they are described here rather than fetched: there is nothing to
- * create, rename, pin or delete. `list_icon` carries the same SF Symbol names the
- * iOS app stores, so listVisuals maps them to the matching icon.
+ * The built-in lists, always shown above the user's own and never reordered by
+ * the sort control — they are fixed views, so sorting them by creation date or
+ * name would be meaningless. They are views over the user's tasks rather than
+ * rows in the `list` table, so they are described here rather than fetched: there
+ * is nothing to create, rename, pin or delete. `list_icon` carries the same SF
+ * Symbol names the iOS app stores, so listVisuals maps them to the matching icon.
  */
 const DEFAULT_LISTS: (List & { href: string })[] = [
   ["Today", "calendar", "#007AFF", "/today"],
@@ -141,7 +132,11 @@ export default function NativeHome() {
   // These are the user's open, undeleted tasks — exactly the set a due-today
   // reminder should consider. Scheduling from here means it refreshes whenever
   // the screen does, without a second fetch.
-  useDueTodayNotifications(tasks);
+  //
+  // The loaded flag matters: an empty `tasks` means "not fetched yet" before the
+  // first load resolves and "nothing open" after it, and only the second of those
+  // should reach the scheduler. It is what ticking off the last task looks like.
+  useDueTodayNotifications(tasks, !isLoading);
 
   const matchesSearch = useCallback(
     (list: List) =>
@@ -266,35 +261,13 @@ export default function NativeHome() {
     [togglePin]
   );
 
-  const showToolbarMenu = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      const rect = event.currentTarget.getBoundingClientRect();
-      setMenuItems([
-        {
-          label: "Dashboard",
-          icon: <LayoutDashboard size={18} />,
-          onSelect: () => router.push(appPath("/stats")),
-        },
-        {
-          label: "Settings",
-          icon: <Settings size={18} />,
-          onSelect: () => router.push(appPath("/setting")),
-        },
-        {
-          label: "Create List",
-          icon: <Plus size={18} />,
-          onSelect: () => setIsCreateOpen(true),
-        },
-        ...QUICK_ACTIONS.map(({ label, href, icon: Icon }) => ({
-          label,
-          icon: <Icon size={18} />,
-          onSelect: () => router.push(appPath(href)),
-        })),
-      ]);
-      setMenuOrigin({ x: rect.right - 40, y: rect.bottom });
-    },
-    [router]
-  );
+  // Sorting is instant and reversible, so the chip commits on tap with no confirm
+  // step. The haptic is the receipt — on a grid of small cards the reorder is not
+  // always visible from the top of the screen.
+  const selectSort = useCallback((option: SortOption) => {
+    setSort(option);
+    void Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+  }, []);
 
   const handleCreateSubmit = useCallback(
     async (
@@ -393,42 +366,58 @@ export default function NativeHome() {
           isDark ? "bg-gray-950" : "bg-white"
         }`}
       >
-        <div className="flex items-center justify-between px-4">
-        <h1 className="py-3 text-[17px] font-semibold">Welcome Back 👋</h1>
-        <button
-          type="button"
-          onClick={showToolbarMenu}
-          aria-label="More options"
-          className="touch-target -mr-2 flex items-center justify-center rounded-full active:bg-black/5 dark:active:bg-white/10"
-        >
-          <SlidersHorizontal size={22} />
-        </button>
-      </div>
-
-      {/* Search, which iOS places in the toolbar via .searchable */}
-      <div className="px-4 pb-3">
-        <div
-          className={`flex items-center gap-2 rounded-[10px] px-3 py-2 ${
-            isDark ? "bg-gray-800" : "bg-gray-100"
-          }`}
-        >
-          <Search size={17} className="shrink-0 text-gray-500" />
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search List"
-            aria-label="Search List"
-            className="w-full bg-transparent outline-none placeholder:text-gray-500"
-          />
+        {/* The greeting and the name are one block, not two rows. They were
+            stacked as a 17px "Welcome Back" in the toolbar and a separate 20px
+            name underneath, which spent two full rows saying one thing and left
+            neither looking like the screen's title. The name leads now; the
+            greeting is the small line above it. */}
+        {/* pt-3 on top of pt-safe-top: the inset only clears the status bar, it
+            does not leave any air under it, and the greeting sat directly
+            beneath the clock. */}
+        <div className="flex items-start justify-between gap-3 px-4 pt-3">
+          <div className="min-w-0">
+            <p
+              className={`text-[13px] font-medium ${
+                isDark ? "text-gray-400" : "text-gray-500"
+              }`}
+            >
+              Welcome back 👋
+            </p>
+            <h1 className="truncate text-[24px] font-bold leading-tight tracking-[-0.02em]">
+              {user?.user_metadata?.full_name || user?.email || "…"}
+            </h1>
+          </div>
+          {/* Creating a list was the one thing in the old toolbar menu that had
+              nowhere else to go, so it gets the slot the menu used to occupy —
+              named for what it does rather than hidden behind "More options". */}
+          <button
+            type="button"
+            onClick={() => setIsCreateOpen(true)}
+            aria-label="Create list"
+            className="touch-target -mr-2 flex shrink-0 items-center justify-center rounded-full active:bg-black/5 dark:active:bg-white/10"
+          >
+            <Plus size={24} strokeWidth={2.2} />
+          </button>
         </div>
-        </div>
-      </div>
 
-      <div className="px-4">
-        <p className="pb-4 text-[20px] font-bold">
-          {user?.user_metadata?.full_name || user?.email || "Loading..."}
-        </p>
+        {/* Search, which iOS places in the toolbar via .searchable */}
+        <div className="px-4 pb-3 pt-3">
+          <div
+            className={`flex items-center gap-2 rounded-[10px] px-3 py-2 ${
+              isDark ? "bg-gray-800" : "bg-gray-100"
+            }`}
+          >
+            <Search size={17} className="shrink-0 text-gray-500" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search lists"
+              aria-label="Search lists"
+              className="w-full bg-transparent outline-none placeholder:text-gray-500"
+            />
+          </div>
+        </div>
       </div>
 
       {pinnedLists.length > 0 && (
@@ -459,21 +448,24 @@ export default function NativeHome() {
           <h2 className={headingClass}>Your Lists</h2>
           <CountBadge count={userLists.length} />
           <span className="flex-1" />
+          {/* Sort lives up here in the heading rather than as a row of chips
+              above the grid. Four options are not worth the vertical space a
+              permanent control costs on a screen whose job is showing lists, and
+              the sort is set once and rarely changed. */}
           <button
             type="button"
             onClick={(event) => {
               const rect = event.currentTarget.getBoundingClientRect();
               setMenuItems(
-                (Object.keys(SORT_LABELS) as SortOption[]).map((option) => ({
-                  label:
-                    SORT_LABELS[option] + (sort === option ? "  ✓" : ""),
+                SORT_ORDER.map((option) => ({
+                  label: SORT_LABELS[option] + (sort === option ? "  ✓" : ""),
                   icon: <ArrowUpDown size={18} />,
-                  onSelect: () => setSort(option),
+                  onSelect: () => selectSort(option),
                 }))
               );
               setMenuOrigin({ x: rect.right - 40, y: rect.bottom });
             }}
-            className="flex items-center gap-1.5 text-[15px] text-blue-500 active:opacity-60"
+            className="touch-target flex items-center gap-1.5 text-[15px] text-blue-500 active:opacity-60"
           >
             <ArrowUpDown size={18} />
             Sort
@@ -484,9 +476,11 @@ export default function NativeHome() {
         </p>
       </section>
 
-      {/* The 1px rule iOS draws under the section heading */}
+      {/* The 1px rule iOS draws under the section heading. At 50% opacity this
+          was a hard black line cutting the screen in half; a hairline separates
+          without competing with the cards under it. */}
       <div
-        className={`mx-4 mt-3 h-px ${isDark ? "bg-white/50" : "bg-black/50"}`}
+        className={`mx-4 mt-3 h-px ${isDark ? "bg-white/10" : "bg-black/10"}`}
       />
 
       <section
@@ -522,31 +516,50 @@ export default function NativeHome() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-2.5">
-            {/* Built-in lists first and always, as on iOS. */}
-            {visibleDefaultLists.map((list) => (
-              <NativeListCard
-                key={list.id}
-                list={list}
-                tasks={tasks}
-                notes={notes}
-                variant="grid"
-                onOpen={() => router.push(appPath(list.href))}
-              />
-            ))}
+          <>
+            {/* Two groups, not one flowing grid. The built-in views are fixed
+                and always sit on top; the user's own lists are what the sort
+                control reorders. A rule between them makes that split visible
+                instead of leaving the user to infer it from the icons. */}
+            {visibleDefaultLists.length > 0 && (
+              <div className="grid grid-cols-3 gap-2.5">
+                {visibleDefaultLists.map((list) => (
+                  <NativeListCard
+                    key={list.id}
+                    list={list}
+                    tasks={tasks}
+                    notes={notes}
+                    variant="grid"
+                    onOpen={() => router.push(appPath(list.href))}
+                  />
+                ))}
+              </div>
+            )}
 
-            {sortedLists.map((list) => (
-              <NativeListCard
-                key={`${list.id}-${list.list_name}-${list.bg_color_hex}`}
-                list={list}
-                tasks={tasks}
-                notes={notes}
-                variant="grid"
-                onOpen={() => openList(list)}
-                onLongPress={(position) => showContextMenu(list, position)}
+            {visibleDefaultLists.length > 0 && sortedLists.length > 0 && (
+              <div
+                className={`my-5 h-px ${
+                  isDark ? "bg-white/10" : "bg-black/10"
+                }`}
               />
-            ))}
-          </div>
+            )}
+
+            {sortedLists.length > 0 && (
+              <div className="grid grid-cols-3 gap-2.5">
+                {sortedLists.map((list) => (
+                  <NativeListCard
+                    key={`${list.id}-${list.list_name}-${list.bg_color_hex}`}
+                    list={list}
+                    tasks={tasks}
+                    notes={notes}
+                    variant="grid"
+                    onOpen={() => openList(list)}
+                    onLongPress={(position) => showContextMenu(list, position)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
 

@@ -6,20 +6,20 @@
 // the only way back is the system gesture — which is invisible and easy to miss.
 // This is the equivalent of the chevron SwiftUI puts in a NavigationStack bar.
 //
-// Only rendered on screens below the home screen; the home screen has its own
-// toolbar and nothing to go back to.
+// Only rendered on screens pushed above a tab root. The three tab roots are
+// destinations reached from the bar at the bottom, so there is nothing above them
+// to go back to.
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { isTabRoot, normalisePath } from "./navTabs";
 import { useScreenTitle } from "./ScreenTitleContext";
 
-// The screen the app opens on. Nothing sits above it in the stack.
-const ROOT_PATH = "/dashboard";
-
 // Titles for the built-in screens, so the bar reads like the iOS one rather than
-// showing a bare chevron.
+// showing a bare chevron. The tab roots are absent deliberately: they draw their
+// own headers and never get a back bar.
 const SCREEN_TITLES: Record<string, string> = {
   "/today": "Today",
   "/tomorrow": "Tomorrow",
@@ -27,25 +27,20 @@ const SCREEN_TITLES: Record<string, string> = {
   "/completed": "Completed",
   "/notcomplete": "Not Completed",
   "/overdue": "Overdue",
-  "/setting": "Settings",
-  "/stats": "Dashboard",
   "/List": "List",
 };
 
-function normalise(pathname: string): string {
-  // The export uses trailing slashes, so /today/ and /today are the same screen.
-  const trimmed = pathname.replace(/\/+$/, "");
-  return trimmed === "" ? "/" : trimmed;
-}
-
 export default function NativeBackBar() {
-  const pathname = normalise(usePathname());
+  const pathname = normalisePath(usePathname());
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const reportedTitle = useScreenTitle();
 
-  if (pathname === ROOT_PATH || pathname === "/") return null;
+  // Previously only /dashboard qualified. Now Progress and Settings are peers of
+  // it rather than screens pushed from it, and a chevron on either would
+  // contradict the tab bar underneath.
+  if (isTabRoot(pathname) || pathname === "/") return null;
 
   // A screen that knows its own name wins — a list shows the list's name
   // rather than the generic "List".

@@ -3,11 +3,17 @@
 
 import SideNavigation from "@/components/Navbar/SideNav";
 import React, { Suspense, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useIsNative } from "@/hooks/useIsNative";
 import NativeTransition from "@/components/native/NativeTransition";
 import NativeBackBar from "@/components/native/NativeBackBar";
+import NativeTabBar from "@/components/native/NativeTabBar";
+import {
+  HOME_TAB_PATH,
+  isTabRoot,
+  normalisePath,
+} from "@/components/native/navTabs";
 import { ScreenTitleProvider } from "@/components/native/ScreenTitleContext";
 import { supabase } from "@/utils/client";
 import { appPath } from "@/lib/routes";
@@ -20,6 +26,20 @@ export default function SecureLayout({
   const { isLoggedIn, loading } = useAuth();
   const isNative = useIsNative();
   const router = useRouter();
+  const pathname = usePathname();
+
+  // The tab bar is fixed, so it takes up no space in the document and the last
+  // row of a screen would sit underneath it. Only the three tab roots need the
+  // clearance — a pushed screen has no bar over it.
+  const onTabRoot = isTabRoot(pathname);
+
+  // Progress and Settings used to be pushed screens, and the back bar above them
+  // was what cleared the status bar. They are tab roots now, so it is gone and
+  // they would start underneath the opaque band globals.css pins over the status
+  // bar. The Lists tab is excluded because NativeHome pins its own header with
+  // pt-safe-top already, and padding it here would inset it twice.
+  const needsTopInset =
+    onTabRoot && normalisePath(pathname) !== HOME_TAB_PATH;
 
   // On the web these routes are already gated by `middleware.ts`, which redirects
   // before this component ever renders. The native build is a static export with
@@ -80,7 +100,19 @@ export default function SecureLayout({
       {isNative ? (
         <ScreenTitleProvider>
           <NativeBackBar />
-          <NativeTransition>{children}</NativeTransition>
+          <div
+            className={
+              [
+                onTabRoot ? "pb-tab-bar" : "",
+                needsTopInset ? "pt-safe-top" : "",
+              ]
+                .filter(Boolean)
+                .join(" ") || undefined
+            }
+          >
+            <NativeTransition>{children}</NativeTransition>
+          </div>
+          <NativeTabBar />
         </ScreenTitleProvider>
       ) : (
         children

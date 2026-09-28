@@ -44,8 +44,19 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Android 13+ requires an explicit grant to post notifications. Asked for
-         lazily, only once there is actually a reminder to schedule. -->
+    <!--
+      Android 13+ requires an explicit grant to post notifications. This is the
+      only runtime permission the app asks for: INTERNET is granted at install
+      time and the exact-alarm pair below is removed outright.
+
+      Asked for on the last screen of the first-run intro, after a plain-English
+      explanation of what gets sent and how often. The system dialog only appears
+      if the user agrees to that screen, which matters because Android stops
+      showing it after two refusals — a cold prompt is how an app loses the
+      permission permanently. Anyone who picks "Not now" is asked again by the
+      lazy check in src/lib/notifications.ts, the first time a reminder actually
+      needs scheduling.
+    -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!--

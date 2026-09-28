@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-      Brand indigo. Shared by the Android 12+ system splash theme, the web splash
-      in src/components/SplashScreen.tsx, and the SplashScreen plugin config in
-      capacitor.config.ts. Change it in all three or the launch will flicker.
+      The launch field in light mode: the app's own surface, not a brand slab.
+
+      This was a flat indigo (#4F46E5) that appears nowhere else in the product —
+      the icon is orange, the interface is blue on white, and the launch screen
+      agreed with neither. A white field matches the screen that follows it and
+      leaves the orange mark as the only colour on it.
+
+      Shared by the Android 12+ system splash theme, the legacy background in
+      styles.xml, the web splash in src/components/SplashScreen.tsx, and the
+      SplashScreen plugin config in capacitor.config.ts. Change it in all of them
+      or the launch will flicker. The dark counterpart is values-night/splash.xml.
     -->
-    <color name="splashBackground">#4F46E5</color>
+    <color name="splashBackground">#FFFFFF</color>
 </resources>

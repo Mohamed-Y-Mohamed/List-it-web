@@ -1,6 +1,5 @@
 // app/(secure)/stats/page.tsx
-// The analytics dashboard in the native app, reached from the toolbar menu
-// alongside Settings.
+// The analytics screen in the native app, the second tab in the bottom bar.
 //
 // The native /dashboard is the iOS-style lists screen, so the charts and totals
 // need a route of their own. It is the same DashboardView the web serves at
@@ -11,5 +10,7 @@
 import DashboardView from "@/components/Dashboard/DashboardView";
 
 export default function StatsPage() {
-  return <DashboardView />;
+  // "Progress", to agree with the tab that leads here. The route stays /stats and
+  // the web's own /dashboard keeps its default heading, so nothing moves there.
+  return <DashboardView heading="Progress" />;
 }
