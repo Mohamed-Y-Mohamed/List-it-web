@@ -19,6 +19,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useIsNative } from "@/hooks/useIsNative";
 import { useImmersiveNative } from "@/hooks/useImmersiveNative";
+import { appPath } from "@/lib/routes";
 
 // Inner component that uses useSearchParams
 function LoginWithSearchParams() {
@@ -48,7 +49,7 @@ function LoginWithSearchParams() {
     if (!isNative || authLoading || !isLoggedIn) return;
     if (hasRedirected.current) return;
     hasRedirected.current = true;
-    router.replace("/dashboard");
+    router.replace(appPath("/dashboard"));
   }, [isNative, authLoading, isLoggedIn, router]);
 
   // Form state
@@ -146,7 +147,7 @@ function LoginWithSearchParams() {
         return;
       } else {
         if (success) {
-          router.push("/dashboard");
+          router.push(appPath("/dashboard"));
           return;
         }
       }
@@ -221,7 +222,7 @@ function LoginWithSearchParams() {
 
   // Handle forgot password
   const handleForgotPassword = () => {
-    router.push("/forgotPassword");
+    router.push(appPath("/forgotPassword"));
   };
 
   return (

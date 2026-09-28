@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useImmersiveNative } from "@/hooks/useImmersiveNative";
+import { appPath } from "@/lib/routes";
 
 const Signup = () => {
   const { theme } = useTheme();
@@ -115,7 +116,7 @@ const Signup = () => {
         // User was auto-confirmed (rare case)
         setSuccess("Account created successfully! Redirecting to dashboard...");
         setTimeout(() => {
-          router.push("/dashboard");
+          router.push(appPath("/dashboard"));
         }, 1500);
       }
     } catch (err: unknown) {
