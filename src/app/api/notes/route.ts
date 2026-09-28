@@ -75,7 +75,14 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("note")
-      .insert({ ...body, user_id: user.id })
+      // `note.created_at` is NOT NULL with no database default, so an
+      // insert that omits it is rejected outright. A caller that supplies its
+      // own timestamp still wins, since `body` is spread afterwards.
+      .insert({
+        created_at: new Date().toISOString(),
+        ...body,
+        user_id: user.id,
+      })
       .select()
       .single();
 

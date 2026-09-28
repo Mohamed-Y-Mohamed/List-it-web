@@ -18,8 +18,13 @@ android {
         applicationId "com.list_it.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
+        // Reset to 2 deliberately, and safe only because nothing has ever been
+        // uploaded to Play under this applicationId — no upload key has been
+        // created yet, so no code is spoken for. Play refuses any upload whose
+        // versionCode is not higher than the last one it accepted, so from the
+        // first submission onwards this only ever goes up, by one, every time.
         versionCode 2
-        versionName "0.2.0"
+        versionName "2.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

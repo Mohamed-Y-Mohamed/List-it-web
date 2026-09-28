@@ -42,15 +42,35 @@ const config: CapacitorConfig = {
       // hides as soon as the bundle is ready rather than on a fixed timer —
       // otherwise the user sees two splash screens in a row.
       launchAutoHide: false,
-      backgroundColor: "#4f46e5",
+      // The light-mode field, matching @color/splashBackground. The launch splash
+      // itself is drawn from the theme, which has a values-night override; this
+      // only applies if something calls SplashScreen.show() by hand, and nothing
+      // does.
+      backgroundColor: "#ffffff",
       androidScaleType: "CENTER_CROP",
       showSpinner: false,
     },
 
     StatusBar: {
-      // Set at runtime to follow the in-app theme; see NativeShell.
-      overlaysWebView: false,
-      backgroundColor: "#4f46e5",
+      // The WebView draws behind the system bars.
+      //
+      // This was false, which kept the WebView inside them and left the platform
+      // painting both bands itself. Measured consequence: a 77px strip of
+      // #FAFAFA under the tab bar and matching strips framing the sign-in
+      // screen, in a colour the app never uses — and, because the WebView was
+      // inset, env(safe-area-inset-*) resolved to 0, so every safe-area rule in
+      // globals.css was silently doing nothing. The status-bar band, the
+      // pt-safe-top headers and the tab bar's own bottom inset were all written
+      // for edge-to-edge and only work now that they get real values.
+      //
+      // Android 15+ forces this anyway; setting it explicitly means older
+      // versions behave the same rather than only some of the fleet being
+      // edge-to-edge.
+      overlaysWebView: true,
+      // "LIGHT" means dark text for a light background — the pairing the app's
+      // white surface needs. NativeShell flips it to "DARK" with the in-app
+      // theme. No backgroundColor: with the WebView behind it, the bar is
+      // transparent and the CSS band in globals.css is what shows through.
       style: "LIGHT",
     },
 

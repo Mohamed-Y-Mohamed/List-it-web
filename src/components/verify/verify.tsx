@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
+import { appPath } from "@/lib/routes";
 
 const EmailVerification = () => {
   const { theme } = useTheme();
@@ -44,12 +45,12 @@ const EmailVerification = () => {
       );
     } else {
       // If no status param, redirect to login
-      router.push("/login");
+      router.push(appPath("/login"));
     }
   }, [searchParams, router]);
 
   const handleLoginRedirect = () => {
-    router.push("/login");
+    router.push(appPath("/login"));
   };
 
   if (status === "loading") {

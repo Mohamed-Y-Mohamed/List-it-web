@@ -7,9 +7,10 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/client";
 import { getApiBaseUrl, isNativeApp } from "@/lib/platform";
-import { logoutRedirectUrl } from "@/lib/routes";
+import { appPath, logoutRedirectUrl } from "@/lib/routes";
 import { User, AuthError } from "@supabase/supabase-js";
 
 // Auth context type
@@ -106,6 +107,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const router = useRouter();
+
+  /**
+   * Leave for the sign-in screen after signing out.
+   *
+   * Native navigates through the client router. A full document load cannot be
+   * used here: Capacitor's local server does not resolve a directory URL like
+   * /login/ to its index.html and falls back to serving the root document, so
+   * the app booted with the address bar on /login/ but the root page mounted —
+   * which renders nothing in app mode — and the user was left on a white screen.
+   * Going through the router also skips the relaunch entirely, so signing out no
+   * longer replays the splash screen on the way to the login form.
+   *
+   * Web keeps the hard navigation deliberately. middleware.ts reads `logout=true`
+   * and clears the auth cookies before the login page renders, and a client-side
+   * push would never reach it.
+   */
+  const goToLoginAfterLogout = (hadError = false) => {
+    if (isNativeApp()) {
+      router.replace(appPath("/login"));
+      return;
+    }
+    window.location.href = logoutRedirectUrl(false, hadError);
+  };
 
   // Get site URL. This ends up inside verification and password-reset emails, so
   // it has to be an address the recipient can actually open. Inside the native
@@ -392,12 +417,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error("Error during signOut:", error);
       }
 
-      // Redirect to login page
-      window.location.href = logoutRedirectUrl(isNativeApp());
+      goToLoginAfterLogout();
     } catch (error) {
       console.error("Logout process error:", error);
       clearAuthData();
-      window.location.href = logoutRedirectUrl(isNativeApp(), true);
+      goToLoginAfterLogout(true);
     }
   };
 

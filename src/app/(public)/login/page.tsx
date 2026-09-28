@@ -18,6 +18,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useIsNative } from "@/hooks/useIsNative";
+import { useImmersiveNative } from "@/hooks/useImmersiveNative";
+import { appPath } from "@/lib/routes";
 
 // Inner component that uses useSearchParams
 function LoginWithSearchParams() {
@@ -33,6 +35,10 @@ function LoginWithSearchParams() {
   } = useAuth();
   const isNative = useIsNative();
 
+  // Let the gradient fill the whole device window instead of being framed by the
+  // status-bar and gesture-pill bands.
+  useImmersiveNative();
+
   // Capped at one redirect per mount; see the matching guard in (secure)/layout.
   const hasRedirected = useRef(false);
 
@@ -43,7 +49,7 @@ function LoginWithSearchParams() {
     if (!isNative || authLoading || !isLoggedIn) return;
     if (hasRedirected.current) return;
     hasRedirected.current = true;
-    router.replace("/dashboard");
+    router.replace(appPath("/dashboard"));
   }, [isNative, authLoading, isLoggedIn, router]);
 
   // Form state
@@ -141,7 +147,7 @@ function LoginWithSearchParams() {
         return;
       } else {
         if (success) {
-          router.push("/dashboard");
+          router.push(appPath("/dashboard"));
           return;
         }
       }
@@ -216,11 +222,20 @@ function LoginWithSearchParams() {
 
   // Handle forgot password
   const handleForgotPassword = () => {
-    router.push("/forgotPassword");
+    router.push(appPath("/forgotPassword"));
   };
 
   return (
-    <div className="min-h-screen w-full relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div
+      className="min-h-screen w-full relative flex items-center justify-center px-4 sm:px-6 lg:px-8"
+      // Replaces py-12. env() resolves to 0 in a browser, so max() gives the web
+      // exactly the 3rem it had; on the device it grows to clear the status bar
+      // and the gesture pill while the gradient behind still runs edge to edge.
+      style={{
+        paddingTop: "max(3rem, env(safe-area-inset-top, 0px))",
+        paddingBottom: "max(3rem, env(safe-area-inset-bottom, 0px))",
+      }}
+    >
       {/*  background */}
       {isDark ? (
         <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#020617_0%,#0f172a_20%,#1e293b_40%,#0f1629_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(37,99,235,0.2)_0%,transparent_58%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(96,165,250,0.12)_0%,transparent_48%)] before:content-[''] after:content-['']" />
@@ -279,17 +294,28 @@ function LoginWithSearchParams() {
               transition={{ duration: 0.6 }}
               className="md:hidden mb-8 flex items-center justify-center"
             >
+              {/* The real app mark, not a stand-in glyph. This is the first
+                  screen after the launch splash, so showing the same icon the
+                  user just tapped on their home screen is what makes it read as
+                  the same app. */}
               <motion.div
                 whileHover={{ scale: 1.1, rotate: 5 }}
-                className={`w-12 h-12 rounded-xl flex items-center justify-center mr-3 shadow-lg ${
-                  isDark ? "bg-blue-600" : "bg-blue-500"
-                }`}
+                className="mr-3 h-12 w-12 overflow-hidden rounded-xl shadow-lg"
               >
-                <ListTodo className="h-6 w-6 text-white" />
+                <Image
+                  src="/android-chrome-512x512.png"
+                  alt=""
+                  width={48}
+                  height={48}
+                  priority
+                  className="h-full w-full object-cover"
+                />
               </motion.div>
+              {/* Orange, taken from the mark beside it. A blue wordmark next to
+                  an orange icon read as two different brands. */}
               <span
                 className={`text-2xl font-bold ${
-                  isDark ? "text-blue-400" : "text-blue-500"
+                  isDark ? "text-orange-400" : "text-orange-500"
                 }`}
               >
                 LIST IT

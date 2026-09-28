@@ -14,6 +14,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/client";
+import { appPath } from "@/lib/routes";
 
 const ForgotPasswordPage: React.FC = () => {
   const { theme } = useTheme();
@@ -68,13 +69,13 @@ const ForgotPasswordPage: React.FC = () => {
       // Sign out directly without redirecting
       await supabase.auth.signOut({ scope: "global" });
       if (redirect) {
-        router.push("/login");
+        router.push(appPath("/login"));
       }
     } catch (err) {
       console.error("Error during logout:", err);
       // Don't show error to user for logout, just continue
       if (redirect) {
-        router.push("/login");
+        router.push(appPath("/login"));
       }
     } finally {
       setSigningOut(false);

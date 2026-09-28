@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The launch field in dark mode.
+
+      Android picks this over values/splash.xml whenever the system is in dark
+      mode, so the launch follows the device instead of flashing a white screen at
+      someone who has asked every app not to. The value is the same gray-900 the
+      app paints its own dark surfaces and status bar with — see
+      STATUS_BAR_BACKGROUND in src/components/native/NativeShell.tsx — so the
+      native splash, the web splash and the first screen are one continuous
+      surface.
+
+      The orange launcher mark drawn on top reads clearly on both fields, which is
+      why one icon serves both themes.
+    -->
+    <color name="splashBackground">#111827</color>
+</resources>

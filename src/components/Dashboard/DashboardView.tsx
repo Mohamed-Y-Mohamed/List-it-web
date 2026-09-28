@@ -20,6 +20,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
 } from "recharts";
 import {
@@ -27,8 +28,6 @@ import {
   Clock,
   BarChart3,
   ListTodo,
-  TrendingUp,
-  TrendingDown,
   Target,
   Activity,
   Plus,
@@ -90,82 +89,91 @@ const safeCalculatePercentage = (
 };
 
 // Loading skeleton component
+// Mirrors the real tile's geometry — same columns, padding and block sizes — so
+// the layout does not jump when the figures arrive.
 const StatsSkeleton: React.FC<{ isDark: boolean }> = ({ isDark }) => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+  <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
     {[1, 2, 3, 4].map((i) => (
       <div
         key={i}
-        className={`p-4 md:p-6 rounded-xl ${isDark ? "bg-gray-800/50" : "bg-white/50"} shadow-sm animate-pulse`}
+        className={`animate-pulse rounded-2xl p-4 md:p-5 ${
+          isDark
+            ? "bg-gray-800/50 ring-1 ring-white/5"
+            : "bg-white/70 ring-1 ring-black/5"
+        }`}
       >
-        <div className="flex items-center justify-between mb-3">
-          <div
-            className={`h-10 w-10 rounded-lg ${isDark ? "bg-gray-700" : "bg-gray-200"}`}
-          ></div>
-          <div
-            className={`h-6 w-12 rounded ${isDark ? "bg-gray-700" : "bg-gray-200"}`}
-          ></div>
-        </div>
         <div
-          className={`h-4 w-20 rounded ${isDark ? "bg-gray-700" : "bg-gray-200"} mb-2`}
+          className={`mb-3 h-9 w-9 rounded-[10px] ${isDark ? "bg-gray-700" : "bg-gray-200"}`}
         ></div>
         <div
-          className={`h-8 w-16 rounded ${isDark ? "bg-gray-700" : "bg-gray-200"}`}
+          className={`h-7 w-14 rounded ${isDark ? "bg-gray-700" : "bg-gray-200"}`}
+        ></div>
+        <div
+          className={`mt-2 h-3.5 w-20 rounded ${isDark ? "bg-gray-700" : "bg-gray-200"}`}
         ></div>
       </div>
     ))}
   </div>
 );
 
-// Stats card component
+/**
+ * A single headline figure.
+ *
+ * There is no chart here on purpose: one number answering one question is a stat
+ * tile, and wrapping it in a plot would add ink without adding meaning.
+ *
+ * The figure leads and the label sits under it — the number is what the reader
+ * came for. The icon is a tinted glyph rather than a white one on a solid block:
+ * at four-across on a phone, solid blocks turn the row into a colour chart and
+ * pull the eye away from the figures.
+ *
+ * Deliberately no trend indicator. There was one, and the percentages in it were
+ * invented — `completionRate > 50 ? 5 : -5` and `overdue > 0 ? -10 : 0`, rendered
+ * with an up or down arrow as though they were measured. Nothing in the data
+ * supports a period-on-period comparison, so the honest version shows none.
+ */
 const StatsCard: React.FC<{
   title: string;
   value: number;
   icon: React.ElementType;
-  color: string;
+  /** Tailwind text colour for the glyph, e.g. "text-blue-500". */
+  tone: string;
+  /** Matching tint for the glyph's backing tile, e.g. "bg-blue-500/10". */
+  tint: string;
   isDark: boolean;
-  trend?: number;
   suffix?: string;
-}> = ({ title, value, icon, color, isDark, trend, suffix = "" }) => {
+}> = ({ title, value, icon, tone, tint, isDark, suffix = "" }) => {
   const Icon = icon;
-  const hasTrend = trend !== undefined && trend !== 0;
-  const isPositiveTrend = trend && trend > 0;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className={`p-4 md:p-6 rounded-xl ${isDark ? "bg-gray-800/50" : "bg-white/50"} 
-        shadow-sm hover:shadow-md transition-all duration-200`}
+      transition={{ duration: 0.35 }}
+      className={`rounded-2xl p-4 md:p-5 ${
+        isDark
+          ? "bg-gray-800/50 ring-1 ring-white/5"
+          : "bg-white/70 ring-1 ring-black/5"
+      }`}
     >
-      <div className="flex items-center justify-between mb-3">
-        <div className={`p-2 md:p-3 rounded-lg ${color}`}>
-          <Icon className="h-5 w-5 md:h-6 md:w-6 text-white" />
-        </div>
-        {hasTrend && (
-          <div
-            className={`flex items-center text-xs md:text-sm ${
-              isPositiveTrend ? "text-green-500" : "text-red-500"
-            }`}
-          >
-            {isPositiveTrend ? (
-              <TrendingUp className="h-3 w-3 md:h-4 md:w-4 mr-1" />
-            ) : (
-              <TrendingDown className="h-3 w-3 md:h-4 md:w-4 mr-1" />
-            )}
-            {Math.abs(trend)}%
-          </div>
-        )}
-      </div>
-      <h3
-        className={`text-xs md:text-sm font-medium ${isDark ? "text-gray-400" : "text-gray-500"} mb-1`}
+      <div
+        className={`mb-3 flex h-9 w-9 items-center justify-center rounded-[10px] ${tint}`}
       >
-        {title}
-      </h3>
-      <div className="text-2xl md:text-3xl font-bold">
+        <Icon className={`h-[18px] w-[18px] ${tone}`} />
+      </div>
+      {/* Tabular figures so the four tiles line up instead of jittering as the
+          numbers change width. */}
+      <div className="text-[26px] font-bold leading-none tracking-[-0.02em] tabular-nums md:text-[30px]">
         {value}
         {suffix}
       </div>
+      <h3
+        className={`mt-1.5 text-[13px] font-medium ${
+          isDark ? "text-gray-400" : "text-gray-500"
+        }`}
+      >
+        {title}
+      </h3>
     </motion.div>
   );
 };
@@ -254,10 +262,13 @@ const DailyTrendChart: React.FC<{
             fontSize={12}
             tick={{ fontSize: 12 }}
           />
+          {/* Tasks are whole things. Without this the axis offered 0.25 and 0.75
+              of a task on any day where the count was 1. */}
           <YAxis
             stroke={isDark ? "#9ca3af" : "#6b7280"}
             fontSize={12}
             tick={{ fontSize: 12 }}
+            allowDecimals={false}
           />
           <Tooltip
             contentStyle={{
@@ -267,22 +278,37 @@ const DailyTrendChart: React.FC<{
               boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
             }}
           />
+          {/* Two series, so the legend is not optional — identity must not rest
+              on colour alone. */}
+          <Legend
+            verticalAlign="top"
+            align="left"
+            height={28}
+            iconType="plainline"
+            wrapperStyle={{ fontSize: 12, paddingBottom: 8 }}
+          />
+          {/* `linear`, not `monotone`. A spline through daily counts bulges
+              between the points it is drawn from — with a single day's activity
+              it rendered a smooth bell implying work spread over three days that
+              never happened. Straight segments claim only what was measured. */}
           <Area
-            type="monotone"
+            type="linear"
             dataKey="completed"
             stroke="#10b981"
             fillOpacity={1}
             fill="url(#completedGradient)"
             strokeWidth={2}
+            dot={{ r: 3, strokeWidth: 0, fill: "#10b981" }}
             name="Completed"
           />
           <Area
-            type="monotone"
+            type="linear"
             dataKey="created"
             stroke="#3b82f6"
             fillOpacity={1}
             fill="url(#createdGradient)"
             strokeWidth={2}
+            dot={{ r: 3, strokeWidth: 0, fill: "#3b82f6" }}
             name="Created"
           />
         </AreaChart>
@@ -732,7 +758,13 @@ const NewUserWelcome: React.FC<{ isDark: boolean }> = ({ isDark }) => {
   );
 };
 
-export default function DashboardView() {
+/**
+ * @param heading What the screen calls itself. Defaults to "Dashboard", which is
+ *   what the web has always served it as. The Android app reaches the same screen
+ *   from a tab labelled "Progress", and a tab and a heading disagreeing about the
+ *   name of the screen you are looking at reads as a bug.
+ */
+export default function DashboardView({ heading = "Dashboard" }: { heading?: string } = {}) {
   const { theme } = useTheme();
   const { user } = useAuth();
   const isDark = theme === "dark";
@@ -1118,7 +1150,7 @@ export default function DashboardView() {
           <h1
             className={`text-2xl md:text-3xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}
           >
-            Dashboard
+            {heading}
           </h1>
           <p
             className={`text-sm md:text-base mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}
@@ -1172,38 +1204,42 @@ export default function DashboardView() {
               {isLoading ? (
                 <StatsSkeleton isDark={isDark} />
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                // Two across on a phone, not one. Each tile carries a single
+                // number, so a full-width row per figure meant four screens of
+                // scrolling to read four integers.
+                <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
                   <StatsCard
-                    title="Total Tasks"
+                    title="Total tasks"
                     value={stats.total}
                     icon={ListTodo}
-                    color="bg-blue-500"
+                    tone="text-blue-500"
+                    tint="bg-blue-500/10"
                     isDark={isDark}
                   />
                   <StatsCard
                     title="Completed"
                     value={stats.completed}
                     icon={CheckCircle}
-                    color="bg-green-500"
+                    tone="text-green-500"
+                    tint="bg-green-500/10"
                     isDark={isDark}
-                    trend={stats.todayCompleted > 0 ? 10 : undefined}
                   />
                   <StatsCard
-                    title="Completion Rate"
+                    title="Completion rate"
                     value={Math.round(stats.completionRate)}
                     icon={Target}
-                    color="bg-purple-500"
+                    tone="text-purple-500"
+                    tint="bg-purple-500/10"
                     isDark={isDark}
                     suffix="%"
-                    trend={stats.completionRate > 50 ? 5 : -5}
                   />
                   <StatsCard
                     title="Overdue"
                     value={stats.overdue}
                     icon={CircleAlert}
-                    color="bg-red-500"
+                    tone="text-red-500"
+                    tint="bg-red-500/10"
                     isDark={isDark}
-                    trend={stats.overdue > 0 ? -10 : 0}
                   />
                 </div>
               )}
@@ -1281,4 +1317,4 @@ export default function DashboardView() {
     </main>
   );
 }
-
+

@@ -18,12 +18,18 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
+import { useImmersiveNative } from "@/hooks/useImmersiveNative";
+import { appPath } from "@/lib/routes";
 
 const Signup = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const router = useRouter();
   const { signup, resendVerificationEmail } = useAuth();
+
+  // Let the gradient fill the whole device window instead of being framed by the
+  // status-bar and gesture-pill bands. Matches the sign-in screen.
+  useImmersiveNative();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -110,7 +116,7 @@ const Signup = () => {
         // User was auto-confirmed (rare case)
         setSuccess("Account created successfully! Redirecting to dashboard...");
         setTimeout(() => {
-          router.push("/dashboard");
+          router.push(appPath("/dashboard"));
         }, 1500);
       }
     } catch (err: unknown) {
@@ -164,7 +170,16 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen w-full relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div
+      className="min-h-screen w-full relative flex items-center justify-center px-4 sm:px-6 lg:px-8"
+      // Replaces py-12. env() resolves to 0 in a browser, so max() gives the web
+      // exactly the 3rem it had; on the device it grows to clear the status bar
+      // and the gesture pill while the gradient behind still runs edge to edge.
+      style={{
+        paddingTop: "max(3rem, env(safe-area-inset-top, 0px))",
+        paddingBottom: "max(3rem, env(safe-area-inset-bottom, 0px))",
+      }}
+    >
       {/*  background */}
       {isDark ? (
         <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0b0a10_20%,#151419_40%,#0e0d12_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(88,28,135,0.14)_0%,transparent_62%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(124,58,237,0.08)_0%,transparent_52%)] before:content-[''] after:content-['']" />
@@ -305,13 +320,20 @@ const Signup = () => {
               transition={{ duration: 0.6 }}
               className="md:hidden mb-8 flex items-center justify-center"
             >
+              {/* The real app mark, matching the login screen and the launcher
+                  icon, rather than a stand-in glyph. */}
               <motion.div
                 whileHover={{ scale: 1.1, rotate: 5 }}
-                className={`w-12 h-12 rounded-xl flex items-center justify-center mr-3 shadow-lg ${
-                  isDark ? "bg-orange-600" : "bg-orange-500"
-                }`}
+                className="mr-3 h-12 w-12 overflow-hidden rounded-xl shadow-lg"
               >
-                <ListTodo className="h-6 w-6 text-white" />
+                <Image
+                  src="/android-chrome-512x512.png"
+                  alt=""
+                  width={48}
+                  height={48}
+                  priority
+                  className="h-full w-full object-cover"
+                />
               </motion.div>
               <span
                 className={`text-2xl font-bold ${

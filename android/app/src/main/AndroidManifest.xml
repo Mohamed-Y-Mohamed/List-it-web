@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!--
       allowBackup is off deliberately. The signed-in session is held in the
       WebView's localStorage, and Android's auto-backup would copy it to the
@@ -42,4 +43,36 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+      Android 13+ requires an explicit grant to post notifications. This is the
+      only runtime permission the app asks for: INTERNET is granted at install
+      time and the exact-alarm pair below is removed outright.
+
+      Asked for on the last screen of the first-run intro, after a plain-English
+      explanation of what gets sent and how often. The system dialog only appears
+      if the user agrees to that screen, which matters because Android stops
+      showing it after two refusals — a cold prompt is how an app loses the
+      permission permanently. Anyone who picks "Not now" is asked again by the
+      lazy check in src/lib/notifications.ts, the first time a reminder actually
+      needs scheduling.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      The local-notifications plugin declares the exact-alarm permissions by
+      default. Both are dropped here.
+
+      SCHEDULE_EXACT_ALARM sends the user into system Settings to grant "Alarms &
+      reminders", and Play restricts it to alarm clocks and calendars — a to-do
+      reminder is unlikely to qualify and shipping it invites a policy rejection.
+      A "this is due today" nudge does not need to land on the second, so the
+      reminder is scheduled inexactly instead and neither permission is needed.
+    -->
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.USE_EXACT_ALARM"
+        tools:node="remove" />
 </manifest>

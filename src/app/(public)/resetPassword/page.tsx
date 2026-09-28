@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/client";
+import { appPath } from "@/lib/routes";
 
 const ResetPasswordPage = () => {
   const { theme } = useTheme();
@@ -45,11 +46,11 @@ const ResetPasswordPage = () => {
     setLoggingOut(true);
     try {
       await logout();
-      router.push("/login");
+      router.push(appPath("/login"));
     } catch (err) {
       console.error("Error during logout:", err);
       // Continue anyway - don't block user flow
-      router.push("/login");
+      router.push(appPath("/login"));
     } finally {
       setLoggingOut(false);
     }
@@ -74,7 +75,7 @@ const ResetPasswordPage = () => {
             logoutError
           );
         }
-        router.push("/login?password_reset=success");
+        router.push(appPath("/login?password_reset=success"));
       };
 
       performLogoutAndRedirect();
@@ -156,7 +157,7 @@ const ResetPasswordPage = () => {
             console.error("Error during logout after reset:", logoutErr);
           });
 
-          router.push("/login?password_reset=success");
+          router.push(appPath("/login?password_reset=success"));
         }
       }, 1000);
     } catch (err: unknown) {
@@ -570,7 +571,7 @@ const ResetPasswordPage = () => {
                         } catch (logoutError) {
                           console.error("Error during logout:", logoutError);
                         }
-                        router.push("/login?password_reset=success");
+                        router.push(appPath("/login?password_reset=success"));
                       }}
                       className={`mt-4 px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
                         isDark

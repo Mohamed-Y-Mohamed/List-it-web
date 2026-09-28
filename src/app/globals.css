@@ -22,6 +22,21 @@
      sticky footers can lift clear of it. Always 0 on the web. */
   --keyboard-offset: 0px;
 
+  /* Launch screen colours.
+
+     Deliberately driven by the media query below rather than by ThemeContext or
+     the `.dark` class: both of those are only applied in an effect after mount,
+     so a dark-mode launch would paint white for a frame and then correct itself —
+     the exact flicker the splash exists to prevent. These resolve on the first
+     paint with no JavaScript.
+
+     The values match @color/splashBackground and its values-night counterpart, so
+     the native splash and the web splash that replaces it are the same field and
+     the hand-off is invisible. */
+  --splash-bg: #ffffff;
+  --splash-fg: #111827;
+  --splash-muted: #6b7280;
+
   /* Motion curves. The browser's built-in easings are too weak to read as
      deliberate, so these are the stronger equivalents used throughout. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -30,11 +45,30 @@
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* The system setting is what the native launch theme reads, so the web splash
+   reads the same thing and the two fields are identical. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --splash-bg: #111827;
+    --splash-fg: #ffffff;
+    --splash-muted: #9ca3af;
+  }
+}
+
 /* The minimum comfortable hit area on a touch screen, per Apple's HIG and
    Material's equivalent guidance. Applied to native-only controls. */
 @utility touch-target {
   min-height: 44px;
   min-width: 44px;
+}
+
+/* Clearance for the fixed bottom tab bar, applied by the three screens it sits
+   over. The bar is 56px tall plus the gesture-pill inset it pads itself with,
+   and being fixed it takes up no space in the document — so without this the
+   last row of a list sits underneath it. Keep in step with TAB_BAR_HEIGHT_PX in
+   NativeTabBar.tsx. */
+@utility pb-tab-bar {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ---------------------------------------------------------------------------
@@ -87,9 +121,32 @@ html.capacitor-native::before {
 }
 
 /* Clear of the gesture pill. This one is safe as padding — it is the end of the
-   document, so nothing scrolls past it. */
+   document, so nothing scrolls past it.
+
+   Screens that pin something to the bottom edge opt out: a fixed element is
+   positioned against the viewport, not the body's padding box, so the tab bar
+   pads itself with pb-safe-bottom instead and fills this band with its own
+   surface. */
 html.capacitor-native body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Full-bleed surfaces: sign-in, sign-up.
+
+   These paint a gradient across the whole window, and the two bands the app
+   normally reserves for the system bars cut it into strips — a plain rectangle
+   above the card and another below it, in a colour the page never uses. Here the
+   page owns every pixel instead and insets its own content, so the gradient runs
+   edge to edge while the card still clears the clock and the gesture pill.
+
+   Applied by useImmersiveNative, which adds the class for as long as such a
+   screen is mounted. */
+html.capacitor-native.native-immersive::before {
+  display: none;
+}
+
+html.capacitor-native.native-immersive body {
+  padding-bottom: 0;
 }
 
 html.capacitor-native body {

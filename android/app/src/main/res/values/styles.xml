@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Base application theme. -->
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
@@ -13,6 +13,27 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+
+        <!--
+          Both system bars are transparent so the WebView is what fills those
+          bands, not the platform.
+
+          Measured before this change: a 77px strip of #FAFAFA sat under the tab
+          bar, and matching strips framed the sign-in screen. That was the
+          window's own navigationBarColor being painted over the WebView, which
+          is why the bar looked like it stopped short of the bottom of the screen
+          and why the auth screens had grey edges their own background never drew.
+
+          With these transparent, the CSS owns every pixel: globals.css paints the
+          status-bar band, and the tab bar's pb-safe-bottom now reaches the
+          bottom of the display. The contrast-enforcement flags are the other
+          half — left on, Android draws its own translucent scrim over a
+          transparent bar and the strip comes back in a lighter shade.
+        -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:enforceStatusBarContrast" tools:targetApi="29">false</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
     </style>
 
     <!--
@@ -21,17 +42,28 @@
       Android 12 replaced the old "draw a full-screen image" splash with the
       system SplashScreen API, which ignores android:background and instead
       composes windowSplashScreenBackground with the app icon. Pointing that at
-      the same indigo the web splash uses makes the hand-off continuous: the
-      system paints the brand colour, then SplashScreen.tsx animates the logo and
-      wordmark in on an identical field, so the two read as one screen coming to
+      the same colour the web splash uses makes the hand-off continuous: the
+      system paints the field, then SplashScreen.tsx animates the logo and
+      wordmark in on an identical one, so the two read as one screen coming to
       life rather than two screens swapping.
+
+      @color/splashBackground has a values-night counterpart, so both the field
+      here and the web splash that follows it track the system theme.
     -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splashBackground</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
         <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
 
-        <!-- Android 11 and below still use the legacy full-screen drawable. -->
-        <item name="android:background">@drawable/splash</item>
+        <!--
+          The Android 11 and below fallback. This was @drawable/splash — a PNG with
+          the old indigo field baked into it, which no day/night qualifier can
+          recolour and which would have left older devices on the previous look.
+          A flat colour cannot go stale, and androidx's SplashScreen compat draws
+          windowSplashScreenAnimatedIcon over it on these versions anyway, so the
+          mark still appears. The now-unreferenced splash PNGs are dropped from the
+          release build by the resource shrinker.
+        -->
+        <item name="android:background">@color/splashBackground</item>
     </style>
 </resources>
