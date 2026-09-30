@@ -16,6 +16,7 @@ import { formatDetailDate } from "@/utils/dateUtils";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
+import { IS_NATIVE_BUILD } from "@/lib/platform";
 
 interface TaskSidebarProps {
   isOpen: boolean;
@@ -572,7 +573,11 @@ const TaskSidebar = ({
     >
       <div
         ref={sidebarRef}
-        className={`w-full max-w-md overflow-auto shadow-xl text-white ${isDark ? "bg-black/50" : "bg-gray-600/50"}`}
+        /* pb-sheet-safe keeps the Delete Task button at the bottom of this panel
+           clear of the Android navigation bar and of the keyboard. Native only: on
+           the web this sits in a browser viewport with neither, so it keeps the
+           form's own padding and nothing changes. */
+        className={`w-full max-w-md overflow-auto shadow-xl text-white ${isDark ? "bg-black/50" : "bg-gray-600/50"} ${IS_NATIVE_BUILD ? "pb-sheet-safe" : ""}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

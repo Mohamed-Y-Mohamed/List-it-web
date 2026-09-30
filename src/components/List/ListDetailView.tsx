@@ -14,7 +14,9 @@ import CreateNoteModal from "@/components/popupModels/notepopup";
 import DeleteCollectionModal from "@/components/popupModels/deleteCollectionModal";
 import EditCollectionPopup from "@/components/popupModels/EditCollectionPopup";
 import { apiFetch } from "@/lib/apiFetch";
+import { IS_NATIVE_BUILD } from "@/lib/platform";
 import { useSetScreenTitle } from "@/components/native/ScreenTitleContext";
+import { useOptionalAppData } from "@/components/native/AppDataProvider";
 
 // Format date to yyyy-MM-dd'T'HH:mm:ss
 const formatDateForPostgres = (date: Date): string => {
@@ -85,10 +87,19 @@ export default function ListDetailView({ listId }: { listId: string }) {
   // Add a refresh trigger to force re-fetch of data
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // The shared native cache, or null on the web where no provider is mounted.
+  // Declared up here because refreshData below closes over it.
+  const appData = useOptionalAppData();
+
   // Function to trigger a data refresh
   const refreshData = useCallback(() => {
     setRefreshTrigger((prev) => prev + 1);
-  }, []);
+    // On native, a change made on this screen also changes what the Lists tab
+    // shows — the "3 tasks · 1 note" caption under each card is computed from the
+    // same cached rows. Without this the home screen would keep showing the counts
+    // from before the edit until the next resume.
+    void appData?.refresh();
+  }, [appData]);
 
   // Function to check if a collection name is "General"
   const isGeneralCollection = useCallback(
@@ -113,8 +124,148 @@ export default function ListDetailView({ listId }: { listId: string }) {
     return collections.length > 0 ? collections[0].id : null;
   }, [collections, isGeneralCollection]);
 
+  // ---------------------------------------------------------------------------
+  // Native data path
+  //
+  // The web effect below is a serial N+1: list, then collections, then a `for`
+  // loop awaiting a tasks request and a notes request per collection. That is
+  // `2 + 2N` requests in series — ten sequential round trips for a list with four
+  // collections, each costing two upstream calls because requireAuth verifies the
+  // JWT with Supabase Auth on every request. And `setIsLoading(false)` only runs
+  // in the `finally`, so one pulsing line of text covers the entire cascade.
+  //
+  // Native replaces all `2N` of those with **none**. AppDataProvider already holds
+  // every open task and live note for the user, fetched once at launch, and the
+  // filters are identical (`is_deleted=false`, `is_completed=false`) — so this
+  // screen's rows are already in memory and only need grouping by `collection_id`.
+  // What is left is the list row and its collections, fetched in parallel.
+  //
+  // First open: 2 parallel requests. Return visit: 2, with no spinner, because the
+  // collections are cached and paint immediately while they revalidate.
+  //
+  // `appData` is null off-native, where no provider is mounted, so the web arm is
+  // entirely unaffected.
+  const cachedLists = appData?.lists;
+  const cachedTasks = appData?.tasks;
+  const cachedNotes = appData?.notes;
+  const getCachedCollections = appData?.getCollections;
+  const putCachedCollections = appData?.putCollections;
+
+  // Pinned first, then newest. Both task and note lists were sorted this way by
+  // two identical inline comparators in the web path.
+  const sortRows = useCallback(
+    <T extends { is_pinned: boolean | null; created_at: Date | string }>(
+      rows: T[]
+    ): T[] =>
+      [...rows].sort((a, b) => {
+        if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      }),
+    []
+  );
+
+  // Native: derive what is on screen from the cache. No requests at all.
+  useEffect(() => {
+    if (!IS_NATIVE_BUILD || !appData) return;
+    if (!listId) return;
+
+    const list = cachedLists?.find((item) => item.id === listId);
+    if (list) setListData(list);
+
+    const raw = getCachedCollections?.(listId);
+    if (!raw) return;
+
+    setCollections(
+      raw.map((collection) => ({
+        ...collection,
+        tasks: sortRows(
+          (cachedTasks ?? []).filter((t) => t.collection_id === collection.id)
+        ),
+        notes: sortRows(
+          (cachedNotes ?? []).filter((n) => n.collection_id === collection.id)
+        ),
+        isPinned: false,
+        is_default: isGeneralCollection(collection.collection_name),
+      })) as Collection[]
+    );
+    setError(null);
+    setIsLoading(false);
+  }, [
+    appData,
+    listId,
+    cachedLists,
+    cachedTasks,
+    cachedNotes,
+    getCachedCollections,
+    sortRows,
+    isGeneralCollection,
+  ]);
+
+  // Native: keep the list row and its collections fresh. Two requests, parallel.
+  useEffect(() => {
+    if (!IS_NATIVE_BUILD || !appData) return;
+    if (!listId || !user) {
+      setIsLoading(false);
+      setError("List ID or user not available");
+      return;
+    }
+
+    let cancelled = false;
+
+    // Only show a spinner when there is genuinely nothing to show. On a return
+    // visit the cached collections are already painted, and replacing them with a
+    // loading state would be a step backwards.
+    if (!getCachedCollections?.(listId)) setIsLoading(true);
+
+    (async () => {
+      try {
+        const [listRes, collectionsRes] = await Promise.all([
+          apiFetch(`/api/lists?id=${listId}`),
+          apiFetch(`/api/collections?list_id=${listId}`),
+        ]);
+
+        if (cancelled) return;
+
+        if (!listRes.ok) throw new Error("Failed to fetch list");
+        const { data: list } = await listRes.json();
+        if (!list) throw new Error("List not found");
+
+        if (!collectionsRes.ok) throw new Error("Failed to fetch collections");
+        const { data: collectionsData } = await collectionsRes.json();
+
+        if (cancelled) return;
+
+        setListData(list as List);
+        setError(null);
+        // Writing to the cache is what re-runs the derive effect above, which is
+        // what actually puts the collections on screen.
+        putCachedCollections?.(listId, (collectionsData ?? []) as Collection[]);
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Error fetching list data:", err);
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Deliberately not depending on `appData` or the cache getters: this is the
+    // revalidation, and re-running it whenever the cache changes — which the
+    // derive effect above causes — would fetch in a loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listId, user, refreshTrigger]);
+
   // Effect to fetch list data
   useEffect(() => {
+    // Native has its own path above. Everything below this line is the web app's
+    // original behaviour, unchanged.
+    if (IS_NATIVE_BUILD) return;
+
     const fetchListData = async () => {
       if (!listId || !user) {
         setIsLoading(false);

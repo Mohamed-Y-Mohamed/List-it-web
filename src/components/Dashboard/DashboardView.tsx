@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 
 import { useTheme } from "@/context/ThemeContext";
+import { IS_NATIVE_BUILD } from "@/lib/platform";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/client";
 import { motion, AnimatePresence } from "framer-motion";
@@ -764,6 +765,13 @@ const NewUserWelcome: React.FC<{ isDark: boolean }> = ({ isDark }) => {
  *   from a tab labelled "Progress", and a tab and a heading disagreeing about the
  *   name of the screen you are looking at reads as a bug.
  */
+// The secure layout is what is one viewport tall in the native shell, and its own
+// padding lives inside that height. A min-h-screen here as well made the document
+// taller than the screen by the top inset, so these screens scrolled a little past
+// their content and showed the wrapper padding at the end. The web keeps it: there
+// is no such wrapper there, and this is what stops a short page floating.
+const ROOT_MIN_HEIGHT = IS_NATIVE_BUILD ? '' : 'min-h-screen';
+
 export default function DashboardView({ heading = "Dashboard" }: { heading?: string } = {}) {
   const { theme } = useTheme();
   const { user } = useAuth();
@@ -1067,12 +1075,21 @@ export default function DashboardView({ heading = "Dashboard" }: { heading?: str
   if (error.hasError) {
     return (
       <main
-        className={`transition-all pt-16 pr-4 md:pr-16 min-h-screen duration-300 pb-20 w-full relative ${isDark ? "text-gray-200" : "text-gray-800"}`}
+        className={`transition-all pt-16 pr-4 md:pr-16 ${ROOT_MIN_HEIGHT} duration-300 pb-20 w-full relative ${isDark ? "text-gray-200" : "text-gray-800"}`}
       >
+        {/* This screen has three render paths — loading, error and the dashboard
+            itself — and each draws its own background. They have to stay identical,
+            or the backdrop changes colour as the data arrives.
+
+            The loading and error paths used to carry an indigo/purple variant
+            (#1e1b3a, with rgba(99,102,241) and rgba(168,85,247) washes) while the
+            main view used this neutral blue one, so the screen shifted hue the
+            moment it finished loading. All three are the blue set now, which is
+            also what Settings, the list detail screen and the Lists tab use. */}
         {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0f172a_20%,#1e293b_40%,#1e1b3a_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(99,102,241,0.2)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(168,85,247,0.15)_0%,transparent_50%)] before:content-[''] after:content-['']" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0a0c0f_20%,#141619_40%,#0f1114_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.15)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.08)_0%,transparent_50%)] before:content-[''] after:content-['']" />
         ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f8fafc_0%,#f1f5f9_25%,#e2e8f0_50%,#f3f4f6_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(99,102,241,0.08)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(168,85,247,0.06)_0%,transparent_50%)] before:content-[''] after:content-['']" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f8fafc_0%,#f1f5f9_25%,#e2e8f0_50%,#f3f4f6_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.08)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.06)_0%,transparent_50%)] before:content-[''] after:content-['']" />
         )}
         <div className="max-w-7xl pl-4 md:pl-20 w-full mx-auto">
           <div className="text-center py-16">
@@ -1098,12 +1115,12 @@ export default function DashboardView({ heading = "Dashboard" }: { heading?: str
   if (hasNoData) {
     return (
       <main
-        className={`transition-all pt-16 pr-4 md:pr-16 min-h-screen duration-300 pb-20 w-full relative ${isDark ? "text-gray-200" : "text-gray-800"}`}
+        className={`transition-all pt-16 pr-4 md:pr-16 ${ROOT_MIN_HEIGHT} duration-300 pb-20 w-full relative ${isDark ? "text-gray-200" : "text-gray-800"}`}
       >
         {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0f172a_20%,#1e293b_40%,#1e1b3a_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(99,102,241,0.2)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(168,85,247,0.15)_0%,transparent_50%)] before:content-[''] after:content-['']" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0a0c0f_20%,#141619_40%,#0f1114_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.15)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.08)_0%,transparent_50%)] before:content-[''] after:content-['']" />
         ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f8fafc_0%,#f1f5f9_25%,#e2e8f0_50%,#f3f4f6_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(99,102,241,0.08)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(168,85,247,0.06)_0%,transparent_50%)] before:content-[''] after:content-['']" />
+          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f8fafc_0%,#f1f5f9_25%,#e2e8f0_50%,#f3f4f6_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.08)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.06)_0%,transparent_50%)] before:content-[''] after:content-['']" />
         )}
         <div className="max-w-7xl pl-4 md:pl-20 w-full mx-auto">
           <motion.header
@@ -1131,7 +1148,7 @@ export default function DashboardView({ heading = "Dashboard" }: { heading?: str
 
   return (
     <main
-      className={`transition-all pt-16 pr-4 md:pr-16 min-h-screen duration-300 pb-20 w-full relative ${isDark ? "text-gray-200" : "text-gray-800"}`}
+      className={`transition-all pt-16 pr-4 md:pr-16 ${ROOT_MIN_HEIGHT} duration-300 pb-20 w-full relative ${isDark ? "text-gray-200" : "text-gray-800"}`}
     >
       {isDark ? (
         <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0a0c0f_20%,#141619_40%,#0f1114_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.15)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.08)_0%,transparent_50%)] before:content-[''] after:content-['']" />

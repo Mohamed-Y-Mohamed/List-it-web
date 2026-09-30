@@ -17,6 +17,7 @@ import {
 import { format, isToday, isYesterday } from "date-fns";
 
 import { DisplayTask as BaseDisplayTask } from "@/types/schema";
+import AnimatedCounter from "@/components/Tasks/AnimatedCounter";
 
 // Extend the shared DisplayTask with page-specific optional fields
 interface DisplayTask extends BaseDisplayTask {
@@ -30,39 +31,6 @@ interface GroupedDate {
 }
 
 // Animated counter component
-const AnimatedCounter: React.FC<{
-  value: number;
-  duration?: number;
-  suffix?: string;
-}> = ({ value, duration = 1000, suffix = "" }) => {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    let startTime: number;
-    const startValue = 0;
-    const endValue = value;
-
-    const animate = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const progress = Math.min((timestamp - startTime) / duration, 1);
-      const current = startValue + (endValue - startValue) * progress;
-      setCount(Math.floor(current));
-
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      }
-    };
-
-    requestAnimationFrame(animate);
-  }, [value, duration]);
-
-  return (
-    <span>
-      {count}
-      {suffix}
-    </span>
-  );
-};
 
 // Progress color function based on completion percentage
 const getProgressColor = (percentage: number) => {

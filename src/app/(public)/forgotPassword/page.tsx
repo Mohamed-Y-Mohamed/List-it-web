@@ -11,6 +11,17 @@ import {
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
+import { useIsNative } from "@/hooks/useIsNative";
+import {
+  AUTH_CARD,
+  AUTH_FIELD,
+  AUTH_INPUT,
+  AUTH_INPUT_DARK,
+  AUTH_INPUT_LIGHT,
+  AUTH_PANEL,
+  AUTH_PRIMARY_BUTTON,
+  AUTH_SCROLL_PADDING,
+} from "@/components/native/authStyles";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/client";
@@ -19,6 +30,10 @@ import { appPath } from "@/lib/routes";
 const ForgotPasswordPage: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+
+  // Presentation only: picks which set of class names the markup below uses.
+  // Every field, handler, validation rule and route here is unchanged.
+  const isNative = useIsNative();
   const { resetPassword } = useAuth();
   const router = useRouter();
 
@@ -150,14 +165,24 @@ const ForgotPasswordPage: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      {/*  background */}
-      {isDark ? (
+      {/* Background.
+          On native the app's own launch field replaces the gradient, so the
+          splash and intro hand over to this screen with no visible change of
+          surface. The gradients and blur blobs below are web-only. */}
+      {isNative ? (
+        <div className={`absolute inset-0 -z-10 size-full ${AUTH_FIELD}`} />
+      ) : isDark ? (
         <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.15)_0%,transparent_50%)] before:content-['']" />
       ) : (
         <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.08)_0%,transparent_70%)] before:content-['']" />
       )}
 
-      {/* Floating elements */}
+      {/* Floating elements. Two infinitely animating blurs belonging to the
+          marketing gradient they sit on. Off-native there is nothing for them
+          to float over, and a permanently running animation on a phone is
+          battery spent on decoration. */}
+      {!isNative && (
+        <>
       <motion.div
         animate={{
           y: [0, -20, 0],
@@ -182,18 +207,27 @@ const ForgotPasswordPage: React.FC = () => {
         }}
         className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"
       />
+        </>
+      )}
 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.8 }}
-        className={`max-w-md w-full mx-auto rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl border ${
-          isDark
-            ? "bg-gray-800/40 border-gray-700/30 shadow-gray-900/20"
-            : "bg-white/40 border-gray-300/30 shadow-gray-300/20"
-        }`}
+        className={
+          isNative
+            ? AUTH_CARD
+            : `max-w-md w-full mx-auto rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl border ${
+                isDark
+                  ? "bg-gray-800/40 border-gray-700/30 shadow-gray-900/20"
+                  : "bg-white/40 border-gray-300/30 shadow-gray-300/20"
+              }`
+        }
       >
-        <div className="p-8 md:p-12">
+        <div
+          className={isNative ? AUTH_PANEL : "p-8 md:p-12"}
+          style={isNative ? { paddingBottom: AUTH_SCROLL_PADDING } : undefined}
+        >
           {/* Logo and branding */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -352,11 +386,15 @@ const ForgotPasswordPage: React.FC = () => {
                     name="email"
                     id="email"
                     autoComplete="email"
-                    className={`w-full pl-10 pr-3 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
-                      isDark
-                        ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-blue-400 focus:bg-gray-700/70"
-                        : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-blue-500 focus:bg-white/70"
-                    } border focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm`}
+                    className={
+                      isNative
+                        ? `${AUTH_INPUT} ${isDark ? AUTH_INPUT_DARK : AUTH_INPUT_LIGHT}`
+                        : `w-full pl-10 pr-3 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
+                            isDark
+                              ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-blue-400 focus:bg-gray-700/70"
+                              : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-blue-500 focus:bg-white/70"
+                          } border focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm`
+                    }
                     placeholder="Email Address"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -370,11 +408,15 @@ const ForgotPasswordPage: React.FC = () => {
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={loading || waitTime > 0 || signingOut}
-                  className={`w-full font-semibold py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center backdrop-blur-sm shadow-lg ${
-                    isDark
-                      ? "bg-blue-600/80 hover:bg-blue-700/80 text-white border border-blue-500/30"
-                      : "bg-blue-500/80 hover:bg-blue-600/80 text-white border border-blue-400/30"
-                  } ${loading || waitTime > 0 || signingOut ? "opacity-70 cursor-not-allowed" : "hover:shadow-xl"}`}
+                  className={
+                    isNative
+                      ? AUTH_PRIMARY_BUTTON
+                      : `w-full font-semibold py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center backdrop-blur-sm shadow-lg ${
+                          isDark
+                            ? "bg-blue-600/80 hover:bg-blue-700/80 text-white border border-blue-500/30"
+                            : "bg-blue-500/80 hover:bg-blue-600/80 text-white border border-blue-400/30"
+                        } ${loading || waitTime > 0 || signingOut ? "opacity-70 cursor-not-allowed" : "hover:shadow-xl"}`
+                  }
                 >
                   {loading || signingOut ? (
                     <motion.div

@@ -20,6 +20,17 @@ import { useAuth } from "@/context/AuthContext";
 import { useIsNative } from "@/hooks/useIsNative";
 import { useImmersiveNative } from "@/hooks/useImmersiveNative";
 import { appPath } from "@/lib/routes";
+import {
+  AUTH_CARD,
+  AUTH_FIELD,
+  AUTH_INPUT,
+  AUTH_INPUT_DARK,
+  AUTH_INPUT_LIGHT,
+  AUTH_LINK,
+  AUTH_PANEL,
+  AUTH_PRIMARY_BUTTON,
+  AUTH_SCROLL_PADDING,
+} from "@/components/native/authStyles";
 
 // Inner component that uses useSearchParams
 function LoginWithSearchParams() {
@@ -236,14 +247,24 @@ function LoginWithSearchParams() {
         paddingBottom: "max(3rem, env(safe-area-inset-bottom, 0px))",
       }}
     >
-      {/*  background */}
-      {isDark ? (
+      {/* Background.
+          On native the app's own launch field replaces the gradient, so the
+          splash hands over to this screen with no visible change of surface.
+          The two gradient variants and both blur blobs below are web-only. */}
+      {isNative ? (
+        <div className={`absolute inset-0 -z-10 size-full ${AUTH_FIELD}`} />
+      ) : isDark ? (
         <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#020617_0%,#0f172a_20%,#1e293b_40%,#0f1629_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(37,99,235,0.2)_0%,transparent_58%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(96,165,250,0.12)_0%,transparent_48%)] before:content-[''] after:content-['']" />
       ) : (
         <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f0f9ff_0%,#e0f2fe_25%,#bae6fd_50%,#e0f2fe_75%,#f8fafc_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.12)_0%,transparent_55%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.08)_0%,transparent_45%)] before:content-[''] after:content-['']" />
       )}
 
-      {/* Floating elements */}
+      {/* Floating elements. Two infinitely animating blurs that belong to the
+          marketing gradient they sit on. Off-native there is nothing for them to
+          float over, and a permanently running animation on a phone is battery
+          spent on decoration. */}
+      {!isNative && (
+        <>
       <motion.div
         animate={{
           y: [0, -20, 0],
@@ -268,23 +289,32 @@ function LoginWithSearchParams() {
         }}
         className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl"
       />
+        </>
+      )}
 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.8 }}
-        className={`max-w-6xl w-full mx-auto rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row backdrop-blur-xl border ${
-          isDark
-            ? "bg-gray-800/40 border-gray-700/30 shadow-gray-900/20"
-            : "bg-white/40 border-gray-300/30 shadow-gray-300/20"
-        }`}
+        className={
+          isNative
+            ? AUTH_CARD
+            : `max-w-6xl w-full mx-auto rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row backdrop-blur-xl border ${
+                isDark
+                  ? "bg-gray-800/40 border-gray-700/30 shadow-gray-900/20"
+                  : "bg-white/40 border-gray-300/30 shadow-gray-300/20"
+              }`
+        }
       >
         {/* Left Panel - Form */}
         <motion.div
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="md:w-1/2 p-8 md:p-12 backdrop-blur-sm"
+          className={
+            isNative ? AUTH_PANEL : "md:w-1/2 p-8 md:p-12 backdrop-blur-sm"
+          }
+          style={isNative ? { paddingBottom: AUTH_SCROLL_PADDING } : undefined}
         >
           <div className="flex flex-col items-center md:items-start">
             {/* Mobile Logo */}
@@ -454,11 +484,15 @@ function LoginWithSearchParams() {
                     aria-hidden="true"
                   />
                   <input
-                    className={`w-full pl-10 pr-3 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
-                      isDark
-                        ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-blue-400 focus:bg-gray-700/70"
-                        : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-blue-500 focus:bg-white/70"
-                    } border focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm`}
+                    className={
+                      isNative
+                        ? `${AUTH_INPUT} ${isDark ? AUTH_INPUT_DARK : AUTH_INPUT_LIGHT}`
+                        : `w-full pl-10 pr-3 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
+                            isDark
+                              ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-blue-400 focus:bg-gray-700/70"
+                              : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-blue-500 focus:bg-white/70"
+                          } border focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm`
+                    }
                     type="email"
                     placeholder="Email"
                     value={email}
@@ -480,11 +514,15 @@ function LoginWithSearchParams() {
                     aria-hidden="true"
                   />
                   <input
-                    className={`w-full pl-10 pr-10 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
-                      isDark
-                        ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-blue-400 focus:bg-gray-700/70"
-                        : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-blue-500 focus:bg-white/70"
-                    } border focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm`}
+                    className={
+                      isNative
+                        ? `${AUTH_INPUT} pr-11 ${isDark ? AUTH_INPUT_DARK : AUTH_INPUT_LIGHT}`
+                        : `w-full pl-10 pr-10 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
+                            isDark
+                              ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-blue-400 focus:bg-gray-700/70"
+                              : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-blue-500 focus:bg-white/70"
+                          } border focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm`
+                    }
                     type={showPassword ? "text" : "password"}
                     placeholder="Password"
                     value={password}
@@ -528,11 +566,15 @@ function LoginWithSearchParams() {
                     whileTap={{ scale: 0.95 }}
                     type="button"
                     onClick={handleForgotPassword}
-                    className={`text-sm font-medium transition-colors ${
-                      isDark
-                        ? "text-blue-400 hover:text-blue-300"
-                        : "text-blue-500 hover:text-blue-600"
-                    }`}
+                    className={
+                      isNative
+                        ? AUTH_LINK
+                        : `text-sm font-medium transition-colors ${
+                            isDark
+                              ? "text-blue-400 hover:text-blue-300"
+                              : "text-blue-500 hover:text-blue-600"
+                          }`
+                    }
                   >
                     Forgot password?
                   </motion.button>
@@ -543,11 +585,15 @@ function LoginWithSearchParams() {
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={loading}
-                  className={`mt-6 w-full font-semibold py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center backdrop-blur-sm shadow-lg ${
-                    isDark
-                      ? "bg-blue-600/80 hover:bg-blue-700/80 text-white border border-blue-500/30"
-                      : "bg-blue-500/80 hover:bg-blue-600/80 text-white border border-blue-400/30"
-                  } ${loading ? "opacity-70 cursor-not-allowed" : "hover:shadow-xl"}`}
+                  className={
+                    isNative
+                      ? AUTH_PRIMARY_BUTTON
+                      : `mt-6 w-full font-semibold py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center backdrop-blur-sm shadow-lg ${
+                          isDark
+                            ? "bg-blue-600/80 hover:bg-blue-700/80 text-white border border-blue-500/30"
+                            : "bg-blue-500/80 hover:bg-blue-600/80 text-white border border-blue-400/30"
+                        } ${loading ? "opacity-70 cursor-not-allowed" : "hover:shadow-xl"}`
+                  }
                 >
                   {loading ? (
                     <motion.div
@@ -575,11 +621,15 @@ function LoginWithSearchParams() {
                   Don&apos;t have an account?{" "}
                   <Link
                     href="/register"
-                    className={`${
-                      isDark
-                        ? "text-blue-400 hover:text-blue-300"
-                        : "text-blue-500 hover:text-blue-600"
-                    } font-bold underline hover:no-underline transition-all duration-200`}
+                    className={
+                      isNative
+                        ? `${AUTH_LINK} font-semibold`
+                        : `${
+                            isDark
+                              ? "text-blue-400 hover:text-blue-300"
+                              : "text-blue-500 hover:text-blue-600"
+                          } font-bold underline hover:no-underline transition-all duration-200`
+                    }
                   >
                     Sign up
                   </Link>

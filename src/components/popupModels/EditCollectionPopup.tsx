@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/client";
 import { Collection } from "@/types/schema";
 import { useAppColors } from "@/hooks/useAppColors";
+import { IS_NATIVE_BUILD } from "@/lib/platform";
 
 // Define a proper result type for submission
 interface SubmissionResult {
@@ -257,10 +258,12 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
         onClick={!isLoading ? onClose : undefined}
         aria-hidden="true"
       />
-      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center pointer-events-none ${IS_NATIVE_BUILD ? "native-dialog-scroll" : ""}`}
+      >
         <div
           ref={modalRef}
-          className={`w-full max-w-md pointer-events-auto p-6 rounded-lg shadow-xl mx-4 ${
+          className={`w-full max-w-md pointer-events-auto p-6 rounded-lg shadow-xl mx-4 ${IS_NATIVE_BUILD ? "my-auto " : ""}${
             isDark ? "bg-gray-800/50" : "bg-white/70"
           }`}
           role="dialog"

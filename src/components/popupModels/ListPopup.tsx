@@ -7,6 +7,8 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/client";
 import { List } from "@/types/schema";
 import { useAppColors } from "@/hooks/useAppColors";
+import { resolveColor } from "@/lib/colors";
+import { IS_NATIVE_BUILD } from "@/lib/platform";
 
 // Define a proper result type for submission
 interface SubmissionResult {
@@ -141,15 +143,20 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
     [error, validateListName]
   );
 
-  // Set initial color from API when colors load and none is pre-selected
-  useEffect(() => {
-    if (isOpen && !colorInitializedRef.current && appColors.length > 0) {
-      setSelectedColor(appColors[0].color_hex);
-      colorInitializedRef.current = true;
-    }
-  }, [isOpen, appColors]);
-
-  // Focus input when modal opens
+  // Reset, then focus, when the modal opens.
+  //
+  // This has to be declared *before* the colour-init effect below. React runs
+  // effects in declaration order, and these two were the other way round: init set
+  // the default colour and flipped the ref, then this one immediately cleared both.
+  // `appColors` never changes afterwards — the palette is fetched once on mount and
+  // this modal is mounted permanently by NativeHome — so init never got a second
+  // chance, and `selectedColor` stayed "" unless the user tapped a swatch.
+  //
+  // The consequence was not cosmetic: the create handler wrote `bg_color_hex: ""`
+  // to the list *and* to the "General" collection it creates alongside it, so every
+  // note later added to that collection inherited an empty colour too.
+  // CollectionPopup has always had these two in the correct order, which is why
+  // collections were unaffected and this went unnoticed.
   useEffect(() => {
     if (isOpen) {
       setListName("");
@@ -161,6 +168,14 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
+
+  // Set initial color from API when colors load and none is pre-selected
+  useEffect(() => {
+    if (isOpen && !colorInitializedRef.current && appColors.length > 0) {
+      setSelectedColor(appColors[0].color_hex);
+      colorInitializedRef.current = true;
+    }
+  }, [isOpen, appColors]);
 
   // Click outside to close
   useEffect(() => {
@@ -242,13 +257,23 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
       // Create a proper Date object with UTC timezone for iOS compatibility
       const createDate = createUTCDate();
 
+      // A valid colour, guaranteed rather than assumed.
+      //
+      // The effect above supplies the palette's first entry as a default, but that
+      // depends on the fetch having resolved — and useAppColors swallows its
+      // errors, so a failed request is indistinguishable from an empty palette.
+      // Submitting in that window wrote "" to both rows below. This makes the
+      // stored value usable in every case, including the one where the palette
+      // never arrives.
+      const listColor = resolveColor(selectedColor);
+
       // Step 1: Create the list
       const { data: insertedList, error: listError } = await supabase
         .from("list")
         .insert([
           {
             list_name: listName.trim(),
-            bg_color_hex: selectedColor,
+            bg_color_hex: listColor,
             is_default: false,
             is_pinned: false,
             user_id: user.id,
@@ -277,7 +302,7 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
           {
             list_id: newListId,
             collection_name: "General",
-            bg_color_hex: selectedColor,
+            bg_color_hex: listColor,
             user_id: user.id,
             // Use the Date object directly for iOS compatibility
             created_at: createDate,
@@ -294,7 +319,7 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
       // Step 3: Call the onSubmit callback once with the list data
       onSubmit({
         list_name: listName.trim(),
-        bg_color_hex: selectedColor,
+        bg_color_hex: listColor,
         is_default: false,
         user_id: user.id,
         is_pinned: false,
@@ -332,10 +357,12 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
         onClick={!isLoading ? onClose : undefined}
         aria-hidden="true"
       />
-      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center pointer-events-none ${IS_NATIVE_BUILD ? "native-dialog-scroll" : ""}`}
+      >
         <div
           ref={modalRef}
-          className={`w-full max-w-md pointer-events-auto p-6 rounded-lg shadow-xl mx-4 ${
+          className={`w-full max-w-md pointer-events-auto p-6 rounded-lg shadow-xl mx-4 ${IS_NATIVE_BUILD ? "my-auto " : ""}${
             isDark ? "bg-gray-800/50" : "bg-white/70"
           }`}
           role="dialog"

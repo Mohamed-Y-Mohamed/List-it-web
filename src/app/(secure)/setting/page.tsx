@@ -71,6 +71,13 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
 
 // On the web the theme toggle lives in the sidebar. The native app has no
 // sidebar, so without this there is no way to change the theme in the app at all.
+// The secure layout is what is one viewport tall in the native shell, and its own
+// padding lives inside that height. A min-h-screen here as well made the document
+// taller than the screen by the top inset, so these screens scrolled a little past
+// their content and showed the wrapper padding at the end. The web keeps it: there
+// is no such wrapper there, and this is what stops a short page floating.
+const ROOT_MIN_HEIGHT = IS_NATIVE_BUILD ? '' : 'min-h-screen';
+
 if (IS_NATIVE_BUILD) {
   SETTINGS_SECTIONS.splice(1, 0, {
     id: "appearance",
@@ -908,7 +915,7 @@ export default function SettingsPage() {
 
   return (
     <main
-      className={`transition-all pt-16 pr-4 md:pr-16 min-h-screen duration-300 pb-20 w-full relative ${
+      className={`transition-all pt-16 pr-4 md:pr-16 ${ROOT_MIN_HEIGHT} duration-300 pb-20 w-full relative ${
         isDark ? "text-gray-200" : "text-gray-800"
       }`}
     >

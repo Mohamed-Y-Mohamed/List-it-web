@@ -5,6 +5,7 @@ import { X, Trash2, AlertTriangle } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Collection } from "@/types/schema";
 import { apiFetch } from "@/lib/apiFetch";
+import { IS_NATIVE_BUILD } from "@/lib/platform";
 
 interface DeleteCollectionModalProps {
   isOpen: boolean;
@@ -113,10 +114,21 @@ const DeleteCollectionModal = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div
+      /* This dialog can get tall: a header, the scrollable collection list (capped
+         at max-h-64), a warning block and the button row. On a short viewport that
+         overflows a flex-centred container in both directions and puts the Delete
+         button out of reach. native-dialog-scroll plus my-auto makes it scroll and
+         keeps it clear of the system bars.
+
+         The app's other delete confirmations — task, note, and the iOS-style list
+         alert in NativeHome — are short fixed-height dialogs that cannot overflow a
+         phone screen, so they are deliberately left alone. */
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm ${IS_NATIVE_BUILD ? "native-dialog-scroll" : ""}`}
+    >
       <div
         ref={modalRef}
-        className={`w-full max-w-md rounded-lg ${bgColor} shadow-xl transition-all p-6 mx-4`}
+        className={`w-full max-w-md rounded-lg ${bgColor} shadow-xl transition-all p-6 mx-4 ${IS_NATIVE_BUILD ? "my-auto" : ""}`}
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">

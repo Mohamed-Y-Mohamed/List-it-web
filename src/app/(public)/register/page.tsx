@@ -19,6 +19,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useImmersiveNative } from "@/hooks/useImmersiveNative";
+import { useIsNative } from "@/hooks/useIsNative";
+import {
+  AUTH_CARD,
+  AUTH_FIELD,
+  AUTH_INPUT,
+  AUTH_INPUT_DARK,
+  AUTH_INPUT_LIGHT,
+  AUTH_PANEL,
+  AUTH_PRIMARY_BUTTON,
+  AUTH_SCROLL_PADDING,
+} from "@/components/native/authStyles";
 import { appPath } from "@/lib/routes";
 
 const Signup = () => {
@@ -30,6 +41,10 @@ const Signup = () => {
   // Let the gradient fill the whole device window instead of being framed by the
   // status-bar and gesture-pill bands. Matches the sign-in screen.
   useImmersiveNative();
+
+  // Presentation only: picks which set of class names the markup below uses.
+  // Every field, handler, validation rule and route here is unchanged.
+  const isNative = useIsNative();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -180,14 +195,24 @@ const Signup = () => {
         paddingBottom: "max(3rem, env(safe-area-inset-bottom, 0px))",
       }}
     >
-      {/*  background */}
-      {isDark ? (
+      {/* Background.
+          On native the app's own launch field replaces the gradient, so the
+          splash and intro hand over to this screen with no visible change of
+          surface. The gradients and blur blobs below are web-only. */}
+      {isNative ? (
+        <div className={`absolute inset-0 -z-10 size-full ${AUTH_FIELD}`} />
+      ) : isDark ? (
         <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0b0a10_20%,#151419_40%,#0e0d12_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(88,28,135,0.14)_0%,transparent_62%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(124,58,237,0.08)_0%,transparent_52%)] before:content-[''] after:content-['']" />
       ) : (
         <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#faf5ff_0%,#f3e8ff_25%,#e9d5ff_50%,#f3e8ff_75%,#fefbff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(139,92,246,0.14)_0%,transparent_52%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(196,181,253,0.09)_0%,transparent_42%)] before:content-[''] after:content-['']" />
       )}
 
-      {/* Floating elements */}
+      {/* Floating elements. Two infinitely animating blurs belonging to the
+          marketing gradient they sit on. Off-native there is nothing for them
+          to float over, and a permanently running animation on a phone is
+          battery spent on decoration. */}
+      {!isNative && (
+        <>
       <motion.div
         animate={{
           y: [0, -20, 0],
@@ -212,16 +237,22 @@ const Signup = () => {
         }}
         className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"
       />
+        </>
+      )}
 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.8 }}
-        className={`max-w-6xl w-full mx-auto rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row backdrop-blur-xl border ${
-          isDark
-            ? "bg-gray-800/40 border-gray-700/30 shadow-gray-900/20"
-            : "bg-white/40 border-gray-300/30 shadow-gray-300/20"
-        }`}
+        className={
+          isNative
+            ? AUTH_CARD
+            : `max-w-6xl w-full mx-auto rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row backdrop-blur-xl border ${
+                isDark
+                  ? "bg-gray-800/40 border-gray-700/30 shadow-gray-900/20"
+                  : "bg-white/40 border-gray-300/30 shadow-gray-300/20"
+              }`
+        }
       >
         {/* Left Panel - Illustration */}
         <motion.div
@@ -310,7 +341,10 @@ const Signup = () => {
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="md:w-1/2 p-8 md:p-12 backdrop-blur-sm"
+          className={
+            isNative ? AUTH_PANEL : "md:w-1/2 p-8 md:p-12 backdrop-blur-sm"
+          }
+          style={isNative ? { paddingBottom: AUTH_SCROLL_PADDING } : undefined}
         >
           <div className="flex flex-col items-center md:items-start">
             {/* Mobile Logo */}
@@ -494,11 +528,15 @@ const Signup = () => {
                     size={18}
                   />
                   <input
-                    className={`w-full pl-10 pr-3 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
-                      isDark
-                        ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-orange-400 focus:bg-gray-700/70"
-                        : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-orange-500 focus:bg-white/70"
-                    } border focus:outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm`}
+                    className={
+                      isNative
+                        ? `${AUTH_INPUT} ${isDark ? AUTH_INPUT_DARK : AUTH_INPUT_LIGHT}`
+                        : `w-full pl-10 pr-3 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
+                            isDark
+                              ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-orange-400 focus:bg-gray-700/70"
+                              : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-orange-500 focus:bg-white/70"
+                          } border focus:outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm`
+                    }
                     type="text"
                     placeholder="Full Name"
                     value={fullName}
@@ -515,11 +553,15 @@ const Signup = () => {
                     size={18}
                   />
                   <input
-                    className={`w-full pl-10 pr-3 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
-                      isDark
-                        ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-orange-400 focus:bg-gray-700/70"
-                        : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-orange-500 focus:bg-white/70"
-                    } border focus:outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm`}
+                    className={
+                      isNative
+                        ? `${AUTH_INPUT} ${isDark ? AUTH_INPUT_DARK : AUTH_INPUT_LIGHT}`
+                        : `w-full pl-10 pr-3 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
+                            isDark
+                              ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-orange-400 focus:bg-gray-700/70"
+                              : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-orange-500 focus:bg-white/70"
+                          } border focus:outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm`
+                    }
                     type="email"
                     placeholder="Email"
                     value={email}
@@ -536,11 +578,15 @@ const Signup = () => {
                     size={18}
                   />
                   <input
-                    className={`w-full pl-10 pr-10 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
-                      isDark
-                        ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-orange-400 focus:bg-gray-700/70"
-                        : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-orange-500 focus:bg-white/70"
-                    } border focus:outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm`}
+                    className={
+                      isNative
+                        ? `${AUTH_INPUT} pr-11 ${isDark ? AUTH_INPUT_DARK : AUTH_INPUT_LIGHT}`
+                        : `w-full pl-10 pr-10 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
+                            isDark
+                              ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-orange-400 focus:bg-gray-700/70"
+                              : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-orange-500 focus:bg-white/70"
+                          } border focus:outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm`
+                    }
                     type={showPassword ? "text" : "password"}
                     placeholder="Password"
                     value={password}
@@ -578,11 +624,15 @@ const Signup = () => {
                     size={18}
                   />
                   <input
-                    className={`w-full pl-10 pr-10 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
-                      isDark
-                        ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-orange-400 focus:bg-gray-700/70"
-                        : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-orange-500 focus:bg-white/70"
-                    } border focus:outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm`}
+                    className={
+                      isNative
+                        ? `${AUTH_INPUT} pr-11 ${isDark ? AUTH_INPUT_DARK : AUTH_INPUT_LIGHT}`
+                        : `w-full pl-10 pr-10 py-3 rounded-xl font-medium backdrop-blur-sm transition-all duration-300 ${
+                            isDark
+                              ? "bg-gray-700/50 border-gray-600/50 placeholder-gray-400 text-gray-100 focus:border-orange-400 focus:bg-gray-700/70"
+                              : "bg-white/50 border-gray-300/50 placeholder-gray-500 text-gray-800 focus:border-orange-500 focus:bg-white/70"
+                          } border focus:outline-none focus:ring-2 focus:ring-orange-500/20 shadow-sm`
+                    }
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirm Password"
                     value={confirmPassword}
@@ -616,11 +666,15 @@ const Signup = () => {
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={loading || verificationSent}
-                  className={`mt-6 w-full font-semibold py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center backdrop-blur-sm shadow-lg ${
-                    isDark
-                      ? "bg-orange-600/80 hover:bg-orange-700/80 text-white border border-orange-500/30"
-                      : "bg-orange-500/80 hover:bg-orange-600/80 text-white border border-orange-400/30"
-                  } ${loading || verificationSent ? "opacity-70 cursor-not-allowed" : "hover:shadow-xl"}`}
+                  className={
+                    isNative
+                      ? AUTH_PRIMARY_BUTTON
+                      : `mt-6 w-full font-semibold py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center backdrop-blur-sm shadow-lg ${
+                          isDark
+                            ? "bg-orange-600/80 hover:bg-orange-700/80 text-white border border-orange-500/30"
+                            : "bg-orange-500/80 hover:bg-orange-600/80 text-white border border-orange-400/30"
+                        } ${loading || verificationSent ? "opacity-70 cursor-not-allowed" : "hover:shadow-xl"}`
+                  }
                 >
                   {loading ? (
                     <motion.div

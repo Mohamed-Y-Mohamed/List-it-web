@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { List, Note, Task } from "@/types/schema";
+import { resolveColor } from "@/lib/colors";
 
 // `list_icon` holds an SF Symbol name, written by the iOS app and by ListPopup.
 // Only default lists use their stored icon; user lists always show the checklist,
@@ -37,16 +38,28 @@ export function iconForList(list: List): LucideIcon {
   return SF_SYMBOL_TO_ICON[list.list_icon ?? ""] ?? ListChecks;
 }
 
-/** Falls back to the system blue iOS uses when a list has no colour recorded. */
+/**
+ * Falls back to the system blue iOS uses when a list has no colour recorded.
+ *
+ * resolveColor rather than a bare `|| ` so a malformed stored value — not just an
+ * empty one — also lands on the fallback. The fallback stays this screen's own blue
+ * rather than the shared default, which is the same colour anyway.
+ */
 export function listColor(list: List): string {
-  return list.bg_color_hex?.trim() || "#007AFF";
+  return resolveColor(list.bg_color_hex, "#007AFF");
 }
 
-/** The orange count capsule beside each section heading. */
+/**
+ * The orange count capsule beside each section heading.
+ *
+ * Stepped down from `px-2.5 py-1 text-[14px]`. At that size it was nearly as tall
+ * as the 24px heading it annotates, which made a secondary number compete with the
+ * section title. It is a count, not a control.
+ */
 export function CountBadge({ count }: { count: number }) {
   return (
     <span
-      className="rounded-full px-2.5 py-1 text-[14px] font-semibold text-white"
+      className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
       style={{ backgroundColor: "#FF9500" }}
     >
       {count}
@@ -114,14 +127,32 @@ export function ListInfo({
     <span
       className={`flex min-w-0 flex-col ${isPinnedCard ? "items-start" : "items-center"}`}
     >
+      {/* On a grid card the name gets a box exactly two lines tall, whatever it
+          holds, with the text centred inside it.
+
+          Without that the row does not line up. `line-clamp-2` lets the box be one
+          line or two, and the card centres its contents vertically — so "Today"
+          (one line) and "Not Completed" (two) put their icons at different heights,
+          and a row of three cards looked mis-set. Reserving the taller of the two
+          makes every grid card the same height internally, so the icons align and
+          each card is still centred in itself.
+
+          2.75em is two lines of leading-snug (1.375), tied to the 13.5px name below
+          rather than a magic pixel value, so it follows if that size changes. */}
       <span
-        className={`text-[13.5px] font-semibold leading-snug tracking-[-0.01em] ${
-          isPinnedCard
-            ? "max-w-[9.5rem] truncate"
-            : "line-clamp-2 text-center"
-        }`}
+        className={
+          isPinnedCard ? undefined : "flex min-h-[2.75em] items-center"
+        }
       >
-        {list.list_name || "Untitled"}
+        <span
+          className={`text-[13.5px] font-semibold leading-snug tracking-[-0.01em] ${
+            isPinnedCard
+              ? "max-w-[9.5rem] truncate"
+              : "line-clamp-2 text-center"
+          }`}
+        >
+          {list.list_name || "Untitled"}
+        </span>
       </span>
       {showCounts && (
         <span className="mt-1 text-[10.5px] font-medium tracking-[0.01em] text-gray-500 dark:text-gray-400">

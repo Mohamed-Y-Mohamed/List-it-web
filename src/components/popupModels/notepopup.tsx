@@ -7,6 +7,8 @@ import { Collection, Note } from "@/types/schema";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
 import { useAppColors } from "@/hooks/useAppColors";
+import { isLightColor, resolveColor } from "@/lib/colors";
+import { IS_NATIVE_BUILD } from "@/lib/platform";
 
 interface CreateNoteModalProps {
   isOpen: boolean;
@@ -140,6 +142,19 @@ const CreateNoteModal = ({
     }
   }, [isOpen, errorTimeout]);
 
+  // A colour is selected the moment the sheet opens, rather than leaving the
+  // picker blank until the user taps a swatch. The palette's first entry is the
+  // default, matching the list and collection sheets.
+  //
+  // No ordering hazard like the one ListPopup had: the reset above runs on
+  // *close*, so selectedColor is already null by the time this fires for the next
+  // open. The null check also means a colour the user picked is never overwritten,
+  // and nothing here can deselect — handleColorSelect only ever sets.
+  useEffect(() => {
+    if (!isOpen || selectedColor !== null || appColors.length === 0) return;
+    setSelectedColor(appColors[0].color_hex);
+  }, [isOpen, selectedColor, appColors]);
+
   const showError = useCallback(
     (msg: string) => {
       setError(msg);
@@ -169,10 +184,18 @@ const CreateNoteModal = ({
 
       const collectionId = selectedCollection || getDefaultCollection()?.id;
 
-      // Use collection color if no color is selected
+      // The colour to store. Normally the swatch the sheet pre-selected, then the
+      // parent collection's colour, then the palette's first entry.
+      //
+      // resolveColor closes the last hole: every link in that chain can be empty
+      // or malformed — an unloaded palette, or a collection created before the
+      // ListPopup effect-order bug was fixed, which stored "". The final `|| ""`
+      // used to let that reach the database, and a note with an unusable colour
+      // renders with no background at all.
       const collection = collections.find((c) => c.id === collectionId);
-      const finalColor =
-        selectedColor || collection?.bg_color_hex || appColors[0]?.color_hex || "";
+      const finalColor = resolveColor(
+        selectedColor || collection?.bg_color_hex || appColors[0]?.color_hex
+      );
 
       // UPDATED: Create a proper Date object with UTC timezone for iOS compatibility
       const createDate = createUTCDate();
@@ -228,10 +251,12 @@ const CreateNoteModal = ({
         aria-hidden="true"
       />
 
-      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center pointer-events-none ${IS_NATIVE_BUILD ? "native-dialog-scroll" : ""}`}
+      >
         <div
           ref={modalRef}
-          className={`w-full max-w-md rounded-lg ${isDark ? "bg-gray-800/50" : "bg-white/70"} shadow-xl transition-all p-6 mx-4 pointer-events-auto`}
+          className={`w-full max-w-md rounded-lg ${isDark ? "bg-gray-800/50" : "bg-white/70"} shadow-xl transition-all p-6 mx-4 pointer-events-auto ${IS_NATIVE_BUILD ? "my-auto" : ""}`}
         >
           <div className="flex justify-between items-center mb-4">
             <h2
@@ -323,13 +348,13 @@ const CreateNoteModal = ({
                   </span>
                 ) : (
                   appColors.map(({ color_hex, color_name }) => {
-                    const isLight =
-                      color_hex.startsWith("#") &&
-                      parseInt(color_hex.slice(1, 3), 16) +
-                        parseInt(color_hex.slice(3, 5), 16) +
-                        parseInt(color_hex.slice(5, 7), 16) >
-                        384;
-                    const checkColor = isLight ? "text-gray-800" : "text-white";
+                    // isLightColor validates the hex and weights the channels
+                    // perceptually. The inline sum this replaced returned NaN for
+                    // anything that was not a 6-digit hex, so the tick went white
+                    // on a pale swatch and disappeared.
+                    const checkColor = isLightColor(color_hex)
+                      ? "text-gray-800"
+                      : "text-white";
 
                     return (
                       <button

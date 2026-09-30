@@ -136,12 +136,19 @@ export default function NativeSheet({
             )}
 
             {/* Only the content scrolls, so the handle and title stay put. The
-                bottom padding clears the home indicator and the keyboard. */}
+                bottom padding clears the navigation bar and the keyboard.
+
+                The `max()` floor is load-bearing on Android, not belt-and-braces:
+                Chromium derives env(safe-area-inset-bottom) from display-cutout
+                insets, so on a device with no bottom cutout it reports 0 and an
+                inset-only value would leave the last row under the navigation bar.
+                Same reasoning as pb-sheet-safe in globals.css, which carries the
+                fuller explanation. */}
             <div
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5"
               style={{
                 paddingBottom:
-                  "calc(env(safe-area-inset-bottom, 0px) + var(--keyboard-offset, 0px) + 1.25rem)",
+                  "max(5rem, calc(env(safe-area-inset-bottom, 0px) + var(--keyboard-offset, 0px) + 1.25rem))",
               }}
             >
               {children}

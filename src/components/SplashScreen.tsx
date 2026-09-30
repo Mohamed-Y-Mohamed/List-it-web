@@ -13,30 +13,72 @@
 // app opens onto, so the splash is continuous with the screen behind it in both
 // directions.
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
-const SPLASH_DURATION_MS = 1800;
+// How long the splash stays up at minimum. Long enough to read as a deliberate
+// launch screen rather than a flash, and roughly how long the work behind it
+// takes anyway, so most launches never wait past it.
+const MIN_VISIBLE_MS = 1800;
+
+// The point at which the splash stops waiting for `ready` and hands over
+// regardless. Without a cap, a stalled session read or a token refresh on a bad
+// connection would hold the splash for the life of the process — trading the old
+// blank screen for a stuck one, which is no better.
+const MAX_VISIBLE_MS = 8000;
 
 // Strong ease-out. Matches --ease-out in globals.css.
 const EASE_OUT = [0.23, 1, 0.32, 1] as const;
 
 interface SplashScreenProps {
   onDone: () => void;
+  /**
+   * Whether the work this splash is covering has finished. The splash stays up
+   * until this is true *and* MIN_VISIBLE_MS has elapsed, which makes it a
+   * hand-off rather than a timer racing the app.
+   *
+   * Defaults to true, reproducing the original fixed-duration behaviour exactly.
+   * That is what the installed PWA gets: it opens straight onto a real page, so
+   * there is nothing for the splash to wait for.
+   */
+  ready?: boolean;
 }
 
-export default function SplashScreen({ onDone }: SplashScreenProps) {
+export default function SplashScreen({
+  onDone,
+  ready = true,
+}: SplashScreenProps) {
   const [visible, setVisible] = useState(true);
+  const [minElapsed, setMinElapsed] = useState(false);
   const reduceMotion = useReducedMotion();
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setVisible(false);
-      onDone();
-    }, SPLASH_DURATION_MS);
-    return () => clearTimeout(timer);
+  // Fires at most once: two clocks and a readiness flag can all arrive at the
+  // same hand-off, and `onDone` drives a state change in the parent.
+  const handedOver = useRef(false);
+
+  const handOver = useCallback(() => {
+    if (handedOver.current) return;
+    handedOver.current = true;
+    setVisible(false);
+    onDone();
   }, [onDone]);
+
+  // The two clocks. Neither knows anything about what the app is doing.
+  useEffect(() => {
+    const minTimer = setTimeout(() => setMinElapsed(true), MIN_VISIBLE_MS);
+    const maxTimer = setTimeout(handOver, MAX_VISIBLE_MS);
+    return () => {
+      clearTimeout(minTimer);
+      clearTimeout(maxTimer);
+    };
+  }, [handOver]);
+
+  // The normal way out: the app reported ready and the minimum has passed.
+  useEffect(() => {
+    if (!minElapsed || !ready) return;
+    handOver();
+  }, [minElapsed, ready, handOver]);
 
   // Each element arrives just behind the one above it, so the screen assembles
   // top-down instead of appearing all at once.

@@ -6,6 +6,8 @@ import { useTheme } from "@/context/ThemeContext";
 import { Collection, OperationResult } from "@/types/schema";
 import { useAuth } from "@/context/AuthContext";
 import { useAppColors } from "@/hooks/useAppColors";
+import { resolveColor } from "@/lib/colors";
+import { IS_NATIVE_BUILD } from "@/lib/platform";
 
 type SubmissionResult = OperationResult;
 
@@ -172,7 +174,12 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
         if (onSubmit) {
           const result = await onSubmit({
             collection_name: collectionName.trim(),
-            bg_color_hex: selectedColor,
+            // The effect above pre-selects the palette's first colour, and the
+            // user is free to pick another. resolveColor only covers the case
+            // where neither happened — the palette failed to load, and
+            // useAppColors swallows that error — so an unusable value can never
+            // be stored.
+            bg_color_hex: resolveColor(selectedColor),
           });
 
           // Check if onSubmit returned an error
@@ -223,10 +230,12 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
         aria-hidden="true"
       />
 
-      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center pointer-events-none ${IS_NATIVE_BUILD ? "native-dialog-scroll" : ""}`}
+      >
         <div
           ref={modalRef}
-          className={`w-full max-w-md rounded-lg ${isDark ? "bg-gray-800/50" : "bg-white/70"} shadow-xl transition-all p-6 mx-4 pointer-events-auto`}
+          className={`w-full max-w-md rounded-lg ${isDark ? "bg-gray-800/50" : "bg-white/70"} shadow-xl transition-all p-6 mx-4 pointer-events-auto ${IS_NATIVE_BUILD ? "my-auto" : ""}`}
         >
           <div className="flex justify-between items-center mb-4">
             <h2

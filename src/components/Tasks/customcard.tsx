@@ -11,7 +11,7 @@ import {
   formatDisplayTime,
   toDateObject,
 } from "@/utils/dateUtils";
-import { getTaskBorderColor, getTaskAccentColor } from "@/utils/taskColorUtils";
+import { getTaskPalette } from "@/utils/taskColorUtils";
 
 interface TodayTaskCardProps {
   id: string;
@@ -170,11 +170,13 @@ const TodayTaskCard = ({
   const dueDateObject = toDateObject(due_date);
   const dateCompletedObject = toDateObject(date_completed);
 
-  //  border color generation
-  const getBorderColor = () => getTaskBorderColor(collection_id, isDark);
-
-  // Get accent color for priority badge
-  const getAccentColor = () => getTaskAccentColor(collection_id, isDark);
+  // Every colour class this card uses, chosen by hashing the collection ID.
+  //
+  // Read as whole strings from the palette. The `bg` and `bgSoft` forms used to be
+  // derived here with `.replace("border-", "bg-")`, which Tailwind's scanner cannot
+  // see — so those classes were never generated and the hover states silently did
+  // nothing for most collections. See the header of taskColorUtils.ts.
+  const palette = getTaskPalette(collection_id, isDark);
 
   return (
     <>
@@ -186,7 +188,7 @@ const TodayTaskCard = ({
         onHoverStart={() => setIsHovered(true)}
         onHoverEnd={() => setIsHovered(false)}
         className={`rounded-xl border p-5 transition-all duration-300 cursor-pointer overflow-hidden 
-          ${className} ${getBorderColor()} 
+          ${className} ${palette.border} 
           ${
             isDark
               ? "bg-gray-800/50 hover:bg-gray-800/70 hover:shadow-xl hover:shadow-gray-900/30"
@@ -200,7 +202,7 @@ const TodayTaskCard = ({
         {/* Subtle glow effect */}
         <div
           className={`absolute inset-0 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 
-          ${getBorderColor().replace("border-", "bg-").replace("-500", "-500/20")}`}
+          ${palette.bgSoft}`}
         />
 
         <div className="flex flex-col space-y-3 relative z-10">
@@ -339,7 +341,7 @@ const TodayTaskCard = ({
                 }`}
               >
                 <Folder
-                  className={`mr-1.5 h-3 w-3 flex-shrink-0 ${getAccentColor()}`}
+                  className={`mr-1.5 h-3 w-3 flex-shrink-0 ${palette.text}`}
                 />
                 <span className="truncate font-medium">{collection_name}</span>
               </motion.div>
@@ -394,7 +396,7 @@ const TodayTaskCard = ({
           transition={{ duration: 0.2 }}
         >
           <div
-            className={`w-2 h-2 rounded-full ${getBorderColor().replace("border-", "bg-")}`}
+            className={`w-2 h-2 rounded-full ${palette.bg}`}
           />
         </motion.div>
       </motion.div>

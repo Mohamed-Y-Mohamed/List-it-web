@@ -44,6 +44,13 @@ export default function NativeShell() {
   // capacitor.config.ts so that this hand-off is explicit — otherwise the native
   // splash can disappear before the web splash draws and the user sees a flash of
   // blank white between them.
+  //
+  // This is safe only because PWAProvider seeds `showSplash` from IS_NATIVE_BUILD,
+  // so the web splash is in the same commit as this component and has therefore
+  // painted by the time a passive effect runs. It used to be switched on in an
+  // effect of its own, and since effects run child-first this call landed a frame
+  // early and uncovered an empty document. **If that initial state ever goes back
+  // to `false`, this hand-off breaks again.**
   useEffect(() => {
     if (!isNative) return;
     SplashScreen.hide().catch(() => {
