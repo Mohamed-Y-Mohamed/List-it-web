@@ -17,10 +17,25 @@ export default function PWAProvider({ children }: PWAProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Show splash only in PWA/standalone mode
-  const [showSplash, setShowSplash] = useState(false);
+  // Show splash only in PWA/standalone mode.
+  //
+  // Seeded true for the native build so the splash is in the *first* commit. It
+  // used to start false and be switched on in the effect below, which left one
+  // rendered frame with no splash, no root page (page.tsx returns null in app
+  // mode) and no background class yet — an empty white document, flashing white
+  // even on a dark device. IS_NATIVE_BUILD is a compile-time constant, so the web
+  // bundle still reads `useState(false)` and behaves exactly as before.
+  const [showSplash, setShowSplash] = useState(IS_NATIVE_BUILD);
   const [splashDone, setSplashDone] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+
+  // Whether the launch has worked out where it is going. The splash waits for
+  // this instead of running down a fixed timer, so it covers the session read and
+  // the navigation that follows rather than expiring halfway through them.
+  //
+  // Starts true off-native: an installed PWA opens directly onto a real page, so
+  // there is nothing to wait for and the splash keeps its original timing.
+  const [launchResolved, setLaunchResolved] = useState(!IS_NATIVE_BUILD);
 
   useEffect(() => {
     const standalone = isPWAStandalone();
@@ -48,7 +63,7 @@ export default function PWAProvider({ children }: PWAProviderProps) {
     setShowSplash(false);
   }, []);
 
-  // Where a launch lands, once the splash has finished.
+  // Where a launch lands.
   //
   // A website's pages are meaningless in app mode, so the three of them hand off
   // to somewhere useful:
@@ -62,10 +77,22 @@ export default function PWAProvider({ children }: PWAProviderProps) {
   // was already signed in. Reading the session here removes that hop.
   useEffect(() => {
     if (!isStandalone) return;
-    if (showSplash && !splashDone) return;
+
+    // Web/PWA keeps its original ordering, where the redirect waits for the
+    // splash to finish. Native inverts it — there the splash waits for *this* to
+    // resolve, so waiting on the splash here as well would deadlock the two.
+    if (!IS_NATIVE_BUILD && showSplash && !splashDone) return;
 
     const publicOnlyPaths = ["/", "/landingpage", "/aboutus"];
-    if (!publicOnlyPaths.includes(pathname)) return;
+    if (!publicOnlyPaths.includes(pathname)) {
+      // Already somewhere real — a deep link, a notification tap, a WebView
+      // reload after Android reclaimed the process. There is no routing decision
+      // left to make, and the splash has to be released or it would sit over the
+      // app until its own safety cap expired. This path is why the splash needed
+      // an explicit signal rather than just a longer timer.
+      setLaunchResolved(true);
+      return;
+    }
 
     let cancelled = false;
 
@@ -80,15 +107,15 @@ export default function PWAProvider({ children }: PWAProviderProps) {
 
       if (data.session) {
         router.replace(appPath("/dashboard"));
-        return;
-      }
-
-      if (IS_NATIVE_BUILD && !hasSeenOnboarding()) {
+      } else if (IS_NATIVE_BUILD && !hasSeenOnboarding()) {
         router.replace(appPath("/onboarding"));
-        return;
+      } else {
+        router.replace(appPath("/login"));
       }
 
-      router.replace(appPath("/login"));
+      // Set after the replace, so the splash covers the navigation itself rather
+      // than lifting to reveal the old screen for a frame first.
+      setLaunchResolved(true);
     })();
 
     return () => {
@@ -98,7 +125,9 @@ export default function PWAProvider({ children }: PWAProviderProps) {
 
   return (
     <>
-      {showSplash && <SplashScreen onDone={handleSplashDone} />}
+      {showSplash && (
+        <SplashScreen onDone={handleSplashDone} ready={launchResolved} />
+      )}
       {children}
     </>
   );

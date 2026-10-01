@@ -22,6 +22,43 @@ allprojects {
         google()
         mavenCentral()
     }
+
+    // Align every kotlin-stdlib artifact on one version.
+    //
+    // Kotlin 1.8 folded kotlin-stdlib-jdk7 and kotlin-stdlib-jdk8 into
+    // kotlin-stdlib itself; from that version on they are empty shims that only
+    // depend on it. Before 1.8 they carried real classes.
+    //
+    // Gradle already resolves kotlin-stdlib to 1.8.22 here, because several
+    // dependencies ask for it and the newest request wins. But nothing in the
+    // graph ever asks for a jdk7/jdk8 artifact newer than the 1.6.21 that
+    // kotlinx-coroutines-android:1.6.4 brings in transitively (through
+    // androidx.appcompat -> androidx.lifecycle), so those two stay on 1.6.21 —
+    // and their 1.6.21 classes are the very classes 1.8.22's kotlin-stdlib now
+    // contains. Hence:
+    //
+    //   Duplicate class kotlin.collections.jdk8.CollectionsJDK8Kt found in
+    //   modules kotlin-stdlib-1.8.22.jar and kotlin-stdlib-jdk8-1.6.21.jar
+    //
+    // which failed capacitor-cordova-android-plugins'
+    // checkDebugAndroidTestDuplicateClasses. It only ever surfaced on the
+    // instrumented-test variants — `:app:assembleDebug` was unaffected, which is
+    // why a working APK still came out of the failing build.
+    //
+    // Upgrading the old artifacts is preferred to excluding them. An exclude
+    // would work today but would quietly break the day something genuinely needs
+    // a pre-1.8 stdlib; pinning them to a version where they are empty shims
+    // leaves the dependency graph honest.
+    configurations.configureEach {
+        resolutionStrategy.eachDependency { details ->
+            def requested = details.requested
+            if (requested.group == 'org.jetbrains.kotlin'
+                    && (requested.name == 'kotlin-stdlib-jdk7'
+                        || requested.name == 'kotlin-stdlib-jdk8')) {
+                details.useVersion rootProject.ext.kotlinStdlibVersion
+            }
+        }
+    }
 }
 
 task clean(type: Delete) {

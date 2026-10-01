@@ -12,6 +12,7 @@ import {
   AnimatePresence,
   motion,
   useMotionValue,
+  useReducedMotion,
   type PanInfo,
 } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
@@ -46,6 +47,11 @@ export default function NativeSheet({
 }: NativeSheetProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  // This file was written alongside the rest of the native shell but never
+  // imported, so it never had to answer for reduced motion. It does now: a sheet
+  // rising 55vh is exactly the kind of large positional move someone who asked for
+  // less motion is asking not to see. Dragging still works; only the travel goes.
+  const reduceMotion = useReducedMotion();
   const [detent, setDetent] = useState<Detent>(initialDetent);
   const sheetRef = useRef<HTMLDivElement>(null);
   const y = useMotionValue(0);
@@ -96,7 +102,7 @@ export default function NativeSheet({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: reduceMotion ? 0 : 0.2 }}
             onClick={onClose}
             aria-hidden="true"
           />
@@ -106,15 +112,25 @@ export default function NativeSheet({
             role="dialog"
             aria-modal="true"
             aria-label={title}
-            className={`fixed inset-x-0 bottom-0 z-[61] flex flex-col overflow-hidden rounded-t-[25px] ${
-              isDark ? "bg-gray-900 text-white" : "bg-white text-gray-900"
+            // Roughly 60% opaque over a blur, so the lists stay faintly visible
+            // underneath and the sheet reads as sitting on top of the screen rather
+            // than replacing it. The blur is what keeps the text legible at that
+            // opacity: without it the cards behind show through the copy.
+            className={`fixed inset-x-0 bottom-0 z-[61] flex flex-col overflow-hidden rounded-t-[25px] backdrop-blur-2xl ${
+              isDark
+                ? "bg-gray-900/60 text-white"
+                : "bg-white/60 text-gray-900"
             }`}
             style={{ height: DETENT_HEIGHT[detent], y }}
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
+            initial={reduceMotion ? { y: 0, opacity: 0 } : { y: "100%" }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={reduceMotion ? { y: 0, opacity: 0 } : { y: "100%" }}
             // Approximates the iOS sheet's settle: quick, with almost no bounce.
-            transition={{ type: "spring", stiffness: 400, damping: 35 }}
+            transition={
+              reduceMotion
+                ? { duration: 0.12 }
+                : { type: "spring", stiffness: 400, damping: 35 }
+            }
             drag="y"
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0.05, bottom: 0.6 }}
@@ -136,12 +152,19 @@ export default function NativeSheet({
             )}
 
             {/* Only the content scrolls, so the handle and title stay put. The
-                bottom padding clears the home indicator and the keyboard. */}
+                bottom padding clears the navigation bar and the keyboard.
+
+                The `max()` floor is load-bearing on Android, not belt-and-braces:
+                Chromium derives env(safe-area-inset-bottom) from display-cutout
+                insets, so on a device with no bottom cutout it reports 0 and an
+                inset-only value would leave the last row under the navigation bar.
+                Same reasoning as pb-sheet-safe in globals.css, which carries the
+                fuller explanation. */}
             <div
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5"
               style={{
                 paddingBottom:
-                  "calc(env(safe-area-inset-bottom, 0px) + var(--keyboard-offset, 0px) + 1.25rem)",
+                  "max(5rem, calc(env(safe-area-inset-bottom, 0px) + var(--keyboard-offset, 0px) + 1.25rem))",
               }}
             >
               {children}

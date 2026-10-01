@@ -16,7 +16,12 @@
 import React, { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import {
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+  type PanInfo,
+} from "framer-motion";
 import { BellRing, ListChecks, RefreshCw, type LucideIcon } from "lucide-react";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { markOnboardingSeen } from "@/lib/onboarding";
@@ -33,31 +38,42 @@ interface Step {
   isPermissionRequest?: boolean;
 }
 
+// Written to be read once, quickly, by anyone.
+//
+// Short sentences, no dashes holding two clauses together, and no "not X, but Y"
+// constructions — the previous copy leaned on all three, which is what made it read
+// as machine-written rather than as someone explaining their app. Every fact the old
+// copy carried is still here; only the phrasing changed.
 const STEPS: readonly Step[] = [
   {
     isWelcome: true,
     title: "List It",
-    body: "A home for your tasks, notes and lists — the things you need to do, kept in one place instead of scattered across your phone.",
+    body: "Keep your tasks and notes in one place, instead of spread around your phone.",
   },
   {
     icon: ListChecks,
-    title: "Lists that hold everything",
-    body: "Tasks, notes and collections live inside the same list, so a project stays together rather than spread across three apps.",
+    title: "Everything in one list",
+    body: "A list holds both tasks and notes. Group them into collections so everything about one job stays together.",
   },
   {
     icon: RefreshCw,
-    title: "The same lists everywhere",
-    body: "Everything you add here shows up on the web app under the same account, so you can start on your phone and finish at a desk.",
+    title: "On your phone and on the web",
+    body: "Your lists are saved to your account. Sign in on the website and they are already there.",
   },
   {
     icon: BellRing,
     title: "Turn on reminders?",
     // Says what will be sent and how often, because that is what the decision
     // actually turns on. Notifications are the only permission the app asks for.
-    body: "When something is due today, List It sends one reminder — not one buzz per task. Android needs your permission first, and this is the only permission the app asks for.",
+    body: "Give a task a due date and List It can remind you on the day. You get one reminder a day, covering everything due. Android will ask your permission first, and this is the only permission the app needs.",
     isPermissionRequest: true,
   },
 ] as const;
+
+// How far a swipe has to travel, or how fast it has to flick, to change step.
+// Matched to SwipeableRow so the two gestures feel like the same hand.
+const SWIPE_DISTANCE = 56;
+const SWIPE_VELOCITY = 400;
 
 export default function NativeOnboarding() {
   const router = useRouter();
@@ -93,6 +109,28 @@ export default function NativeOnboarding() {
     if (isLast) return;
     go(index + 1);
   }, [isLast, go, index]);
+
+  // Swiping between the cards, which is how anyone expects a paged intro to work.
+  //
+  // The Next button stays exactly as it was — this is a second route through the
+  // same `go`, not a replacement for it. It also gives the flow a way *backwards*:
+  // before this the only way back was tapping an earlier dot, and there was no back
+  // button at all.
+  const handleDragEnd = useCallback(
+    (_event: unknown, info: PanInfo) => {
+      const { offset, velocity } = info;
+
+      const forward =
+        offset.x < -SWIPE_DISTANCE || velocity.x < -SWIPE_VELOCITY;
+      const back = offset.x > SWIPE_DISTANCE || velocity.x > SWIPE_VELOCITY;
+
+      // Clamped at both ends rather than wrapping. Swiping past the last card must
+      // not skip the permission question, and there is nothing before the welcome.
+      if (forward && index < STEPS.length - 1) go(index + 1);
+      else if (back && index > 0) go(index - 1);
+    },
+    [index, go]
+  );
 
   // Asking here rather than when the first reminder is due is the whole point of
   // this screen: on Android 13+ the system dialog can only be shown twice, and a
@@ -136,7 +174,22 @@ export default function NativeOnboarding() {
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
+      {/* The drag lives on this container rather than on the card inside it: the
+          card is re-keyed on every step by AnimatePresence, so a gesture attached
+          to it would be interrupted mid-swipe.
+
+          dragConstraints pins it to zero so it never actually travels — the elastic
+          give is the feedback, and the step change is what resolves the gesture.
+          touch-action pan-y leaves vertical scrolling to the browser. */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.18}
+        dragMomentum={false}
+        onDragEnd={handleDragEnd}
+        style={{ touchAction: "pan-y" }}
+        className="flex flex-1 flex-col items-center justify-center px-8 text-center"
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={index}
@@ -185,7 +238,7 @@ export default function NativeOnboarding() {
             </p>
           </motion.div>
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       <div className="px-8 pb-6">
         {/* Progress. Tappable, because a dot that shows position but refuses to
@@ -227,7 +280,7 @@ export default function NativeOnboarding() {
               disabled={requesting}
               className="flex min-h-[50px] w-full items-center justify-center rounded-[14px] bg-orange-500 text-[16px] font-semibold text-white transition-transform duration-100 active:scale-[0.98] active:bg-orange-600 disabled:opacity-60"
             >
-              {requesting ? "Waiting for Android…" : "Turn on reminders"}
+              {requesting ? "Waiting for Android..." : "Turn on reminders"}
             </button>
             <button
               type="button"

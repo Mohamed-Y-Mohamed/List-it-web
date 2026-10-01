@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Collection } from "@/types/schema";
+import { IS_NATIVE_BUILD } from "@/lib/platform";
 
 // Define a proper result type for submission
 interface SubmissionResult {
@@ -337,12 +338,14 @@ const CreateTaskModal = ({
         onClick={!isSubmitting ? onClose : undefined}
         aria-hidden="true"
       />
-      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none p-4">
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center pointer-events-none p-4 ${IS_NATIVE_BUILD ? "native-dialog-scroll" : ""}`}
+      >
         <div
           ref={modalRef}
           className={`w-full max-w-md rounded-lg ${
             isDark ? "bg-gray-800/50" : "bg-white/70"
-          } shadow-xl transition-all p-6 mx-4 pointer-events-auto`}
+          } shadow-xl transition-all p-6 mx-4 pointer-events-auto ${IS_NATIVE_BUILD ? "my-auto" : ""}`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="modal-title"

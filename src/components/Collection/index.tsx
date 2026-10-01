@@ -2,19 +2,87 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import {
-  ChevronDown,
-  ListTodo,
-  StickyNote,
   AlertCircle,
-  X,
+  CheckCircle2,
+  ChevronDown,
   Edit3,
+  ListTodo,
+  Pin,
+  StickyNote,
+  Trash2,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import TaskCard from "@/components/Tasks/index";
 import NoteCard from "@/components/Notes/noteCard";
 import { Task, Note, Collection, OperationResult } from "@/types/schema";
 import { useTheme } from "@/context/ThemeContext";
+import { IS_NATIVE_BUILD } from "@/lib/platform";
+import SwipeableRow, {
+  type SwipeAction,
+} from "@/components/native/SwipeableRow";
 
+const STAGGER_STEP = 0.1;
+
+// Items past this position all animate in together.
+//
+// The delay was a flat, uncapped `index * 0.1`: with twenty tasks the last one
+// arrived two full seconds after the first, so the screen looked like it was still
+// loading long after the data had landed. That is a large part of why the list
+// screen felt slow on a phone. Capping how many items stagger keeps the sense of a
+// list assembling without making the tail wait for it.
+const MAX_STAGGERED_ITEMS = 8;
+
+// Type and badge sizes for the collection header.
+//
+// The phone build runs smaller than the web app on both. The collection name was
+// `text-lg` (18px) — fine in a desktop column, oversized on a 3.5in-wide card
+// beside a back bar whose own title is 16px — and the task/note capsules were
+// `px-2 py-1 text-xs`, which on a phone reads as two chunky pills competing with
+// the name they are annotating.
+//
+// Web keeps its original values exactly; only the native build steps down.
+const COLLECTION_TITLE_CLASS = IS_NATIVE_BUILD
+  ? "text-[15px]"
+  : "text-lg";
+
+const COUNT_BADGE_CLASS = IS_NATIVE_BUILD
+  ? "px-1.5 py-0.5 text-[10px]"
+  : "px-2 py-1 text-xs";
+
+const TAB_COUNT_BADGE_CLASS = IS_NATIVE_BUILD
+  ? "px-1.5 py-0.5 text-[10px]"
+  : "px-2 py-0.5 text-xs";
+
+/**
+ * Adds swipe actions to a row on native, and renders it untouched on the web.
+ *
+ * IS_NATIVE_BUILD is a compile-time constant, so the web build keeps only the
+ * fragment branch and the SwipeableRow element is dropped from it entirely.
+ */
+const MaybeSwipeable = ({
+  leading,
+  trailing,
+  children,
+}: {
+  leading?: SwipeAction;
+  trailing?: SwipeAction;
+  children: React.ReactNode;
+}) =>
+  IS_NATIVE_BUILD ? (
+    <SwipeableRow leading={leading} trailing={trailing}>
+      {children}
+    </SwipeableRow>
+  ) : (
+    <>{children}</>
+  );
+
+/** Entrance delay for the item at `index`, in seconds. */
+const entranceDelay = (index: number): number =>
+  IS_NATIVE_BUILD
+    ? Math.min(index, MAX_STAGGERED_ITEMS) * STAGGER_STEP
+    : // Web keeps the original uncapped timing.
+      index * STAGGER_STEP;
 
 interface CollectionComponentProps {
   id: string;
@@ -409,6 +477,41 @@ const EnhancedCollectionComponent = ({
     return result;
   };
 
+  // The swipe actions each row offers. Native only — MaybeSwipeable drops them on
+  // the web.
+  //
+  // These reveal handlers the row already had, paired the way both platforms'
+  // conventions expect: the destructive action on the trailing edge, the common
+  // one-tap action on the leading edge. Nothing here can do anything the row's own
+  // controls could not already do.
+  const taskSwipeComplete = (taskId: string): SwipeAction => ({
+    label: "Done",
+    icon: CheckCircle2,
+    background: "bg-emerald-600",
+    onAction: () => void handleTaskCompleteWithErrorHandling(taskId, true),
+  });
+
+  const taskSwipeDelete = (taskId: string): SwipeAction => ({
+    label: "Delete",
+    icon: Trash2,
+    background: "bg-red-600",
+    onAction: () => void handleTaskDeleteWithErrorHandling(taskId),
+  });
+
+  const noteSwipePin = (noteId: string, isPinned: boolean): SwipeAction => ({
+    label: isPinned ? "Unpin" : "Pin",
+    icon: Pin,
+    background: "bg-orange-500",
+    onAction: () => void handleNotePinWithErrorHandling(noteId, !isPinned),
+  });
+
+  const noteSwipeDelete = (noteId: string): SwipeAction => ({
+    label: "Delete",
+    icon: Trash2,
+    background: "bg-red-600",
+    onAction: () => void handleNoteDeleteWithErrorHandling(noteId),
+  });
+
   // Clear any displayed errors
   const clearError = () => {
     setError(null);
@@ -469,7 +572,7 @@ const EnhancedCollectionComponent = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-3">
               <h3
-                className={`font-semibold text-lg ${colors.textPrimary} truncate`}
+                className={`font-semibold ${COLLECTION_TITLE_CLASS} ${colors.textPrimary} truncate`}
               >
                 {collection_name || "Unnamed Collection"}
               </h3>
@@ -480,7 +583,7 @@ const EnhancedCollectionComponent = ({
                   <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${colors.accentBg} ${colors.accent}`}
+                    className={`${COUNT_BADGE_CLASS} rounded-full font-medium ${colors.accentBg} ${colors.accent}`}
                   >
                     {taskCount} task{taskCount !== 1 ? "s" : ""}
                   </motion.span>
@@ -490,7 +593,7 @@ const EnhancedCollectionComponent = ({
                   <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className={`px-2 py-1 rounded-full text-xs font-medium    ${isDark ? "bg-blue-900/30 text-blue-400" : "bg-blue-100/50 text-blue-600"}`}
+                    className={`${COUNT_BADGE_CLASS} rounded-full font-medium ${isDark ? "bg-blue-900/30 text-blue-400" : "bg-blue-100/50 text-blue-600"}`}
                   >
                     {noteCount} note{noteCount !== 1 ? "s" : ""}
                   </motion.span>
@@ -605,7 +708,7 @@ const EnhancedCollectionComponent = ({
                     {((tab === "tasks" && taskCount > 0) ||
                       (tab === "notes" && noteCount > 0)) && (
                       <span
-                        className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                        className={`ml-2 ${TAB_COUNT_BADGE_CLASS} rounded-full ${
                           activeTab === tab
                             ? "bg-white/20 text-current"
                             : "bg-gray-500/20 text-gray-500"
@@ -661,19 +764,24 @@ const EnhancedCollectionComponent = ({
                           key={task.id}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.3, delay: index * 0.1 }}
+                          transition={{ duration: 0.3, delay: entranceDelay(index) }}
                         >
-                          <TaskCard
-                            {...task}
-                            onComplete={handleTaskCompleteWithErrorHandling}
-                            onPriorityChange={
-                              handleTaskPriorityWithErrorHandling
-                            }
-                            onTaskUpdate={handleTaskUpdateWithErrorHandling}
-                            onTaskDelete={handleTaskDeleteWithErrorHandling}
-                            onCollectionChange={onCollectionChange}
-                            collections={collections}
-                          />
+                          <MaybeSwipeable
+                            leading={taskSwipeComplete(task.id)}
+                            trailing={taskSwipeDelete(task.id)}
+                          >
+                            <TaskCard
+                              {...task}
+                              onComplete={handleTaskCompleteWithErrorHandling}
+                              onPriorityChange={
+                                handleTaskPriorityWithErrorHandling
+                              }
+                              onTaskUpdate={handleTaskUpdateWithErrorHandling}
+                              onTaskDelete={handleTaskDeleteWithErrorHandling}
+                              onCollectionChange={onCollectionChange}
+                              collections={collections}
+                            />
+                          </MaybeSwipeable>
                         </motion.div>
                       ))}
                     </div>
@@ -694,18 +802,23 @@ const EnhancedCollectionComponent = ({
                         animate={{ opacity: 1, x: 0 }}
                         transition={{
                           duration: 0.3,
-                          delay: (priorityTasks.length + index) * 0.1,
+                          delay: entranceDelay(priorityTasks.length + index),
                         }}
                       >
-                        <TaskCard
-                          {...task}
-                          onComplete={handleTaskCompleteWithErrorHandling}
-                          onPriorityChange={handleTaskPriorityWithErrorHandling}
-                          onTaskUpdate={handleTaskUpdateWithErrorHandling}
-                          onTaskDelete={handleTaskDeleteWithErrorHandling}
-                          onCollectionChange={onCollectionChange}
-                          collections={collections}
-                        />
+                        <MaybeSwipeable
+                          leading={taskSwipeComplete(task.id)}
+                          trailing={taskSwipeDelete(task.id)}
+                        >
+                          <TaskCard
+                            {...task}
+                            onComplete={handleTaskCompleteWithErrorHandling}
+                            onPriorityChange={handleTaskPriorityWithErrorHandling}
+                            onTaskUpdate={handleTaskUpdateWithErrorHandling}
+                            onTaskDelete={handleTaskDeleteWithErrorHandling}
+                            onCollectionChange={onCollectionChange}
+                            collections={collections}
+                          />
+                        </MaybeSwipeable>
                       </motion.div>
                     ))}
                   </div>
@@ -739,21 +852,26 @@ const EnhancedCollectionComponent = ({
                         key={note.id}
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.3, delay: index * 0.1 }}
+                        transition={{ duration: 0.3, delay: entranceDelay(index) }}
                       >
-                        <NoteCard
-                          id={note.id}
-                          title={note.title}
-                          description={note.description}
-                          created_at={note.created_at}
-                          is_deleted={note.is_deleted}
-                          bg_color_hex={note.bg_color_hex}
-                          is_pinned={note.is_pinned}
-                          onPinChange={handleNotePinWithErrorHandling}
-                          onColorChange={handleNoteColorChangeWithErrorHandling}
-                          onNoteUpdate={handleNoteUpdateWithErrorHandling}
-                          onNoteDelete={handleNoteDeleteWithErrorHandling}
-                        />
+                        <MaybeSwipeable
+                          leading={noteSwipePin(note.id, Boolean(note.is_pinned))}
+                          trailing={noteSwipeDelete(note.id)}
+                        >
+                          <NoteCard
+                            id={note.id}
+                            title={note.title}
+                            description={note.description}
+                            created_at={note.created_at}
+                            is_deleted={note.is_deleted}
+                            bg_color_hex={note.bg_color_hex}
+                            is_pinned={note.is_pinned}
+                            onPinChange={handleNotePinWithErrorHandling}
+                            onColorChange={handleNoteColorChangeWithErrorHandling}
+                            onNoteUpdate={handleNoteUpdateWithErrorHandling}
+                            onNoteDelete={handleNoteDeleteWithErrorHandling}
+                          />
+                        </MaybeSwipeable>
                       </motion.div>
                     ))}
                   </div>

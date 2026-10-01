@@ -12,7 +12,7 @@
 // Rendered only in the native build — the web dashboard is untouched. See
 // src/app/(secure)/dashboard/page.tsx.
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import {
@@ -30,14 +30,19 @@ import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { appPath, listHref } from "@/lib/routes";
 import { useDueTodayNotifications } from "@/hooks/useDueTodayNotifications";
-import type { List, Note, Task } from "@/types/schema";
+import { useListLayout } from "@/hooks/useListLayout";
+import type { List } from "@/types/schema";
 import CreateListModal from "@/components/popupModels/ListPopup";
 import EditListPopup from "@/components/popupModels/editListPopup";
 import NativeContextMenu, {
   type ContextMenuItem,
 } from "./NativeContextMenu";
+import NativeHelpSheet from "./NativeHelpSheet";
 import NativeListCard from "./NativeListCard";
+import SwipeableRow, { type SwipeAction } from "./SwipeableRow";
+import { useAppData } from "./AppDataProvider";
 import { CountBadge } from "./listVisuals";
+import { homeState } from "./homeState";
 
 // Mirrors SortOption in the iOS app.
 type SortOption = "newest" | "oldest" | "az" | "za";
@@ -80,19 +85,79 @@ const DEFAULT_LISTS: (List & { href: string })[] = [
   href,
 }));
 
+/**
+ * A section name sharing a line with the rule under it.
+ *
+ * The screen used to carry one 24px "Your Lists" heading above *both* grids and a
+ * bare hairline between them, so the heading named the built-in views and nothing
+ * named the user's own lists. Two identical grids split by an unlabelled line left
+ * the reader to work out which was which. Putting the name on the rule labels both
+ * groups for the height of one row, which is less than the old arrangement spent
+ * getting it wrong.
+ */
+function SectionDivider({
+  label,
+  count,
+  isDark,
+  className = "",
+}: {
+  label: string;
+  /** Omitted where a count would be noise, as on a fixed set of built-in views. */
+  count?: number;
+  isDark: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={`flex items-center gap-2.5 pb-3 ${className}`}>
+      <h2 className="shrink-0 text-[13px] font-semibold uppercase tracking-[0.06em] text-gray-500 dark:text-gray-400">
+        {label}
+      </h2>
+      {count !== undefined && <CountBadge count={count} />}
+      {/* Takes the rest of the row, so the rule starts where the label ends
+          however long the label is. */}
+      <span
+        className={`h-px flex-1 ${isDark ? "bg-white/10" : "bg-black/10"}`}
+      />
+    </div>
+  );
+}
+
 export default function NativeHome() {
   const router = useRouter();
   const { theme } = useTheme();
   const { user } = useAuth();
   const isDark = theme === "dark";
 
-  const [lists, setLists] = useState<List[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Read from the shared cache rather than fetching here.
+  //
+  // This screen used to own the three requests and the loading flag, which meant
+  // they ran again on every return to the Lists tab — NativeTransition re-keys on
+  // the pathname, so the whole screen is remounted each time and its state went
+  // with it. AppDataProvider lives above that boundary, so the data is fetched once
+  // at launch and this is now instant on every subsequent visit.
+  //
+  // `refresh` replaces the old local `loadData` at each mutation site, and
+  // `setLists` still applies optimistic updates — just against the cache, so the
+  // change persists past a navigation instead of being thrown away.
+  const {
+    lists,
+    tasks,
+    notes,
+    isLoading,
+    refresh: refreshData,
+    setLists,
+  } = useAppData();
 
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("oldest");
+
+  // Cards or rows, from Settings → Appearance → List layout. null while the stored
+  // choice is still being read; the screen holds its skeleton until it arrives
+  // rather than painting the three-column grid and flipping to rows a frame later.
+  const { layout } = useListLayout();
+  const isListLayout = layout === "list";
+
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   const [menuOrigin, setMenuOrigin] = useState<{ x: number; y: number } | null>(
     null
@@ -102,32 +167,6 @@ export default function NativeHome() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [listToEdit, setListToEdit] = useState<List | null>(null);
   const [listToDelete, setListToDelete] = useState<List | null>(null);
-
-  // One pass for everything the screen shows. The counts under each card need all
-  // of the user's open tasks and live notes, so they are fetched once here rather
-  // than per card.
-  const loadData = useCallback(async () => {
-    if (!user) return;
-    try {
-      const [listsRes, tasksRes, notesRes] = await Promise.all([
-        apiFetch("/api/lists"),
-        apiFetch("/api/tasks?is_deleted=false&is_completed=false"),
-        apiFetch("/api/notes?is_deleted=false"),
-      ]);
-
-      if (listsRes.ok) setLists((await listsRes.json()).data ?? []);
-      if (tasksRes.ok) setTasks((await tasksRes.json()).data ?? []);
-      if (notesRes.ok) setNotes((await notesRes.json()).data ?? []);
-    } catch (error) {
-      console.error("Error loading lists screen:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
   // These are the user's open, undeleted tasks — exactly the set a due-today
   // reminder should consider. Scheduling from here means it refreshes whenever
@@ -181,6 +220,23 @@ export default function NativeHome() {
     [userLists, matchesSearch]
   );
 
+  const state = homeState({
+    isLoading,
+    search,
+    userListCount: userLists.length,
+    matchingListCount: sortedLists.length,
+    matchingDefaultCount: visibleDefaultLists.length,
+  });
+
+  // Someone who has not made a list yet gets the built-in views hidden and the
+  // screen reduced to a single invitation to create one.
+  //
+  // Hidden rather than shown empty because every one of them is a view over
+  // tasks, and tasks live in collections, which live in lists — so with no lists
+  // there is nothing any of them could ever hold. Six cards all reading zero is
+  // a worse first screen than one button that does something.
+  const isFirstRun = state === "first-run";
+
   const openList = useCallback(
     (list: List) => router.push(listHref(list.id, true)),
     [router]
@@ -203,10 +259,10 @@ export default function NativeHome() {
 
       if (!res.ok) {
         console.error("Error updating list pin status");
-        await loadData();
+        await refreshData();
       }
     },
-    [loadData]
+    [refreshData, setLists]
   );
 
   const deleteList = useCallback(async () => {
@@ -225,7 +281,7 @@ export default function NativeHome() {
       return;
     }
     setLists((previous) => previous.filter((list) => list.id !== target.id));
-  }, [listToDelete]);
+  }, [listToDelete, setLists]);
 
   // Default lists can only be pinned; user lists can also be renamed or deleted.
   // Same split as the iOS context menus.
@@ -258,6 +314,45 @@ export default function NativeHome() {
       setMenuItems(items);
       setMenuOrigin(position);
     },
+    [togglePin]
+  );
+
+  // The same three actions the context menu offers a user list, as swipe panels.
+  //
+  // Only in the List layout, and only on the user's own lists: the built-in views
+  // have nothing to rename or delete, and a card one third of the screen wide has
+  // nowhere for a panel to come from. Long press still opens the menu either way,
+  // so this adds a faster route and no new capability.
+  //
+  // Ordered pin, rename, delete so the destructive one ends up against the outer
+  // edge, furthest from where a leftward thumb first lands. Nothing fires on
+  // reveal — a panel still has to be tapped — which is what lets delete sit here
+  // without a confirmation of its own beyond the dialog it already opens.
+  const rowActions = useCallback(
+    (list: List): SwipeAction[] => [
+      // Held a little off full strength so three saturated tiles do not shout
+      // louder than the lists they belong to. 80% is as far as it goes: the icons
+      // on them are white, and thinning the fill any further over the dark field
+      // starts eating the contrast that keeps them legible.
+      {
+        label: list.is_pinned ? "Unpin List" : "Pin List",
+        icon: list.is_pinned ? PinOff : Pin,
+        background: "bg-amber-500/80",
+        onAction: () => togglePin(list),
+      },
+      {
+        label: "Update List",
+        icon: Pencil,
+        background: "bg-blue-500/80",
+        onAction: () => setListToEdit(list),
+      },
+      {
+        label: "Delete List",
+        icon: Trash2,
+        background: "bg-red-500/80",
+        onAction: () => setListToDelete(list),
+      },
+    ],
     [togglePin]
   );
 
@@ -323,11 +418,11 @@ export default function NativeHome() {
       });
 
       setIsCreateOpen(false);
-      await loadData();
+      await refreshData();
       router.push(listHref(created.id, true));
       return { success: true };
     },
-    [loadData, router]
+    [refreshData, setLists, router]
   );
 
   const handleEditSubmit = useCallback(
@@ -347,25 +442,36 @@ export default function NativeHome() {
       }
 
       setListToEdit(null);
-      await loadData();
+      await refreshData();
       return { success: true };
     },
-    [loadData]
+    [refreshData]
   );
 
-  const headingClass = "text-[24px] font-bold";
-  const surface = isDark ? "bg-gray-950 text-white" : "bg-white text-gray-900";
+  // Text colour only. The background used to be part of this — a flat bg-gray-950
+  // or bg-white — but it now comes from the gradient layer below, and a colour on
+  // the root would paint straight over that `-z-10` child and hide it.
+  const surface = isDark ? "text-white" : "text-gray-900";
 
   return (
-    <div className={`min-h-screen ${surface}`}>
+    // No background and no min-height of its own. Both come from the secure
+    // layout's wrapper now: it draws AppSurface behind every screen, and it is
+    // the element that is one viewport tall, so this page adding its own
+    // `min-h-screen` on top would make the document taller than the screen.
+    <div className={surface}>
       {/* Navigation bar and search, pinned together. `pt-safe-top` clears the
-          status bar and the opaque background means the grid scrolls underneath
-          rather than colliding with it. */}
-      <div
-        className={`sticky top-0 z-30 pt-safe-top ${
-          isDark ? "bg-gray-950" : "bg-white"
-        }`}
-      >
+          status bar and content scrolling past goes behind this rather than into
+          the system UI.
+
+          No background colour of its own, deliberately. It was a flat fill, which
+          was invisible while the page behind it was the same flat colour — but
+          against the gradient it became a band of a different shade across the top
+          of the screen. Any tint does that, including a translucent one. With none,
+          what shows through the header *is* the page gradient, so it matches by
+          construction rather than by a value someone has to keep in step.
+          `backdrop-blur-xl` is what keeps the greeting legible over cards scrolling
+          underneath. */}
+      <div className="sticky top-0 z-30 pt-safe-top backdrop-blur-xl">
         {/* The greeting and the name are one block, not two rows. They were
             stacked as a 17px "Welcome Back" in the toolbar and a separate 20px
             name underneath, which spent two full rows saying one thing and left
@@ -390,6 +496,9 @@ export default function NativeHome() {
           {/* Creating a list was the one thing in the old toolbar menu that had
               nowhere else to go, so it gets the slot the menu used to occupy —
               named for what it does rather than hidden behind "More options". */}
+          {/* Creating a list was the one thing in the old toolbar menu that had
+              nowhere else to go, so it gets the slot the menu used to occupy —
+              named for what it does rather than hidden behind "More options". */}
           <button
             type="button"
             onClick={() => setIsCreateOpen(true)}
@@ -402,9 +511,15 @@ export default function NativeHome() {
 
         {/* Search, which iOS places in the toolbar via .searchable */}
         <div className="px-4 pb-3 pt-3">
+          {/* A translucent fill rather than the solid bg-gray-800 / bg-gray-100 it
+              had. Those were picked to sit on a flat surface of the same family; on
+              the gradient they read as a grey slab with its own colour. Tinting the
+              surface underneath instead keeps the field legible as an input while
+              letting the page show through it, which is what makes it look part of
+              the same screen. */}
           <div
             className={`flex items-center gap-2 rounded-[10px] px-3 py-2 ${
-              isDark ? "bg-gray-800" : "bg-gray-100"
+              isDark ? "bg-white/10" : "bg-black/[0.06]"
             }`}
           >
             <Search size={17} className="shrink-0 text-gray-500" />
@@ -422,10 +537,13 @@ export default function NativeHome() {
 
       {pinnedLists.length > 0 && (
         <section className="px-4 pb-4">
-          <div className="flex items-center gap-2 pb-4">
-            <h2 className={headingClass}>Pinned Lists</h2>
-            <CountBadge count={pinnedLists.length} />
-          </div>
+          {/* Same divider as the two groups below it. Left as a 24px bold heading
+              it would have been the one section on the screen shouting. */}
+          <SectionDivider
+            label="Pinned"
+            count={pinnedLists.length}
+            isDark={isDark}
+          />
           {/* Horizontal rail, as in the iOS PinnedListView */}
           <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {pinnedLists.map((list) => (
@@ -443,15 +561,26 @@ export default function NativeHome() {
         </section>
       )}
 
-      <section className="px-4">
-        <div className="flex items-center gap-2">
-          <h2 className={headingClass}>Your Lists</h2>
-          <CountBadge count={userLists.length} />
+      {/* The screen's own controls, and nothing that names a group of lists — the
+          section rules below do that now. Only earns its space once there is
+          something to sort; on a first run the create prompt stands alone. */}
+      {!isFirstRun && (
+        <section className="flex items-center gap-2 px-4">
+          {/* Keeps the lightbulb and the small grey type it has always had — it
+              reads as a tip rather than as a control, which is what it is. What
+              changed is that it is now a button, and says there is something new
+              behind it rather than naming one gesture. */}
+          <button
+            type="button"
+            onClick={() => setIsHelpOpen(true)}
+            className="touch-target -ml-1 flex items-center px-1 text-[12px] text-gray-500 active:opacity-60"
+          >
+            💡 New features and tips
+          </button>
           <span className="flex-1" />
-          {/* Sort lives up here in the heading rather than as a row of chips
-              above the grid. Four options are not worth the vertical space a
-              permanent control costs on a screen whose job is showing lists, and
-              the sort is set once and rarely changed. */}
+          {/* Sort is an icon menu rather than a row of chips. Four options are not
+              worth the vertical space a permanent control costs on a screen whose
+              job is showing lists, and the sort is set once and rarely changed. */}
           <button
             type="button"
             onClick={(event) => {
@@ -470,24 +599,18 @@ export default function NativeHome() {
             <ArrowUpDown size={18} />
             Sort
           </button>
-        </div>
-        <p className="pt-1 text-[12px] text-gray-500">
-          💡 Hold a list for more options
-        </p>
-      </section>
-
-      {/* The 1px rule iOS draws under the section heading. At 50% opacity this
-          was a hard black line cutting the screen in half; a hairline separates
-          without competing with the cards under it. */}
-      <div
-        className={`mx-4 mt-3 h-px ${isDark ? "bg-white/10" : "bg-black/10"}`}
-      />
+        </section>
+      )}
 
       <section
         className="px-4 pt-3"
         style={{ paddingBottom: "2rem" }}
       >
-        {isLoading ? (
+        {/* `layout === null` means the stored card-or-rows choice has not been read
+            yet. Holding the skeleton for that frame is the alternative to painting
+            the grid and flipping it to rows, which is what someone who chose rows
+            would see on every visit to this tab. */}
+        {state === "loading" || layout === null ? (
           <div className="grid grid-cols-3 gap-2.5">
             {Array.from({ length: 6 }).map((_, index) => (
               <div
@@ -498,13 +621,17 @@ export default function NativeHome() {
               />
             ))}
           </div>
-        ) : sortedLists.length === 0 && visibleDefaultLists.length === 0 ? (
-          // Equivalent of ContentUnavailableView on iOS
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+        ) : state === "first-run" ? (
+          // The whole screen for someone with nothing yet. Equivalent of
+          // ContentUnavailableView on iOS, and the only thing to do here — the
+          // built-in view cards are hidden for this case, because with no lists
+          // there are no collections and so nothing any of them could hold.
+          <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
             <ListChecks size={48} className="text-gray-400" />
-            <p className="text-[17px] font-semibold">No Lists</p>
-            <p className="max-w-[16rem] text-[14px] text-gray-500">
-              Create a List to start organising your tasks and notes.
+            <p className="text-[17px] font-semibold">No Lists Yet</p>
+            <p className="max-w-[17rem] text-[14px] text-gray-500">
+              Everything in List It lives inside a list. Create your first one to
+              start adding tasks and notes.
             </p>
             <button
               type="button"
@@ -515,49 +642,101 @@ export default function NativeHome() {
               Create List
             </button>
           </div>
+        ) : state === "search-miss" ? (
+          // No create button here on purpose. Someone who has typed a query is
+          // looking for something that exists, not asking to make a new one.
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <Search size={48} className="text-gray-400" />
+            <p className="text-[17px] font-semibold">No Results</p>
+            <p className="max-w-[17rem] text-[14px] text-gray-500">
+              Nothing matches “{search.trim()}”.
+            </p>
+          </div>
         ) : (
           <>
-            {/* Two groups, not one flowing grid. The built-in views are fixed
-                and always sit on top; the user's own lists are what the sort
-                control reorders. A rule between them makes that split visible
-                instead of leaving the user to infer it from the icons. */}
+            {/* Two named groups, not one flowing grid. The built-in views are
+                fixed and always sit on top; the user's own lists are what the
+                sort control reorders. Each group's name sits on the rule above
+                it, so which is which is stated rather than inferred. */}
             {visibleDefaultLists.length > 0 && (
-              <div className="grid grid-cols-3 gap-2.5">
-                {visibleDefaultLists.map((list) => (
-                  <NativeListCard
-                    key={list.id}
-                    list={list}
-                    tasks={tasks}
-                    notes={notes}
-                    variant="grid"
-                    onOpen={() => router.push(appPath(list.href))}
-                  />
-                ))}
-              </div>
-            )}
-
-            {visibleDefaultLists.length > 0 && sortedLists.length > 0 && (
-              <div
-                className={`my-5 h-px ${
-                  isDark ? "bg-white/10" : "bg-black/10"
-                }`}
-              />
+              <>
+                <SectionDivider label="Default lists" isDark={isDark} />
+                {/* Two columns in the List layout rather than three: these stay
+                    cards, so widening them is what distinguishes a group of six
+                    fixed views from the rows underneath. Both class strings are
+                    written out, because Tailwind scans source text and would
+                    never emit a column count assembled at runtime. */}
+                <div
+                  className={
+                    isListLayout
+                      ? "grid grid-cols-2 gap-2.5"
+                      : "grid grid-cols-3 gap-2.5"
+                  }
+                >
+                  {visibleDefaultLists.map((list) => (
+                    <NativeListCard
+                      key={list.id}
+                      list={list}
+                      tasks={tasks}
+                      notes={notes}
+                      variant="grid"
+                      onOpen={() => router.push(appPath(list.href))}
+                    />
+                  ))}
+                </div>
+              </>
             )}
 
             {sortedLists.length > 0 && (
-              <div className="grid grid-cols-3 gap-2.5">
-                {sortedLists.map((list) => (
-                  <NativeListCard
-                    key={`${list.id}-${list.list_name}-${list.bg_color_hex}`}
-                    list={list}
-                    tasks={tasks}
-                    notes={notes}
-                    variant="grid"
-                    onOpen={() => openList(list)}
-                    onLongPress={(position) => showContextMenu(list, position)}
-                  />
-                ))}
-              </div>
+              <>
+                <SectionDivider
+                  label="Your lists"
+                  count={userLists.length}
+                  isDark={isDark}
+                  className={visibleDefaultLists.length > 0 ? "pt-6" : ""}
+                />
+                {isListLayout ? (
+                  <div className="flex flex-col gap-2">
+                    {sortedLists.map((list) => (
+                      <SwipeableRow
+                        key={`${list.id}-${list.list_name}-${list.bg_color_hex}`}
+                        trailing={rowActions(list)}
+                        showLabels={false}
+                        // Matches the row's own corners, so they do not square
+                        // off the moment a swipe starts.
+                        radiusClass="rounded-2xl"
+                      >
+                        <NativeListCard
+                          list={list}
+                          tasks={tasks}
+                          notes={notes}
+                          variant="row"
+                          onOpen={() => openList(list)}
+                          onLongPress={(position) =>
+                            showContextMenu(list, position)
+                          }
+                        />
+                      </SwipeableRow>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {sortedLists.map((list) => (
+                      <NativeListCard
+                        key={`${list.id}-${list.list_name}-${list.bg_color_hex}`}
+                        list={list}
+                        tasks={tasks}
+                        notes={notes}
+                        variant="grid"
+                        onOpen={() => openList(list)}
+                        onLongPress={(position) =>
+                          showContextMenu(list, position)
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -567,6 +746,14 @@ export default function NativeHome() {
         origin={menuOrigin}
         items={menuItems}
         onClose={() => setMenuOrigin(null)}
+      />
+
+      {/* The walkthrough's material, on demand. Mounted here because the control
+          that opens it is here, and because this is the screen most of it is
+          about. */}
+      <NativeHelpSheet
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
       />
 
       <CreateListModal

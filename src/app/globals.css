@@ -71,6 +71,79 @@
   padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
+/* Bottom clearance for a scrolling panel portalled into a fixed overlay: the task
+   and note detail sheets.
+
+   Those panels cannot inherit any of the insets below. `body { padding-bottom }`
+   is the app's only bottom inset, and a fixed element is laid out against the
+   viewport rather than the body's padding box — so the last control in the sheet,
+   which is the Delete button, sat underneath the Android navigation bar with only
+   the form's 16px of `py-4` beneath it. The `pb-tab-bar` clearance does not reach
+   them either: (secure)/layout applies that only on the three tab roots, and
+   /List is not one of them.
+
+   The keyboard offset is part of the sum because these sheets hold text inputs —
+   without it the delete button clears the navigation bar but hides behind the
+   keyboard instead.
+
+   ---------------------------------------------------------------------------
+   Why there is a hard floor and not just the inset
+
+   The first version of this was `calc(env(safe-area-inset-bottom) + 1.25rem)`, and
+   the Delete button still sat under the navigation bar. The placement was right; the
+   *value* was the problem.
+
+   `env(safe-area-inset-bottom)` cannot be relied on to describe the Android
+   navigation bar. On iOS it covers the home indicator, which is what the spec was
+   written for. Chromium on Android derives it from display-cutout insets, so on the
+   great majority of devices — anything without a bottom cutout — it reports 0
+   whether the app is edge-to-edge or not. That left 20px of clearance against a
+   navigation bar that is 48dp with three buttons and about 24dp as a gesture pill.
+
+   There is no way to measure the real inset from the web layer: the WebView is
+   edge-to-edge, so `window.innerHeight` already includes the area behind the bar and
+   nothing in the DOM knows it is there. Reading it properly would mean a native
+   plugin publishing the value the way NativeShell publishes --keyboard-offset.
+
+   So the floor is the fix. `max()` takes whichever is larger, which means this is
+   correct on a device that reports a real inset *and* on one that reports nothing,
+   and it still grows for the keyboard. 5rem clears the tallest three-button bar with
+   room to spare. It costs nothing visible: this is trailing padding at the end of a
+   scrolling sheet. */
+@utility pb-sheet-safe {
+  padding-bottom: max(
+    5rem,
+    calc(env(safe-area-inset-bottom, 0px) + var(--keyboard-offset, 0px) + 1.25rem)
+  );
+}
+
+/* Makes a centred modal overlay survive a dialog taller than the screen.
+
+   Every create/edit dialog is a `w-full max-w-md p-6` card inside a
+   `fixed inset-0 flex items-center justify-center` overlay, with no max-height and
+   no scrolling anywhere. A flex-centred child that outgrows its container
+   overflows in *both* directions and the overhang is unreachable — so on a phone,
+   and especially with the keyboard open, the Save and Cancel buttons at the bottom
+   of the note and task dialogs were simply cut off.
+
+   Applied together with `my-auto` on the card: with room to spare the auto margins
+   still centre it, and when there is not, they collapse to zero and the overlay
+   scrolls instead of clipping.
+
+   The bottom padding carries the same `max()` floor as pb-sheet-safe above, and for
+   the same reason — `env(safe-area-inset-bottom)` reports 0 on most Android devices,
+   so an inset-only value would leave a tall dialog's buttons under the navigation
+   bar. The top is left on the inset alone: `safe-area-inset-top` genuinely does
+   resolve on Android, because the status bar is what the cutout inset describes. */
+@utility native-dialog-scroll {
+  overflow-y: auto;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 1rem);
+  padding-bottom: max(
+    5rem,
+    calc(env(safe-area-inset-bottom, 0px) + var(--keyboard-offset, 0px) + 1rem)
+  );
+}
+
 /* ---------------------------------------------------------------------------
    Native-only rules.
 

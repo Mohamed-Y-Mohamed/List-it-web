@@ -14,7 +14,10 @@ import CreateNoteModal from "@/components/popupModels/notepopup";
 import DeleteCollectionModal from "@/components/popupModels/deleteCollectionModal";
 import EditCollectionPopup from "@/components/popupModels/EditCollectionPopup";
 import { apiFetch } from "@/lib/apiFetch";
+import { IS_NATIVE_BUILD } from "@/lib/platform";
 import { useSetScreenTitle } from "@/components/native/ScreenTitleContext";
+import { useOptionalAppData } from "@/components/native/AppDataProvider";
+import AppSurface from "@/components/AppSurface";
 
 // Format date to yyyy-MM-dd'T'HH:mm:ss
 const formatDateForPostgres = (date: Date): string => {
@@ -85,10 +88,19 @@ export default function ListDetailView({ listId }: { listId: string }) {
   // Add a refresh trigger to force re-fetch of data
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // The shared native cache, or null on the web where no provider is mounted.
+  // Declared up here because refreshData below closes over it.
+  const appData = useOptionalAppData();
+
   // Function to trigger a data refresh
   const refreshData = useCallback(() => {
     setRefreshTrigger((prev) => prev + 1);
-  }, []);
+    // On native, a change made on this screen also changes what the Lists tab
+    // shows — the "3 tasks · 1 note" caption under each card is computed from the
+    // same cached rows. Without this the home screen would keep showing the counts
+    // from before the edit until the next resume.
+    void appData?.refresh();
+  }, [appData]);
 
   // Function to check if a collection name is "General"
   const isGeneralCollection = useCallback(
@@ -113,8 +125,148 @@ export default function ListDetailView({ listId }: { listId: string }) {
     return collections.length > 0 ? collections[0].id : null;
   }, [collections, isGeneralCollection]);
 
+  // ---------------------------------------------------------------------------
+  // Native data path
+  //
+  // The web effect below is a serial N+1: list, then collections, then a `for`
+  // loop awaiting a tasks request and a notes request per collection. That is
+  // `2 + 2N` requests in series — ten sequential round trips for a list with four
+  // collections, each costing two upstream calls because requireAuth verifies the
+  // JWT with Supabase Auth on every request. And `setIsLoading(false)` only runs
+  // in the `finally`, so one pulsing line of text covers the entire cascade.
+  //
+  // Native replaces all `2N` of those with **none**. AppDataProvider already holds
+  // every open task and live note for the user, fetched once at launch, and the
+  // filters are identical (`is_deleted=false`, `is_completed=false`) — so this
+  // screen's rows are already in memory and only need grouping by `collection_id`.
+  // What is left is the list row and its collections, fetched in parallel.
+  //
+  // First open: 2 parallel requests. Return visit: 2, with no spinner, because the
+  // collections are cached and paint immediately while they revalidate.
+  //
+  // `appData` is null off-native, where no provider is mounted, so the web arm is
+  // entirely unaffected.
+  const cachedLists = appData?.lists;
+  const cachedTasks = appData?.tasks;
+  const cachedNotes = appData?.notes;
+  const getCachedCollections = appData?.getCollections;
+  const putCachedCollections = appData?.putCollections;
+
+  // Pinned first, then newest. Both task and note lists were sorted this way by
+  // two identical inline comparators in the web path.
+  const sortRows = useCallback(
+    <T extends { is_pinned: boolean | null; created_at: Date | string }>(
+      rows: T[]
+    ): T[] =>
+      [...rows].sort((a, b) => {
+        if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      }),
+    []
+  );
+
+  // Native: derive what is on screen from the cache. No requests at all.
+  useEffect(() => {
+    if (!IS_NATIVE_BUILD || !appData) return;
+    if (!listId) return;
+
+    const list = cachedLists?.find((item) => item.id === listId);
+    if (list) setListData(list);
+
+    const raw = getCachedCollections?.(listId);
+    if (!raw) return;
+
+    setCollections(
+      raw.map((collection) => ({
+        ...collection,
+        tasks: sortRows(
+          (cachedTasks ?? []).filter((t) => t.collection_id === collection.id)
+        ),
+        notes: sortRows(
+          (cachedNotes ?? []).filter((n) => n.collection_id === collection.id)
+        ),
+        isPinned: false,
+        is_default: isGeneralCollection(collection.collection_name),
+      })) as Collection[]
+    );
+    setError(null);
+    setIsLoading(false);
+  }, [
+    appData,
+    listId,
+    cachedLists,
+    cachedTasks,
+    cachedNotes,
+    getCachedCollections,
+    sortRows,
+    isGeneralCollection,
+  ]);
+
+  // Native: keep the list row and its collections fresh. Two requests, parallel.
+  useEffect(() => {
+    if (!IS_NATIVE_BUILD || !appData) return;
+    if (!listId || !user) {
+      setIsLoading(false);
+      setError("List ID or user not available");
+      return;
+    }
+
+    let cancelled = false;
+
+    // Only show a spinner when there is genuinely nothing to show. On a return
+    // visit the cached collections are already painted, and replacing them with a
+    // loading state would be a step backwards.
+    if (!getCachedCollections?.(listId)) setIsLoading(true);
+
+    (async () => {
+      try {
+        const [listRes, collectionsRes] = await Promise.all([
+          apiFetch(`/api/lists?id=${listId}`),
+          apiFetch(`/api/collections?list_id=${listId}`),
+        ]);
+
+        if (cancelled) return;
+
+        if (!listRes.ok) throw new Error("Failed to fetch list");
+        const { data: list } = await listRes.json();
+        if (!list) throw new Error("List not found");
+
+        if (!collectionsRes.ok) throw new Error("Failed to fetch collections");
+        const { data: collectionsData } = await collectionsRes.json();
+
+        if (cancelled) return;
+
+        setListData(list as List);
+        setError(null);
+        // Writing to the cache is what re-runs the derive effect above, which is
+        // what actually puts the collections on screen.
+        putCachedCollections?.(listId, (collectionsData ?? []) as Collection[]);
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Error fetching list data:", err);
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Deliberately not depending on `appData` or the cache getters: this is the
+    // revalidation, and re-running it whenever the cache changes — which the
+    // derive effect above causes — would fetch in a loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listId, user, refreshTrigger]);
+
   // Effect to fetch list data
   useEffect(() => {
+    // Native has its own path above. Everything below this line is the web app's
+    // original behaviour, unchanged.
+    if (IS_NATIVE_BUILD) return;
+
     const fetchListData = async () => {
       if (!listId || !user) {
         setIsLoading(false);
@@ -1105,12 +1257,14 @@ export default function ListDetailView({ listId }: { listId: string }) {
     ${isDark ? "text-gray-200" : "text-gray-800"}
     `}
     >
-      {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#090c10_20%,#13161a_40%,#0e1115_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(71,85,105,0.16)_0%,transparent_58%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(100,116,139,0.09)_0%,transparent_50%)] before:content-[''] after:content-['']" />
-      ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f8f9fb_0%,#f1f4f7_25%,#e2e6ea_50%,#f3f4f6_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(71,85,105,0.08)_0%,transparent_58%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(100,116,139,0.06)_0%,transparent_50%)] before:content-[''] after:content-['']" />
-      )}
-      <div className="p-4  pt-20 box-border">
+      <AppSurface />
+      {/* `pt-20` clears the web header. On native it was 80px of nothing on top of
+          a back bar that is `sticky` rather than fixed, so it already takes its own
+          height in the flow and the padding was being counted twice — which is the
+          empty band the screen opened with, above a plus floating in it. */}
+      <div
+        className={`p-4 box-border ${IS_NATIVE_BUILD ? "pt-2" : "pt-20"}`}
+      >
         <div className={`max-w-6xl mx-auto`}>
           {/* Loading state */}
           {isLoading ? (
@@ -1135,16 +1289,30 @@ export default function ListDetailView({ listId }: { listId: string }) {
             </div>
           ) : listData ? (
             <>
-              {/* Header with list name */}
-              <div className="flex items-center justify-between mb-6 px-4">
-                <h1
-                  className={`text-2xl font-bold truncate mr-2 ${
-                    isDark ? "text-gray-100" : "text-gray-800"
-                  }`}
-                  style={{ color: listData.bg_color_hex ?? "#ffffff" }}
-                >
-                  {listData.list_name}
-                </h1>
+              {/* Header with list name.
+                  Native drops the name and keeps only the create menu. The back
+                  bar above already carries it — useSetScreenTitle feeds it at the
+                  top of this component — so this was the same word twice, and
+                  because it is painted in the list's own colour a short name read
+                  as a stray coloured bar beside the plus rather than as a title.
+                  Losing the row also starts the collections a row higher, which is
+                  the whole point of the screen. Web keeps it: there is no back bar
+                  there, so this h1 is the only place the list is named. */}
+              <div
+                className={`flex items-center px-4 ${
+                  IS_NATIVE_BUILD ? "justify-end mb-2" : "justify-between mb-6"
+                }`}
+              >
+                {!IS_NATIVE_BUILD && (
+                  <h1
+                    className={`text-2xl font-bold truncate mr-2 ${
+                      isDark ? "text-gray-100" : "text-gray-800"
+                    }`}
+                    style={{ color: listData.bg_color_hex ?? "#ffffff" }}
+                  >
+                    {listData.list_name}
+                  </h1>
+                )}
                 <div className="flex-shrink-0">
                   <ListFilterPlus
                     onCreateCollection={() => setIsCollectionModalOpen(true)}

@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import NoteSidebar from "@/components/popupModels/notedetail";
 import { Note, OperationResult } from "@/types/schema";
 import { formatDisplayDate } from "@/utils/dateUtils";
+import { isLightColor, normaliseHex } from "@/lib/colors";
 import { useRouter } from "next/navigation";
 
 interface NoteCardProps {
@@ -82,13 +83,26 @@ const NoteCard = ({
   // If there's no title (null value from DB), use a placeholder
   const displayTitle = noteTitle || "Untitled Note";
 
+  // The stored colour, normalised to an exact #RRGGBB, or null if it is not one.
+  //
+  // The gradient below is built by appending `dd`/`aa`/`bb` to this value, and
+  // that only yields valid CSS for a 6-digit hex. Anything else — `#fff`, an
+  // `#RRGGBBAA`, a colour name, a stray space — produced an unparseable colour
+  // stop, at which point CSS discards the whole `background` declaration. Since
+  // the card's class list carries `border` but no background utility, the result
+  // was a completely transparent note: the reported "some notes don't have a
+  // background", failing silently with nothing in the console.
+  //
+  // Truthiness was the only check before, which a malformed string passes.
+  const safeColor = normaliseHex(noteBackgroundColor);
+
   //  color logic with better defaults
   const getBackgroundStyle = () => {
-    if (noteBackgroundColor) {
+    if (safeColor) {
       return {
-        background: `linear-gradient(135deg, ${noteBackgroundColor}dd 0%, ${noteBackgroundColor}aa 50%, ${noteBackgroundColor}bb 100%)`,
+        background: `linear-gradient(135deg, ${safeColor}dd 0%, ${safeColor}aa 50%, ${safeColor}bb 100%)`,
         backdropFilter: "blur(10px)",
-        borderColor: `${noteBackgroundColor}40`,
+        borderColor: `${safeColor}40`,
       };
     }
 
@@ -107,30 +121,24 @@ const NoteCard = ({
         };
   };
 
-  // Determine text color based on background
+  // Determine text color based on background.
+  //
+  // This used to keep its own list of "light" hex values and test membership with
+  // `lightColors.includes(colour.toLowerCase())` — but the list was written
+  // uppercase, so no lookup could ever match. Every decision therefore fell
+  // through to a raw channel sum, which returns NaN for a malformed value, and
+  // `NaN > 384` is false: white text on a light or absent background. (The
+  // landing page carries the same list and compares without lowercasing, which is
+  // why it worked there and this was never spotted.)
+  //
+  // isLightColor validates first and weights the channels perceptually, so yellow
+  // and cyan are correctly treated as light.
   const getTextColor = () => {
-    if (!noteBackgroundColor) {
+    if (!safeColor) {
       return isDark ? "text-gray-100" : "text-gray-800";
     }
 
-    // Light colors that need dark text
-    const lightColors = [
-      "#FFD60A",
-      "#34C759",
-      "#00C7BE",
-      "#FF9F0A",
-      "#30D158",
-      "#ff69B4",
-    ];
-    const isLightBackground =
-      lightColors.includes(noteBackgroundColor.toLowerCase()) ||
-      (noteBackgroundColor.includes("#") &&
-        parseInt(noteBackgroundColor.slice(1, 3), 16) +
-          parseInt(noteBackgroundColor.slice(3, 5), 16) +
-          parseInt(noteBackgroundColor.slice(5, 7), 16) >
-          384);
-
-    return isLightBackground ? "text-gray-800" : "text-white";
+    return isLightColor(safeColor) ? "text-gray-800" : "text-white";
   };
 
   const textColor = getTextColor();
@@ -319,6 +327,13 @@ const NoteCard = ({
           ${isProcessing ? "opacity-70 pointer-events-none" : ""}
           ${className}
         `}
+        /* No opaque base class here on purpose.
+           One was added as a floor against the transparent-card bug, but it was
+           redundant: getBackgroundStyle validates the hex first, so an unusable
+           value falls through to the themed gradient and can no longer produce an
+           invalid declaration for CSS to discard. The base was not free either —
+           the coloured gradient over it tops out at 87% opacity, so it tinted every
+           note that does have a colour. */
         style={getBackgroundStyle()}
         onClick={openSidebar}
         whileHover={{ y: -4, scale: 1.02 }}

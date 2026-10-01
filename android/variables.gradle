@@ -13,4 +13,12 @@ ext {
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
     cordovaAndroidVersion = '14.0.1'
+
+    // The version every kotlin-stdlib artifact is aligned to. See the
+    // resolutionStrategy in build.gradle for why that alignment is needed.
+    //
+    // Not chosen arbitrarily: 1.8.22 is what Gradle already resolves
+    // org.jetbrains.kotlin:kotlin-stdlib to on its own, so this pins the old
+    // jdk7/jdk8 artifacts to the version the build had settled on anyway.
+    kotlinStdlibVersion = '1.8.22'
 }
