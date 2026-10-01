@@ -25,12 +25,6 @@ import { TaskSectionHeader } from "@/components/Tasks/TaskStatsCard";
 import type { Collection as SchemaCollection } from "@/types/schema";
 import type { TaskRow } from "@/types/taskView";
 
-const GRADIENT = {
-  dark: "[background:linear-gradient(45deg,#000000_0%,#0a0b0f_20%,#141519_40%,#0f1014_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(79,70,229,0.14)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(129,140,248,0.08)_0%,transparent_50%)] before:content-[''] after:content-['']",
-  light:
-    "[background:linear-gradient(45deg,#f8f9fc_0%,#f1f3f8_25%,#e2e5ef_50%,#f3f4f7_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(79,70,229,0.08)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(129,140,248,0.06)_0%,transparent_50%)] before:content-[''] after:content-['']",
-};
-
 type GroupKey = "today" | "tomorrow" | "future" | "no_date";
 
 /** The four bands, in the order they appear down the screen. */
@@ -123,7 +117,6 @@ export default function NotCompletedPage() {
   return (
     <TaskScreen
       isDark={isDark}
-      gradient={GRADIENT}
       icon={ClipboardCheck}
       accent={{ dark: "text-teal-400", light: "text-teal-500" }}
       title="To-Do Tasks"

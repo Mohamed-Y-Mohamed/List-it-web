@@ -39,6 +39,7 @@ import {
 import Link from "next/link";
 import { format, subDays } from "date-fns";
 import { formatDisplayDate, formatTimeAgo } from "@/utils/dateUtils";
+import AppSurface from "@/components/AppSurface";
 
 // Interfaces
 interface TaskStats {
@@ -1086,11 +1087,7 @@ export default function DashboardView({ heading = "Dashboard" }: { heading?: str
             main view used this neutral blue one, so the screen shifted hue the
             moment it finished loading. All three are the blue set now, which is
             also what Settings, the list detail screen and the Lists tab use. */}
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0a0c0f_20%,#141619_40%,#0f1114_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.15)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.08)_0%,transparent_50%)] before:content-[''] after:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f8fafc_0%,#f1f5f9_25%,#e2e8f0_50%,#f3f4f6_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.08)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.06)_0%,transparent_50%)] before:content-[''] after:content-['']" />
-        )}
+        <AppSurface />
         <div className="max-w-7xl pl-4 md:pl-20 w-full mx-auto">
           <div className="text-center py-16">
             <CircleAlert
@@ -1117,11 +1114,7 @@ export default function DashboardView({ heading = "Dashboard" }: { heading?: str
       <main
         className={`transition-all pt-16 pr-4 md:pr-16 ${ROOT_MIN_HEIGHT} duration-300 pb-20 w-full relative ${isDark ? "text-gray-200" : "text-gray-800"}`}
       >
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0a0c0f_20%,#141619_40%,#0f1114_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.15)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.08)_0%,transparent_50%)] before:content-[''] after:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f8fafc_0%,#f1f5f9_25%,#e2e8f0_50%,#f3f4f6_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.08)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.06)_0%,transparent_50%)] before:content-[''] after:content-['']" />
-        )}
+        <AppSurface />
         <div className="max-w-7xl pl-4 md:pl-20 w-full mx-auto">
           <motion.header
             initial={{ opacity: 0, y: -20 }}
@@ -1150,11 +1143,7 @@ export default function DashboardView({ heading = "Dashboard" }: { heading?: str
     <main
       className={`transition-all pt-16 pr-4 md:pr-16 ${ROOT_MIN_HEIGHT} duration-300 pb-20 w-full relative ${isDark ? "text-gray-200" : "text-gray-800"}`}
     >
-      {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0a0c0f_20%,#141619_40%,#0f1114_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.15)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.08)_0%,transparent_50%)] before:content-[''] after:content-['']" />
-      ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f8fafc_0%,#f1f5f9_25%,#e2e8f0_50%,#f3f4f6_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.08)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.06)_0%,transparent_50%)] before:content-[''] after:content-['']" />
-      )}
+      <AppSurface />
 
       <div className="max-w-7xl pl-4 md:pl-20 w-full mx-auto">
         {/* Header */}

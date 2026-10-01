@@ -16,12 +16,6 @@ import TaskScreen from "@/components/Tasks/TaskScreen";
 import TaskList from "@/components/Tasks/TaskList";
 import type { TaskRow } from "@/types/taskView";
 
-const GRADIENT = {
-  dark: "[background:linear-gradient(45deg,#000000_0%,#0f0d09_20%,#1a1713_40%,#14120e_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(245,158,11,0.09)_0%,transparent_66%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(251,191,36,0.05)_0%,transparent_56%)] before:content-[''] after:content-['']",
-  light:
-    "[background:linear-gradient(45deg,#fcfbf9_0%,#f7f5f1_25%,#ede9e3_50%,#f6f4f1_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(245,158,11,0.06)_0%,transparent_66%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(251,191,36,0.04)_0%,transparent_56%)] before:content-[''] after:content-['']",
-};
-
 export default function TomorrowPage() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -61,7 +55,6 @@ export default function TomorrowPage() {
   return (
     <TaskScreen
       isDark={isDark}
-      gradient={GRADIENT}
       icon={Calendar}
       accent={{ dark: "text-purple-400", light: "text-purple-500" }}
       title="Tomorrow's Tasks"

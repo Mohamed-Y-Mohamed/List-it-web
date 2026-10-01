@@ -53,7 +53,11 @@ export default function NativeBackBar() {
       // hairline underneath separates it without drawing a heavy rule.
       className={`sticky top-0 z-40 pt-safe-top backdrop-blur-xl ${
         isDark
-          ? "bg-gray-950/85 text-white shadow-[inset_0_-1px_0_rgba(255,255,255,0.08)]"
+          ? // The page's own field rather than gray-950, which is several steps
+            // darker and left the bar reading as a separate band across the top of
+            // every pushed screen. Same value as AppSurface, so what separates the
+            // bar from the page is the hairline under it and nothing else.
+            "bg-[#111827]/85 text-white shadow-[inset_0_-1px_0_rgba(255,255,255,0.08)]"
           : "bg-white/85 text-gray-900 shadow-[inset_0_-1px_0_rgba(16,24,40,0.07)]"
       }`}
     >

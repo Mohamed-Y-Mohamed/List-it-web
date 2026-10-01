@@ -15,12 +15,6 @@ import { isSameLocalDay, sortTasks } from "@/lib/taskView";
 import TaskScreen from "@/components/Tasks/TaskScreen";
 import TaskList from "@/components/Tasks/TaskList";
 
-const GRADIENT = {
-  dark: "[background:linear-gradient(45deg,#000000_0%,#0b0a0f_20%,#151419_40%,#100f14_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(124,58,237,0.12)_0%,transparent_62%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(196,181,253,0.07)_0%,transparent_52%)] before:content-[''] after:content-['']",
-  light:
-    "[background:linear-gradient(45deg,#fafbfc_0%,#f3f4f8_25%,#e5e7ef_50%,#f5f6f8_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(124,58,237,0.07)_0%,transparent_62%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(196,181,253,0.05)_0%,transparent_52%)] before:content-[''] after:content-['']",
-};
-
 export default function PriorityPage() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -46,7 +40,6 @@ export default function PriorityPage() {
   return (
     <TaskScreen
       isDark={isDark}
-      gradient={GRADIENT}
       icon={Star}
       accent={{ dark: "text-yellow-400", light: "text-yellow-500" }}
       title="Priority Tasks"

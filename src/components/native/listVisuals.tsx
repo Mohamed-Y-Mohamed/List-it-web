@@ -104,28 +104,39 @@ export function listCounts(list: List, tasks: Task[], notes: Note[]) {
   };
 }
 
+/**
+ * Which card the label is sitting in. Was a single `isPinnedCard` boolean, which
+ * conflated two separate questions — how the text aligns, and whether the counts
+ * show — and the row card needs the pinned card's alignment with the grid card's
+ * counts.
+ */
+export type ListInfoShape = "grid" | "pinned" | "row";
+
 export function ListInfo({
   list,
   tasks,
   notes,
-  isPinnedCard,
+  shape,
 }: {
   list: List;
   tasks: Task[];
   notes: Note[];
-  isPinnedCard: boolean;
+  shape: ListInfoShape;
 }) {
   const { taskCount, noteCount } = listCounts(list, tasks, notes);
 
-  // iOS hides the counts on default lists and on pinned cards, where there is no
-  // room for a second line.
-  const showCounts = !list.is_default && !isPinnedCard;
+  // iOS hides the counts on default lists, which are views rather than containers,
+  // and on the pinned rail, where there is no room for a second line. A full-width
+  // row has the room, so it keeps them.
+  const showCounts = !list.is_default && shape !== "pinned";
 
-  // The pinned rail lays out horizontally, so its label sits left-aligned on a
-  // single line; the grid card centres a name that may wrap to two.
+  // The pinned rail and the row lay out horizontally, so their labels sit
+  // left-aligned on a single line; the grid card centres a name that may wrap to two.
+  const isGrid = shape === "grid";
+
   return (
     <span
-      className={`flex min-w-0 flex-col ${isPinnedCard ? "items-start" : "items-center"}`}
+      className={`flex min-w-0 flex-col ${isGrid ? "items-center" : "items-start"}`}
     >
       {/* On a grid card the name gets a box exactly two lines tall, whatever it
           holds, with the text centred inside it.
@@ -139,16 +150,18 @@ export function ListInfo({
 
           2.75em is two lines of leading-snug (1.375), tied to the 13.5px name below
           rather than a magic pixel value, so it follows if that size changes. */}
-      <span
-        className={
-          isPinnedCard ? undefined : "flex min-h-[2.75em] items-center"
-        }
-      >
+      <span className={isGrid ? "flex min-h-[2.75em] items-center" : undefined}>
         <span
           className={`text-[13.5px] font-semibold leading-snug tracking-[-0.01em] ${
-            isPinnedCard
-              ? "max-w-[9.5rem] truncate"
-              : "line-clamp-2 text-center"
+            isGrid
+              ? "line-clamp-2 text-center"
+              : shape === "pinned"
+                ? // The rail scrolls sideways, so its cards are capped rather than
+                  // sized by their content.
+                  "max-w-[9.5rem] truncate"
+                : // A row is as wide as the screen; `block` is what gives truncate
+                  // a box to measure against inside the flex column.
+                  "block w-full truncate"
           }`}
         >
           {list.list_name || "Untitled"}

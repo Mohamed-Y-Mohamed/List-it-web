@@ -22,9 +22,15 @@ import {
   Shield,
   Sun,
   Moon,
+  LayoutGrid,
+  Rows3,
+  ChevronDown,
   LogOut,
 } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
+import { useListLayout } from "@/hooks/useListLayout";
+import { type ListLayout } from "@/lib/listLayout";
+import AppSurface from "@/components/AppSurface";
 
 // Types
 interface UserProfile {
@@ -167,6 +173,190 @@ const Notification: React.FC<{
   );
 };
 
+/**
+ * The List layout control: a row that states the current choice and opens a menu
+ * under it.
+ *
+ * It was a bare <select> pinned to the right of the row, which the system renders
+ * as a grey box in its own typeface and which looked like a form field dropped into
+ * a settings screen. This keeps the row itself as the target — the whole thing is
+ * the button, not a control parked beside a label — and draws the menu in the app's
+ * own radii, weights and accent.
+ *
+ * Closes on choose, on Escape, and on a tap anywhere outside. Two options is short
+ * enough that the arrow-key handling a long menu needs would be ceremony; Tab
+ * reaches both, and Escape gets out.
+ */
+const LAYOUT_OPTIONS: {
+  value: ListLayout;
+  label: string;
+  hint: string;
+  Icon: React.ElementType;
+}[] = [
+  {
+    value: "cards",
+    label: "Cards",
+    hint: "A three-column grid",
+    Icon: LayoutGrid,
+  },
+  {
+    value: "list",
+    label: "List",
+    hint: "One row each, swipe for actions",
+    Icon: Rows3,
+  },
+];
+
+const ListLayoutSetting: React.FC<{
+  isDark: boolean;
+  layout: ListLayout | null;
+  onChange: (next: ListLayout) => void;
+}> = ({ isDark, layout, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // `layout` is null only for the frame before the stored value is read, and the
+  // default is what it resolves to for anyone who has never opened this.
+  const current =
+    LAYOUT_OPTIONS.find((option) => option.value === layout) ??
+    LAYOUT_OPTIONS[0];
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen]);
+
+  return (
+    <div
+      className={`relative rounded-lg border ${
+        isDark ? "border-gray-700 bg-gray-800/50" : "border-gray-200 bg-white"
+      }`}
+    >
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((open) => !open)}
+        className="flex min-h-[44px] w-full items-center justify-between gap-4 p-4 text-left"
+      >
+        <span className="flex min-w-0 items-center space-x-3">
+          <current.Icon
+            className={`h-5 w-5 shrink-0 ${isDark ? "text-orange-400" : "text-sky-500"}`}
+          />
+          {/* No second line here. The description wrapped to two at phone width,
+              which pushed the icon off centre against the row beside it, and each
+              option carries its own hint in the menu where it is actually useful. */}
+          <span
+            className={`min-w-0 truncate font-medium ${isDark ? "text-white" : "text-gray-900"}`}
+          >
+            List layout
+          </span>
+        </span>
+
+        <span className="flex shrink-0 items-center gap-1.5">
+          <span
+            className={`text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-700"}`}
+          >
+            {current.label}
+          </span>
+          <ChevronDown
+            className={`h-4 w-4 transition-transform duration-200 ${
+              isOpen ? "rotate-180" : ""
+            } ${isDark ? "text-gray-400" : "text-gray-500"}`}
+          />
+        </span>
+      </button>
+
+      {isOpen && (
+        <>
+          {/* Catches the tap that should close the menu. Behind it in the stack,
+              so the menu itself still takes its own clicks. */}
+          <button
+            type="button"
+            aria-hidden="true"
+            tabIndex={-1}
+            onClick={() => setIsOpen(false)}
+            className="fixed inset-0 z-10 cursor-default"
+          />
+
+          <motion.ul
+            role="listbox"
+            // Opens from the top edge, where the trigger is, and from 0.97 rather
+            // than nothing — things that scale up from zero read as arriving from
+            // somewhere else.
+            initial={{ opacity: 0, scale: 0.97, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.15, ease: [0.23, 1, 0.32, 1] }}
+            style={{ transformOrigin: "top right" }}
+            className={`absolute right-3 top-full z-20 mt-1 w-[15rem] overflow-hidden rounded-lg border shadow-lg ${
+              isDark
+                ? "border-gray-700 bg-gray-800"
+                : "border-gray-200 bg-white"
+            }`}
+          >
+            {LAYOUT_OPTIONS.map((option) => {
+              const isActive = option.value === current.value;
+              return (
+                <li key={option.value} role="option" aria-selected={isActive}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(option.value);
+                      setIsOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-3 p-3 text-left transition-colors ${
+                      isActive
+                        ? isDark
+                          ? "bg-orange-500/15"
+                          : "bg-sky-50"
+                        : isDark
+                          ? "hover:bg-gray-700/50"
+                          : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <option.Icon
+                      className={`h-5 w-5 shrink-0 ${
+                        isActive
+                          ? isDark
+                            ? "text-orange-400"
+                            : "text-sky-500"
+                          : isDark
+                            ? "text-gray-400"
+                            : "text-gray-500"
+                      }`}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={`block text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}
+                      >
+                        {option.label}
+                      </span>
+                      <span
+                        className={`block text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}
+                      >
+                        {option.hint}
+                      </span>
+                    </span>
+                    {/* The tick, not just a tint: colour alone is not a state. */}
+                    {isActive && (
+                      <CheckCircle
+                        className={`h-4 w-4 shrink-0 ${isDark ? "text-orange-400" : "text-sky-500"}`}
+                      />
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </motion.ul>
+        </>
+      )}
+    </div>
+  );
+};
+
 // Loading component
 const LoadingSpinner: React.FC<{ isDark: boolean }> = ({ isDark }) => (
   <div className="flex items-center justify-center space-x-2">
@@ -201,6 +391,11 @@ export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const isDark = theme === "dark";
+
+  // Sits beside the theme because it answers the same kind of question: how this
+  // device draws the app, nothing about the account's data. Native only in
+  // practice — the whole Appearance section is.
+  const { layout, setLayout } = useListLayout();
 
   // Show notification
   const showNotification = useCallback(
@@ -422,7 +617,7 @@ export default function SettingsPage() {
               <p
                 className={`mt-1 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}
               >
-                Choose how List It looks. It follows your device until you pick.
+                Choose how List It looks on this device.
               </p>
             </div>
 
@@ -473,6 +668,12 @@ export default function SettingsPage() {
                 />
               </button>
             </div>
+
+            <ListLayoutSetting
+              isDark={isDark}
+              layout={layout}
+              onChange={setLayout}
+            />
           </motion.div>
         );
 
@@ -920,11 +1121,7 @@ export default function SettingsPage() {
       }`}
     >
       {/* Background */}
-      {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0a0c0f_20%,#141619_40%,#0f1114_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.15)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.08)_0%,transparent_50%)] before:content-[''] after:content-['']" />
-      ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f8fafc_0%,#f1f5f9_25%,#e2e8f0_50%,#f3f4f6_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.08)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.06)_0%,transparent_50%)] before:content-[''] after:content-['']" />
-      )}
+      <AppSurface />
 
       <div className="max-w-7xl pl-4 md:pl-20 w-full mx-auto">
         {/* Header */}

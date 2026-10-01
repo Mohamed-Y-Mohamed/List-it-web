@@ -18,12 +18,6 @@ import TaskScreen from "@/components/Tasks/TaskScreen";
 import TaskList from "@/components/Tasks/TaskList";
 import type { TaskRow } from "@/types/taskView";
 
-const GRADIENT = {
-  dark: "[background:linear-gradient(45deg,#000000_0%,#090f0b_20%,#131a15_40%,#0e1410_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(16,185,129,0.11)_0%,transparent_64%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(110,231,183,0.06)_0%,transparent_54%)] before:content-[''] after:content-['']",
-  light:
-    "[background:linear-gradient(45deg,#f8fcfa_0%,#f1f8f5_25%,#e3f0e8_50%,#f3f8f5_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(16,185,129,0.07)_0%,transparent_64%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(110,231,183,0.04)_0%,transparent_54%)] before:content-[''] after:content-['']",
-};
-
 /** Due today. The query has already excluded anything completed or deleted. */
 const dueToday = (task: TaskRow, today: Date) =>
   isSameLocalDay(task.due_date, today);
@@ -43,7 +37,6 @@ export default function TodayPage() {
   return (
     <TaskScreen
       isDark={isDark}
-      gradient={GRADIENT}
       icon={CalendarClock}
       accent={{ dark: "text-orange-400", light: "text-orange-500" }}
       title="Today's Focus"

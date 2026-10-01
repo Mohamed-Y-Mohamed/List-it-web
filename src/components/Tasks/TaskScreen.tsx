@@ -18,6 +18,7 @@ import { motion } from "framer-motion";
 import { RefreshCw } from "lucide-react";
 import EmptyState from "@/components/popupModels/emptystate";
 import { TaskStatsCard } from "./TaskStatsCard";
+import AppSurface from "@/components/AppSurface";
 
 // The `bg-*` fill matching each accent's `text-*` class, spelled out so Tailwind
 // can see both halves. Covers every pair the six screens pass; add a row here
@@ -47,8 +48,6 @@ export interface TaskScreenStat {
 
 interface TaskScreenProps {
   isDark: boolean;
-  /** The two full `[background:...]` arbitrary classes, dark and light. */
-  gradient: { dark: string; light: string };
   icon: React.ElementType;
   /** Tailwind text classes for the header icon and the loading spinner. */
   accent: { dark: string; light: string };
@@ -67,7 +66,6 @@ interface TaskScreenProps {
 
 export default function TaskScreen({
   isDark,
-  gradient,
   icon: Icon,
   accent,
   title,
@@ -98,11 +96,7 @@ export default function TaskScreen({
       className={`transition-all pt-16 pr-4 md:pr-16 min-h-screen duration-300 pb-20 w-full relative
       ${isDark ? "text-gray-200" : "text-gray-800"}`}
     >
-      <div
-        className={`absolute inset-0 -z-10 size-full ${
-          isDark ? gradient.dark : gradient.light
-        }`}
-      />
+      <AppSurface />
 
       {/* `pl-4 md:pl-20`, not a flat `pl-20`.
           The 80px only exists to clear the desktop sidebar, which is not there

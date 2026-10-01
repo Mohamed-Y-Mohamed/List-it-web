@@ -23,63 +23,45 @@ import {
 } from "framer-motion";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { useTheme } from "@/context/ThemeContext";
+import { TUTORIAL_TOPICS } from "@/lib/helpTopics";
 import {
   MockCollections,
   MockCreateList,
   MockCreateMenu,
   MockDefaultViews,
+  MockListLayout,
   MockNote,
   MockOpenList,
+  MockSwipeActions,
   MockTask,
 } from "./tutorialMocks";
 
-interface Step {
-  title: string;
-  body: string;
-  Art: React.ComponentType<{ isDark: boolean }>;
-}
+// The illustration for each topic, keyed by id rather than position so reordering
+// the copy cannot silently pair a step with the wrong drawing.
+//
+// The copy itself lives in lib/helpTopics.ts, because the help sheet on the Lists
+// tab shows the same topics on demand in the opposite order, and two copies of the
+// same nine paragraphs would drift. Features added since the original seven steps
+// come last here and first there, which is what TUTORIAL_TOPICS already encodes.
+//
+// A topic with no entry here is skipped by the walkthrough and still appears in the
+// help sheet, so copy can land before its drawing does.
+const ART: Record<string, React.ComponentType<{ isDark: boolean }>> = {
+  "create-list": MockCreateList,
+  "open-list": MockOpenList,
+  "create-menu": MockCreateMenu,
+  collections: MockCollections,
+  tasks: MockTask,
+  notes: MockNote,
+  "default-views": MockDefaultViews,
+  "list-layout": MockListLayout,
+  "swipe-actions": MockSwipeActions,
+};
 
-// Every label quoted below is the one actually on screen — "Create Collection",
-// "Create Task", "Create Note" come from ListFilter's menu. Teaching a synonym
-// for a button the user is about to go looking for would be worse than not
-// teaching it at all, so if one of those is renamed, rename it here too.
-const STEPS: readonly Step[] = [
-  {
-    title: "Start with a list",
-    body: "A list is where everything goes. It can be a project, a room, or a shop. Tap the plus at the top of the Lists tab to make your first one.",
-    Art: MockCreateList,
-  },
-  {
-    title: "Open it",
-    body: "Tap a list to go inside. Press and hold it instead to pin, rename or delete it.",
-    Art: MockOpenList,
-  },
-  {
-    title: "Adding things",
-    body: "Inside a list, the circled plus in the corner creates everything. Create Collection, Create Task and Create Note are all in that menu.",
-    Art: MockCreateMenu,
-  },
-  {
-    title: "Collections group your work",
-    body: "A collection keeps related things together. Every new list starts with one called General. Use its Tasks and Notes tabs to switch between the two.",
-    Art: MockCollections,
-  },
-  {
-    title: "Tasks get ticked off",
-    body: "Create Task adds a task to a collection. Tap the circle when it is done. Add a due date if you want a reminder on the day.",
-    Art: MockTask,
-  },
-  {
-    title: "Notes keep the rest",
-    body: "Create Note is for anything you want to keep but do not need to tick off. Notes sit under the Notes tab of the same collection, and you can give each one a colour.",
-    Art: MockNote,
-  },
-  {
-    title: "Find things again",
-    body: "Today, Priority and Overdue sit above your own lists on the Lists tab. Each one gathers matching tasks from all of your lists, so nothing gets lost at the bottom of a long list.",
-    Art: MockDefaultViews,
-  },
-] as const;
+const STEPS = TUTORIAL_TOPICS.filter((topic) => ART[topic.id]).map((topic) => ({
+  ...topic,
+  Art: ART[topic.id],
+}));
 
 // How far a swipe has to travel, or how fast it has to flick, to change step.
 // Same numbers as NativeOnboarding, so the intro and the walkthrough read as one

@@ -25,6 +25,14 @@ export function useLongPress({ onLongPress, onTap }: LongPressHandlers) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startPoint = useRef<{ x: number; y: number } | null>(null);
   const didLongPress = useRef(false);
+  // Whether the press wandered far enough to stop being a tap.
+  //
+  // Movement used to only disarm the long-press timer, and the release still
+  // counted as a tap — so swiping a card opened it as well as revealing its swipe
+  // actions. On the Lists tab that meant a swipe landed you inside the list you
+  // were trying to pin; on a task or note card it opened the detail sheet over the
+  // actions you had just uncovered.
+  const didMove = useRef(false);
 
   const clear = useCallback(() => {
     if (timer.current) {
@@ -37,6 +45,7 @@ export function useLongPress({ onLongPress, onTap }: LongPressHandlers) {
     (x: number, y: number) => {
       startPoint.current = { x, y };
       didLongPress.current = false;
+      didMove.current = false;
 
       timer.current = setTimeout(() => {
         didLongPress.current = true;
@@ -64,24 +73,40 @@ export function useLongPress({ onLongPress, onTap }: LongPressHandlers) {
 
   const onPointerMove = useCallback(
     (event: React.PointerEvent) => {
-      if (!startPoint.current || !timer.current) return;
+      // Deliberately not gated on `timer.current`. Movement has to keep being
+      // recorded after the timer has already been cleared, or the first frame past
+      // the tolerance disarms the long press and every frame after it is ignored —
+      // leaving the release looking like a tap.
+      if (!startPoint.current) return;
       const dx = Math.abs(event.clientX - startPoint.current.x);
       const dy = Math.abs(event.clientY - startPoint.current.y);
-      if (dx > MOVE_TOLERANCE_PX || dy > MOVE_TOLERANCE_PX) clear();
+      if (dx > MOVE_TOLERANCE_PX || dy > MOVE_TOLERANCE_PX) {
+        didMove.current = true;
+        clear();
+      }
     },
     [clear]
   );
 
   const onPointerUp = useCallback(() => {
     clear();
-    // Releasing after the menu has opened must not also activate the card.
-    if (!didLongPress.current) onTap?.();
+
+    // A tap is a press that started here, stayed put, and did not become a menu.
+    //
+    // `startPoint` being null means the press was cancelled rather than completed —
+    // the pointer left the card, or something upstream took pointer capture, which
+    // is what a parent SwipeableRow does the moment a drag begins.
+    const wasPress = startPoint.current !== null;
+    if (wasPress && !didMove.current && !didLongPress.current) onTap?.();
+
     startPoint.current = null;
+    didMove.current = false;
   }, [clear, onTap]);
 
   const onPointerCancel = useCallback(() => {
     clear();
     startPoint.current = null;
+    didMove.current = false;
   }, [clear]);
 
   // Suppress the browser's own long-press menu so it cannot compete with ours.

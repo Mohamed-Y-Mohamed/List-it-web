@@ -17,6 +17,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { IS_NATIVE_BUILD } from "@/lib/platform";
 import { useSetScreenTitle } from "@/components/native/ScreenTitleContext";
 import { useOptionalAppData } from "@/components/native/AppDataProvider";
+import AppSurface from "@/components/AppSurface";
 
 // Format date to yyyy-MM-dd'T'HH:mm:ss
 const formatDateForPostgres = (date: Date): string => {
@@ -1256,12 +1257,14 @@ export default function ListDetailView({ listId }: { listId: string }) {
     ${isDark ? "text-gray-200" : "text-gray-800"}
     `}
     >
-      {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#090c10_20%,#13161a_40%,#0e1115_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(71,85,105,0.16)_0%,transparent_58%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(100,116,139,0.09)_0%,transparent_50%)] before:content-[''] after:content-['']" />
-      ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f8f9fb_0%,#f1f4f7_25%,#e2e6ea_50%,#f3f4f6_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(71,85,105,0.08)_0%,transparent_58%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(100,116,139,0.06)_0%,transparent_50%)] before:content-[''] after:content-['']" />
-      )}
-      <div className="p-4  pt-20 box-border">
+      <AppSurface />
+      {/* `pt-20` clears the web header. On native it was 80px of nothing on top of
+          a back bar that is `sticky` rather than fixed, so it already takes its own
+          height in the flow and the padding was being counted twice — which is the
+          empty band the screen opened with, above a plus floating in it. */}
+      <div
+        className={`p-4 box-border ${IS_NATIVE_BUILD ? "pt-2" : "pt-20"}`}
+      >
         <div className={`max-w-6xl mx-auto`}>
           {/* Loading state */}
           {isLoading ? (
@@ -1286,16 +1289,30 @@ export default function ListDetailView({ listId }: { listId: string }) {
             </div>
           ) : listData ? (
             <>
-              {/* Header with list name */}
-              <div className="flex items-center justify-between mb-6 px-4">
-                <h1
-                  className={`text-2xl font-bold truncate mr-2 ${
-                    isDark ? "text-gray-100" : "text-gray-800"
-                  }`}
-                  style={{ color: listData.bg_color_hex ?? "#ffffff" }}
-                >
-                  {listData.list_name}
-                </h1>
+              {/* Header with list name.
+                  Native drops the name and keeps only the create menu. The back
+                  bar above already carries it — useSetScreenTitle feeds it at the
+                  top of this component — so this was the same word twice, and
+                  because it is painted in the list's own colour a short name read
+                  as a stray coloured bar beside the plus rather than as a title.
+                  Losing the row also starts the collections a row higher, which is
+                  the whole point of the screen. Web keeps it: there is no back bar
+                  there, so this h1 is the only place the list is named. */}
+              <div
+                className={`flex items-center px-4 ${
+                  IS_NATIVE_BUILD ? "justify-end mb-2" : "justify-between mb-6"
+                }`}
+              >
+                {!IS_NATIVE_BUILD && (
+                  <h1
+                    className={`text-2xl font-bold truncate mr-2 ${
+                      isDark ? "text-gray-100" : "text-gray-800"
+                    }`}
+                    style={{ color: listData.bg_color_hex ?? "#ffffff" }}
+                  >
+                    {listData.list_name}
+                  </h1>
+                )}
                 <div className="flex-shrink-0">
                   <ListFilterPlus
                     onCreateCollection={() => setIsCollectionModalOpen(true)}

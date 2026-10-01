@@ -10,7 +10,7 @@ import NativeTransition from "@/components/native/NativeTransition";
 import AppDataProvider from "@/components/native/AppDataProvider";
 import NativeBackBar from "@/components/native/NativeBackBar";
 import NativeLoading from "@/components/native/NativeLoading";
-import NativeSurface from "@/components/native/NativeSurface";
+import AppSurface from "@/components/AppSurface";
 import NativeTabBar from "@/components/native/NativeTabBar";
 import NativeTutorial from "@/components/native/NativeTutorial";
 import {
@@ -139,7 +139,7 @@ export default function SecureLayout({
                 content and revealed this div's bare padding at the end. Home was
                 unaffected only because it has no top inset.
 
-                NativeSurface goes behind everything, including that padding, so
+                AppSurface goes behind everything, including that padding, so
                 there is no strip left for the html background to show through. */}
             <div
               className={
@@ -152,7 +152,7 @@ export default function SecureLayout({
                   .join(" ")
               }
             >
-              <NativeSurface />
+              <AppSurface />
               <NativeTransition>{children}</NativeTransition>
             </div>
             <NativeTabBar />

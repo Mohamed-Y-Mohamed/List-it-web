@@ -25,12 +25,6 @@ import { TaskSectionHeader } from "@/components/Tasks/TaskStatsCard";
 import type { Collection as SchemaCollection } from "@/types/schema";
 import type { TaskRow } from "@/types/taskView";
 
-const GRADIENT = {
-  dark: "[background:linear-gradient(45deg,#000000_0%,#0a0c0f_20%,#141619_40%,#0f1114_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.15)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.08)_0%,transparent_50%)] before:content-[''] after:content-['']",
-  light:
-    "[background:linear-gradient(45deg,#f8fafc_0%,#f1f5f9_25%,#e2e8f0_50%,#f3f4f6_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.08)_0%,transparent_60%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.06)_0%,transparent_50%)] before:content-[''] after:content-['']",
-};
-
 /** How the three bands are labelled and coloured, worst first. */
 const BANDS = [
   {
@@ -121,7 +115,6 @@ export default function OverduePage() {
   return (
     <TaskScreen
       isDark={isDark}
-      gradient={GRADIENT}
       icon={AlertTriangle}
       accent={{ dark: "text-red-400", light: "text-red-500" }}
       title="Overdue Tasks"

@@ -23,6 +23,7 @@ import {
   Calendar,
   CheckCircle,
   ChevronDown,
+  ChevronRight,
   Clipboard,
   ClipboardList,
   Clock,
@@ -80,7 +81,7 @@ function Screen({
           transform: `scale(${SCALE})`,
           transformOrigin: "top left",
           background:
-            background ?? (isDark ? "#030712" : "#ffffff"),
+            background ?? (isDark ? "#111827" : "#ffffff"),
         }}
       >
         {children}
@@ -218,7 +219,7 @@ function GridCard({
 
   return (
     <div
-      className={`flex h-[112px] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border px-2 py-3 ${
+      className={`flex h-[104px] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border px-2 py-3 ${
         isDark ? "text-white" : "text-gray-900"
       }`}
       style={{
@@ -248,7 +249,81 @@ function GridCard({
   );
 }
 
-/** The Lists screen: greeting, plus button, search, heading, grid. */
+/** A section name on its rule, matching NativeHome's SectionDivider. */
+function SectionRule({
+  isDark,
+  label,
+  count,
+}: MockProps & { label: string; count?: number }) {
+  return (
+    <div className="flex items-center gap-2.5 pb-3">
+      <span className="shrink-0 text-[13px] font-semibold uppercase tracking-[0.06em] text-gray-500 dark:text-gray-400">
+        {label}
+      </span>
+      {count !== undefined && (
+        <span
+          className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
+          style={{ backgroundColor: "#FF9500" }}
+        >
+          {count}
+        </span>
+      )}
+      <span
+        className={`h-px flex-1 ${isDark ? "bg-white/10" : "bg-black/10"}`}
+      />
+    </div>
+  );
+}
+
+/** A full-width row, matching NativeListCard's row variant. */
+function RowCard({
+  isDark,
+  color,
+  name,
+  counts,
+  Icon,
+}: MockProps & {
+  color: string;
+  name: string;
+  counts?: string;
+  Icon?: typeof ListChecks;
+}) {
+  const surface = isDark ? "#0b0f17" : "#ffffff";
+
+  return (
+    <div
+      className={`flex h-[64px] w-full items-center gap-3 overflow-hidden rounded-2xl border px-3.5 ${
+        isDark ? "text-white" : "text-gray-900"
+      }`}
+      style={{
+        backgroundImage: `linear-gradient(${surface}, ${surface}), linear-gradient(160deg, ${color}${
+          isDark ? "26" : "14"
+        }, ${color}00 65%)`,
+        backgroundOrigin: "border-box",
+        backgroundClip: "padding-box, border-box",
+        borderColor: `${color}${isDark ? "3d" : "2e"}`,
+        boxShadow: isDark
+          ? "0 1px 2px rgba(0,0,0,0.5)"
+          : "0 1px 2px rgba(16,24,40,0.05), 0 4px 10px -4px rgba(16,24,40,0.08)",
+      }}
+    >
+      <ListIconChip color={color} Icon={Icon} />
+      <span className="flex min-w-0 flex-1 flex-col items-start">
+        <span className="block w-full truncate text-[13.5px] font-semibold leading-snug tracking-[-0.01em]">
+          {name}
+        </span>
+        {counts && (
+          <span className="mt-1 text-[10.5px] font-medium tracking-[0.01em] text-gray-500 dark:text-gray-400">
+            {counts}
+          </span>
+        )}
+      </span>
+      <ChevronRight size={18} className="shrink-0 text-gray-400" />
+    </div>
+  );
+}
+
+/** The Lists screen: greeting, plus button, search, section rule, grid. */
 function HomeScreen({ isDark }: MockProps) {
   return (
     <div className={isDark ? "text-white" : "text-gray-900"}>
@@ -281,17 +356,12 @@ function HomeScreen({ isDark }: MockProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 px-4">
-        <h2 className="text-[24px] font-bold">Your Lists</h2>
-        <span
-          className="rounded-full px-2.5 py-1 text-[14px] font-semibold text-white"
-          style={{ backgroundColor: "#FF9500" }}
-        >
-          3
-        </span>
+      {/* pt-3 here and pt-3 on the grid between them come to the same height the
+          24px heading plus its mt-3 hairline plus pt-3 used to occupy, so the
+          Pointer coordinates in the steps below still land where they say. */}
+      <div className="px-4 pt-3">
+        <SectionRule isDark={isDark} label="Your lists" count={3} />
       </div>
-
-      <div className={`mx-4 mt-3 h-px ${isDark ? "bg-white/10" : "bg-black/10"}`} />
 
       <div className="grid grid-cols-3 gap-2.5 px-4 pt-3">
         <GridCard
@@ -343,10 +413,11 @@ export function MockOpenList({ isDark }: MockProps) {
 // List detail — copied from ListDetailView and ListFilter
 // ---------------------------------------------------------------------------
 
-const DETAIL_BG_DARK =
-  "linear-gradient(45deg,#000000 0%,#090c10 20%,#13161a 40%,#0e1115 70%,#000000 100%)";
-const DETAIL_BG_LIGHT =
-  "linear-gradient(45deg,#f8f9fb 0%,#f1f4f7 25%,#e2e6ea 50%,#f3f4f6 75%,#ffffff 100%)";
+// The list detail screen paints the same flat field as every other full page
+// now, so these are the app surface rather than the gradient that used to be here.
+// See components/AppSurface.tsx.
+const DETAIL_BG_DARK = "#111827";
+const DETAIL_BG_LIGHT = "#ffffff";
 
 /** One row of the create menu, matching ListFilter's menu items. */
 function MenuRow({
@@ -756,21 +827,7 @@ export function MockDefaultViews({ isDark }: MockProps) {
   return (
     <Screen isDark={isDark} height={290}>
       <div className="px-4 pt-4">
-        <div className="flex items-center gap-2 pb-3">
-          <h2
-            className={`text-[24px] font-bold ${
-              isDark ? "text-white" : "text-gray-900"
-            }`}
-          >
-            Your Lists
-          </h2>
-          <span
-            className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
-            style={{ backgroundColor: "#FF9500" }}
-          >
-            3
-          </span>
-        </div>
+        <SectionRule isDark={isDark} label="Default lists" />
 
         {/* Built-in views never show counts, exactly as ListInfo decides. */}
         <div className="grid grid-cols-3 gap-2.5">
@@ -794,9 +851,9 @@ export function MockDefaultViews({ isDark }: MockProps) {
           />
         </div>
 
-        <div
-          className={`my-5 h-px ${isDark ? "bg-white/10" : "bg-black/10"}`}
-        />
+        <div className="pt-5">
+          <SectionRule isDark={isDark} label="Your lists" count={3} />
+        </div>
 
         <div className="grid grid-cols-3 gap-2.5">
           <GridCard
@@ -819,7 +876,121 @@ export function MockDefaultViews({ isDark }: MockProps) {
           />
         </div>
       </div>
-      <Pointer x={70} y={105} from="bottom-right" radius={38} />
+      {/* Centre of the first built-in card, which now sits under its own rule
+          rather than under a heading that named the group below it. */}
+      <Pointer x={70} y={102} from="bottom-right" radius={38} />
+    </Screen>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Added after the original seven steps. The walkthrough shows these last, in the
+// order features arrived; the help sheet shows them first. See lib/helpTopics.ts.
+// ---------------------------------------------------------------------------
+
+/** The List layout: built-in views two to a row, the user's own lists as rows. */
+export function MockListLayout({ isDark }: MockProps) {
+  return (
+    <Screen isDark={isDark} height={300}>
+      <div className="px-4 pt-4">
+        <SectionRule isDark={isDark} label="Default lists" />
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <GridCard
+            isDark={isDark}
+            color="#007AFF"
+            name="Today"
+            Icon={Calendar}
+          />
+          <GridCard
+            isDark={isDark}
+            color="#FF9500"
+            name="Priority"
+            Icon={Star}
+          />
+        </div>
+
+        <div className="pt-5">
+          <SectionRule isDark={isDark} label="Your lists" count={3} />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <RowCard
+            isDark={isDark}
+            color="#007AFF"
+            name="Work"
+            counts="4 tasks · 2 notes"
+          />
+          <RowCard
+            isDark={isDark}
+            color="#34C759"
+            name="Home"
+            counts="2 tasks · 1 note"
+          />
+        </div>
+      </div>
+    </Screen>
+  );
+}
+
+/**
+ * A row held open on its three actions.
+ *
+ * The row is drawn already slid left by the width of the panels, which is what the
+ * real SwipeableRow animates to, so the step shows the end of the gesture rather
+ * than asking the reader to imagine it. 3 × 56 = 168, from ICON_ACTION_WIDTH.
+ */
+export function MockSwipeActions({ isDark }: MockProps) {
+  const PANEL = 56;
+  const actions = [
+    { Icon: Pin, background: "#f59e0b" },
+    { Icon: Edit3, background: "#3b82f6" },
+    { Icon: Trash2, background: "#ef4444" },
+  ];
+
+  return (
+    <Screen isDark={isDark} height={210}>
+      <div className="px-4 pt-5">
+        <SectionRule isDark={isDark} label="Your lists" count={3} />
+
+        <div className="flex flex-col gap-2">
+          {/* The swiped row. The panel strip sits behind it against the trailing
+              edge; the card is translated by the strip's width to uncover it. */}
+          <div className="relative overflow-hidden rounded-2xl">
+            <div className="absolute inset-y-0 right-0 flex">
+              {actions.map(({ Icon, background }) => (
+                <span
+                  key={background}
+                  className="flex h-full flex-col items-center justify-center text-white"
+                  style={{ width: PANEL, background }}
+                >
+                  <Icon size={20} />
+                </span>
+              ))}
+            </div>
+            <div
+              className="relative"
+              style={{ transform: `translateX(-${PANEL * actions.length}px)` }}
+            >
+              <RowCard
+                isDark={isDark}
+                color="#007AFF"
+                name="Work"
+                counts="4 tasks · 2 notes"
+              />
+            </div>
+          </div>
+
+          <RowCard
+            isDark={isDark}
+            color="#34C759"
+            name="Home"
+            counts="2 tasks · 1 note"
+          />
+        </div>
+      </div>
+      {/* The uncovered panels, not the row, since they are what the step is about. */}
+      <Pointer x={276} y={105} from="bottom-left" radius={30} />
     </Screen>
   );
 }

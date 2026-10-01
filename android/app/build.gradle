@@ -19,7 +19,7 @@ if (hasSigningConfig) {
 // once. Play refuses any upload whose code is not higher than the last one it
 // accepted, so this only ever goes up. Nothing has been uploaded under
 // com.list_it.app yet, which is why starting again at 3 is safe.
-def appVersionCode = 4
+def appVersionCode = 6
 def appVersionName = "${appVersionCode.intdiv(10)}.${appVersionCode % 10}.0"
 
 android {
