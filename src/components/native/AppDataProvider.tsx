@@ -53,7 +53,6 @@ import { apiFetch } from "@/lib/apiFetch";
 import { isNativeApp } from "@/lib/platform";
 import type { Collection, List, Note, Task } from "@/types/schema";
 import { useTaskReminders } from "@/hooks/useTaskReminders";
-import { useReminderTap } from "@/hooks/useReminderTap";
 
 interface AppDataValue {
   lists: List[];
@@ -213,10 +212,10 @@ export default function AppDataProvider({
   // second of those should cancel anything.
   useTaskReminders(tasks, !isLoading);
 
-  // Tapping a reminder opens the list that task is in, carrying the task id so
-  // the list screen can open just its collection. Registered here for the same
-  // reason as the sync above: it has to be listening wherever the user is.
-  useReminderTap();
+  // No reminder-tap listener here. NativeShell already registers one, and it
+  // is the better of the two: it falls back to /today when the payload has no
+  // list. A second listener meant one tap ran both a push and a replace on the
+  // same router, which left a junk history entry and raced over the result.
 
   const value = useMemo<AppDataValue>(
     () => ({

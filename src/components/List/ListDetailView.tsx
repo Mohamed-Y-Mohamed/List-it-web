@@ -169,7 +169,8 @@ export default function ListDetailView({ listId }: { listId: string }) {
   const isDark = theme === "dark";
 
   /*
-   * Set when a reminder was tapped: `useReminderTap` routes here with the task
+   * Set when a reminder was tapped: NativeShell's notification handler routes
+   * here with the task
    * id in the query. Only the collection holding that task opens; the rest of
    * the screen stays shut, which is the point of arriving from a notification
    * about one task.
