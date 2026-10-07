@@ -1,14 +1,17 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { X, Check, AlertCircle, ChevronDown } from "lucide-react";
+import { Check, AlertCircle, Pin } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Collection, Note } from "@/types/schema";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
 import { useAppColors } from "@/hooks/useAppColors";
 import { isLightColor, resolveColor } from "@/lib/colors";
-import { IS_NATIVE_BUILD } from "@/lib/platform";
+import ModalShell from "@/components/ui/ModalShell";
+import SectionLabel from "@/components/ui/SectionLabel";
+import MetaToggle from "@/components/ui/MetaToggle";
+import { DANGER, PRIMARY, WARNING } from "@/components/ui/tokens";
 
 interface CreateNoteModalProps {
   isOpen: boolean;
@@ -60,6 +63,7 @@ const CreateNoteModal = ({
   const [noteDescription, setNoteDescription] = useState("");
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedCollection, setSelectedCollection] = useState<string>("");
+  const [isPinned, setIsPinned] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,6 +140,7 @@ const CreateNoteModal = ({
       setNoteDescription("");
       setSelectedColor(null);
       setSelectedCollection("");
+      setIsPinned(false);
       setIsSubmitting(false);
       setError(null);
       if (errorTimeout) clearTimeout(errorTimeout);
@@ -208,7 +213,7 @@ const CreateNoteModal = ({
         user_id: user.id,
         list_id: listId || null,
         is_deleted: false,
-        is_pinned: false,
+        is_pinned: isPinned,
         // Use the Date object directly instead of formatting it as a string
         created_at: createDate,
       };
@@ -240,209 +245,173 @@ const CreateNoteModal = ({
     }
   };
 
-  if (!isOpen) return null;
+
+  const mutedText = isDark ? "text-gray-400" : "text-gray-500";
+  const fieldClass = isDark
+    ? "border-white/[0.08] bg-white/[0.04] text-gray-100 placeholder:text-gray-600"
+    : "border-black/[0.08] bg-white text-gray-900 placeholder:text-gray-400";
 
   return (
-    <div>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 backdrop-blur-md bg-black/30"
-        onClick={!isSubmitting ? onClose : undefined}
-        aria-hidden="true"
-      />
-
-      <div
-        className={`fixed inset-0 z-50 flex items-center justify-center pointer-events-none ${IS_NATIVE_BUILD ? "native-dialog-scroll" : ""}`}
-      >
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="New note"
+      isDark={isDark}
+      canClose={!isSubmitting}
+      footer={
+        <div className="space-y-2">
+          <button
+            type="submit"
+            form="create-note-form"
+            disabled={isSubmitting || !noteTitle.trim()}
+            className="min-h-[48px] w-full rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-45"
+            style={{ backgroundColor: PRIMARY }}
+          >
+            {isSubmitting ? "Creating..." : "Create note"}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className={`min-h-[44px] w-full rounded-2xl border text-[14px] font-medium disabled:opacity-45 ${
+              isDark
+                ? "border-white/[0.08] text-gray-300 active:bg-white/10"
+                : "border-black/[0.08] text-gray-700 active:bg-black/5"
+            }`}
+          >
+            Cancel
+          </button>
+        </div>
+      }
+    >
+      {error && (
         <div
-          ref={modalRef}
-          className={`w-full max-w-md rounded-lg ${isDark ? "bg-gray-800/50" : "bg-white/70"} shadow-xl transition-all p-6 mx-4 pointer-events-auto ${IS_NATIVE_BUILD ? "my-auto" : ""}`}
+          className="mb-3 flex items-center gap-2 rounded-xl px-3 py-2 text-[13px]"
+          style={{
+            backgroundColor: `color-mix(in srgb, ${DANGER} 14%, transparent)`,
+            color: DANGER,
+          }}
+          role="alert"
         >
-          <div className="flex justify-between items-center mb-4">
-            <h2
-              className={`text-xl font-semibold ${isDark ? "text-gray-100" : "text-gray-800"}`}
-            >
-              Create New Note
-            </h2>
-            <button
-              onClick={onClose}
-              className="p-1 rounded-full"
-              disabled={isSubmitting}
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      )}
 
-          {error && (
-            <div className="mb-4 p-3 rounded-md bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border border-red-200 dark:border-red-800">
-              <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 mr-2" />
-                <span>{error}</span>
-              </div>
+      <form id="create-note-form" onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-1.5">
+          <SectionLabel isDark={isDark}>
+            Title <span style={{ color: DANGER }}>*</span>
+          </SectionLabel>
+          <input
+            ref={inputRef}
+            id="note-title"
+            type="text"
+            value={noteTitle}
+            onChange={(event) => setNoteTitle(event.target.value)}
+            maxLength={100}
+            disabled={isSubmitting}
+            placeholder="Note title"
+            className={`min-h-[48px] w-full rounded-xl border px-3.5 text-[15px] focus:outline-none focus:ring-1 ${fieldClass}`}
+            style={{ ["--tw-ring-color" as string]: PRIMARY }}
+          />
+          <p className={`text-right text-[11px] ${mutedText}`}>
+            {noteTitle.length}/100
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <SectionLabel isDark={isDark}>Content</SectionLabel>
+          <textarea
+            id="note-description"
+            value={noteDescription}
+            onChange={(event) => setNoteDescription(event.target.value)}
+            disabled={isSubmitting}
+            placeholder="Write your note"
+            className={`min-h-[140px] w-full rounded-xl border px-3.5 py-3 text-[14px] leading-[1.65] focus:outline-none focus:ring-1 ${fieldClass}`}
+            style={{ ["--tw-ring-color" as string]: PRIMARY }}
+          />
+        </div>
+
+        {collections.length > 0 && (
+          <div className="space-y-1.5">
+            <SectionLabel isDark={isDark}>Collection</SectionLabel>
+            <select
+              value={selectedCollection}
+              onChange={(event) => setSelectedCollection(event.target.value)}
+              disabled={isSubmitting}
+              className={`min-h-[48px] w-full rounded-xl border px-3 text-[14px] focus:outline-none focus:ring-1 ${fieldClass}`}
+              style={{ ["--tw-ring-color" as string]: PRIMARY }}
+            >
+              {collections.map((collection) => (
+                <option key={collection.id} value={collection.id}>
+                  {collection.collection_name || "Unnamed collection"}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div ref={colorSectionRef} className="space-y-2">
+          <SectionLabel isDark={isDark}>Colour</SectionLabel>
+          {colorsLoading ? (
+            <p className={`text-[13px] ${mutedText}`}>Loading colours...</p>
+          ) : (
+            <div className="flex flex-wrap gap-2.5">
+              {appColors.map(({ color_hex, color_name }) => {
+                const selected = color_hex === selectedColor;
+                return (
+                  <button
+                    key={color_hex}
+                    type="button"
+                    onClick={() => handleColorSelect(color_hex)}
+                    disabled={isSubmitting}
+                    aria-pressed={selected}
+                    aria-label={`Select ${color_name}`}
+                    title={color_name}
+                    // A ring outside the swatch rather than a border inside it: a
+                    // border eats 2px of a 36px circle, so the selected colour
+                    // reads as a slightly smaller, slightly different colour than
+                    // the one beside it.
+                    className={`relative flex h-9 w-9 items-center justify-center rounded-full transition-shadow disabled:opacity-50 ${
+                      selected
+                        ? isDark
+                          ? "ring-2 ring-white ring-offset-2 ring-offset-[#131A2B]"
+                          : "ring-2 ring-gray-900 ring-offset-2 ring-offset-white"
+                        : ""
+                    }`}
+                    style={{ backgroundColor: color_hex }}
+                  >
+                    {selected && (
+                      <Check
+                        className={`h-4 w-4 drop-shadow ${
+                          isLightColor(color_hex) ? "text-gray-900" : "text-white"
+                        }`}
+                      />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
-
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label
-                className={`block mb-2 text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-700"}`}
-              >
-                Title
-              </label>
-              <input
-                ref={inputRef}
-                type="text"
-                value={noteTitle}
-                onChange={(e) => setNoteTitle(e.target.value)}
-                className={`w-full px-3 py-2 rounded-md border ${isDark ? "bg-gray-700 text-white border-gray-600" : "bg-white border-gray-300 text-black"}`}
-                required
-                maxLength={100}
-              />
-            </div>
-
-            <div className="mb-4">
-              <label
-                className={`block mb-2 text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-700"}`}
-              >
-                Description (Optional)
-              </label>
-              <textarea
-                value={noteDescription}
-                onChange={(e) => setNoteDescription(e.target.value)}
-                className={`w-full px-3 py-2 rounded-md border resize-none ${isDark ? "bg-gray-700 text-white border-gray-600" : "bg-white border-gray-300 text-black"}`}
-              />
-            </div>
-
-            <div className="mb-4">
-              <label
-                className={`block mb-2 text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-700"}`}
-              >
-                Color (Optional)
-              </label>
-              {!selectedColor &&
-                selectedCollection &&
-                (() => {
-                  const collection = collections.find(
-                    (c) => c.id === selectedCollection
-                  );
-                  return collection ? (
-                    <div
-                      className={`mb-2 text-xs ${isDark ? "text-gray-400" : "text-gray-600"} flex items-center gap-2`}
-                    >
-                      <span>Default:</span>
-                      <div
-                        className="w-4 h-4 rounded-full border border-gray-300 dark:border-gray-600"
-                        style={{
-                          backgroundColor:
-                            collection.bg_color_hex || appColors[0]?.color_hex || "",
-                        }}
-                      />
-                      <span>Collection Color</span>
-                    </div>
-                  ) : null;
-                })()}
-              <div ref={colorSectionRef} className="flex gap-2 flex-wrap">
-                {colorsLoading ? (
-                  <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-                    Loading colors…
-                  </span>
-                ) : (
-                  appColors.map(({ color_hex, color_name }) => {
-                    // isLightColor validates the hex and weights the channels
-                    // perceptually. The inline sum this replaced returned NaN for
-                    // anything that was not a 6-digit hex, so the tick went white
-                    // on a pale swatch and disappeared.
-                    const checkColor = isLightColor(color_hex)
-                      ? "text-gray-800"
-                      : "text-white";
-
-                    return (
-                      <button
-                        key={color_hex}
-                        type="button"
-                        title={color_name}
-                        className={`h-8 w-8 rounded-full relative ${selectedColor === color_hex ? "ring-2 ring-offset-2 ring-sky-500" : ""}`}
-                        style={{ backgroundColor: color_hex }}
-                        aria-label={`Select ${color_name} color`}
-                        aria-pressed={selectedColor === color_hex}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleColorSelect(color_hex);
-                        }}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                        }}
-                      >
-                        {selectedColor === color_hex && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Check className={`${checkColor} w-4 h-4`} />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <label
-                className={`block mb-2 text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-700"}`}
-              >
-                Collection
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedCollection}
-                  onChange={(e) => setSelectedCollection(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-md border 
-                    ${isDark ? "bg-gray-700 text-white border-gray-600" : "bg-white border-gray-300 text-black"} 
-                    appearance-none`}
-                  style={{
-                    WebkitAppearance: "none",
-                    MozAppearance: "none",
-                  }}
-                >
-                  <option value="">Select a collection</option>
-                  {collections.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.collection_name || "Unnamed Collection"}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2">
-                  <ChevronDown
-                    className={`h-4 w-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className={`px-4 py-2 rounded-md ${
-                  isDark
-                    ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-2 rounded-md bg-sky-500 hover:bg-sky-600 text-white"
-              >
-                {isSubmitting ? "Creating..." : "Create"}
-              </button>
-            </div>
-          </form>
         </div>
-      </div>
-    </div>
+
+        <div className="space-y-2">
+          <SectionLabel isDark={isDark}>Pin</SectionLabel>
+          <MetaToggle
+            icon={<Pin className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`} />}
+            label="Pin this note"
+            activeLabel="Pinned"
+            active={isPinned}
+            tone={WARNING}
+            onClick={() => setIsPinned((pinned) => !pinned)}
+            disabled={isSubmitting}
+            isDark={isDark}
+            className="w-full"
+          />
+        </div>
+      </form>
+    </ModalShell>
   );
 };
 

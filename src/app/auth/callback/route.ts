@@ -1,8 +1,7 @@
 // app/auth/callback/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { createClient } from "@/utils/server";
 
 type Metadata = {
   full_name?: string;
@@ -30,7 +29,7 @@ export async function GET(request: NextRequest) {
     url.replace(/([^:]\/)\/+/g, "$1");
 
   // 3️⃣ Initialize Supabase helper bound to this request's cookies
-  const supabase = createRouteHandlerClient({ cookies: () => cookies() });
+  const supabase = await createClient();
 
   // —— 4️⃣ Handle signup email confirmation ——
   if (type === "email" && tokenHash) {

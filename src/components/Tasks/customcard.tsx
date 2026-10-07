@@ -1,17 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Check, Pin, ListTodo, Folder, Clock, Star } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { CalendarDays, Folder, ListTodo, Pin } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
-import { motion, AnimatePresence } from "framer-motion";
 import TaskSidebar from "@/components/popupModels/TasksDetails";
-import { Collection } from "@/types/schema";
+import { Collection, OperationResult } from "@/types/schema";
 import {
-  formatDisplayDate,
-  formatDisplayTime,
-  toDateObject,
-} from "@/utils/dateUtils";
-import { getTaskPalette } from "@/utils/taskColorUtils";
+  STATUS_META,
+  taskStatus,
+  type TaskStatus,
+} from "@/components/ui/tokens";
+import { formatTaskDue, toDateObject } from "@/utils/dateUtils";
 
 interface TodayTaskCardProps {
   id: string;
@@ -19,6 +19,10 @@ interface TodayTaskCardProps {
   description?: string | null;
   created_at: string | Date | null;
   due_date?: string | Date | null;
+  /** False for a date-only task. Without it the card invented a midnight time. */
+  due_has_time?: boolean | null;
+  /** Passed straight through to the detail sheet, which owns the parsing. */
+  reminders?: unknown;
   is_completed: boolean | null;
   date_completed?: string | Date | null;
   is_pinned?: boolean | null;
@@ -27,14 +31,17 @@ interface TodayTaskCardProps {
   user_id?: string | null;
   collection_name?: string | null;
   list_name?: string | null;
+
   onComplete: (
     id: string,
-    is_completed: boolean
+    is_completed: boolean,
   ) => Promise<{ success: boolean; error?: unknown }> | void;
+
   onPriorityChange: (
     id: string,
-    is_pinned: boolean
+    is_pinned: boolean,
   ) => Promise<{ success: boolean; error?: unknown }> | void;
+
   onTaskUpdate?: (
     taskId: string,
     taskData: {
@@ -42,25 +49,36 @@ interface TodayTaskCardProps {
       description?: string | null;
       due_date?: Date | null;
       is_pinned: boolean;
-    }
+    },
   ) => Promise<{ success: boolean; error?: unknown }> | void;
+
   onTaskDelete?: (
-    taskId: string
+    taskId: string,
   ) => Promise<{ success: boolean; error?: unknown }> | void;
+
   collections?: Collection[];
+
   onCollectionChange?: (
     taskId: string,
-    collectionId: string
+    collectionId: string,
   ) => Promise<{ success: boolean; error?: unknown }> | void;
+
   className?: string;
 }
 
-const TodayTaskCard = ({
+// Status labels, colours and precedence live in `ui/tokens`. This file and
+// `Tasks/index.tsx` each used to carry their own copy and had already drifted.
+
+const LONG_PRESS_MS = 520;
+
+export default function TodayTaskCard({
   id,
   text,
   description,
   created_at,
   due_date,
+  due_has_time,
+  reminders,
   is_completed,
   date_completed,
   is_pinned = false,
@@ -73,356 +91,498 @@ const TodayTaskCard = ({
   onPriorityChange,
   onTaskUpdate,
   onTaskDelete,
-  collections,
+  collections = [],
   onCollectionChange,
   className = "",
-}: TodayTaskCardProps) => {
-  const [isCompleted, setIsCompleted] = useState<boolean>(!!is_completed);
-  const [isPinned, setIsPinned] = useState<boolean>(!!is_pinned);
-  const [taskText, setTaskText] = useState<string>(text || "");
-  const [taskDescription, setTaskDescription] = useState<
-    string | null | undefined
-  >(description);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-
+}: TodayTaskCardProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
+  const [completed, setCompleted] = useState(!!is_completed);
+  const [pinned, setPinned] = useState(!!is_pinned);
+  const [taskText, setTaskText] = useState(text || "");
+  const [taskDescription, setTaskDescription] = useState(description);
+  const [taskDueDate, setTaskDueDate] = useState(due_date);
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [updating, setUpdating] = useState(false);
+
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTriggered = useRef(false);
+
   useEffect(() => {
-    setIsCompleted(!!is_completed);
-    setIsPinned(!!is_pinned);
+    setCompleted(!!is_completed);
+    setPinned(!!is_pinned);
     setTaskText(text || "");
     setTaskDescription(description);
-  }, [is_completed, is_pinned, text, description]);
+    setTaskDueDate(due_date);
+  }, [is_completed, is_pinned, text, description, due_date]);
 
-  // Format date for display
-  const dueDateFormatted = due_date ? formatDisplayDate(due_date) : null;
-  const dueTimeFormatted = due_date ? formatDisplayTime(due_date) : null;
-
-  const handleCompletionToggle = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    if (isUpdating) return;
-    setIsUpdating(true);
-
-    const newState = !isCompleted;
-    setIsCompleted(newState);
-
-    if (onComplete) {
-      try {
-        const result = await onComplete(id, newState);
-        // If there was an error, revert the state
-        if (result && !result.success) {
-          setIsCompleted(!newState);
-          console.error("Failed to update completion status:", result.error);
-        }
-      } catch (error) {
-        console.error("Error in completion toggle:", error);
-        setIsCompleted(!newState); // Revert on error
-      } finally {
-        setIsUpdating(false);
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
       }
-    } else {
-      setIsUpdating(false);
+    };
+  }, []);
+
+  const createdDate = toDateObject(created_at);
+  const dueDate = toDateObject(taskDueDate);
+  const completedDate = toDateObject(date_completed);
+
+  // One rule for both cards and the detail sheet: a date-only due date is
+  // stored at UTC noon and has to be read back in UTC, and has no time to show.
+  const { date: formattedDate, time: formattedTime } = formatTaskDue(
+    taskDueDate,
+    due_has_time,
+  );
+
+  const overdue = (() => {
+    if (!dueDate || completed) return false;
+
+    const now = new Date();
+
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const due = new Date(
+      dueDate.getFullYear(),
+      dueDate.getMonth(),
+      dueDate.getDate(),
+    );
+
+    return today > due;
+  })();
+
+  const scheduled = !!dueDate;
+
+  /*
+   * Overdue first. A pinned, scheduled task that is already late was being
+   * shown as Flagged, so the one state the user has to act on was hidden
+   * behind the one they do not.
+   */
+  const status: TaskStatus = taskStatus(overdue, pinned, scheduled);
+
+  const statusInfo = STATUS_META[status];
+
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
     }
   };
 
-  const handlePriorityToggle = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const startLongPress = () => {
+    cancelLongPress();
 
-    if (isUpdating) return;
-    setIsUpdating(true);
+    longPressTriggered.current = false;
 
-    const newState = !isPinned;
-    setIsPinned(newState);
+    longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true;
+      setMenuOpen(true);
 
-    if (onPriorityChange) {
-      try {
-        const result = await onPriorityChange(id, newState);
-        // If there was an error, revert the state
-        if (result && !result.success) {
-          setIsPinned(!newState);
-          console.error("Failed to update priority status:", result.error);
-        }
-      } catch (error) {
-        console.error("Error in priority toggle:", error);
-        setIsPinned(!newState); // Revert on error
-      } finally {
-        setIsUpdating(false);
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate?.(30);
       }
-    } else {
-      setIsUpdating(false);
-    }
+    }, LONG_PRESS_MS);
   };
 
   const handleCardClick = () => {
-    setIsSidebarOpen(true);
+    if (longPressTriggered.current) {
+      longPressTriggered.current = false;
+      return;
+    }
+
+    if (menuOpen) {
+      setMenuOpen(false);
+      return;
+    }
+
+    setSidebarOpen(true);
   };
 
-  const handleCloseSidebar = () => {
-    setIsSidebarOpen(false);
+  const togglePin = async () => {
+    if (updating) return;
+
+    const previous = pinned;
+    const next = !previous;
+
+    setPinned(next);
+    setMenuOpen(false);
+    setUpdating(true);
+
+    try {
+      const result = await onPriorityChange(id, next);
+
+      if (result && !result.success) {
+        setPinned(previous);
+      }
+    } catch {
+      setPinned(previous);
+    } finally {
+      setUpdating(false);
+    }
   };
 
-  // Ensure we have a valid Date object for TaskSidebar
-  const createdAtDate = toDateObject(created_at);
-  const dueDateObject = toDateObject(due_date);
-  const dateCompletedObject = toDateObject(date_completed);
+  const handleTaskUpdate = async (
+    taskId: string,
+    taskData: {
+      text: string;
+      description?: string | null;
+      due_date?: Date | null;
+      is_pinned: boolean;
+    },
+  ): Promise<OperationResult> => {
+    if (!onTaskUpdate) {
+      return {
+        success: false,
+        error: "Update handler not available",
+      };
+    }
 
-  // Every colour class this card uses, chosen by hashing the collection ID.
-  //
-  // Read as whole strings from the palette. The `bg` and `bgSoft` forms used to be
-  // derived here with `.replace("border-", "bg-")`, which Tailwind's scanner cannot
-  // see — so those classes were never generated and the hover states silently did
-  // nothing for most collections. See the header of taskColorUtils.ts.
-  const palette = getTaskPalette(collection_id, isDark);
+    const previous = {
+      text: taskText,
+      description: taskDescription,
+      dueDate: taskDueDate,
+      pinned,
+    };
+
+    setTaskText(taskData.text);
+    setTaskDescription(taskData.description);
+    setTaskDueDate(taskData.due_date);
+    setPinned(taskData.is_pinned);
+
+    try {
+      const result = await onTaskUpdate(taskId, taskData);
+
+      // The prop allows a handler that returns nothing, and several callers do.
+      // Reading .success off that threw, so a sync handler crashed the card on
+      // every edit. No result means no reported failure, so the optimistic
+      // state stands.
+      if (result && !result.success) {
+        setTaskText(previous.text);
+        setTaskDescription(previous.description);
+        setTaskDueDate(previous.dueDate);
+        setPinned(previous.pinned);
+
+        return result;
+      }
+
+      return result ?? { success: true };
+    } catch (error) {
+      setTaskText(previous.text);
+      setTaskDescription(previous.description);
+      setTaskDueDate(previous.dueDate);
+      setPinned(previous.pinned);
+
+      return {
+        success: false,
+        error,
+      };
+    }
+  };
+
+  if (!id) return null;
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
+      <motion.article
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        transition={{ duration: 0.3 }}
-        onHoverStart={() => setIsHovered(true)}
-        onHoverEnd={() => setIsHovered(false)}
-        className={`rounded-xl border p-5 transition-all duration-300 cursor-pointer overflow-hidden 
-          ${className} ${palette.border} 
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.2 }}
+        whileHover={{ y: -1 }}
+        onClick={handleCardClick}
+        onTouchStart={startLongPress}
+        onTouchEnd={cancelLongPress}
+        onTouchMove={cancelLongPress}
+        onTouchCancel={cancelLongPress}
+        onMouseDown={startLongPress}
+        onMouseUp={cancelLongPress}
+        onMouseLeave={cancelLongPress}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          setMenuOpen(true);
+        }}
+        className={`
+          group relative cursor-pointer select-none overflow-hidden
+          rounded-2xl border transition-all duration-200
+          ${className}
           ${
             isDark
-              ? "bg-gray-800/50 hover:bg-gray-800/70 hover:shadow-xl hover:shadow-gray-900/30"
-              : "bg-white/50 hover:bg-white/70 hover:shadow-xl hover:shadow-gray-300/30"
+              ? `
+                border-white/[0.07]
+                bg-[#131a28]
+                hover:border-white/[0.12]
+                hover:bg-[#161e2e]
+                hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)]
+              `
+              : `
+                border-slate-200/80
+                bg-white
+                hover:border-slate-300
+                hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]
+              `
           }
-          backdrop-blur-sm relative group`}
-        onClick={handleCardClick}
-        whileHover={{ y: -2, scale: 1.01 }}
-        whileTap={{ scale: 0.99 }}
+          ${completed ? "opacity-60" : ""}
+        `}
       >
-        {/* Subtle glow effect */}
-        <div
-          className={`absolute inset-0 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 
-          ${palette.bgSoft}`}
-        />
+        {/* Only meaningful states get a side colour in Today/general. */}
+        {status !== "normal" && (
+          <div
+            className="absolute inset-y-0 left-0 w-[4px]"
+            style={{
+              backgroundColor: statusInfo.colour,
+            }}
+          />
+        )}
 
-        <div className="flex flex-col space-y-3 relative z-10">
-          {/* Header row with task name and actions */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 overflow-hidden flex-1">
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={handleCompletionToggle}
-                disabled={isUpdating}
-                className={`flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all duration-200 ${
-                  isDark
-                    ? isCompleted
-                      ? "border-emerald-400 bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                      : "border-gray-600 bg-gray-800/50 hover:border-emerald-500 hover:bg-emerald-500/10"
-                    : isCompleted
-                      ? "border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                      : "border-gray-300 bg-white hover:border-emerald-500 hover:bg-emerald-50"
-                } ${isUpdating ? "opacity-50" : ""}`}
-                aria-label={
-                  isCompleted ? "Mark as incomplete" : "Mark as complete"
+        <div className="px-4 py-3.5 sm:px-[18px]">
+          {/* TITLE + STATUS */}
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <h3
+              className={`
+                min-w-0 flex-1 truncate
+                text-[14px] font-semibold leading-5 tracking-[-0.01em]
+                sm:text-[15px]
+                ${
+                  completed
+                    ? isDark
+                      ? "text-slate-500 line-through"
+                      : "text-slate-400 line-through"
+                    : isDark
+                      ? "text-slate-100"
+                      : "text-slate-900"
                 }
-              >
-                <AnimatePresence>
-                  {isCompleted && (
-                    <motion.div
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.button>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center space-x-2">
-                  <h4
-                    className={`font-semibold truncate ${
-                      isDark
-                        ? isCompleted
-                          ? "text-gray-400 line-through"
-                          : "text-gray-100"
-                        : isCompleted
-                          ? "text-gray-500 line-through"
-                          : "text-gray-800"
-                    }`}
-                  >
-                    {taskText || "Unnamed Task"}
-                  </h4>
-
-                  <AnimatePresence>
-                    {isPinned && (
-                      <motion.span
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className={`text-xs px-2 py-1 rounded-full font-medium flex items-center ${
-                          isDark
-                            ? "bg-orange-900/30 text-orange-300 border border-orange-500/30"
-                            : "bg-orange-100 text-orange-600 border border-orange-200"
-                        }`}
-                      >
-                        <Star className="h-3 w-3 mr-1 fill-current" />
-                        Priority
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </div>
-
-            <motion.button
-              whileHover={{ scale: 1.1, rotate: 15 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handlePriorityToggle}
-              disabled={isUpdating}
-              className={`flex-shrink-0 transition-all duration-200 p-2 rounded-lg ${
-                isDark
-                  ? isPinned
-                    ? "text-orange-400 bg-orange-900/30 hover:bg-orange-900/50"
-                    : "text-gray-500 hover:text-orange-400 hover:bg-gray-700/50"
-                  : isPinned
-                    ? "text-orange-500 bg-orange-100 hover:bg-orange-200"
-                    : "text-gray-400 hover:text-orange-500 hover:bg-orange-50"
-              } ${isUpdating ? "opacity-50" : ""}`}
-              aria-label={isPinned ? "Unpin task" : "Pin task"}
+              `}
             >
-              <Pin
-                className={`h-4 w-4 transition-transform duration-200 ${isPinned ? "fill-current" : ""}`}
-              />
-            </motion.button>
+              {taskText || "Untitled Task"}
+            </h3>
+
+            {/* Never display "Normal". */}
+            {status !== "normal" && (
+              <div className="flex shrink-0 items-center gap-1.5 pt-[2px]">
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{
+                    backgroundColor: statusInfo.colour,
+                  }}
+                />
+
+                <span
+                  className={`
+                    text-[10px] font-semibold uppercase tracking-[0.07em]
+                    ${isDark ? "text-slate-400" : "text-slate-500"}
+                  `}
+                >
+                  {statusInfo.label}
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Task description */}
-          <AnimatePresence>
-            {taskDescription && (
-              <motion.p
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3 }}
-                className={`pl-9 text-sm break-words ${
-                  isDark
-                    ? isCompleted
-                      ? "text-gray-500 line-through"
-                      : "text-gray-400"
-                    : isCompleted
-                      ? "text-gray-400 line-through"
-                      : "text-gray-600"
-                }`}
-              >
-                {taskDescription}
-              </motion.p>
-            )}
-          </AnimatePresence>
+          {/* SCHEDULE DIRECTLY BELOW TITLE */}
+          {formattedDate && (
+            <div
+              className={`
+                mt-1.5 flex items-center gap-1.5 text-[11px] font-medium
+                ${
+                  overdue && status !== "flagged"
+                    ? "text-rose-500"
+                    : isDark
+                      ? "text-slate-400"
+                      : "text-slate-500"
+                }
+              `}
+            >
+              <CalendarDays className="h-3.5 w-3.5 shrink-0" />
 
-          {/* Collection, List, and Due Date information */}
-          <motion.div
-            className="flex flex-wrap items-center gap-2 pl-9"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-          >
-            {collection_name && (
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                className={`flex items-center text-xs px-3 py-1.5 rounded-full transition-all duration-200 ${
-                  isDark
-                    ? "bg-gray-700/50 hover:bg-gray-700 border border-gray-600/50"
-                    : "bg-gray-100/50 hover:bg-gray-200 border border-gray-200/50"
-                }`}
-              >
-                <Folder
-                  className={`mr-1.5 h-3 w-3 flex-shrink-0 ${palette.text}`}
-                />
-                <span className="truncate font-medium">{collection_name}</span>
-              </motion.div>
-            )}
+              <span>
+                {formattedDate}
+                {formattedTime && ` · ${formattedTime}`}
+              </span>
+            </div>
+          )}
 
-            {list_name && (
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                className={`flex items-center text-xs px-3 py-1.5 rounded-full transition-all duration-200 ${
-                  isDark
-                    ? "bg-gray-700/50 hover:bg-gray-700 border border-gray-600/50"
-                    : "bg-gray-100/50 hover:bg-gray-200 border border-gray-200/50"
-                }`}
-              >
-                <ListTodo
-                  className={`mr-1.5 h-3 w-3 flex-shrink-0 ${
-                    isDark ? "text-emerald-400" : "text-emerald-600"
-                  }`}
-                />
-                <span className="truncate">{list_name}</span>
-              </motion.div>
-            )}
+          {/* DESCRIPTION MOVED LOWER */}
+          {taskDescription && (
+            <p
+              className={`
+                mt-2.5 line-clamp-2 text-[12px] leading-[1.5]
+                ${
+                  completed
+                    ? isDark
+                      ? "text-slate-600"
+                      : "text-slate-400"
+                    : isDark
+                      ? "text-slate-400"
+                      : "text-slate-600"
+                }
+              `}
+            >
+              {taskDescription}
+            </p>
+          )}
 
-            {dueDateFormatted && (
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                className={`flex items-center text-xs px-3 py-1.5 rounded-full transition-all duration-200 ${
-                  isDark
-                    ? "bg-gray-700/50 hover:bg-gray-700 border border-gray-600/50"
-                    : "bg-gray-100/50 hover:bg-gray-200 border border-gray-200/50"
-                }`}
-              >
-                <Clock
-                  className={`mr-1.5 h-3 w-3 flex-shrink-0 ${
-                    isDark ? "text-purple-400" : "text-purple-600"
-                  }`}
-                />
-                <span className="truncate">
-                  {dueDateFormatted}
-                  {dueTimeFormatted && ` at ${dueTimeFormatted}`}
-                </span>
-              </motion.div>
-            )}
-          </motion.div>
+          {/* SMALL FOOTER */}
+          {(collection_name || list_name) && (
+            <div
+              className={`
+                mt-3 flex min-w-0 items-center gap-3 border-t pt-2.5
+                ${isDark ? "border-white/[0.055]" : "border-slate-100"}
+              `}
+            >
+              {collection_name && (
+                <div
+                  className={`
+                    flex min-w-0 items-center gap-1.5
+                    text-[11px]
+                    ${isDark ? "text-slate-500" : "text-slate-500"}
+                  `}
+                >
+                  <Folder className="h-3 w-3 shrink-0" />
+                  <span className="max-w-[150px] truncate">
+                    {collection_name}
+                  </span>
+                </div>
+              )}
+
+              {list_name && (
+                <div
+                  className={`
+                    flex min-w-0 items-center gap-1.5
+                    text-[11px]
+                    ${isDark ? "text-slate-500" : "text-slate-500"}
+                  `}
+                >
+                  <ListTodo className="h-3 w-3 shrink-0" />
+                  <span className="max-w-[130px] truncate">{list_name}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Hover indicator */}
-        <motion.div
-          className={`absolute right-4 top-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200`}
-          initial={{ scale: 0 }}
-          animate={{ scale: isHovered ? 1 : 0 }}
-          transition={{ duration: 0.2 }}
-        >
-          <div
-            className={`w-2 h-2 rounded-full ${palette.bg}`}
-          />
-        </motion.div>
-      </motion.div>
+        {/* HOLD / RIGHT-CLICK MENU */}
+        <AnimatePresence>
+          {menuOpen && (
+            <>
+              <button
+                type="button"
+                aria-label="Close task menu"
+                className="fixed inset-0 z-40 cursor-default"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setMenuOpen(false);
+                }}
+              />
 
-      {/* Task Sidebar */}
+              <motion.div
+                initial={{
+                  opacity: 0,
+                  scale: 0.96,
+                  y: -4,
+                }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                  y: 0,
+                }}
+                exit={{
+                  opacity: 0,
+                  scale: 0.96,
+                  y: -4,
+                }}
+                transition={{ duration: 0.12 }}
+                onClick={(event) => event.stopPropagation()}
+                className={`
+                  absolute right-3 top-3 z-50 w-[150px]
+                  rounded-xl border p-1.5 shadow-xl
+                  ${
+                    isDark
+                      ? "border-white/10 bg-[#1b2333]"
+                      : "border-slate-200 bg-white"
+                  }
+                `}
+              >
+                <button
+                  type="button"
+                  disabled={updating}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void togglePin();
+                  }}
+                  className={`
+                    flex min-h-[40px] w-full items-center gap-2
+                    rounded-lg px-3 text-left text-[12px] font-medium
+                    transition-colors disabled:opacity-50
+                    ${
+                      isDark
+                        ? "text-slate-200 hover:bg-white/[0.06]"
+                        : "text-slate-700 hover:bg-slate-100"
+                    }
+                  `}
+                >
+                  <Pin
+                    className={`h-3.5 w-3.5 ${pinned ? "fill-current" : ""}`}
+                  />
+                  {pinned ? "Unpin task" : "Pin task"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setMenuOpen(false);
+                    setSidebarOpen(true);
+                  }}
+                  className={`
+                    flex min-h-[40px] w-full items-center
+                    rounded-lg px-3 text-left text-[12px] font-medium
+                    transition-colors
+                    ${
+                      isDark
+                        ? "text-slate-200 hover:bg-white/[0.06]"
+                        : "text-slate-700 hover:bg-slate-100"
+                    }
+                  `}
+                >
+                  View details
+                </button>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </motion.article>
+
       <AnimatePresence>
-        {isSidebarOpen && createdAtDate && (
+        {sidebarOpen && createdDate && (
           <TaskSidebar
-            isOpen={isSidebarOpen}
-            onClose={handleCloseSidebar}
+            isOpen={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
             task={{
               id,
-              text: taskText,
+              text: taskText || "Untitled Task",
               description: taskDescription,
-              created_at: createdAtDate,
-              due_date: dueDateObject,
-              is_completed: isCompleted,
-              date_completed: dateCompletedObject,
-              is_pinned: isPinned,
+              created_at: createdDate,
+              due_date: dueDate,
+              // Both of these were missing, and neither failure was visible
+              // from the card. Without `due_has_time` the sheet read a timed
+              // due date as date-only, showed the wrong day, and would have
+              // written the time away on the next save. Without `reminders`
+              // every task opened reading "Reminder: None".
+              due_has_time,
+              reminders,
+              is_completed: completed,
+              date_completed: completedDate,
+              is_pinned: pinned,
               collection_id,
               list_id,
               user_id,
             }}
             onComplete={onComplete}
             onPriorityChange={onPriorityChange}
-            onTaskUpdate={onTaskUpdate}
+            onTaskUpdate={handleTaskUpdate}
             onTaskDelete={onTaskDelete}
             collections={collections}
             onCollectionChange={onCollectionChange}
@@ -431,6 +591,4 @@ const TodayTaskCard = ({
       </AnimatePresence>
     </>
   );
-};
-
-export default TodayTaskCard;
+}

@@ -52,6 +52,8 @@ import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { isNativeApp } from "@/lib/platform";
 import type { Collection, List, Note, Task } from "@/types/schema";
+import { useTaskReminders } from "@/hooks/useTaskReminders";
+import { useReminderTap } from "@/hooks/useReminderTap";
 
 interface AppDataValue {
   lists: List[];
@@ -192,15 +194,29 @@ export default function AppDataProvider({
 
   const getCollections = useCallback(
     (listId: string) => collectionsByList[listId],
-    [collectionsByList]
+    [collectionsByList],
   );
 
-  const putCollections = useCallback(
-    (listId: string, next: Collection[]) => {
-      setCollectionsByList((previous) => ({ ...previous, [listId]: next }));
-    },
-    []
-  );
+  const putCollections = useCallback((listId: string, next: Collection[]) => {
+    setCollectionsByList((previous) => ({ ...previous, [listId]: next }));
+  }, []);
+
+  // Reminder scheduling lives here rather than on a screen.
+  //
+  // It used to run from NativeHome, which meant nothing was rescheduled unless
+  // the Lists tab happened to be mounted: edit a reminder from inside a list and
+  // walk away, and the stale one was still the one queued. This provider holds
+  // every task and sits above NativeTransition, so it runs wherever the user is.
+  //
+  // `!isLoading` is the loaded flag. An empty `tasks` means "not fetched yet"
+  // before the first load and "nothing to remind about" after it, and only the
+  // second of those should cancel anything.
+  useTaskReminders(tasks, !isLoading);
+
+  // Tapping a reminder opens the list that task is in, carrying the task id so
+  // the list screen can open just its collection. Registered here for the same
+  // reason as the sync above: it has to be listening wherever the user is.
+  useReminderTap();
 
   const value = useMemo<AppDataValue>(
     () => ({
@@ -223,7 +239,7 @@ export default function AppDataProvider({
       refresh,
       getCollections,
       putCollections,
-    ]
+    ],
   );
 
   return (
@@ -241,7 +257,7 @@ export function useAppData(): AppDataValue {
   if (!value) {
     throw new Error(
       "useAppData must be used inside AppDataProvider, which is mounted only in " +
-        "the native shell. Guard the call site with IS_NATIVE_BUILD."
+        "the native shell. Guard the call site with IS_NATIVE_BUILD.",
     );
   }
   return value;

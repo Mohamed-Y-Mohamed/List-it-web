@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 import { corsHeaders, isAllowedOrigin } from "@/lib/cors";
 
 export async function middleware(request: NextRequest) {
@@ -45,6 +45,10 @@ export async function middleware(request: NextRequest) {
     "/notcomplete",
     "/priority",
     "/today",
+    "/recurring",
+    "/stats",
+    "/tomorrow",
+    "/overdue",
     "/List",
     "/setting",
     "/profile",
@@ -71,7 +75,11 @@ export async function middleware(request: NextRequest) {
   // Check if this is a logout process by checking query parameters
   const isLoggingOut = request.nextUrl.searchParams.get("logout") === "true";
   if (isLoggingOut && pathname === "/login") {
-    // Clear any auth cookies when explicitly logging out
+    // Legacy cleanup. Nothing writes `auth_token` or `isLoggedIn` any more:
+    // the first was a copy of the raw access token kept for a week that no
+    // code ever read, and the second was never read either. The clears stay
+    // so a browser still holding one from an older build is purged on logout.
+    // Supabase's own session cookie is cleared by signOut, not here.
     response.cookies.set("auth_token", "", {
       path: "/",
       maxAge: 0,
@@ -100,7 +108,7 @@ export async function middleware(request: NextRequest) {
 
   // Check if current path is a protected route that requires authentication
   const isProtectedRoute = protectedRoutes.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 
   // Check if current path is an auth route (login/signup/etc)
@@ -108,84 +116,77 @@ export async function middleware(request: NextRequest) {
 
   // Only create Supabase client for protected routes or auth routes (for login status)
   if (isProtectedRoute || isAuthRoute) {
-    // Create the Supabase middleware client
-    const supabase = createMiddlewareClient({ req: request, res: response });
+    // The Supabase client for this request.
+    //
+    // Reads land on the incoming request so anything later in this middleware
+    // sees a token Supabase has just refreshed; writes land on the outgoing
+    // response so the browser gets it. Both halves are required — write only to
+    // the response and the refresh is invisible for the rest of this pass.
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+
+          setAll(cookiesToSet) {
+            for (const { name, value } of cookiesToSet) {
+              request.cookies.set(name, value);
+            }
+            for (const { name, value, options } of cookiesToSet) {
+              response.cookies.set(name, value, options);
+            }
+          },
+        },
+      },
+    );
+
+    /**
+     * A redirect is a fresh response, so any session cookie Supabase just
+     * refreshed on `response` would be dropped on the floor and the user would
+     * be bounced to /login again on the next request. Carry them across.
+     */
+    const redirectTo = (pathTo: string) => {
+      const url = request.nextUrl.clone();
+      url.pathname = pathTo;
+
+      const redirect = NextResponse.redirect(url);
+      for (const cookie of response.cookies.getAll()) {
+        redirect.cookies.set(cookie);
+      }
+      return redirect;
+    };
 
     try {
-      // Get the current session
+      // `getUser` rather than `getSession`: a session is read straight out of
+      // the cookie and believed, which is no basis for deciding who may see a
+      // protected route. `getUser` verifies it against the auth server.
       const {
-        data: { session },
+        data: { user },
         error,
-      } = await supabase.auth.getSession();
+      } = await supabase.auth.getUser();
 
-      if (error) {
+      // No session is the normal signed-out case and arrives here as an error,
+      // so only log something that is genuinely unexpected.
+      if (error && error.name !== "AuthSessionMissingError") {
         console.error("Session error in middleware:", error);
-
-        // Clear auth cookies on error
-        response.cookies.set("auth_token", "", {
-          path: "/",
-          maxAge: 0,
-          sameSite: "lax",
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-        });
-
-        response.cookies.set("isLoggedIn", "", {
-          path: "/",
-          maxAge: 0,
-          sameSite: "lax",
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-        });
-
-        // If on protected route, redirect to login
-        if (isProtectedRoute) {
-          const loginUrl = request.nextUrl.clone();
-          loginUrl.pathname = "/login";
-          return NextResponse.redirect(loginUrl);
-        }
-
-        return response;
       }
 
-      // Handle protected routes without session
-      if (isProtectedRoute && !session) {
-        const loginUrl = request.nextUrl.clone();
-        loginUrl.pathname = "/login";
-        return NextResponse.redirect(loginUrl);
+      // Handle protected routes without a verified user
+      if (isProtectedRoute && !user) {
+        return redirectTo("/login");
       }
 
       // Handle auth routes with active session
       // Only redirect away from login page if coming from another page
       // This lets users explicitly visit login if they want to login as different user
-      if (isAuthRoute && session) {
+      if (isAuthRoute && user) {
         const referer = request.headers.get("referer");
         if (referer && !referer.includes(pathname)) {
-          const dashboardUrl = request.nextUrl.clone();
-          dashboardUrl.pathname = "/dashboard";
-          return NextResponse.redirect(dashboardUrl);
+          return redirectTo("/dashboard");
         }
-      }
-
-      // Set auth cookies only for protected routes
-      if (session && isProtectedRoute) {
-        const cookieExpiry = 60 * 60 * 24 * 7; // 1 week
-
-        response.cookies.set("auth_token", session.access_token, {
-          path: "/",
-          maxAge: cookieExpiry,
-          sameSite: "lax",
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-        });
-
-        response.cookies.set("isLoggedIn", "true", {
-          path: "/",
-          maxAge: cookieExpiry,
-          sameSite: "lax",
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-        });
       }
     } catch (error) {
       console.error("Middleware error:", error);

@@ -5,7 +5,7 @@
 
 import dynamic from "next/dynamic";
 import { IS_NATIVE_BUILD } from "@/lib/platform";
-import DashboardView from "@/components/Dashboard/DashboardView";
+import ProgressView from "@/components/Dashboard/ProgressView";
 import NativeLoading from "@/components/native/NativeLoading";
 
 // Loaded as its own chunk so the web bundle does not carry the native lists
@@ -27,5 +27,5 @@ export default function DashboardPage() {
   // iOS app. Its analytics live at /stats instead. IS_NATIVE_BUILD is fixed at
   // build time, so each bundle keeps only the branch it uses and there is no
   // hydration mismatch.
-  return IS_NATIVE_BUILD ? <NativeHome /> : <DashboardView />;
+  return IS_NATIVE_BUILD ? <NativeHome /> : <ProgressView />;
 }

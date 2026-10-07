@@ -6,7 +6,14 @@
 // `is_pinned` with two separate branches, and a screen that dropped one of them
 // would sort almost right, which is the hardest kind of wrong to spot.
 
-import { isSameLocalDay, sortTasks, toPostgresDate } from "../taskView";
+import {
+  bandByDueDate,
+  isRecurring,
+  isRecurringToday,
+  isSameLocalDay,
+  sortTasks,
+  toPostgresDate,
+} from "../taskView";
 import type { TaskRow } from "@/types/taskView";
 
 function task(overrides: Partial<TaskRow> & { id: string }): TaskRow {
@@ -101,6 +108,99 @@ describe("isSameLocalDay", () => {
   it("survives an unparseable date instead of throwing", () => {
     // A screen must not die on one bad row.
     expect(isSameLocalDay("not a date", day)).toBe(false);
+  });
+});
+
+// Repeat was removed on 2026-10-03 — the design is archived in memory under
+// `listit-repeat-feature-archive`, and the `repeat_rule` column and its data are
+// still in the database untouched.
+//
+// These stay rather than being deleted. They are what proves a row that still
+// carries a rule is treated as an ordinary task now, which is the behaviour
+// change that was chosen deliberately, and they are the first thing to invert
+// when the feature is rebuilt.
+describe("recurrence, while the feature is out", () => {
+  const day = new Date(2026, 8, 29);
+
+  it("treats a task that still has a stored rule as ordinary", () => {
+    const row = task({
+      id: "t1",
+      repeat_rule: { type: "daily" },
+      due_date: new Date(2026, 8, 29, 9, 0).toISOString(),
+    });
+
+    expect(isRecurring(row)).toBe(false);
+    expect(isRecurringToday(row, day)).toBe(false);
+  });
+
+  it("treats an undated task with a stored rule as ordinary too", () => {
+    const row = task({ id: "t2", repeat_rule: { type: "weekly" } });
+
+    expect(isRecurring(row)).toBe(false);
+    expect(isRecurringToday(row, day)).toBe(false);
+  });
+});
+
+// How the Scheduled screen lays its tasks out. Recurring tasks are banded with
+// everything else by their next occurrence rather than being hived off into
+// their own section — the Recurring screen is where they are seen as a set, and
+// on Scheduled what matters is when the next one lands.
+describe("bandByDueDate", () => {
+  const today = new Date(2026, 8, 29); // 29 Sep 2026, local midnight
+  const on = (y: number, m: number, d: number) => new Date(y, m - 1, d, 9).toISOString();
+
+  it("puts each task in the band its due date falls in", () => {
+    const bands = bandByDueDate(
+      [
+        task({ id: "late", due_date: on(2026, 9, 20) }),
+        task({ id: "now", due_date: on(2026, 9, 29) }),
+        task({ id: "next", due_date: on(2026, 9, 30) }),
+        task({ id: "later", due_date: on(2026, 10, 15) }),
+      ],
+      today
+    );
+
+    expect(bands.overdue.map((t) => t.id)).toEqual(["late"]);
+    expect(bands.today.map((t) => t.id)).toEqual(["now"]);
+    expect(bands.tomorrow.map((t) => t.id)).toEqual(["next"]);
+    expect(bands.upcoming.map((t) => t.id)).toEqual(["later"]);
+  });
+
+  it("bands a task carrying a stored repeat rule like any other", () => {
+    // Recurring tasks used to be filtered out before banding and shown in a
+    // separate group. They are banded inline now, and with the feature removed a
+    // stored rule is simply ignored — either way this lands under Today.
+    const bands = bandByDueDate(
+      [
+        task({ id: "habit", repeat_rule: { type: "daily" }, due_date: on(2026, 9, 29) }),
+        task({ id: "errand", due_date: on(2026, 9, 29) }),
+      ],
+      today
+    );
+
+    expect(bands.today.map((t) => t.id)).toEqual(["habit", "errand"]);
+  });
+
+  it("drops a task with no due date", () => {
+    // Scheduled is dated tasks only; an undated one has no band to go in.
+    const bands = bandByDueDate([task({ id: "someday" })], today);
+
+    expect(
+      [...bands.overdue, ...bands.today, ...bands.tomorrow, ...bands.upcoming]
+    ).toHaveLength(0);
+  });
+
+  it("keeps the order it was given within a band", () => {
+    // The caller sorts once, up front; banding must not quietly reshuffle.
+    const bands = bandByDueDate(
+      [
+        task({ id: "a", due_date: on(2026, 10, 15) }),
+        task({ id: "b", due_date: on(2026, 10, 2) }),
+      ],
+      today
+    );
+
+    expect(bands.upcoming.map((t) => t.id)).toEqual(["a", "b"]);
   });
 });
 

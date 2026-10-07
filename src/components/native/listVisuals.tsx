@@ -11,14 +11,17 @@ import {
   AlertCircle,
   Calendar,
   CalendarClock,
+  CalendarRange,
   CheckCircle2,
   Circle,
   ListChecks,
   Star,
+  Sun,
   type LucideIcon,
 } from "lucide-react";
 import type { List, Note, Task } from "@/types/schema";
 import { resolveColor } from "@/lib/colors";
+import ScrollingText from "./ScrollingText";
 
 // `list_icon` holds an SF Symbol name, written by the iOS app and by ListPopup.
 // Only default lists use their stored icon; user lists always show the checklist,
@@ -31,6 +34,8 @@ const SF_SYMBOL_TO_ICON: Record<string, LucideIcon> = {
   "checkmark.circle": CheckCircle2,
   circle: Circle,
   "exclamationmark.circle": AlertCircle,
+  "sun.max": Sun,
+  "calendar.badge.exclamationmark": CalendarRange,
 };
 
 export function iconForList(list: List): LucideIcon {
@@ -130,43 +135,52 @@ export function ListInfo({
   // row has the room, so it keeps them.
   const showCounts = !list.is_default && shape !== "pinned";
 
-  // The pinned rail and the row lay out horizontally, so their labels sit
-  // left-aligned on a single line; the grid card centres a name that may wrap to two.
+  // Every shape is a single line now; the grid centres its name, the rail and the
+  // row left-align theirs.
   const isGrid = shape === "grid";
 
   return (
     <span
       className={`flex min-w-0 flex-col ${isGrid ? "items-center" : "items-start"}`}
     >
-      {/* On a grid card the name gets a box exactly two lines tall, whatever it
-          holds, with the text centred inside it.
+      {/* One line, always, on the grid and the row alike.
 
-          Without that the row does not line up. `line-clamp-2` lets the box be one
-          line or two, and the card centres its contents vertically — so "Today"
-          (one line) and "Not Completed" (two) put their icons at different heights,
-          and a row of three cards looked mis-set. Reserving the taller of the two
-          makes every grid card the same height internally, so the icons align and
-          each card is still centred in itself.
-
-          2.75em is two lines of leading-snug (1.375), tied to the 13.5px name below
-          rather than a magic pixel value, so it follows if that size changes. */}
-      <span className={isGrid ? "flex min-h-[2.75em] items-center" : undefined}>
-        <span
+          It used to be `line-clamp-2` inside a box held at two lines tall, so that
+          "Today" and "Not Completed" put their icons at the same height. A name
+          longer than two lines was still cut off with no way to read it, and
+          wrapped text cannot scroll — a horizontal travel means nothing once the
+          words are stacked. Single line plus ScrollingText reads any length, and
+          one line is the same height on every card, so the two-line reserve that
+          existed only to align the icons is no longer needed to do it. */}
+      {shape === "pinned" ? (
+        // The rail scrolls sideways and its cards are capped rather than sized by
+        // their content, so there is no box to measure a name against.
+        <span className="max-w-[9.5rem] truncate text-[13.5px] font-semibold leading-snug tracking-[-0.01em]">
+          {list.list_name || "Untitled"}
+        </span>
+      ) : (
+        <ScrollingText
+          // `text-left` is not redundant. The card is a <button>, which centres its
+          // text by default, and the name now sits in a full-width box rather than
+          // a span sized by its own content — so on a row the inherited centring
+          // became visible, with the name over the middle and the counts under it
+          // on the left.
           className={`text-[13.5px] font-semibold leading-snug tracking-[-0.01em] ${
-            isGrid
-              ? "line-clamp-2 text-center"
-              : shape === "pinned"
-                ? // The rail scrolls sideways, so its cards are capped rather than
-                  // sized by their content.
-                  "max-w-[9.5rem] truncate"
-                : // A row is as wide as the screen; `block` is what gives truncate
-                  // a box to measure against inside the flex column.
-                  "block w-full truncate"
+            isGrid ? "text-center" : "text-left"
           }`}
         >
           {list.list_name || "Untitled"}
-        </span>
-      </span>
+        </ScrollingText>
+      )}
+      {/* No blank line is reserved when the counts are hidden.
+
+          It used to be, so that a built-in card and a user card kept their icons
+          at the same height. But a built-in card has nothing to put there, so the
+          reservation was empty space under the name with none above it, and the
+          card read as bottom-heavy. The two kinds live in separate grids, so the
+          only thing the reserve bought was alignment between grids that are never
+          in the same row. Without it each card is centred on what it actually
+          holds, and a built-in one is simply shorter. */}
       {showCounts && (
         <span className="mt-1 text-[10.5px] font-medium tracking-[0.01em] text-gray-500 dark:text-gray-400">
           {taskCount} {taskCount === 1 ? "task" : "tasks"} · {noteCount}{" "}

@@ -30,15 +30,17 @@ jest.mock("@supabase/supabase-js", () => ({
   createClient: jest.fn(() => mockAdminClient),
 }));
 
-// Session client mock
-const mockGetSession = jest.fn();
+// Session client mock.
+// `requireAuth` verifies the cookie caller with `getUser`, which checks the
+// token against the auth server, rather than reading it back out of the cookie.
+const mockGetUser = jest.fn();
 const mockSessionClient = {
-  auth: { getSession: mockGetSession },
+  auth: { getUser: mockGetUser },
   from: jest.fn(),
 };
 
-jest.mock("@supabase/auth-helpers-nextjs", () => ({
-  createServerComponentClient: jest.fn(() => mockSessionClient),
+jest.mock("@/utils/server", () => ({
+  createClient: jest.fn(async () => mockSessionClient),
 }));
 
 // Imports
@@ -58,8 +60,8 @@ function makeReq(body?: unknown) {
 }
 
 function setSession(userId: string) {
-  mockGetSession.mockResolvedValue({
-    data: { session: { user: { id: userId }, access_token: "tok" } },
+  mockGetUser.mockResolvedValue({
+    data: { user: { id: userId } },
     error: null,
   });
 }
@@ -88,9 +90,14 @@ describe("DELETE /api/delete-account", () => {
   });
 
   it("returns 401 when there is no active session", async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: null },
-      error: null,
+    // How a signed-out caller actually arrives: `getUser` reports the missing
+    // session as an error, and with no bearer header either it is a 401.
+    mockGetUser.mockResolvedValue({
+      data: { user: null },
+      error: Object.assign(new Error("Auth session missing!"), {
+        name: "AuthSessionMissingError",
+        status: 400,
+      }),
     });
     const res = await DELETE(makeReq({ userId: "user-1" }));
     expect(res.status).toBe(401);

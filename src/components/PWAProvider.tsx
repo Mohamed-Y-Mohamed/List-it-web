@@ -1,10 +1,15 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import React, { useCallback, useEffect, useState } from "react";
+
+import { usePathname, useRouter } from "next/navigation";
+
 import SplashScreen from "@/components/SplashScreen";
+
 import { isPWAStandalone } from "@/utils/pwaUtils";
+
 import { IS_NATIVE_BUILD, isNativeApp } from "@/lib/platform";
+
 import { hasSeenOnboarding } from "@/lib/onboarding";
 import { appPath } from "@/lib/routes";
 import { supabase } from "@/utils/client";
@@ -17,93 +22,186 @@ export default function PWAProvider({ children }: PWAProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Show splash only in PWA/standalone mode.
-  //
-  // Seeded true for the native build so the splash is in the *first* commit. It
-  // used to start false and be switched on in the effect below, which left one
-  // rendered frame with no splash, no root page (page.tsx returns null in app
-  // mode) and no background class yet — an empty white document, flashing white
-  // even on a dark device. IS_NATIVE_BUILD is a compile-time constant, so the web
-  // bundle still reads `useState(false)` and behaves exactly as before.
+  /**
+   * Show splash immediately for native builds so the first native
+   * frame cannot briefly expose the empty document underneath.
+   */
   const [showSplash, setShowSplash] = useState(IS_NATIVE_BUILD);
+
   const [splashDone, setSplashDone] = useState(false);
+
   const [isStandalone, setIsStandalone] = useState(false);
 
-  // Whether the launch has worked out where it is going. The splash waits for
-  // this instead of running down a fixed timer, so it covers the session read and
-  // the navigation that follows rather than expiring halfway through them.
-  //
-  // Starts true off-native: an installed PWA opens directly onto a real page, so
-  // there is nothing to wait for and the splash keeps its original timing.
+  /**
+   * Native launch waits until session/navigation resolution has
+   * completed before allowing the splash to disappear.
+   *
+   * Web/PWA keeps the existing behaviour.
+   */
   const [launchResolved, setLaunchResolved] = useState(!IS_NATIVE_BUILD);
+
+  // ============================================================
+  // PWA detection + service worker
+  // ============================================================
 
   useEffect(() => {
     const standalone = isPWAStandalone();
+
     setIsStandalone(standalone);
 
     if (standalone) {
       setShowSplash(true);
     }
 
-    // Register service worker. Skipped in the native shell: the bundle already
-    // ships on the device, so a worker caching `https://localhost` adds nothing
-    // but a second stale copy of the app to reason about on every update.
-    if ("serviceWorker" in navigator && !isNativeApp()) {
-      navigator.serviceWorker
-        .register("/sw.js", { scope: "/" })
-        .catch((err) => {
-          console.error("Service worker registration failed:", err);
-        });
+    /**
+     * Capacitor/native already ships its web bundle locally.
+     *
+     * A service worker inside that shell would create another copy
+     * of the application that can become stale, so native continues
+     * to skip SW registration entirely.
+     */
+    if (!("serviceWorker" in navigator) || isNativeApp()) {
+      return;
     }
+
+    /**
+     * DEVELOPMENT
+     * -----------
+     *
+     * Do not allow an old production/PWA worker to control
+     * localhost development.
+     *
+     * This is particularly important with Next/Turbopack because
+     * otherwise you can change a React component and still be
+     * looking at an application document controlled by an older SW.
+     */
+    if (process.env.NODE_ENV === "development") {
+      const clearDevelopmentWorkers = async () => {
+        try {
+          const registrations =
+            await navigator.serviceWorker.getRegistrations();
+
+          await Promise.all(
+            registrations.map((registration) => registration.unregister()),
+          );
+
+          /**
+           * Delete only List-It-owned caches.
+           *
+           * Do not indiscriminately delete every cache on the
+           * origin in case another development tool owns one.
+           */
+          if ("caches" in window) {
+            const cacheNames = await caches.keys();
+
+            await Promise.all(
+              cacheNames
+                .filter((name) => name.startsWith("list-it"))
+                .map((name) => caches.delete(name)),
+            );
+          }
+        } catch (error) {
+          console.error("Failed to clear development service worker:", error);
+        }
+      };
+
+      void clearDevelopmentWorkers();
+
+      return;
+    }
+
+    /**
+     * PRODUCTION WEB / PWA
+     * --------------------
+     *
+     * Register normally.
+     *
+     * updateViaCache:none tells the browser not to satisfy checks
+     * for the worker script itself from the HTTP cache.
+     */
+    const registerServiceWorker = async () => {
+      try {
+        const registration = await navigator.serviceWorker.register("/sw.js", {
+          scope: "/",
+          updateViaCache: "none",
+        });
+
+        /**
+         * Explicitly ask for an update check on application launch.
+         *
+         * Failure here is non-fatal: the current worker can continue
+         * running and the browser will retry through its normal SW
+         * lifecycle.
+         */
+        try {
+          await registration.update();
+        } catch (updateError) {
+          console.warn("Service worker update check failed:", updateError);
+        }
+      } catch (error) {
+        console.error("Service worker registration failed:", error);
+      }
+    };
+
+    void registerServiceWorker();
   }, []);
 
-  // After splash, redirect to /login when running as PWA and on the root
+  // ============================================================
+  // Splash completion
+  // ============================================================
+
   const handleSplashDone = useCallback(() => {
     setSplashDone(true);
     setShowSplash(false);
   }, []);
 
-  // Where a launch lands.
-  //
-  // A website's pages are meaningless in app mode, so the three of them hand off
-  // to somewhere useful:
-  //
-  //   signed in            -> the Lists tab
-  //   new install          -> the intro, then sign-in
-  //   signed out, returning-> sign-in
-  //
-  // Returning users used to be bounced through /login, which noticed the session
-  // and forwarded them on — so every launch flashed a sign-in form at someone who
-  // was already signed in. Reading the session here removes that hop.
-  useEffect(() => {
-    if (!isStandalone) return;
+  // ============================================================
+  // Launch routing
+  // ============================================================
 
-    // Web/PWA keeps its original ordering, where the redirect waits for the
-    // splash to finish. Native inverts it — there the splash waits for *this* to
-    // resolve, so waiting on the splash here as well would deadlock the two.
-    if (!IS_NATIVE_BUILD && showSplash && !splashDone) return;
+  useEffect(() => {
+    if (!isStandalone) {
+      return;
+    }
+
+    /**
+     * Web/PWA retains the existing ordering:
+     * wait for the splash before redirecting.
+     *
+     * Native does the inverse because its splash waits for this
+     * launch-resolution process.
+     */
+    if (!IS_NATIVE_BUILD && showSplash && !splashDone) {
+      return;
+    }
 
     const publicOnlyPaths = ["/", "/landingpage", "/aboutus"];
+
+    /**
+     * Already on a real application/deep-link route.
+     *
+     * There is no launch routing decision left to make.
+     */
     if (!publicOnlyPaths.includes(pathname)) {
-      // Already somewhere real — a deep link, a notification tap, a WebView
-      // reload after Android reclaimed the process. There is no routing decision
-      // left to make, and the splash has to be released or it would sit over the
-      // app until its own safety cap expired. This path is why the splash needed
-      // an explicit signal rather than just a longer timer.
       setLaunchResolved(true);
       return;
     }
 
     let cancelled = false;
 
-    (async () => {
-      // Asked of the client directly rather than through AuthContext: on a cold
-      // launch the provider can settle on "no session" before the stored one has
-      // finished being read, and acting on that would send a signed-in user to
-      // the intro. (secure)/layout.tsx reads it the same way, for the same
-      // reason.
+    const resolveLaunch = async () => {
+      /**
+       * Read the session directly from Supabase during cold launch.
+       *
+       * This avoids briefly routing an already-authenticated user
+       * through the login screen while another provider is still
+       * restoring the stored session.
+       */
       const { data } = await supabase.auth.getSession();
-      if (cancelled) return;
+
+      if (cancelled) {
+        return;
+      }
 
       if (data.session) {
         router.replace(appPath("/dashboard"));
@@ -113,23 +211,31 @@ export default function PWAProvider({ children }: PWAProviderProps) {
         router.replace(appPath("/login"));
       }
 
-      // Set after the replace, so the splash covers the navigation itself rather
-      // than lifting to reveal the old screen for a frame first.
+      /**
+       * Release the native splash only after the navigation
+       * decision has been made.
+       */
       setLaunchResolved(true);
-    })();
+    };
+
+    void resolveLaunch();
 
     return () => {
       cancelled = true;
     };
   }, [isStandalone, splashDone, showSplash, pathname, router]);
 
+  // ============================================================
+  // Render
+  // ============================================================
+
   return (
     <>
       {showSplash && (
         <SplashScreen onDone={handleSplashDone} ready={launchResolved} />
       )}
+
       {children}
     </>
   );
 }
-

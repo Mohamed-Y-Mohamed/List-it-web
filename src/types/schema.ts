@@ -36,6 +36,30 @@ export interface Task {
   list_id: string | null;
   is_pinned: boolean | null;
   user_id: string | null;
+  /**
+   * Whether `due_date`'s clock time means anything. False is the old behaviour and
+   * the default: the date is stored at UTC noon as a marker, not an instant, and
+   * anything needing a time of day reads 09:00 local. See lib/reminders.ts.
+   */
+  due_has_time?: boolean | null;
+  /**
+   * The repeat rule, as jsonb.
+   *
+   * The feature was removed on 2026-10-03 and nothing reads this now, but the
+   * column and every row's value are deliberately intact — the schema is final,
+   * and the rebuild uses this same shape. The full contract, the algorithms and
+   * the traps are archived in memory under `listit-repeat-feature-archive`.
+   */
+  repeat_rule?: unknown;
+  /** A `Reminder[]`, as jsonb. Narrow it with `parseReminders` before use. */
+  reminders?: unknown;
+  /**
+   * Unused. Added when the Recurring screen was going to be a manually picked
+   * list; it is now derived from `repeat_rule` and the due date instead, so
+   * nothing reads or writes this. Left declared because the column exists, and
+   * dropping a column is a migration rather than a type change.
+   */
+  my_day_date?: string | null;
 }
 
 // Collection Interface

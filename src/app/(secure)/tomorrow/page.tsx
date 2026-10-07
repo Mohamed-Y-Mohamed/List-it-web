@@ -37,7 +37,7 @@ export default function TomorrowPage() {
   const { tasks, setTasks, collections, isLoading, isRefreshing, refresh } =
     useTaskView({ isCompleted: false, predicate: dueTomorrow });
 
-  const actions = useTaskActions(setTasks, { collections });
+  const actions = useTaskActions(setTasks, { collections, tasks });
 
   const sorted = useMemo(() => sortTasks(tasks), [tasks]);
   const pinnedCount = sorted.filter((task) => task.is_pinned).length;

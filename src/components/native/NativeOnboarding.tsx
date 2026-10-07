@@ -65,7 +65,7 @@ const STEPS: readonly Step[] = [
     title: "Turn on reminders?",
     // Says what will be sent and how often, because that is what the decision
     // actually turns on. Notifications are the only permission the app asks for.
-    body: "Give a task a due date and List It can remind you on the day. You get one reminder a day, covering everything due. Android will ask your permission first, and this is the only permission the app needs.",
+    body: "Give a task a date and add your own reminders: an hour before, a day before, or a time you pick. You only hear from List It when you have asked to. Android will ask your permission first, and this is the only permission the app needs.",
     isPermissionRequest: true,
   },
 ] as const;

@@ -28,8 +28,8 @@ jest.mock("@supabase/supabase-js", () => ({
 // Session client mock — the route now receives this from getRouteClient.
 const mockUpdateUser = jest.fn();
 const mockSessionClient = { auth: { updateUser: mockUpdateUser } };
-jest.mock("@supabase/auth-helpers-nextjs", () => ({
-  createServerComponentClient: jest.fn(() => mockSessionClient),
+jest.mock("@/utils/server", () => ({
+  createClient: jest.fn(async () => mockSessionClient),
 }));
 
 // Imports

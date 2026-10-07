@@ -191,8 +191,8 @@ const Signup = () => {
       // exactly the 3rem it had; on the device it grows to clear the status bar
       // and the gesture pill while the gradient behind still runs edge to edge.
       style={{
-        paddingTop: "max(3rem, env(safe-area-inset-top, 0px))",
-        paddingBottom: "max(3rem, env(safe-area-inset-bottom, 0px))",
+        paddingTop: "max(3rem, var(--safe-top))",
+        paddingBottom: "max(3rem, var(--safe-bottom))",
       }}
     >
       {/* Background.

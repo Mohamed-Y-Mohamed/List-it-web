@@ -32,7 +32,10 @@ import {
   MockListLayout,
   MockNote,
   MockOpenList,
+  MockReminders,
+  MockScheduled,
   MockSwipeActions,
+  MockSwipeTasks,
   MockTask,
 } from "./tutorialMocks";
 
@@ -56,6 +59,9 @@ const ART: Record<string, React.ComponentType<{ isDark: boolean }>> = {
   "default-views": MockDefaultViews,
   "list-layout": MockListLayout,
   "swipe-actions": MockSwipeActions,
+  reminders: MockReminders,
+  "swipe-tasks": MockSwipeTasks,
+  scheduled: MockScheduled,
 };
 
 const STEPS = TUTORIAL_TOPICS.filter((topic) => ART[topic.id]).map((topic) => ({
@@ -120,7 +126,7 @@ export default function NativeTutorial({ onDone }: { onDone: () => void }) {
   );
 
   // Distance is small and the fade does most of the work — a full-width slide
-  // reads as a page turn, which oversells moving between five cards.
+  // reads as a page turn, which oversells moving between cards in one stack.
   const offset = reduceMotion ? 0 : 28;
   const Art = step.Art;
 
@@ -190,8 +196,15 @@ export default function NativeTutorial({ onDone }: { onDone: () => void }) {
 
       <div className="px-8 pb-6">
         {/* Progress. Tappable, because a dot that shows position but refuses to
-            take you there is a control pretending to be decoration. */}
-        <div className="mb-7 flex justify-center gap-2">
+            take you there is a control pretending to be decoration.
+
+            Wraps, and sits tighter than it used to. The walkthrough was seven
+            steps when this row was written and is fourteen now; at the old 24px
+            per dot that wants 440px of a 296px row, so they squeezed and the
+            active pill bled into its neighbours. Narrower buttons and a wrap put
+            them on two tidy lines instead, which is also what the help sheet
+            does with the same list. The tap target keeps its 44px height. */}
+        <div className="mb-7 flex flex-wrap justify-center gap-y-0 gap-x-1">
           {STEPS.map((item, dot) => (
             <button
               key={item.title}
@@ -199,7 +212,7 @@ export default function NativeTutorial({ onDone }: { onDone: () => void }) {
               onClick={() => go(dot)}
               aria-label={`Go to step ${dot + 1} of ${STEPS.length}`}
               aria-current={dot === index ? "step" : undefined}
-              className="flex h-11 w-6 items-center justify-center"
+              className="flex h-11 w-5 items-center justify-center"
             >
               <motion.span
                 className={`block h-2 rounded-full ${
@@ -207,7 +220,7 @@ export default function NativeTutorial({ onDone }: { onDone: () => void }) {
                 }`}
                 // The active dot stretches rather than just recolouring, so
                 // position is legible without relying on colour.
-                animate={{ width: dot === index ? 20 : 8 }}
+                animate={{ width: dot === index ? 18 : 8 }}
                 transition={
                   reduceMotion
                     ? { duration: 0 }

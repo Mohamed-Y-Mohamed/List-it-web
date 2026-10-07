@@ -7,10 +7,10 @@
 
 "use client";
 
-import DashboardView from "@/components/Dashboard/DashboardView";
+import ProgressView from "@/components/Dashboard/ProgressView";
 
 export default function StatsPage() {
   // "Progress", to agree with the tab that leads here. The route stays /stats and
   // the web's own /dashboard keeps its default heading, so nothing moves there.
-  return <DashboardView heading="Progress" />;
+  return <ProgressView heading="Progress" />;
 }

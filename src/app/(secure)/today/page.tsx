@@ -18,7 +18,14 @@ import TaskScreen from "@/components/Tasks/TaskScreen";
 import TaskList from "@/components/Tasks/TaskList";
 import type { TaskRow } from "@/types/taskView";
 
-/** Due today. The query has already excluded anything completed or deleted. */
+/**
+ * Due today and not a routine. The query has already excluded anything completed
+ * or deleted.
+ *
+ * which is the routine for today, so this one stays the list of one-off things
+ * that actually have to happen. Nothing due today is hidden by that, it is split
+ * across two screens that each answer one question.
+ */
 const dueToday = (task: TaskRow, today: Date) =>
   isSameLocalDay(task.due_date, today);
 
@@ -29,7 +36,7 @@ export default function TodayPage() {
   const { tasks, setTasks, collections, isLoading, isRefreshing, refresh } =
     useTaskView({ isCompleted: false, predicate: dueToday });
 
-  const actions = useTaskActions(setTasks, { collections });
+  const actions = useTaskActions(setTasks, { collections, tasks });
 
   const sorted = useMemo(() => sortTasks(tasks), [tasks]);
   const pinnedCount = sorted.filter((task) => task.is_pinned).length;

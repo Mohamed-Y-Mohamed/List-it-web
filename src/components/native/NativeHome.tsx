@@ -12,7 +12,7 @@
 // Rendered only in the native build — the web dashboard is untouched. See
 // src/app/(secure)/dashboard/page.tsx.
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import {
@@ -21,24 +21,26 @@ import {
   Pencil,
   Pin,
   PinOff,
+  MoreVertical,
   Plus,
   Search,
   Trash2,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { appPath, listHref } from "@/lib/routes";
-import { useDueTodayNotifications } from "@/hooks/useDueTodayNotifications";
 import { useListLayout } from "@/hooks/useListLayout";
 import type { List } from "@/types/schema";
 import CreateListModal from "@/components/popupModels/ListPopup";
 import EditListPopup from "@/components/popupModels/editListPopup";
+import { createPortal } from "react-dom";
+import { motion } from "framer-motion";
 import NativeContextMenu, {
   type ContextMenuItem,
 } from "./NativeContextMenu";
 import NativeHelpSheet from "./NativeHelpSheet";
 import NativeListCard from "./NativeListCard";
+import { ListIcon } from "./listVisuals";
 import SwipeableRow, { type SwipeAction } from "./SwipeableRow";
 import { useAppData } from "./AppDataProvider";
 import { CountBadge } from "./listVisuals";
@@ -67,12 +69,13 @@ const SORT_LABELS: Record<SortOption, string> = {
  * Symbol names the iOS app stores, so listVisuals maps them to the matching icon.
  */
 const DEFAULT_LISTS: (List & { href: string })[] = [
+  // First, because it is the one of these you open every morning.
   ["Today", "calendar", "#007AFF", "/today"],
   ["Tomorrow", "calendar.badge.clock", "#5856D6", "/tomorrow"],
   ["Priority", "star.fill", "#FF9500", "/priority"],
   ["Completed", "checkmark.circle", "#34C759", "/completed"],
   ["Not Completed", "circle", "#8E8E93", "/notcomplete"],
-  ["Overdue", "exclamationmark.circle", "#FF3B30", "/overdue"],
+  ["Scheduled", "calendar.badge.exclamationmark", "#5AC8FA", "/overdue"],
 ].map(([name, icon, color, href]) => ({
   id: `default:${href}`,
   created_at: new Date(0),
@@ -125,8 +128,12 @@ function SectionDivider({
 export default function NativeHome() {
   const router = useRouter();
   const { theme } = useTheme();
-  const { user } = useAuth();
   const isDark = theme === "dark";
+
+  // There is no document to portal into during the server render, and the first
+  // client render has to match it.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Read from the shared cache rather than fetching here.
   //
@@ -167,15 +174,6 @@ export default function NativeHome() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [listToEdit, setListToEdit] = useState<List | null>(null);
   const [listToDelete, setListToDelete] = useState<List | null>(null);
-
-  // These are the user's open, undeleted tasks — exactly the set a due-today
-  // reminder should consider. Scheduling from here means it refreshes whenever
-  // the screen does, without a second fetch.
-  //
-  // The loaded flag matters: an empty `tasks` means "not fetched yet" before the
-  // first load resolves and "nothing open" after it, and only the second of those
-  // should reach the scheduler. It is what ticking off the last task looks like.
-  useDueTodayNotifications(tasks, !isLoading);
 
   const matchesSearch = useCallback(
     (list: List) =>
@@ -359,6 +357,39 @@ export default function NativeHome() {
   // Sorting is instant and reversible, so the chip commits on tap with no confirm
   // step. The haptic is the receipt — on a grid of small cards the reorder is not
   // always visible from the top of the screen.
+  /**
+   * What the ⋯ opens: how the lists are ordered, then where else you can go.
+   *
+   * Two groups in one menu rather than two controls on the page. Sort is set
+   * once and rarely changed, and the built-in views are six fixed destinations —
+   * neither earns permanent space on a screen that exists to show the user's
+   * own lists.
+   *
+   * The views keep their icons, and they are the only things in the app that do.
+   * That is the point of them here: in a list of plain text rows, an icon is
+   * what says these six are a different kind of thing from everything else.
+   */
+  const overflowMenuItems = (): ContextMenuItem[] => [
+    {
+      label: "Sort",
+      icon: <ArrowUpDown size={16} />,
+      // One row that opens into the four orders, rather than four rows of its
+      // own. The menu's job is to offer two things — how the lists are ordered
+      // and where else you can go — and spelling the orders out flat made the
+      // sorting look like most of what the menu was for.
+      submenu: SORT_ORDER.map((option) => ({
+        label: SORT_LABELS[option] + (sort === option ? "  ✓" : ""),
+        onSelect: () => selectSort(option),
+      })),
+    },
+    ...visibleDefaultLists.map((list) => ({
+      label: list.list_name || "",
+      startsGroup: list.id === visibleDefaultLists[0]?.id,
+      icon: <ListIcon list={list} size={22} />,
+      onSelect: () => router.push(appPath(list.href)),
+    })),
+  ];
+
   const selectSort = useCallback((option: SortOption) => {
     setSort(option);
     void Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
@@ -383,9 +414,15 @@ export default function NativeHome() {
         );
 
         if (created) {
+          // Stays on the Lists tab rather than opening the new list.
+          //
+          // It used to push straight into it, which is the wrong guess twice over:
+          // a list is empty at the moment it is made, so there is nothing to see,
+          // and anyone setting up more than one had to come back out between each.
+          // `setLists` with the fetched rows updates the grid in place, so the new
+          // list is simply there, with no reload and no navigation.
           setIsCreateOpen(false);
           setLists(data ?? []);
-          router.push(listHref(created.id, true));
           return { success: true };
         }
       }
@@ -417,9 +454,9 @@ export default function NativeHome() {
         }),
       });
 
+      // Same again on the fallback path: refresh the grid, stay put.
       setIsCreateOpen(false);
       await refreshData();
-      router.push(listHref(created.id, true));
       return { success: true };
     },
     [refreshData, setLists, router]
@@ -482,31 +519,24 @@ export default function NativeHome() {
             beneath the clock. */}
         <div className="flex items-start justify-between gap-3 px-4 pt-3">
           <div className="min-w-0">
+            {/* The date, then the page. The greeting and the user's own name
+                were the two largest things on a screen whose job is showing
+                lists — and the name is already on the Settings tab. */}
             <p
-              className={`text-[13px] font-medium ${
-                isDark ? "text-gray-400" : "text-gray-500"
+              className={`text-[12px] font-medium uppercase tracking-wide ${
+                isDark ? "text-gray-500" : "text-gray-400"
               }`}
             >
-              Welcome back 👋
+              {new Date().toLocaleDateString(undefined, {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              })}
             </p>
-            <h1 className="truncate text-[24px] font-bold leading-tight tracking-[-0.02em]">
-              {user?.user_metadata?.full_name || user?.email || "…"}
+            <h1 className="truncate text-[26px] font-bold leading-tight tracking-[-0.02em]">
+              My Lists
             </h1>
           </div>
-          {/* Creating a list was the one thing in the old toolbar menu that had
-              nowhere else to go, so it gets the slot the menu used to occupy —
-              named for what it does rather than hidden behind "More options". */}
-          {/* Creating a list was the one thing in the old toolbar menu that had
-              nowhere else to go, so it gets the slot the menu used to occupy —
-              named for what it does rather than hidden behind "More options". */}
-          <button
-            type="button"
-            onClick={() => setIsCreateOpen(true)}
-            aria-label="Create list"
-            className="touch-target -mr-2 flex shrink-0 items-center justify-center rounded-full active:bg-black/5 dark:active:bg-white/10"
-          >
-            <Plus size={24} strokeWidth={2.2} />
-          </button>
         </div>
 
         {/* Search, which iOS places in the toolbar via .searchable */}
@@ -585,26 +615,23 @@ export default function NativeHome() {
             type="button"
             onClick={(event) => {
               const rect = event.currentTarget.getBoundingClientRect();
-              setMenuItems(
-                SORT_ORDER.map((option) => ({
-                  label: SORT_LABELS[option] + (sort === option ? "  ✓" : ""),
-                  icon: <ArrowUpDown size={18} />,
-                  onSelect: () => selectSort(option),
-                }))
-              );
+              setMenuItems(overflowMenuItems());
               setMenuOrigin({ x: rect.right - 40, y: rect.bottom });
             }}
-            className="touch-target flex items-center gap-1.5 text-[15px] text-blue-500 active:opacity-60"
+            aria-label="Sort and views"
+            className="touch-target flex items-center justify-center text-gray-400 active:opacity-60 dark:text-gray-500"
           >
-            <ArrowUpDown size={18} />
-            Sort
+            <MoreVertical size={20} />
           </button>
         </section>
       )}
 
       <section
-        className="px-4 pt-3"
-        style={{ paddingBottom: "2rem" }}
+        className="px-4 pt-1"
+        // Clears the floating Add button, which is fixed and therefore takes no
+        // space in the document. Without this the last row scrolls to rest
+        // underneath it. 3.5rem button + the gap below it + breathing room.
+        style={{ paddingBottom: "calc(5.5rem + var(--safe-bottom))" }}
       >
         {/* `layout === null` means the stored card-or-rows choice has not been read
             yet. Holding the skeleton for that frame is the alternative to painting
@@ -612,7 +639,7 @@ export default function NativeHome() {
             would see on every visit to this tab. */}
         {state === "loading" || layout === null ? (
           <div className="grid grid-cols-3 gap-2.5">
-            {Array.from({ length: 6 }).map((_, index) => (
+            {Array.from({ length: 7 }).map((_, index) => (
               <div
                 key={index}
                 className={`h-[100px] animate-pulse rounded-[10px] ${
@@ -658,39 +685,15 @@ export default function NativeHome() {
                 fixed and always sit on top; the user's own lists are what the
                 sort control reorders. Each group's name sits on the rule above
                 it, so which is which is stated rather than inferred. */}
-            {visibleDefaultLists.length > 0 && (
-              <>
-                <SectionDivider label="Default lists" isDark={isDark} />
-                {/* Two columns in the List layout rather than three: these stay
-                    cards, so widening them is what distinguishes a group of six
-                    fixed views from the rows underneath. Both class strings are
-                    written out, because Tailwind scans source text and would
-                    never emit a column count assembled at runtime. */}
-                <div
-                  className={
-                    isListLayout
-                      ? "grid grid-cols-2 gap-2.5"
-                      : "grid grid-cols-3 gap-2.5"
-                  }
-                >
-                  {visibleDefaultLists.map((list) => (
-                    <NativeListCard
-                      key={list.id}
-                      list={list}
-                      tasks={tasks}
-                      notes={notes}
-                      variant="grid"
-                      onOpen={() => router.push(appPath(list.href))}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-
+            {/* The built-in views are not on the page any more. They are fixed
+                destinations rather than lists, and six tiles of them sat above
+                the user's own lists on the screen whose job is showing those.
+                They live in the menu behind the ⋯ now, under the sort options.
+                See `overflowMenuItems`. */}
             {sortedLists.length > 0 && (
               <>
                 <SectionDivider
-                  label="Your lists"
+                  label="My Lists"
                   count={userLists.length}
                   isDark={isDark}
                   className={visibleDefaultLists.length > 0 ? "pt-6" : ""}
@@ -720,7 +723,11 @@ export default function NativeHome() {
                     ))}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-3 gap-2.5">
+                  // Two across on a narrow phone, three once there is room. The
+                  // user's own cards carry a name and a counts line where a
+                  // built-in view carries neither, so squeezing them to a third of
+                  // a 360px screen leaves a name that is all scroll and no read.
+                  <div className="grid grid-cols-2 gap-2.5">
                     {sortedLists.map((list) => (
                       <NativeListCard
                         key={`${list.id}-${list.list_name}-${list.bg_color_hex}`}
@@ -741,6 +748,43 @@ export default function NativeHome() {
           </>
         )}
       </section>
+
+      {/* The one Add button.
+
+          It was in the header, which put it at the far top corner of a
+          one-handed reach on the tab you use most. Floating bottom-right is
+          where a phone expects it, and there is deliberately no second one up
+          top — two Add buttons on one screen is a question, not an affordance.
+
+          Portalled to the body, and that is not optional: NativeTransition wraps
+          this screen in a `transform`, which makes it the containing block for
+          any `position: fixed` child. Rendered in place the button measured
+          itself against the transition wrapper instead of the viewport and never
+          appeared. Same trap the detail sheets hit.
+
+          It clears the tab bar and the device inset itself, since being fixed it
+          takes no space in the document — the grid above reserves the matching
+          room so the last row never rests underneath it. */}
+      {mounted &&
+        createPortal(
+          <motion.button
+            type="button"
+            onClick={() => setIsCreateOpen(true)}
+            aria-label="Create list"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 500, damping: 30, delay: 0.15 }}
+            whileTap={{ scale: 0.92 }}
+            className="fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#6366F1] text-white shadow-lg shadow-[#6366F1]/30 active:bg-[#4f52d6]"
+            // Sits just clear of the tab bar, on the Settings side, so it is in
+            // the same place at every scroll position and under the thumb that
+            // is already down there.
+            style={{ bottom: "calc(56px + var(--safe-bottom) + 4px)" }}
+          >
+            <Plus size={26} strokeWidth={2.4} />
+          </motion.button>,
+          document.body
+        )}
 
       <NativeContextMenu
         origin={menuOrigin}

@@ -10,7 +10,6 @@ import {
   Plus,
   Menu,
   X,
-  ListTodo,
   Trash2,
   AlertTriangle,
   CircleMinus,
@@ -23,7 +22,9 @@ import {
   LogOut,
   Settings,
   Edit3,
+  type LucideIcon,
 } from "lucide-react";
+import { PRIMARY, SELECTED, DANGER } from "@/components/ui/tokens";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
@@ -33,6 +34,164 @@ import EditListPopup from "@/components/popupModels/editListPopup";
 import { apiFetch } from "@/lib/apiFetch";
 import { activeListId, listHref } from "@/lib/routes";
 import { useIsNative } from "@/hooks/useIsNative";
+
+/**
+ * Surfaces for the sidebar, in both themes.
+ *
+ * The dark values are the Stage 1 palette the native app already ships
+ * (`ui/tokens`); the light ones are its counterparts. Held as one object so a
+ * row, a list entry and the footer cannot each invent their own grey.
+ */
+const SURFACE = {
+  dark: {
+    field: "#0B1222",
+    // Opaque, not a translucent white. The row actions sit on top of the list
+    // name and have to hide it, which a see-through surface cannot do.
+    hover: "#141C2E",
+    selected: SELECTED,
+    border: "rgba(255,255,255,0.08)",
+    divider: "rgba(255,255,255,0.06)",
+    text: "#E2E8F0",
+    muted: "#7C89A4",
+  },
+  light: {
+    field: "#FFFFFF",
+    hover: "#F1F5F9",
+    selected: "#EEF2FF",
+    border: "rgba(15,23,42,0.08)",
+    divider: "rgba(15,23,42,0.06)",
+    text: "#1E293B",
+    muted: "#64748B",
+  },
+} as const;
+
+type Surface = (typeof SURFACE)[keyof typeof SURFACE];
+
+/**
+ * The palette as CSS custom properties, set once on the wrapper.
+ *
+ * Hover used to be applied imperatively in onMouseEnter/onMouseLeave. An inline
+ * style written straight onto the node is not something React owns, so it
+ * survived a re-render: switching to light mode left whichever row the pointer
+ * had last touched wearing its dark-theme hover colour. Hover belongs in CSS.
+ */
+function surfaceVars(s: Surface): React.CSSProperties {
+  return {
+    "--sb-field": s.field,
+    "--sb-hover": s.hover,
+    "--sb-selected": s.selected,
+    "--sb-border": s.border,
+    "--sb-divider": s.divider,
+    "--sb-text": s.text,
+    "--sb-muted": s.muted,
+    "--sb-danger": DANGER,
+    "--sb-primary": PRIMARY,
+  } as React.CSSProperties;
+}
+
+/**
+ * The built-in views.
+ *
+ * Seven buttons that differed only by icon, label and route were written out
+ * in full, each carrying its own copy of the same six conditional class
+ * strings. One list and one row component instead: changing how a nav row
+ * looks is now one edit rather than seven.
+ */
+const VIEWS: {
+  path: string;
+  label: string;
+  title: string;
+  Icon: LucideIcon;
+}[] = [
+  {
+    path: "/dashboard",
+    label: "Dashboard",
+    title: "Dashboard page",
+    Icon: LayoutDashboard,
+  },
+  {
+    path: "/today",
+    label: "Today",
+    title: "Tasks due today",
+    Icon: CalendarCheck,
+  },
+  {
+    path: "/tomorrow",
+    label: "Tomorrow",
+    title: "Tasks due tomorrow",
+    Icon: CalendarPlus2,
+  },
+  { path: "/priority", label: "Priority", title: "Pinned tasks", Icon: Star },
+  {
+    path: "/notcomplete",
+    label: "Not completed",
+    title: "Tasks still open",
+    Icon: CircleMinus,
+  },
+  {
+    path: "/overdue",
+    label: "Scheduled",
+    title: "Tasks with a date",
+    Icon: ClockAlert,
+  },
+  {
+    path: "/completed",
+    label: "Completed",
+    title: "Completed tasks",
+    Icon: CheckCircle,
+  },
+];
+
+/**
+ * One row in the sidebar.
+ *
+ * The active state is a 2px rail flush to the sidebar's left edge plus a tinted
+ * surface. It replaces the lift-and-glow the cards used to carry: position in a
+ * vertical list is the thing being communicated, so a vertical mark says it
+ * without adding height or shadow.
+ */
+function NavRow({
+  Icon,
+  label,
+  active,
+  onClick,
+  title,
+  danger,
+}: {
+  Icon: LucideIcon;
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+  title?: string;
+  danger?: boolean;
+}) {
+  const tone = danger
+    ? "text-[var(--sb-danger)]"
+    : active
+      ? "text-[var(--sb-text)]"
+      : "text-[var(--sb-muted)] hover:text-[var(--sb-text)]";
+
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      className={`relative flex h-9 w-full items-center gap-3 rounded-lg px-3 text-left text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sb-primary)] ${tone} ${
+        active ? "bg-[var(--sb-selected)]" : "hover:bg-[var(--sb-hover)]"
+      }`}
+    >
+      {active && (
+        <span
+          aria-hidden="true"
+          className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-[var(--sb-primary)]"
+        />
+      )}
+      <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
 
 interface SideNavProps {
   children?: React.ReactNode;
@@ -58,8 +217,6 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
     useState<boolean>(false);
   const [listToDelete, setListToDelete] = useState<string | null>(null);
   const [listToEdit, setListToEdit] = useState<List | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_isTablet, setIsTablet] = useState<boolean>(false);
   const [lists, setLists] = useState<List[]>([]);
   const [isLoadingLists, setIsLoadingLists] = useState<boolean>(true);
   const [isDeletingList, setIsDeletingList] = useState<boolean>(false);
@@ -84,13 +241,13 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         const { data } = await res.json();
 
         // Sort: pinned first, then newest
-        const sorted = (data || []).sort(
-          (a: List, b: List) => {
-            if (a.is_pinned && !b.is_pinned) return -1;
-            if (!a.is_pinned && b.is_pinned) return 1;
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-          }
-        );
+        const sorted = (data || []).sort((a: List, b: List) => {
+          if (a.is_pinned && !b.is_pinned) return -1;
+          if (!a.is_pinned && b.is_pinned) return 1;
+          return (
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        });
         setLists(sorted);
       } catch (error) {
         console.error("Error fetching lists:", error);
@@ -98,7 +255,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         setIsLoadingLists(false);
       }
     },
-    [isLoggedIn, user, lists.length]
+    [isLoggedIn, user, lists.length],
   );
   const refreshCollectionsColor = useCallback(
     async (newColor: string, listId: string) => {
@@ -110,7 +267,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         const { data: cols } = await res.json();
         const general = (cols || []).find(
           (c: { id: string; collection_name: string | null }) =>
-            c.collection_name?.toLowerCase().trim() === "general"
+            c.collection_name?.toLowerCase().trim() === "general",
         );
         if (!general) return;
         await apiFetch("/api/collections", {
@@ -122,7 +279,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         console.error("Error in refreshCollectionsColor:", error);
       }
     },
-    [user?.id]
+    [user?.id],
   );
   useEffect(() => {
     fetchLists();
@@ -177,8 +334,8 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
 
     setLists((prevLists) =>
       prevLists.map((list) =>
-        list.id === listId ? { ...list, is_pinned: !list.is_pinned } : list
-      )
+        list.id === listId ? { ...list, is_pinned: !list.is_pinned } : list,
+      ),
     );
   };
 
@@ -189,7 +346,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
 
   const handleEditListSubmit = async (
     listId: string,
-    listData: { list_name: string; bg_color_hex: string }
+    listData: { list_name: string; bg_color_hex: string },
   ): Promise<{ success: boolean; error?: unknown }> => {
     try {
       // Check if the color changed
@@ -206,15 +363,15 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                 list_name: listData.list_name,
                 bg_color_hex: listData.bg_color_hex,
               }
-            : list
-        )
+            : list,
+        ),
       );
 
       // If color changed, update General collections to match
       if (colorChanged) {
         console.log(
           "Color changed, updating General collections to:",
-          listData.bg_color_hex
+          listData.bg_color_hex,
         );
         await refreshCollectionsColor(listData.bg_color_hex, listId);
       }
@@ -235,7 +392,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
               newColor: listData.bg_color_hex,
               listName: listData.list_name,
             },
-          })
+          }),
         );
       }
 
@@ -246,7 +403,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
     }
   };
   const handleCreateList = async (
-    listData: Omit<List, "id" | "created_at">
+    listData: Omit<List, "id" | "created_at">,
   ): Promise<{ success: boolean; error?: unknown }> => {
     try {
       setIsLoadingLists(true);
@@ -264,7 +421,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         const dup = (existingLists || []).find(
           (l: List) =>
             l.list_name?.trim().toLowerCase() ===
-            listData.list_name?.trim().toLowerCase()
+            listData.list_name?.trim().toLowerCase(),
         );
         if (dup) {
           await fetchLists();
@@ -365,656 +522,294 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
     }
   };
 
-  // Check for tablet screen size
-  const checkScreenSize = (): void => {
-    setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024);
-  };
-
   useEffect(() => {
     setIsMounted(true);
-    checkScreenSize(); // Initial check
-
-    window.addEventListener("resize", checkScreenSize);
-
-    return () => {
-      window.removeEventListener("resize", checkScreenSize);
-    };
   }, []);
 
   if (!isMounted) return null;
-
-  // Toggle sidebar button outside sidebar for when it's closed
-  const SidebarToggleButton = () => (
-    <button
-      onClick={toggleSidebar}
-      className={`fixed top-4 left-4 z-50 ${
-        sidebarOpen ? "hidden" : "flex"
-      } h-10 w-10 items-center justify-center rounded-md ${
-        isDark
-          ? "bg-gray-800/50 text-orange-400 hover:bg-gray-700"
-          : "bg-white text-sky-500 hover:bg-gray-100"
-      } shadow-md transition-colors`}
-      aria-label="Open menu"
-    >
-      <Menu size={24} />
-    </button>
-  );
 
   if (!isLoggedIn) {
     return <>{children}</>;
   }
 
+  const surface = isDark ? SURFACE.dark : SURFACE.light;
+
   return (
-    <div className="flex ">
-      <SidebarToggleButton />
+    <div className="flex" style={surfaceVars(surface)}>
+      {/* Opens the sidebar when it is closed. Inline rather than a component
+          declared in the render body, which React treated as a new type every
+          pass and remounted. */}
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        className={`fixed left-4 top-4 z-50 ${
+          sidebarOpen ? "hidden" : "flex"
+        } h-9 w-9 items-center justify-center rounded-lg border border-[var(--sb-border)] bg-[var(--sb-field)] text-[var(--sb-text)] transition-colors hover:bg-[var(--sb-hover)]`}
+        aria-label="Open menu"
+      >
+        <Menu size={18} strokeWidth={1.75} />
+      </button>
 
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
           onClick={toggleSidebar}
         />
       )}
 
       {/* Sidebar */}
       <nav
-        className={`fixed left-0 top-0 h-full ${sidebarOpen ? "w-64" : "w-0"} transition-all duration-300 z-40 overflow-hidden backdrop-blur-md border-r ${
-          isDark
-            ? "bg-gradient-to-b from-gray-900/90 via-gray-800/85 to-gray-900/90 text-gray-200 border-gray-600/30 shadow-xl shadow-gray-900/30"
-            : "bg-gradient-to-b from-white/90 via-gray-50/85 to-white/90 text-gray-800 border-gray-300/30 shadow-xl shadow-gray-300/30"
-        }`}
+        className={`fixed left-0 top-0 z-40 h-full ${
+          sidebarOpen ? "w-[260px]" : "w-0"
+        } overflow-hidden border-r border-[var(--sb-border)] bg-[var(--sb-field)] text-[var(--sb-text)] transition-[width] duration-300`}
       >
-        <div className={`flex flex-col h-full`}>
-          {/* Sidebar Header with Logo */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-700">
-            <div className="flex items-center">
-              <div className="h-8 w-8 bg-orange-500 rounded-md mr-2 flex items-center justify-center text-white font-bold">
-                <Image
-                  src="/app-icon.jpeg"
-                  alt="App Icon"
-                  width={32}
-                  height={32}
-                  className="rounded-md"
-                  priority
-                />
-              </div>
-              <div
-                className={`text-2xl font-bold ${
-                  isDark ? "text-orange-400" : "text-sky-500"
-                }`}
-              >
+        <div className="flex h-full flex-col">
+          {/* Header */}
+          <div className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--sb-divider)] px-4">
+            <div className="flex items-center gap-2.5">
+              <Image
+                src="/app-icon.jpeg"
+                alt=""
+                width={24}
+                height={24}
+                className="rounded-md"
+                priority
+              />
+              <span className="text-[13px] font-semibold tracking-[0.14em]">
                 LIST IT
-              </div>
+              </span>
             </div>
             <button
+              type="button"
               onClick={toggleSidebar}
-              className={`rounded-md p-1 ${
-                isDark
-                  ? "text-gray-300 hover:text-orange-400"
-                  : "text-gray-700 hover:text-orange-500"
-              } transition-colors`}
+              className="rounded-md p-1 text-[var(--sb-muted)] transition-colors hover:text-[var(--sb-text)]"
               aria-label="Close menu"
             >
-              <X size={24} />
+              <X size={18} strokeWidth={1.75} />
             </button>
           </div>
 
-          {/* Main navigation links */}
-          <div
-            className={`flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-elegant ${isDark ? "scrollbar-dark" : "scrollbar-light"}`}
-          >
+          {/* Scrollable body: built-in views, then the user's lists */}
+          <div className="sidebar-scroll flex-1 overflow-y-auto px-3 py-3">
             <style jsx>{`
-              .scrollbar-elegant {
+              .sidebar-scroll {
                 scrollbar-width: thin;
+                scrollbar-color: var(--sb-border) transparent;
               }
-
-              .scrollbar-elegant::-webkit-scrollbar {
+              .sidebar-scroll::-webkit-scrollbar {
                 width: 6px;
               }
-
-              .scrollbar-light::-webkit-scrollbar-track {
-                background: rgba(243, 244, 246, 0.5);
+              .sidebar-scroll::-webkit-scrollbar-track {
+                background: transparent;
+              }
+              .sidebar-scroll::-webkit-scrollbar-thumb {
+                background: var(--sb-border);
                 border-radius: 3px;
-              }
-
-              .scrollbar-light::-webkit-scrollbar-thumb {
-                background: linear-gradient(180deg, #0ea5e9, #06b6d4);
-                border-radius: 3px;
-                transition: all 0.3s ease;
-              }
-
-              .scrollbar-light::-webkit-scrollbar-thumb:hover {
-                background: linear-gradient(180deg, #0284c7, #0891b2);
-                box-shadow: 0 0 10px rgba(14, 165, 233, 0.3);
-              }
-
-              .scrollbar-dark::-webkit-scrollbar-track {
-                background: rgba(55, 65, 81, 0.5);
-                border-radius: 3px;
-              }
-
-              .scrollbar-dark::-webkit-scrollbar-thumb {
-                background: linear-gradient(180deg, #fb923c, #f97316);
-                border-radius: 3px;
-                transition: all 0.3s ease;
-              }
-
-              .scrollbar-dark::-webkit-scrollbar-thumb:hover {
-                background: linear-gradient(180deg, #ea580c, #dc2626);
-                box-shadow: 0 0 10px rgba(251, 146, 60, 0.4);
-              }
-
-              /* For Firefox */
-              .scrollbar-light {
-                scrollbar-color: #0ea5e9 rgba(243, 244, 246, 0.5);
-              }
-
-              .scrollbar-dark {
-                scrollbar-color: #fb923c rgba(55, 65, 81, 0.5);
               }
             `}</style>
-            {/* Home & About links */}
-            <div className="space-y-1 mb-3">
-              <button
-                title="go to home page"
+
+            <div className="space-y-0.5">
+              <NavRow
+                Icon={Home}
+                label="Home"
+                title="Go to the home page"
+                active={currentPath === "/landingpage"}
                 onClick={() => navigateTo("/landingpage")}
-                className={`flex w-full items-center px-3 py-2 rounded-md ${
-                  currentPath === "/landingpage"
-                    ? isDark
-                      ? "bg-gray-800"
-                      : "bg-gray-100"
-                    : ""
-                } ${
-                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-                } transition-colors group`}
-              >
-                <Home
-                  className={`h-5 w-5 ${
-                    isDark
-                      ? "text-gray-400 group-hover:text-orange-400"
-                      : "text-gray-500 group-hover:text-orange-500"
-                  }`}
-                />
-                <span className="ml-3 text-sm font-medium">Home</span>
-              </button>
+              />
             </div>
 
-            {/* Divider */}
-            <div
-              className={`my-3 border-t ${
-                isDark ? "border-gray-800" : "border-gray-200"
-              }`}
-            />
+            <div className="my-3 border-t border-[var(--sb-divider)]" />
 
-            {/* Dashboard & feature links */}
-            <div className="space-y-1 mb-3">
-              <button
-                title="Dashboard page"
-                onClick={() => navigateTo("/dashboard")}
-                className={`flex w-full items-center px-3 py-2 rounded-md ${
-                  currentPath === "/dashboard"
-                    ? isDark
-                      ? "bg-gray-800"
-                      : "bg-gray-100"
-                    : ""
-                } ${
-                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-                } transition-colors group`}
-              >
-                <LayoutDashboard
-                  className={`h-5 w-5 ${
-                    isDark
-                      ? "text-gray-400 group-hover:text-orange-400"
-                      : "text-gray-500 group-hover:text-orange-500"
-                  }`}
+            {/* The built-in views. These keep their icons: being recognisable
+                at a glance is the whole point of them, and it is what sets
+                them apart from the lists below. */}
+            <div className="space-y-0.5">
+              {VIEWS.map(({ path, label, title, Icon }) => (
+                <NavRow
+                  key={path}
+                  Icon={Icon}
+                  label={label}
+                  title={title}
+                  active={currentPath === path}
+                  onClick={() => navigateTo(path)}
                 />
-                <span className="ml-3 text-sm font-medium">Dashboard</span>
-              </button>
-              <button
-                title="Task Due Today"
-                onClick={() => navigateTo("/today")}
-                className={`flex w-full items-center px-3 py-2 rounded-md ${
-                  currentPath === "/today"
-                    ? isDark
-                      ? "bg-gray-800"
-                      : "bg-gray-100"
-                    : ""
-                } ${
-                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-                } transition-colors group`}
-              >
-                <CalendarCheck
-                  className={`h-5 w-5 ${
-                    isDark
-                      ? "text-gray-400 group-hover:text-orange-400"
-                      : "text-gray-500 group-hover:text-orange-500"
-                  }`}
-                />
-                <span className="ml-3 text-sm font-medium">Today</span>
-              </button>
-              <button
-                title="Task Due Tomorrow"
-                onClick={() => navigateTo("/tomorrow")}
-                className={`flex w-full items-center px-3 py-2 rounded-md ${
-                  currentPath === "/tomorrow"
-                    ? isDark
-                      ? "bg-gray-800"
-                      : "bg-gray-100"
-                    : ""
-                } ${
-                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-                } transition-colors group`}
-              >
-                <CalendarPlus2
-                  className={`h-5 w-5 ${
-                    isDark
-                      ? "text-gray-400 group-hover:text-orange-400"
-                      : "text-gray-500 group-hover:text-orange-500"
-                  }`}
-                />
-                <span className="ml-3 text-sm font-medium">Tomorrow</span>
-              </button>
-              <button
-                title="Task with Priority"
-                onClick={() => navigateTo("/priority")}
-                className={`flex w-full items-center px-3 py-2 rounded-md ${
-                  currentPath === "/priority"
-                    ? isDark
-                      ? "bg-gray-800"
-                      : "bg-gray-100"
-                    : ""
-                } ${
-                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-                } transition-colors group`}
-              >
-                <Star
-                  className={`h-5 w-5 ${
-                    isDark
-                      ? "text-gray-400 group-hover:text-orange-400"
-                      : "text-gray-500 group-hover:text-orange-500"
-                  }`}
-                />
-                <span className="ml-3 text-sm font-medium">Priority</span>
-              </button>
-              <button
-                title="thats not complete"
-                onClick={() => navigateTo("/notcomplete")}
-                className={`flex w-full items-center px-3 py-2 rounded-md ${
-                  currentPath === "/notcomplete"
-                    ? isDark
-                      ? "bg-gray-800"
-                      : "bg-gray-100"
-                    : ""
-                } ${
-                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-                } transition-colors group`}
-              >
-                <CircleMinus
-                  className={`h-5 w-5 ${
-                    isDark
-                      ? "text-gray-400 group-hover:text-orange-400"
-                      : "text-gray-500 group-hover:text-orange-500"
-                  }`}
-                />
-                <span className="ml-3 text-sm font-medium">
-                  Not Completed Tasks
-                </span>
-              </button>
-              <button
-                title="Overdue Tasks"
-                onClick={() => navigateTo("/overdue")}
-                className={`flex w-full items-center px-3 py-2 rounded-md ${
-                  currentPath === "/overdue"
-                    ? isDark
-                      ? "bg-gray-800"
-                      : "bg-gray-100"
-                    : ""
-                } ${
-                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-                } transition-colors group`}
-              >
-                <ClockAlert
-                  className={`h-5 w-5 ${
-                    isDark
-                      ? "text-gray-400 group-hover:text-orange-400"
-                      : "text-gray-500 group-hover:text-orange-500"
-                  }`}
-                />
-                <span className="ml-3 text-sm font-medium">Overdue Tasks</span>
-              </button>
-              <button
-                title="Completed Tasks"
-                onClick={() => navigateTo("/completed")}
-                className={`flex w-full items-center px-3 py-2 rounded-md ${
-                  currentPath === "/completed"
-                    ? isDark
-                      ? "bg-gray-800"
-                      : "bg-gray-100"
-                    : ""
-                } ${
-                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-                } transition-colors group`}
-              >
-                <CheckCircle
-                  className={`h-5 w-5 ${
-                    isDark
-                      ? "text-gray-400 group-hover:text-orange-400"
-                      : "text-gray-500 group-hover:text-orange-500"
-                  }`}
-                />
-                <span className="ml-3 text-sm font-medium">Completed</span>
-              </button>
+              ))}
             </div>
 
-            {/* My Lists section - Compressed Design */}
-            <div
-              className={`my-3 border-t ${
-                isDark ? "border-gray-800" : "border-gray-200"
-              }`}
-            />
+            <div className="my-3 border-t border-[var(--sb-divider)]" />
 
-            {/* My Lists section - Clean Design with 3D Cards */}
-            <div
-              className={`my-3 border-t ${
-                isDark ? "border-gray-800" : "border-gray-200"
-              }`}
-            />
-
-            {/* Section Header */}
-            <div className="px-3 py-2">
-              <h3
-                className={`text-xs font-semibold uppercase tracking-wide ${
-                  isDark ? "text-gray-400" : "text-gray-500"
-                }`}
-              >
-                My Lists ({isLoadingLists ? "..." : sortedLists.length})
+            {/* Lists */}
+            <div className="mb-1 flex h-7 items-center justify-between px-3">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--sb-muted)]">
+                My lists
+                {!isLoadingLists && sortedLists.length > 0 && (
+                  <span className="ml-1.5 font-normal tabular-nums opacity-70">
+                    {sortedLists.length}
+                  </span>
+                )}
               </h3>
-            </div>
-
-            {/* Create List Button */}
-            <div className="px-3 mb-4">
               <button
+                type="button"
                 onClick={() => setIsCreateListModalOpen(true)}
                 disabled={isLoadingLists}
-                className={`flex w-full items-center px-4 py-3 rounded-lg border transition-all duration-200 ${
-                  isDark
-                    ? "bg-gray-800/50 border-gray-700 hover:bg-gray-800 hover:border-orange-400/50 text-gray-300 hover:text-orange-400"
-                    : "bg-white border-gray-200 hover:bg-sky-50 hover:border-sky-300 text-gray-700 hover:text-sky-600"
-                } ${
-                  isLoadingLists
-                    ? "opacity-50 cursor-not-allowed"
-                    : "cursor-pointer shadow-sm hover:shadow-md"
-                }`}
-                aria-label="Create new list"
+                className="-mr-1 flex h-6 w-6 items-center justify-center rounded-md text-[var(--sb-muted)] transition-colors hover:bg-[var(--sb-hover)] hover:text-[var(--sb-text)] disabled:opacity-40"
+                title="Create a list"
+                aria-label="Create a list"
               >
-                <div
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 ${
-                    isDark ? "bg-gray-700" : "bg-gray-100"
-                  }`}
-                >
-                  <Plus className="h-4 w-4" />
-                </div>
-                <div className="text-left">
-                  <div className="text-sm font-medium">Create New List</div>
-                  <div
-                    className={`text-xs ${isDark ? "text-gray-500" : "text-gray-500"}`}
-                  >
-                    Organize your tasks and notes
-                  </div>
-                </div>
+                <Plus className="h-4 w-4" strokeWidth={2} />
               </button>
             </div>
 
-            {/* Lists Container - Updated Layout */}
-            <div className="px-3 space-y-3">
+            <div className="space-y-0.5">
               {isLoadingLists ? (
-                <div className="flex justify-center py-4">
-                  <div
-                    className={`animate-spin rounded-full h-5 w-5 border-b-2 ${isDark ? "border-orange-400" : "border-sky-500"}`}
-                  ></div>
+                // Bars at the height of a real row, so the panel does not
+                // resize when the lists arrive.
+                <div className="space-y-0.5" aria-hidden="true">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="flex h-9 items-center px-3">
+                      <div
+                        className="h-2 animate-pulse rounded-full bg-[var(--sb-hover)]"
+                        style={{ width: `${68 - i * 14}%` }}
+                      />
+                    </div>
+                  ))}
                 </div>
               ) : sortedLists.length === 0 ? (
-                <div
-                  className={`text-center py-6 px-4 rounded-lg ${
-                    isDark
-                      ? "bg-gray-800/30 text-gray-400"
-                      : "bg-gray-50 text-gray-500"
-                  }`}
-                >
-                  <ListTodo className={`w-6 h-6 mx-auto mb-2 opacity-50`} />
-                  <p className="text-sm">No lists yet</p>
-                  <p className="text-xs mt-1 opacity-75">
-                    Create your first list above
-                  </p>
-                </div>
+                <p className="px-3 py-2 text-[12px] leading-relaxed text-[var(--sb-muted)]">
+                  No lists yet. Create one to group your tasks and notes.
+                </p>
               ) : (
-                sortedLists.map((list) => (
-                  <div
-                    key={list.id}
-                    className={`group relative transition-all duration-200 ${
-                      currentListId === list.id.toString()
-                        ? isDark
-                          ? "transform translate-x-1"
-                          : "transform translate-x-1"
-                        : ""
-                    }`}
-                  >
-                    {/* 3D Card */}
+                sortedLists.map((list) => {
+                  const active = currentListId === list.id.toString();
+
+                  return (
                     <div
-                      className={`relative rounded-lg border transition-all duration-200 ${
-                        currentListId === list.id.toString()
-                          ? isDark
-                            ? "bg-gray-800 border-orange-400/60 shadow-lg shadow-orange-400/20"
-                            : "bg-sky-50 border-sky-400/60 shadow-lg shadow-sky-500/20"
-                          : isDark
-                            ? "bg-gray-800/60 border-gray-700 hover:bg-gray-800 hover:border-gray-600 shadow-md hover:shadow-lg"
-                            : "bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm hover:shadow-md"
+                      key={list.id}
+                      className={`group relative flex h-9 items-center rounded-lg transition-colors ${
+                        active
+                          ? "bg-[var(--sb-selected)]"
+                          : "hover:bg-[var(--sb-hover)]"
                       }`}
-                      style={{
-                        transform:
-                          currentListId === list.id.toString()
-                            ? "translateY(-2px)"
-                            : "translateY(0px)",
-                      }}
                     >
-                      {/* Pinned Indicator */}
-                      {list.is_pinned && (
-                        <div
-                          className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
-                            isDark ? "bg-orange-400" : "bg-sky-500"
-                          } shadow-lg`}
+                      {active && (
+                        <span
+                          aria-hidden="true"
+                          className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-[var(--sb-primary)]"
                         />
                       )}
 
-                      {/* Card Content - Updated Layout */}
-                      <div className="p-4">
-                        {/* First Row - List Name and Icon */}
-                        <div
-                          onClick={() => handleListClick(list.id)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              handleListClick(list.id);
-                            }
+                      {/* The list itself. A list is its name and its colour:
+                          the icon tile every row used to carry said nothing
+                          the name did not already say. */}
+                      <button
+                        type="button"
+                        onClick={() => handleListClick(list.id)}
+                        className="flex h-full min-w-0 flex-1 items-center gap-2.5 rounded-lg px-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sb-primary)]"
+                        title={list.list_name ?? undefined}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="h-2 w-2 shrink-0 rounded-full"
+                          style={{
+                            backgroundColor:
+                              list.bg_color_hex || "var(--sb-muted)",
                           }}
-                          className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-1 rounded-lg mb-3"
-                        >
-                          <div className="flex items-center">
-                            {/* List Icon */}
-                            <div
-                              className="w-8 h-8 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 shadow-sm"
-                              style={{
-                                backgroundColor: list.bg_color_hex
-                                  ? `${list.bg_color_hex}25`
-                                  : isDark
-                                    ? "#374151"
-                                    : "#F3F4F6",
-                                border: `1px solid ${list.bg_color_hex || (isDark ? "#4B5563" : "#E5E7EB")}40`,
-                              }}
-                            >
-                              <ListTodo
-                                className="w-4 h-4"
-                                style={{
-                                  color:
-                                    list.bg_color_hex ||
-                                    (isDark ? "#9CA3AF" : "#6B7280"),
-                                }}
-                              />
-                            </div>
+                        />
+                        <span className="truncate text-[13px] font-medium text-[var(--sb-text)]">
+                          {list.list_name}
+                        </span>
+                        {list.is_pinned && (
+                          <Pin
+                            className="h-3 w-3 shrink-0 text-[var(--sb-muted)]"
+                            strokeWidth={2}
+                            fill="currentColor"
+                            aria-label="Pinned"
+                          />
+                        )}
+                      </button>
 
-                            {/* List Name */}
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center">
-                                <span
-                                  className={`font-medium text-sm truncate ${
-                                    isDark ? "text-gray-200" : "text-gray-800"
-                                  }`}
-                                >
-                                  {list.list_name}
-                                </span>
-                                {list.is_pinned && (
-                                  <Pin
-                                    className={`w-3 h-3 ml-2 flex-shrink-0 ${
-                                      isDark
-                                        ? "text-orange-400"
-                                        : "text-sky-500"
-                                    }`}
-                                    fill="currentColor"
-                                  />
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Second Row - Action Icons */}
-                        <div className="flex justify-end space-x-1">
+                      {/* Actions. Absolutely positioned so revealing them adds
+                          no height, and siblings of the row button rather than
+                          children of it: a button cannot nest inside a button,
+                          which is what the old markup needed stopPropagation
+                          to paper over. The gradient fades the name out under
+                          them instead of cutting it off square. */}
+                      <div
+                        className={`absolute right-1.5 flex items-center gap-0.5 pl-5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 ${
+                          active
+                            ? "bg-gradient-to-r from-transparent to-[var(--sb-selected)] to-20%"
+                            : "bg-gradient-to-r from-transparent to-[var(--sb-hover)] to-20%"
+                        }`}
+                      >
+                        {(
+                          [
+                            {
+                              key: "pin",
+                              Icon: Pin,
+                              label: list.is_pinned ? "Unpin" : "Pin",
+                              onClick: () => handleTogglePinList(list.id),
+                              tone: list.is_pinned
+                                ? "text-[var(--sb-primary)]"
+                                : "text-[var(--sb-muted)] hover:text-[var(--sb-text)]",
+                            },
+                            {
+                              key: "edit",
+                              Icon: Edit3,
+                              label: "Edit",
+                              onClick: () => handleEditList(list),
+                              tone: "text-[var(--sb-muted)] hover:text-[var(--sb-text)]",
+                            },
+                            {
+                              key: "delete",
+                              Icon: Trash2,
+                              label: "Delete",
+                              onClick: () => {
+                                setListToDelete(list.id);
+                                setIsDeleteListModalOpen(true);
+                              },
+                              tone: "text-[var(--sb-muted)] hover:text-[var(--sb-danger)]",
+                            },
+                          ] as const
+                        ).map(({ key, Icon, label, onClick, tone }) => (
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleTogglePinList(list.id);
-                            }}
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
-                              list.is_pinned
-                                ? isDark
-                                  ? "bg-orange-400/20 text-orange-400 hover:bg-orange-400/30 shadow-sm"
-                                  : "bg-sky-100 text-sky-600 hover:bg-sky-200 shadow-sm"
-                                : isDark
-                                  ? "bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-orange-400 shadow-sm"
-                                  : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-sky-600 shadow-sm"
-                            }`}
-                            title={list.is_pinned ? "Unpin" : "Pin"}
+                            key={key}
+                            type="button"
+                            onClick={onClick}
                             disabled={isDeletingList}
+                            title={label}
+                            aria-label={`${label} ${list.list_name ?? "list"}`}
+                            className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-[var(--sb-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sb-primary)] disabled:opacity-40 ${tone}`}
                           >
-                            <Pin className="w-4 h-4" />
+                            <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
                           </button>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditList(list);
-                            }}
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
-                              isDark
-                                ? "bg-gray-700 text-gray-400 hover:bg-blue-500/20 hover:text-blue-400 shadow-sm"
-                                : "bg-gray-100 text-gray-500 hover:bg-blue-50 hover:text-blue-600 shadow-sm"
-                            }`}
-                            title="Edit"
-                            disabled={isDeletingList}
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setListToDelete(list.id);
-                              setIsDeleteListModalOpen(true);
-                            }}
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
-                              isDark
-                                ? "bg-gray-700 text-gray-400 hover:bg-red-500/20 hover:text-red-400 shadow-sm"
-                                : "bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-600 shadow-sm"
-                            }`}
-                            title="Delete"
-                            disabled={isDeletingList}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
 
-          {/* Footer with settings, theme toggle and sign out */}
-          <div
-            className={`p-4 border-t ${isDark ? "border-gray-800" : "border-gray-200"}`}
-          >
-            <div className="flex flex-col space-y-2">
-              <button
-                onClick={() => navigateTo("/setting")}
-                className={`flex items-center px-3 py-2 rounded-md ${
-                  currentPath === "/setting"
-                    ? isDark
-                      ? "bg-gray-800"
-                      : "bg-gray-100"
-                    : ""
-                } ${
-                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-                } transition-colors group`}
-              >
-                <Settings
-                  className={`h-5 w-5 ${
-                    currentPath === "/setting"
-                      ? isDark
-                        ? "text-orange-400"
-                        : "text-sky-500"
-                      : isDark
-                        ? "text-gray-400 group-hover:text-orange-400"
-                        : "text-gray-500 group-hover:text-sky-500"
-                  }`}
-                />
-                <span className="ml-3 text-sm font-medium">Settings</span>
-              </button>
-
-              <div
-                className={`my-2 border-t ${
-                  isDark ? "border-gray-700" : "border-gray-300"
-                }`}
-              />
-
-              <button
-                onClick={toggleTheme}
-                className={`flex items-center px-3 py-2 rounded-md ${
-                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-                } transition-colors group`}
-              >
-                {isDark ? (
-                  <Sun className="h-5 w-5 text-orange-400" />
-                ) : (
-                  <Moon className="h-5 w-5 text-sky-500" />
-                )}
-                <span className="ml-3 text-sm font-medium">
-                  {isDark ? "Light Mode" : "Dark Mode"}
-                </span>
-              </button>
-              <button
-                onClick={handleLogout}
-                className={`flex items-center px-3 py-2 rounded-md ${
-                  isDark
-                    ? "hover:bg-gray-800 text-red-400"
-                    : "hover:bg-gray-100 text-red-500"
-                } transition-colors group`}
-              >
-                <LogOut className="h-5 w-5" />
-                <span className="ml-3 text-sm font-medium">Sign out</span>
-              </button>
-            </div>
+          {/* Footer */}
+          <div className="shrink-0 space-y-0.5 border-t border-[var(--sb-divider)] p-2">
+            <NavRow
+              Icon={Settings}
+              label="Settings"
+              active={currentPath === "/setting"}
+              onClick={() => navigateTo("/setting")}
+            />
+            <NavRow
+              Icon={isDark ? Sun : Moon}
+              label={isDark ? "Light mode" : "Dark mode"}
+              onClick={toggleTheme}
+            />
+            <NavRow
+              Icon={LogOut}
+              label="Sign out"
+              onClick={handleLogout}
+              danger
+            />
           </div>
         </div>
       </nav>

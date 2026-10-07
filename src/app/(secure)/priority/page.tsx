@@ -29,7 +29,7 @@ export default function PriorityPage() {
     today,
   } = useTaskView({ isCompleted: false, isPinned: true });
 
-  const actions = useTaskActions(setTasks, { collections });
+  const actions = useTaskActions(setTasks, { collections, tasks });
 
   const sorted = useMemo(() => sortTasks(tasks), [tasks]);
   const dueTodayCount = sorted.filter((task) =>

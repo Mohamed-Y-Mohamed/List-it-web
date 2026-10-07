@@ -59,7 +59,7 @@ export const WALKTHROUGH_TOPICS: readonly HelpTopic[] = [
   {
     id: "tasks",
     title: "Tasks get ticked off",
-    body: "Create Task adds a task to a collection. Tap the circle when it is done. Add a due date if you want a reminder on the day.",
+    body: "Create Task adds a task to a collection. Tap the circle when it is done. Give it a date, and add a reminder if you want telling.",
   },
   {
     id: "notes",
@@ -69,7 +69,7 @@ export const WALKTHROUGH_TOPICS: readonly HelpTopic[] = [
   {
     id: "default-views",
     title: "Find things again",
-    body: "Today, Priority and Overdue sit above your own lists on the Lists tab. Each one gathers matching tasks from all of your lists, so nothing gets lost at the bottom of a long list.",
+    body: "Today, Priority and Scheduled sit above your own lists on the Lists tab. Each one gathers matching tasks from all of your lists, so nothing gets lost at the bottom of a long list.",
   },
 ] as const;
 
@@ -89,6 +89,21 @@ export const RECENT_TOPICS: readonly HelpTopic[] = [
     id: "swipe-actions",
     title: "Swipe a row for quick actions",
     body: "In the List layout, drag one of your own lists from right to left to uncover pin, rename and delete. Tap one, or let the row go to put it back. Pressing and holding still opens the same menu, in either layout.",
+  },
+  {
+    id: "reminders",
+    title: "Reminders, when you want them",
+    body: "Turn on Reminders in a task and add as many as you need: an hour before, a day before, or a time you pick yourself. Give the task a time as well as a date and the offsets count back from it. You can switch all reminders off in Settings without losing them.",
+  },
+  {
+    id: "swipe-tasks",
+    title: "Swipe tasks and notes too",
+    body: "Drag a task from right to left for done, edit and delete. Notes get edit and delete. Drag either from left to right instead and you can move it to another collection in the same list.",
+  },
+  {
+    id: "scheduled",
+    title: "Scheduled shows the whole picture",
+    body: "Scheduled replaces Overdue. It still puts anything that has slipped at the top, and now also shows what lands today and what is still ahead, so you can plan from it rather than only catch up.",
   },
 ] as const;
 

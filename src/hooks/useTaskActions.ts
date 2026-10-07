@@ -8,11 +8,12 @@
 // does — the task no longer belongs there. On Completed the opposite is true,
 // so `removeWhen` says which.
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
 import type { Collection as SchemaCollection } from "@/types/schema";
 import type { TaskActionResult, TaskRow } from "@/types/taskView";
+import { applyCompletion } from "@/lib/completion";
 
 interface TaskEdit {
   text: string;
@@ -31,10 +32,23 @@ export function useTaskActions(
     removeWhen?: boolean;
     /** Needed only to name the collection a task is moved into. */
     collections?: SchemaCollection[];
+    /**
+     * The rows currently on screen.
+     *
+     * Completion needs the task's own `repeat_rule` and `due_date` to decide
+     * whether ticking it means "done" or "due again", and this hook only ever
+     * had the setter. Passed rather than fetched: the caller already holds them.
+     */
+    tasks?: TaskRow[];
   } = {}
 ) {
   const { user } = useAuth();
-  const { removeWhen = true, collections = [] } = options;
+  const { removeWhen = true, collections = [], tasks = [] } = options;
+
+  // Through a ref so the handlers do not take `tasks` as a dependency and get
+  // rebuilt on every keystroke that changes a row.
+  const tasksRef = useRef<TaskRow[]>(tasks);
+  tasksRef.current = tasks;
 
   const guard = useCallback(
     () =>
@@ -48,25 +62,41 @@ export function useTaskActions(
       if (denied) return denied;
 
       try {
+        // What ticking this task means. Shared with ListDetailView and
+        // TasksDetails so the three write paths cannot disagree.
+        const existing = tasksRef.current.find((t) => t.id === taskId);
+        const patch = applyCompletion(existing ?? {}, isCompleted);
+
         const { error } = await supabase
           .from("task")
-          .update({
-            is_completed: isCompleted,
-            date_completed: isCompleted ? new Date().toISOString() : null,
-          })
-          .eq("id", taskId);
+          .update(patch)
+          .eq("id", taskId)
+          // Scoped to the signed-in user as well as the row id. RLS should make
+          // this redundant, but a missing predicate here is the difference
+          // between a policy being defence in depth and being the only defence.
+          // `guard()` at the top has already returned when there is no user.
+          .eq("user_id", user!.id);
 
         if (error) {
           console.error("Error updating task completion:", error);
           return { success: false, error };
         }
 
-        if (isCompleted === removeWhen) {
+        // `patch.is_completed` rather than the argument: the decision of what
+        // was written belongs to applyCompletion, and reading it back keeps this
+        // correct if that ever decides something other than the argument again.
+        if (patch.is_completed === removeWhen) {
           setTasks((previous) => previous.filter((t) => t.id !== taskId));
         } else {
           setTasks((previous) =>
             previous.map((t) =>
-              t.id === taskId ? { ...t, is_completed: isCompleted } : t
+              t.id === taskId
+                ? {
+                    ...t,
+                    is_completed: patch.is_completed,
+                    date_completed: patch.date_completed,
+                  }
+                : t
             )
           );
         }
@@ -77,7 +107,7 @@ export function useTaskActions(
         return { success: false, error };
       }
     },
-    [guard, removeWhen, setTasks]
+    [guard, removeWhen, setTasks, user]
   );
 
   const handleTaskPriority = useCallback(
