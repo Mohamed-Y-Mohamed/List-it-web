@@ -14,7 +14,15 @@
 // wrong collection is worse than one that takes a beat to show the right one.
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { X, Check, Trash2, AlertCircle, Pin, Pencil, ChevronLeft } from "lucide-react";
+import {
+  X,
+  Check,
+  Trash2,
+  AlertCircle,
+  Pin,
+  Pencil,
+  ChevronLeft,
+} from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import BottomSheet from "@/components/BottomSheet";
 import ConfirmDialog from "./ConfirmDialog";
@@ -51,7 +59,7 @@ interface NoteSidebarProps {
   onNoteUpdate?: (
     noteId: string,
     updatedTitle: string,
-    updatedDescription?: string
+    updatedDescription?: string,
   ) => Promise<OperationResult>;
   onNoteDelete?: (noteId: string) => Promise<OperationResult>;
   onPinToggle?: (noteId: string, isPinned: boolean) => Promise<OperationResult>;
@@ -96,20 +104,19 @@ const NoteDetails = ({
   // --- DB-VERIFIED VALUES ---
   const [verifiedNote, setVerifiedNote] = useState(note);
 
-  const [collections, setCollections] = useState<CollectionOption[]>(
-    externalCollections
-  );
+  const [collections, setCollections] =
+    useState<CollectionOption[]>(externalCollections);
 
   // --- FORM STATE ---
   const [noteTitle, setNoteTitle] = useState(verifiedNote.title || "");
   const [noteDescription, setNoteDescription] = useState(
-    verifiedNote.description || ""
+    verifiedNote.description || "",
   );
   const [selectedColor, setSelectedColor] = useState<string>(
-    verifiedNote.bg_color_hex || ""
+    verifiedNote.bg_color_hex || "",
   );
   const [selectedCollection, setSelectedCollection] = useState<string>(
-    verifiedNote.collection_id || ""
+    verifiedNote.collection_id || "",
   );
   const [isPinned, setIsPinned] = useState(verifiedNote.is_pinned || false);
   const [isNoteChanged, setIsNoteChanged] = useState(false);
@@ -125,7 +132,8 @@ const NoteDetails = ({
   const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const isProcessing = isSaving || isDeleting || isToggling || externalProcessing;
+  const isProcessing =
+    isSaving || isDeleting || isToggling || externalProcessing;
 
   const showError = useCallback((message: string) => {
     setError(message);
@@ -144,12 +152,12 @@ const NoteDetails = ({
       if (errorTimer.current) clearTimeout(errorTimer.current);
       if (successTimer.current) clearTimeout(successTimer.current);
     },
-    []
+    [],
   );
 
   /** Which discard the dialog is asking about, or null while it is shut. */
   const [pendingDiscard, setPendingDiscard] = useState<null | "close" | "edit">(
-    null
+    null,
   );
 
   const handleClose = useCallback(() => {
@@ -279,7 +287,13 @@ const NoteDetails = ({
       selectedColor !== (verifiedNote.bg_color_hex || "") ||
       selectedCollection !== (verifiedNote.collection_id || "");
     setIsNoteChanged(changed);
-  }, [noteTitle, noteDescription, selectedColor, selectedCollection, verifiedNote]);
+  }, [
+    noteTitle,
+    noteDescription,
+    selectedColor,
+    selectedCollection,
+    verifiedNote,
+  ]);
 
   // --- IMMEDIATE PIN ---
   //
@@ -348,7 +362,11 @@ const NoteDetails = ({
       const { data } = await patchRes.json();
 
       if (onNoteUpdate) {
-        const r = await onNoteUpdate(verifiedNote.id, noteTitle, noteDescription);
+        const r = await onNoteUpdate(
+          verifiedNote.id,
+          noteTitle,
+          noteDescription,
+        );
         if (!r.success) throw new Error(String(r.error));
       }
       if (onColorChange && selectedColor !== verifiedNote.bg_color_hex) {
@@ -397,17 +415,20 @@ const NoteDetails = ({
       }
       const { data } = await patchRes.json();
 
-      setVerifiedNote((prev) => ({ ...prev, collection_id: collectionIdForDb }));
+      setVerifiedNote((prev) => ({
+        ...prev,
+        collection_id: collectionIdForDb,
+      }));
 
       if (onNoteUpdate) {
         const updateResult = await onNoteUpdate(
           verifiedNote.id,
           noteTitle,
-          noteDescription
+          noteDescription,
         );
         if (!updateResult.success) {
           throw new Error(
-            String(updateResult.error || "Failed to refresh note data")
+            String(updateResult.error || "Failed to refresh note data"),
           );
         }
       }
@@ -485,7 +506,7 @@ const NoteDetails = ({
     label: string,
     onClick: () => void,
     color: string,
-    disabled?: boolean
+    disabled?: boolean,
   ) => (
     <button
       type="button"
@@ -502,7 +523,7 @@ const NoteDetails = ({
     label: string,
     onClick: () => void,
     disabled?: boolean,
-    tone?: string
+    tone?: string,
   ) => (
     <button
       type="button"
@@ -535,13 +556,13 @@ const NoteDetails = ({
                 "Edit note",
                 () => setIsEditing(true),
                 PRIMARY,
-                isProcessing
+                isProcessing,
               )}
               {ghostButton(
                 "Delete",
                 () => setShowDeleteConfirmation(true),
                 isProcessing,
-                DANGER
+                DANGER,
               )}
             </>
           ) : (
@@ -550,7 +571,7 @@ const NoteDetails = ({
                 isSaving ? "Saving..." : "Save changes",
                 handleSaveNote,
                 PRIMARY,
-                isProcessing || !isNoteChanged || !noteTitle.trim()
+                isProcessing || !isNoteChanged || !noteTitle.trim(),
               )}
               {ghostButton("Cancel", handleCancelEdit, isProcessing)}
             </>
@@ -621,7 +642,11 @@ const NoteDetails = ({
               <div className="flex items-start gap-2">
                 <span
                   className="mt-1.5 h-4 w-1 shrink-0 rounded-full"
-                  style={{ backgroundColor: isPinned ? WARNING : selectedColor || PRIMARY }}
+                  style={{
+                    backgroundColor: isPinned
+                      ? WARNING
+                      : selectedColor || PRIMARY,
+                  }}
                   aria-hidden="true"
                 />
                 <h2 className="min-w-0 break-words text-[21px] font-bold leading-tight">
@@ -635,7 +660,11 @@ const NoteDetails = ({
                 the colour or the collection is behind Edit note. */}
             <div className="grid grid-cols-2 gap-2">
               <MetaToggle
-                icon={<Pin className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`} />}
+                icon={
+                  <Pin
+                    className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`}
+                  />
+                }
                 label="Pin"
                 activeLabel="Pinned"
                 active={isPinned}
@@ -671,7 +700,9 @@ const NoteDetails = ({
                   </p>
                 </div>
               ) : (
-                <p className={`text-[14px] ${mutedText}`}>This note is empty.</p>
+                <p className={`text-[14px] ${mutedText}`}>
+                  This note is empty.
+                </p>
               )}
             </div>
 
@@ -690,7 +721,9 @@ const NoteDetails = ({
                     style={{ backgroundColor: selectedColor || "transparent" }}
                     aria-hidden="true"
                   />
-                  <span className={`text-[13px] ${isDark ? "text-gray-200" : "text-gray-700"}`}>
+                  <span
+                    className={`text-[13px] ${isDark ? "text-gray-200" : "text-gray-700"}`}
+                  >
                     {colorName ?? (selectedColor ? selectedColor : "Default")}
                   </span>
                 </span>
@@ -710,7 +743,10 @@ const NoteDetails = ({
                 value={noteTitle}
                 onChange={(event) => {
                   setNoteTitle(event.target.value);
-                  if (error === "Title is required" && event.target.value.trim()) {
+                  if (
+                    error === "Title is required" &&
+                    event.target.value.trim()
+                  ) {
                     setError(null);
                   }
                 }}
@@ -771,7 +807,9 @@ const NoteDetails = ({
                         {selected && (
                           <Check
                             className={`h-4 w-4 drop-shadow ${
-                              isLightHex(color_hex) ? "text-gray-900" : "text-white"
+                              isLightHex(color_hex)
+                                ? "text-gray-900"
+                                : "text-white"
                             }`}
                           />
                         )}
@@ -804,7 +842,11 @@ const NoteDetails = ({
             <div className="space-y-2">
               <SectionLabel isDark={isDark}>Status</SectionLabel>
               <MetaToggle
-                icon={<Pin className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`} />}
+                icon={
+                  <Pin
+                    className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`}
+                  />
+                }
                 label="Pin"
                 activeLabel="Pinned"
                 active={isPinned}

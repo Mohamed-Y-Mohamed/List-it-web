@@ -63,7 +63,12 @@ export function parseReminders(value: unknown): Reminder[] {
 
     if (kind === "offset") {
       const { minutes } = raw as { minutes?: unknown };
-      if (typeof minutes !== "number" || !Number.isFinite(minutes) || minutes < 0) continue;
+      if (
+        typeof minutes !== "number" ||
+        !Number.isFinite(minutes) ||
+        minutes < 0
+      )
+        continue;
       seen.add(id);
       out.push({ id, kind: "offset", minutes });
       continue;
@@ -71,7 +76,8 @@ export function parseReminders(value: unknown): Reminder[] {
 
     if (kind === "absolute") {
       const { at } = raw as { at?: unknown };
-      if (typeof at !== "string" || Number.isNaN(new Date(at).getTime())) continue;
+      if (typeof at !== "string" || Number.isNaN(new Date(at).getTime()))
+        continue;
       seen.add(id);
       out.push({ id, kind: "absolute", at });
     }
@@ -104,9 +110,22 @@ export function dueMoment(task: DueTask): Date | null {
 
   if (task.due_has_time) return due;
 
-  const local = new Date(due);
-  local.setHours(DEFAULT_DUE_HOUR, 0, 0, 0);
-  return local;
+  // The day comes out of the marker in UTC; only the hour is local.
+  //
+  // `new Date(due)` then `setHours` reads the UTC-noon marker in local time
+  // first, which is already the following day anywhere past UTC+12 — so the
+  // reminder fired on a different day from the one the card showed, because
+  // `formatTaskDue` reads the same value in UTC. Taking the date parts from the
+  // UTC getters keeps the two in step.
+  return new Date(
+    due.getUTCFullYear(),
+    due.getUTCMonth(),
+    due.getUTCDate(),
+    DEFAULT_DUE_HOUR,
+    0,
+    0,
+    0,
+  );
 }
 
 /**
@@ -123,7 +142,7 @@ export function dueMoment(task: DueTask): Date | null {
  */
 export function composeDue(
   dateInput: string,
-  timeInput: string
+  timeInput: string,
 ): { due: Date; hasTime: boolean } | null {
   if (!dateInput) return null;
 
@@ -138,11 +157,17 @@ export function composeDue(
     };
   }
 
-  return { due: new Date(Date.UTC(year, month - 1, day, 12, 0, 0)), hasTime: false };
+  return {
+    due: new Date(Date.UTC(year, month - 1, day, 12, 0, 0)),
+    hasTime: false,
+  };
 }
 
 /** When a reminder should fire, or null if it has nothing to anchor to. */
-export function reminderFireAt(reminder: Reminder, dueAt: Date | null): Date | null {
+export function reminderFireAt(
+  reminder: Reminder,
+  dueAt: Date | null,
+): Date | null {
   if (reminder.kind === "absolute") {
     const at = new Date(reminder.at);
     return Number.isNaN(at.getTime()) ? null : at;
@@ -194,7 +219,14 @@ export function notificationId(taskId: string, reminderId: string): number {
   for (let i = 0; i < input.length; i++) {
     hash ^= input.charCodeAt(i);
     // The FNV prime, as shifts, so this stays in 32-bit integer maths.
-    hash = (hash + ((hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24))) >>> 0;
+    hash =
+      (hash +
+        ((hash << 1) +
+          (hash << 4) +
+          (hash << 7) +
+          (hash << 8) +
+          (hash << 24))) >>>
+      0;
   }
 
   // Positive only: the plugin accepts negatives but they read badly in logs, and

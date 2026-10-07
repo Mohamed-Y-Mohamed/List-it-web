@@ -35,9 +35,7 @@ import CreateListModal from "@/components/popupModels/ListPopup";
 import EditListPopup from "@/components/popupModels/editListPopup";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
-import NativeContextMenu, {
-  type ContextMenuItem,
-} from "./NativeContextMenu";
+import NativeContextMenu, { type ContextMenuItem } from "./NativeContextMenu";
 import NativeHelpSheet from "./NativeHelpSheet";
 import NativeListCard from "./NativeListCard";
 import { ListIcon } from "./listVisuals";
@@ -167,7 +165,7 @@ export default function NativeHome() {
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   const [menuOrigin, setMenuOrigin] = useState<{ x: number; y: number } | null>(
-    null
+    null,
   );
   const [menuItems, setMenuItems] = useState<ContextMenuItem[]>([]);
 
@@ -178,20 +176,22 @@ export default function NativeHome() {
   const matchesSearch = useCallback(
     (list: List) =>
       !search.trim() ||
-      (list.list_name ?? "").toLowerCase().includes(search.trim().toLowerCase()),
-    [search]
+      (list.list_name ?? "")
+        .toLowerCase()
+        .includes(search.trim().toLowerCase()),
+    [search],
   );
 
   const visibleDefaultLists = useMemo(
     () => DEFAULT_LISTS.filter(matchesSearch),
-    [matchesSearch]
+    [matchesSearch],
   );
 
   // Any `is_default` rows the API returns describe the same built-in views that
   // DEFAULT_LISTS already covers, so they are dropped here rather than shown twice.
   const userLists = useMemo(
     () => lists.filter((list) => !list.is_default),
-    [lists]
+    [lists],
   );
 
   const sortedLists = useMemo(() => {
@@ -215,7 +215,7 @@ export default function NativeHome() {
 
   const pinnedLists = useMemo(
     () => userLists.filter((list) => list.is_pinned && matchesSearch(list)),
-    [userLists, matchesSearch]
+    [userLists, matchesSearch],
   );
 
   const state = homeState({
@@ -237,7 +237,7 @@ export default function NativeHome() {
 
   const openList = useCallback(
     (list: List) => router.push(listHref(list.id, true)),
-    [router]
+    [router],
   );
 
   const togglePin = useCallback(
@@ -245,8 +245,8 @@ export default function NativeHome() {
       // Reflect it straight away; the card is under the user's finger.
       setLists((previous) =>
         previous.map((item) =>
-          item.id === list.id ? { ...item, is_pinned: !item.is_pinned } : item
-        )
+          item.id === list.id ? { ...item, is_pinned: !item.is_pinned } : item,
+        ),
       );
 
       const res = await apiFetch("/api/lists", {
@@ -260,7 +260,7 @@ export default function NativeHome() {
         await refreshData();
       }
     },
-    [refreshData, setLists]
+    [refreshData, setLists],
   );
 
   const deleteList = useCallback(async () => {
@@ -305,14 +305,14 @@ export default function NativeHome() {
             icon: <Trash2 size={18} />,
             destructive: true,
             onSelect: () => setListToDelete(list),
-          }
+          },
         );
       }
 
       setMenuItems(items);
       setMenuOrigin(position);
     },
-    [togglePin]
+    [togglePin],
   );
 
   // The same three actions the context menu offers a user list, as swipe panels.
@@ -351,7 +351,7 @@ export default function NativeHome() {
         onAction: () => setListToDelete(list),
       },
     ],
-    [togglePin]
+    [togglePin],
   );
 
   // Sorting is instant and reversible, so the chip commits on tap with no confirm
@@ -397,7 +397,10 @@ export default function NativeHome() {
 
   const handleCreateSubmit = useCallback(
     async (
-      listData: Omit<List, "id" | "created_at" | "tasks" | "notes" | "collections">
+      listData: Omit<
+        List,
+        "id" | "created_at" | "tasks" | "notes" | "collections"
+      >,
     ) => {
       // CreateListModal has already inserted the list and its General collection
       // directly through Supabase by the time this runs — it calls onSubmit to
@@ -410,7 +413,7 @@ export default function NativeHome() {
         const created = (data ?? []).find(
           (list: List) =>
             list.list_name?.trim().toLowerCase() ===
-            listData.list_name?.trim().toLowerCase()
+            listData.list_name?.trim().toLowerCase(),
         );
 
         if (created) {
@@ -459,13 +462,13 @@ export default function NativeHome() {
       await refreshData();
       return { success: true };
     },
-    [refreshData, setLists, router]
+    [refreshData, setLists, router],
   );
 
   const handleEditSubmit = useCallback(
     async (
       listId: string,
-      listData: { list_name: string; bg_color_hex: string }
+      listData: { list_name: string; bg_color_hex: string },
     ) => {
       const res = await apiFetch("/api/lists", {
         method: "PATCH",
@@ -482,7 +485,7 @@ export default function NativeHome() {
       await refreshData();
       return { success: true };
     },
-    [refreshData]
+    [refreshData],
   );
 
   // Text colour only. The background used to be part of this — a flat bg-gray-950
@@ -657,8 +660,8 @@ export default function NativeHome() {
             <ListChecks size={48} className="text-gray-400" />
             <p className="text-[17px] font-semibold">No Lists Yet</p>
             <p className="max-w-[17rem] text-[14px] text-gray-500">
-              Everything in List It lives inside a list. Create your first one to
-              start adding tasks and notes.
+              Everything in List It lives inside a list. Create your first one
+              to start adding tasks and notes.
             </p>
             <button
               type="button"
@@ -773,7 +776,12 @@ export default function NativeHome() {
             aria-label="Create list"
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 500, damping: 30, delay: 0.15 }}
+            transition={{
+              type: "spring",
+              stiffness: 500,
+              damping: 30,
+              delay: 0.15,
+            }}
             whileTap={{ scale: 0.92 }}
             className="fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#6366F1] text-white shadow-lg shadow-[#6366F1]/30 active:bg-[#4f52d6]"
             // Sits just clear of the tab bar, on the Settings side, so it is in
@@ -783,7 +791,7 @@ export default function NativeHome() {
           >
             <Plus size={26} strokeWidth={2.4} />
           </motion.button>,
-          document.body
+          document.body,
         )}
 
       <NativeContextMenu

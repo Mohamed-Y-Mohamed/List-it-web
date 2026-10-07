@@ -85,8 +85,7 @@ function Screen({
           height,
           transform: `scale(${SCALE})`,
           transformOrigin: "top left",
-          background:
-            background ?? (isDark ? "#111827" : "#ffffff"),
+          background: background ?? (isDark ? "#111827" : "#ffffff"),
         }}
       >
         {children}
@@ -186,7 +185,8 @@ function Pointer({
             refY="4.5"
             orient="auto"
           >
-            <path d="M0,0 L9,4.5 L0,9 z" className="fill-blue-500" /></marker>
+            <path d="M0,0 L9,4.5 L0,9 z" className="fill-blue-500" />
+          </marker>
         </defs>
         <motion.path
           d={`M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}`}
@@ -506,7 +506,9 @@ function DetailWithMenu({ isDark }: MockProps) {
         </h1>
         <span
           className={`rounded-full p-2 ${
-            isDark ? "bg-gray-700 text-orange-400" : "bg-gray-200 text-orange-500"
+            isDark
+              ? "bg-gray-700 text-orange-400"
+              : "bg-gray-200 text-orange-500"
           }`}
         >
           <PlusCircle className="h-6 w-6" />
@@ -519,7 +521,11 @@ function DetailWithMenu({ isDark }: MockProps) {
           isDark ? "bg-gray-800" : "bg-white"
         }`}
       >
-        <MenuRow isDark={isDark} Icon={ClipboardList} label="Create Collection" />
+        <MenuRow
+          isDark={isDark}
+          Icon={ClipboardList}
+          label="Create Collection"
+        />
         <MenuRow isDark={isDark} Icon={CheckCircle} label="Create Task" />
         <MenuRow isDark={isDark} Icon={StickyNote} label="Create Note" />
         <div
@@ -527,7 +533,12 @@ function DetailWithMenu({ isDark }: MockProps) {
             isDark ? "border-gray-700" : "border-gray-200"
           }`}
         />
-        <MenuRow isDark={isDark} Icon={Trash2} label="Delete Collections" danger />
+        <MenuRow
+          isDark={isDark}
+          Icon={Trash2}
+          label="Delete Collections"
+          danger
+        />
       </div>
     </div>
   );
@@ -566,7 +577,9 @@ function CollectionCard({
   return (
     <div
       className={`relative overflow-hidden rounded-xl border shadow-lg ${
-        isDark ? "border-gray-700 bg-gray-800/50" : "border-gray-200 bg-white/60"
+        isDark
+          ? "border-gray-700 bg-gray-800/50"
+          : "border-gray-200 bg-white/60"
       }`}
     >
       {/* The accent bar across the top, in the collection's colour. */}
@@ -1182,7 +1195,6 @@ const pillClass = (isDark: boolean, active = false) =>
         : "bg-gray-100 text-gray-700"
   }`;
 
-
 /** Reminders, switched on, with one set and the offsets still on offer. */
 export function MockReminders({ isDark }: MockProps) {
   return (
@@ -1264,7 +1276,6 @@ export function MockReminders({ isDark }: MockProps) {
 // two pages
 // ---------------------------------------------------------------------------
 
-
 /** One band's heading, from TaskSectionHeader. */
 function BandHeader({
   isDark,
@@ -1295,7 +1306,9 @@ function BandHeader({
       >
         {count}
       </span>
-      <span className={`h-px flex-1 ${isDark ? "bg-white/10" : "bg-black/10"}`} />
+      <span
+        className={`h-px flex-1 ${isDark ? "bg-white/10" : "bg-black/10"}`}
+      />
     </div>
   );
 }

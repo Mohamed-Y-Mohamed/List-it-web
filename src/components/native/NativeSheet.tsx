@@ -87,7 +87,10 @@ export default function NativeSheet({
     }
 
     // A decisive upward drag promotes a medium sheet to full height.
-    if (detent === "medium" && (info.offset.y < -60 || info.velocity.y < -400)) {
+    if (
+      detent === "medium" &&
+      (info.offset.y < -60 || info.velocity.y < -400)
+    ) {
       setDetent("large");
     }
     y.set(0);
@@ -117,9 +120,7 @@ export default function NativeSheet({
             // than replacing it. The blur is what keeps the text legible at that
             // opacity: without it the cards behind show through the copy.
             className={`fixed inset-x-0 bottom-0 z-[61] flex flex-col overflow-hidden rounded-t-[25px] backdrop-blur-2xl ${
-              isDark
-                ? "bg-gray-900/60 text-white"
-                : "bg-white/60 text-gray-900"
+              isDark ? "bg-gray-900/60 text-white" : "bg-white/60 text-gray-900"
             }`}
             style={{ height: DETENT_HEIGHT[detent], y }}
             initial={reduceMotion ? { y: 0, opacity: 0 } : { y: "100%" }}

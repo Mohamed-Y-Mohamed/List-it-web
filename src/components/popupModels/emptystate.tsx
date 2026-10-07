@@ -43,7 +43,9 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   return (
     <div
       className={`rounded-2xl border px-5 py-8 text-center ${
-        isDark ? "border-white/[0.08] bg-[#131A2B]" : "border-black/[0.06] bg-white"
+        isDark
+          ? "border-white/[0.08] bg-[#131A2B]"
+          : "border-black/[0.06] bg-white"
       }`}
     >
       <Icon

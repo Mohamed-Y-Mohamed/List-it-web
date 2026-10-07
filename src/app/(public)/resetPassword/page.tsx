@@ -72,7 +72,7 @@ const ResetPasswordPage = () => {
         } catch (logoutError) {
           console.error(
             "Error during logout after password reset:",
-            logoutError
+            logoutError,
           );
         }
         router.push(appPath("/login?password_reset=success"));
@@ -165,7 +165,7 @@ const ResetPasswordPage = () => {
       setError(
         err instanceof Error
           ? err.message
-          : "Failed to update password. Please try again."
+          : "Failed to update password. Please try again.",
       );
     } finally {
       setLoading(false);

@@ -21,7 +21,7 @@ interface EditListPopupProps {
   onClose: () => void;
   onSubmit: (
     listId: string,
-    listData: { list_name: string; bg_color_hex: string }
+    listData: { list_name: string; bg_color_hex: string },
   ) => Promise<SubmissionResult> | void;
   existingLists?: { id: string; list_name: string | null }[];
   currentList: List | null;
@@ -104,7 +104,7 @@ const EditListPopup: React.FC<EditListPopupProps> = ({
         (list) =>
           list.id !== currentList?.id && // Exclude current list from validation
           list.list_name &&
-          list.list_name.toLowerCase() === name.trim().toLowerCase()
+          list.list_name.toLowerCase() === name.trim().toLowerCase(),
       );
 
       if (caseInsensitiveMatch) {
@@ -113,7 +113,7 @@ const EditListPopup: React.FC<EditListPopupProps> = ({
 
       return null; // Validation passed
     },
-    [allLists, currentList?.id]
+    [allLists, currentList?.id],
   );
 
   // Real-time validation as user types
@@ -135,7 +135,7 @@ const EditListPopup: React.FC<EditListPopupProps> = ({
         }
       }
     },
-    [error, validateListName]
+    [error, validateListName],
   );
 
   // Click outside to close
@@ -214,7 +214,7 @@ const EditListPopup: React.FC<EditListPopupProps> = ({
       } else if (existingLists && existingLists.length > 0) {
         const existingName = existingLists[0].list_name;
         setError(
-          `A list named "${existingName}" already exists (case-insensitive)`
+          `A list named "${existingName}" already exists (case-insensitive)`,
         );
         setIsLoading(false);
         setIsSubmitting(false);
@@ -249,7 +249,7 @@ const EditListPopup: React.FC<EditListPopupProps> = ({
       if (collectionsUpdateError) {
         console.error(
           "Error updating collections color:",
-          collectionsUpdateError
+          collectionsUpdateError,
         );
         // Continue anyway since the list was updated
       }
@@ -288,7 +288,6 @@ const EditListPopup: React.FC<EditListPopupProps> = ({
 
   const isFormValid =
     listName.trim() && !validateListName(listName) && hasChanges;
-
 
   return (
     <ModalShell

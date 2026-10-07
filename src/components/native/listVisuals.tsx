@@ -92,7 +92,11 @@ export function ListIcon({ list, size = 34 }: { list: List; size?: number }) {
         boxShadow: `0 2px 6px ${color}40`,
       }}
     >
-      <Icon size={Math.round(size * 0.5)} className="text-white" strokeWidth={2.2} />
+      <Icon
+        size={Math.round(size * 0.5)}
+        className="text-white"
+        strokeWidth={2.2}
+      />
     </span>
   );
 }
@@ -102,10 +106,11 @@ export function listCounts(list: List, tasks: Task[], notes: Note[]) {
   return {
     taskCount: tasks.filter(
       (task) =>
-        task.list_id === list.id && !task.is_deleted && !task.is_completed
+        task.list_id === list.id && !task.is_deleted && !task.is_completed,
     ).length,
-    noteCount: notes.filter((note) => note.list_id === list.id && !note.is_deleted)
-      .length,
+    noteCount: notes.filter(
+      (note) => note.list_id === list.id && !note.is_deleted,
+    ).length,
   };
 }
 

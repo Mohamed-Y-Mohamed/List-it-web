@@ -34,15 +34,15 @@ describe("parseNotificationPrefs", () => {
     // or hand-edited key looks like.
     expect(parseNotificationPrefs(null)).toEqual(DEFAULT_NOTIFICATION_PREFS);
     expect(parseNotificationPrefs(undefined)).toEqual(
-      DEFAULT_NOTIFICATION_PREFS
+      DEFAULT_NOTIFICATION_PREFS,
     );
     expect(parseNotificationPrefs("false")).toEqual(DEFAULT_NOTIFICATION_PREFS);
     expect(parseNotificationPrefs({})).toEqual(DEFAULT_NOTIFICATION_PREFS);
     expect(parseNotificationPrefs({ remindersEnabled: "no" })).toEqual(
-      DEFAULT_NOTIFICATION_PREFS
+      DEFAULT_NOTIFICATION_PREFS,
     );
     expect(parseNotificationPrefs({ remindersEnabled: 0 })).toEqual(
-      DEFAULT_NOTIFICATION_PREFS
+      DEFAULT_NOTIFICATION_PREFS,
     );
   });
 
@@ -79,7 +79,7 @@ describe("readNotificationPrefs", () => {
   it("ignores a stored value that is not a boolean", () => {
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ remindersEnabled: "false" })
+      JSON.stringify({ remindersEnabled: "false" }),
     );
     expect(readNotificationPrefs()).toEqual(DEFAULT_NOTIFICATION_PREFS);
   });

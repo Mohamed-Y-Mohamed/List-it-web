@@ -12,8 +12,10 @@
 // The ask was wired only to the Reminders switch flipping on, which misses the
 // two realistic routes to a reminder that cannot fire: a switch already on from
 // an earlier edit, and a permission revoked in system Settings after the fact.
-// RemindersPicker.add is the one funnel every reminder passes through — the
-// offset chips and the fixed-time field both call it — so the ask belongs there.
+// `ReminderChips` is the one funnel every reminder passes through — the offset
+// chips and the fixed-time field both go through it — so the ask belongs there.
+// (It replaced `RemindersPicker`, which was never wired to either sheet and has
+// been deleted.)
 //
 // A unit test cannot catch this: the component asks through a Capacitor plugin
 // that does not exist under jsdom, and mocking it proves only that the mock was
@@ -26,15 +28,10 @@ const ROOT = join(__dirname, "..", "..");
 
 const read = (relative: string) => readFileSync(join(ROOT, relative), "utf8");
 
-const PICKER = "components/popupModels/RemindersPicker.tsx";
 const CHIPS = "components/ui/ReminderChips.tsx";
 
 /** The surfaces a user turns reminders on from. Each must be able to ask. */
-const OPT_IN_PATHS = [
-  PICKER,
-  CHIPS,
-  "app/(secure)/setting/page.tsx",
-];
+const OPT_IN_PATHS = [CHIPS, "app/(secure)/setting/page.tsx"];
 
 /**
  * The two task sheets no longer ask directly. They render `ReminderChips`, which
@@ -69,18 +66,23 @@ describe("reminder permission wiring", () => {
     expect(calls.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("asks inside the add funnel, not only on the switch", () => {
-    const source = read(PICKER);
+  it("keeps the answer rather than discarding it", () => {
+    // `void ensureNotificationPermission()` threw the boolean away, so a user
+    // who had denied notifications for good got a lit chip, a saved reminder,
+    // and nothing delivered — with nothing on screen saying so.
+    const source = read(CHIPS);
 
-    // `add` is where both the offset presets and the fixed-time field converge.
-    // Matching the call inside that function body is the point: an import alone
-    // satisfied the check above while the bug was live.
-    const addBody = source.slice(
-      source.indexOf("const add = "),
-      source.indexOf("const remove = ")
-    );
+    expect(source).toContain("setPermissionBlocked");
+    expect(source).not.toMatch(/void ensureNotificationPermission\(\);/);
+  });
 
-    expect(addBody).toContain("ensureNotificationPermission");
+  it("refuses an offset that has already passed", () => {
+    // The custom field always validated this; the preset chips did not, so
+    // "1 hour before" on a task due in ten minutes saved and was then silently
+    // dropped by planReminders for being in the past.
+    const source = read(CHIPS);
+
+    expect(source).toContain("offsetHasPassed");
   });
 
   it("never asks from the sync path", () => {
@@ -89,7 +91,7 @@ describe("reminder permission wiring", () => {
     // again immediately. Sync checks; only explicit opt-in requests.
     const notifications = read("lib/notifications.ts");
     const syncBody = notifications.slice(
-      notifications.indexOf("export async function syncTaskReminders")
+      notifications.indexOf("export async function syncTaskReminders"),
     );
 
     expect(syncBody).toContain("hasNotificationPermission");
@@ -98,7 +100,7 @@ describe("reminder permission wiring", () => {
 
   it("keeps the hook that drives sync free of permission requests", () => {
     expect(read("hooks/useTaskReminders.ts")).not.toContain(
-      "ensureNotificationPermission"
+      "ensureNotificationPermission",
     );
   });
 });

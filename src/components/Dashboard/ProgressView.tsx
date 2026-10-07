@@ -52,7 +52,11 @@ interface Bucket {
   completed: number;
 }
 
-export default function ProgressView({ heading = "Progress" }: { heading?: string }) {
+export default function ProgressView({
+  heading = "Progress",
+}: {
+  heading?: string;
+}) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const { user } = useAuth();
@@ -88,7 +92,8 @@ export default function ProgressView({ heading = "Progress" }: { heading?: strin
           .eq("is_deleted", false),
       ]);
 
-      if (taskResult.error || listResult.error) throw taskResult.error || listResult.error;
+      if (taskResult.error || listResult.error)
+        throw taskResult.error || listResult.error;
 
       setTasks((taskResult.data as TaskRow[]) || []);
       setLists((listResult.data as ListRow[]) || []);
@@ -108,10 +113,11 @@ export default function ProgressView({ heading = "Progress" }: { heading?: strin
 
   const completed = useMemo(
     () => tasks.filter((task) => task.is_completed).length,
-    [tasks]
+    [tasks],
   );
   const open = tasks.length - completed;
-  const percent = tasks.length === 0 ? 0 : Math.round((completed / tasks.length) * 100);
+  const percent =
+    tasks.length === 0 ? 0 : Math.round((completed / tasks.length) * 100);
 
   /**
    * The activity series for the chosen range, bucketed so a year does not try to
@@ -183,7 +189,11 @@ export default function ProgressView({ heading = "Progress" }: { heading?: strin
    * chart, it is a lie with axes on it.
    */
   const rangeStart =
-    range === "7d" ? subDays(new Date(), 7) : range === "1m" ? subMonths(new Date(), 1) : subYears(new Date(), 1);
+    range === "7d"
+      ? subDays(new Date(), 7)
+      : range === "1m"
+        ? subMonths(new Date(), 1)
+        : subYears(new Date(), 1);
   const thinHistory = Boolean(oldest && oldest > rangeStart);
 
   const perList = useMemo(
@@ -199,7 +209,7 @@ export default function ProgressView({ heading = "Progress" }: { heading?: strin
         })
         .filter((entry) => entry.total > 0)
         .sort((a, b) => b.total - a.total),
-    [lists, tasks]
+    [lists, tasks],
   );
 
   const card = isDark ? "bg-[#131A2B]" : "bg-white";
@@ -216,7 +226,9 @@ export default function ProgressView({ heading = "Progress" }: { heading?: strin
       <AppSurface />
       <div className="mx-auto w-full max-w-3xl px-5 pb-28 pt-safe-top">
         <header className="pt-3">
-          <h1 className={`text-[26px] font-bold leading-tight tracking-[-0.02em] ${strong}`}>
+          <h1
+            className={`text-[26px] font-bold leading-tight tracking-[-0.02em] ${strong}`}
+          >
             {heading}
           </h1>
 
@@ -228,7 +240,9 @@ export default function ProgressView({ heading = "Progress" }: { heading?: strin
                   : `${percent}% of tasks completed`}
               </p>
               {/* Thin, because it is a summary and not a control. */}
-              <div className={`mt-3 h-1.5 w-full overflow-hidden rounded-full ${track}`}>
+              <div
+                className={`mt-3 h-1.5 w-full overflow-hidden rounded-full ${track}`}
+              >
                 <motion.div
                   className="h-full rounded-full bg-[#6366F1]"
                   initial={{ width: 0 }}
@@ -253,7 +267,8 @@ export default function ProgressView({ heading = "Progress" }: { heading?: strin
 
         {state === "error" && (
           <p className={`pt-8 text-[14px] ${muted}`}>
-            Could not load your progress. Pull down or reopen the tab to try again.
+            Could not load your progress. Pull down or reopen the tab to try
+            again.
           </p>
         )}
 
@@ -281,8 +296,12 @@ export default function ProgressView({ heading = "Progress" }: { heading?: strin
 
             <section className="pt-8">
               <div className="flex items-center justify-between gap-3">
-                <h2 className={`text-[17px] font-semibold ${strong}`}>Activity</h2>
-                <div className={`flex rounded-xl p-0.5 ${isDark ? "bg-white/[0.06]" : "bg-black/[0.05]"}`}>
+                <h2 className={`text-[17px] font-semibold ${strong}`}>
+                  Activity
+                </h2>
+                <div
+                  className={`flex rounded-xl p-0.5 ${isDark ? "bg-white/[0.06]" : "bg-black/[0.05]"}`}
+                >
                   {RANGES.map((option) => (
                     <button
                       key={option.id}
@@ -354,7 +373,9 @@ export default function ProgressView({ heading = "Progress" }: { heading?: strin
 
             {perList.length > 0 && (
               <section className="pt-8">
-                <h2 className={`text-[17px] font-semibold ${strong}`}>Progress by list</h2>
+                <h2 className={`text-[17px] font-semibold ${strong}`}>
+                  Progress by list
+                </h2>
                 <div className="mt-3 space-y-3">
                   {perList.map((entry) => {
                     const pct = Math.round((entry.done / entry.total) * 100);
@@ -365,20 +386,27 @@ export default function ProgressView({ heading = "Progress" }: { heading?: strin
                         className={`rounded-2xl border p-4 ${card} ${edge}`}
                       >
                         <div className="flex items-baseline justify-between gap-3">
-                          <span className={`min-w-0 truncate text-[14px] font-medium ${strong}`}>
+                          <span
+                            className={`min-w-0 truncate text-[14px] font-medium ${strong}`}
+                          >
                             {entry.list_name || "Untitled"}
                           </span>
                           <span className={`shrink-0 text-[12px] ${muted}`}>
                             {entry.done} / {entry.total}
                           </span>
                         </div>
-                        <div className={`mt-2.5 h-1.5 w-full overflow-hidden rounded-full ${track}`}>
+                        <div
+                          className={`mt-2.5 h-1.5 w-full overflow-hidden rounded-full ${track}`}
+                        >
                           <motion.div
                             className="h-full rounded-full"
                             style={{ backgroundColor: colour }}
                             initial={{ width: 0 }}
                             animate={{ width: `${pct}%` }}
-                            transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                            transition={{
+                              duration: 0.5,
+                              ease: [0.4, 0, 0.2, 1],
+                            }}
                           />
                         </div>
                       </div>

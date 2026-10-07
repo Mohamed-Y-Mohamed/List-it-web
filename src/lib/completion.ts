@@ -39,7 +39,7 @@ export interface CompletionPatch {
 export function applyCompletion(
   _task: CompletableTask,
   isCompleted: boolean,
-  now: Date = new Date()
+  now: Date = new Date(),
 ): CompletionPatch {
   return isCompleted
     ? { is_completed: true, date_completed: now.toISOString() }

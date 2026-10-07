@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/client";
 import { getApiBaseUrl, isNativeApp } from "@/lib/platform";
 import { appPath, logoutRedirectUrl } from "@/lib/routes";
+import { cancelAllReminders } from "@/lib/notifications";
 import { User, AuthError } from "@supabase/supabase-js";
 
 // Auth context type
@@ -20,7 +21,7 @@ interface AuthContextType {
   loading: boolean;
   login: (
     email: string,
-    password: string
+    password: string,
   ) => Promise<{
     success: boolean;
     error?: AuthError | null;
@@ -29,7 +30,7 @@ interface AuthContextType {
   signup: (
     email: string,
     password: string,
-    fullName: string
+    fullName: string,
   ) => Promise<{
     success: boolean;
     error?: AuthError | null;
@@ -210,7 +211,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           "isVerifying:",
           isVerifying,
           "isVerificationFlow:",
-          isVerificationFlow()
+          isVerificationFlow(),
         );
 
         if (event === "SIGNED_IN" && session) {
@@ -231,7 +232,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setUser(session.user);
           }
         }
-      }
+      },
     );
 
     return () => {
@@ -332,7 +333,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signup = async (
     email: string,
     password: string,
-    fullName: string
+    fullName: string,
   ): Promise<{
     success: boolean;
     error?: AuthError | null;
@@ -407,6 +408,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Clear auth data
       clearAuthData();
+
+      // Pending reminders belong to the account that scheduled them, and they
+      // outlive the session because the OS holds them, not the app. Left behind,
+      // whoever picks the phone up next gets this user's task titles on the lock
+      // screen for days. `cancelAllReminders` already said "used when signing
+      // out" in its own doc comment; nothing had ever called it.
+      await cancelAllReminders();
 
       // Call Supabase signOut
       const { error } = await supabase.auth.signOut({

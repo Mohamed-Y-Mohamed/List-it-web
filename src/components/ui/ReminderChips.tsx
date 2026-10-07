@@ -20,6 +20,7 @@ import {
   OFFSET_PRESETS,
   describeReminder,
   newReminderId,
+  reminderFireAt,
   type Reminder,
 } from "@/lib/reminders";
 import { IS_NATIVE_BUILD } from "@/lib/platform";
@@ -45,29 +46,55 @@ export default function ReminderChips({
   const [customDate, setCustomDate] = useState<string | null>(null);
   const [customTime, setCustomTime] = useState("09:00");
   const [customError, setCustomError] = useState<string | null>(null);
+  /** Set when the OS has refused notifications, so the UI can stop pretending. */
+  const [permissionBlocked, setPermissionBlocked] = useState(false);
 
   const full = reminders.length >= MAX_REMINDERS_PER_TASK;
   const usedOffsets = new Set(
-    reminders.filter((r) => r.kind === "offset").map((r) => r.minutes)
+    reminders.filter((r) => r.kind === "offset").map((r) => r.minutes),
   );
   const absolutes = reminders.filter(
-    (r): r is Extract<Reminder, { kind: "absolute" }> => r.kind === "absolute"
+    (r): r is Extract<Reminder, { kind: "absolute" }> => r.kind === "absolute",
   );
 
   // Asking here rather than only on a master switch. A switch already on from a
   // previous edit, or a permission revoked in system Settings since, both look
   // exactly like a working reminder and schedule nothing — `syncTaskReminders`
   // bails without the grant. Safe to call repeatedly: it checks first.
+  //
+  // The answer is kept, which it was not. A user who has denied notifications
+  // for good gets no prompt and no grant, so the chip lit, the reminder saved,
+  // and nothing could ever be delivered — with nothing on screen saying so.
   const askPermission = () => {
-    void ensureNotificationPermission();
+    void ensureNotificationPermission().then((granted) => {
+      setPermissionBlocked(!granted);
+    });
+  };
+
+  /**
+   * Whether an offset would land in the past.
+   *
+   * The custom field has always refused a time that has already gone; the offset
+   * chips did not, so "1 hour before" on a task due in ten minutes lit up, saved,
+   * and was then dropped by `planReminders` for being in the past. The chip said
+   * one thing and the device did another.
+   */
+  const now = new Date();
+  const offsetHasPassed = (minutes: number): boolean => {
+    const fireAt = reminderFireAt({ id: "", kind: "offset", minutes }, dueAt);
+    return fireAt !== null && fireAt <= now;
   };
 
   const toggleOffset = (minutes: number) => {
     if (usedOffsets.has(minutes)) {
-      onChange(reminders.filter((r) => !(r.kind === "offset" && r.minutes === minutes)));
+      onChange(
+        reminders.filter(
+          (r) => !(r.kind === "offset" && r.minutes === minutes),
+        ),
+      );
       return;
     }
-    if (full) return;
+    if (full || offsetHasPassed(minutes)) return;
     askPermission();
     onChange([...reminders, { id: newReminderId(), kind: "offset", minutes }]);
   };
@@ -98,7 +125,10 @@ export default function ReminderChips({
     }
 
     askPermission();
-    onChange([...reminders, { id: newReminderId(), kind: "absolute", at: at.toISOString() }]);
+    onChange([
+      ...reminders,
+      { id: newReminderId(), kind: "absolute", at: at.toISOString() },
+    ]);
     setCustomOpen(false);
     setCustomDate(null);
     setCustomError(null);
@@ -120,7 +150,9 @@ export default function ReminderChips({
             setCustomOpen(false);
           }}
           className={`${chipBase} ${reminders.length === 0 ? "text-white" : chipIdle}`}
-          style={reminders.length === 0 ? { backgroundColor: PRIMARY } : undefined}
+          style={
+            reminders.length === 0 ? { backgroundColor: PRIMARY } : undefined
+          }
         >
           None
         </button>
@@ -128,11 +160,13 @@ export default function ReminderChips({
         {dueDateKey &&
           OFFSET_PRESETS.map((preset) => {
             const on = usedOffsets.has(preset.minutes);
+            const passed = !on && offsetHasPassed(preset.minutes);
             return (
               <button
                 key={preset.minutes}
                 type="button"
-                disabled={!on && full}
+                disabled={!on && (full || passed)}
+                title={passed ? "That moment has already passed" : undefined}
                 onClick={() => toggleOffset(preset.minutes)}
                 aria-pressed={on}
                 className={`${chipBase} ${on ? "text-white" : chipIdle}`}
@@ -160,9 +194,20 @@ export default function ReminderChips({
       </div>
 
       {!dueDateKey && (
-        <p className={`text-[11px] ${isDark ? "text-gray-500" : "text-gray-400"}`}>
-          Add a due date to remind yourself a set time before it, or use Custom for a
-          fixed day and time.
+        <p
+          className={`text-[11px] ${isDark ? "text-gray-500" : "text-gray-400"}`}
+        >
+          Add a due date to remind yourself a set time before it, or use Custom
+          for a fixed day and time.
+        </p>
+      )}
+
+      {/* The reminder is saved either way. Saying so beats a chip that looks
+          set while the OS quietly delivers nothing. */}
+      {permissionBlocked && (
+        <p className="text-[11px]" style={{ color: WARNING }}>
+          Notifications are turned off for List It, so this reminder will not be
+          delivered. Turn them on in your device settings.
         </p>
       )}
 
@@ -199,7 +244,9 @@ export default function ReminderChips({
       {customOpen && (
         <div
           className={`space-y-3 rounded-2xl border p-3.5 ${
-            isDark ? "border-white/[0.08] bg-white/[0.03]" : "border-black/[0.06] bg-black/[0.02]"
+            isDark
+              ? "border-white/[0.08] bg-white/[0.03]"
+              : "border-black/[0.06] bg-black/[0.02]"
           }`}
         >
           <MiniCalendar
@@ -228,11 +275,15 @@ export default function ReminderChips({
             }`}
           />
 
-          <p className={`text-[11px] ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+          <p
+            className={`text-[11px] ${isDark ? "text-gray-500" : "text-gray-400"}`}
+          >
             A reminder can&apos;t be set after the due date.
           </p>
 
-          {customError && <p className="text-[12px] text-rose-400">{customError}</p>}
+          {customError && (
+            <p className="text-[12px] text-rose-400">{customError}</p>
+          )}
 
           <div className="flex gap-2">
             <button
@@ -262,7 +313,9 @@ export default function ReminderChips({
       )}
 
       {full && (
-        <p className={`text-[11px] ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+        <p
+          className={`text-[11px] ${isDark ? "text-gray-500" : "text-gray-400"}`}
+        >
           {MAX_REMINDERS_PER_TASK} reminders is the limit for one task.
         </p>
       )}
@@ -272,9 +325,11 @@ export default function ReminderChips({
           needs a push backend this app does not have. Saying so beats a reminder
           that silently never arrives. */}
       {!IS_NATIVE_BUILD && (
-        <p className={`text-[11px] ${isDark ? "text-gray-500" : "text-gray-400"}`}>
-          Reminders are delivered by the mobile app. They are saved here and will be
-          waiting on your phone.
+        <p
+          className={`text-[11px] ${isDark ? "text-gray-500" : "text-gray-400"}`}
+        >
+          Reminders are delivered by the mobile app. They are saved here and
+          will be waiting on your phone.
         </p>
       )}
     </div>

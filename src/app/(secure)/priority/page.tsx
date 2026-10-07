@@ -33,7 +33,7 @@ export default function PriorityPage() {
 
   const sorted = useMemo(() => sortTasks(tasks), [tasks]);
   const dueTodayCount = sorted.filter((task) =>
-    isSameLocalDay(task.due_date, today)
+    isSameLocalDay(task.due_date, today),
   ).length;
   const scheduledCount = sorted.filter((task) => task.due_date).length;
 

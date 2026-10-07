@@ -23,7 +23,7 @@ const EmailVerification = () => {
   const searchParams = useSearchParams();
 
   const [status, setStatus] = useState<"loading" | "success" | "error">(
-    "loading"
+    "loading",
   );
   const [message, setMessage] = useState("");
 
@@ -35,13 +35,13 @@ const EmailVerification = () => {
     if (statusParam === "success") {
       setStatus("success");
       setMessage(
-        "Your email has been successfully verified! Please log in to access your account."
+        "Your email has been successfully verified! Please log in to access your account.",
       );
     } else if (statusParam === "error") {
       setStatus("error");
       setMessage(
         messageParam ||
-          "Email verification failed. Please try again or contact support."
+          "Email verification failed. Please try again or contact support.",
       );
     } else {
       // If no status param, redirect to login

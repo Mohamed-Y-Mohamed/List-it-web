@@ -122,7 +122,9 @@ export default function NativeListCard({
             {list.list_name || "Untitled"}
           </span>
         </span>
-        <span className={`w-full truncate pl-4 text-left text-[11px] ${metaText}`}>
+        <span
+          className={`w-full truncate pl-4 text-left text-[11px] ${metaText}`}
+        >
           {countsLabel(list, tasks, notes)}
         </span>
       </button>

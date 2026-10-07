@@ -31,7 +31,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Check if user has dark mode preference in their OS
     const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)"
+      "(prefers-color-scheme: dark)",
     ).matches;
 
     // Use saved theme, or OS preference, or default to light
@@ -44,7 +44,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     // Apply theme class to document
     document.documentElement.classList.toggle(
       "dark",
-      savedTheme === "dark" || (!savedTheme && prefersDark)
+      savedTheme === "dark" || (!savedTheme && prefersDark),
     );
 
     // Keep following the system for as long as the user has never chosen for

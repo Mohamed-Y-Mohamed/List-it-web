@@ -2,13 +2,17 @@
 
 import { NextResponse } from "next/server";
 
-const mockHeaderStore: { authorization: string | null } = { authorization: null };
+const mockHeaderStore: { authorization: string | null } = {
+  authorization: null,
+};
 
 jest.mock("next/headers", () => ({
   cookies: jest.fn(() => ({})),
   headers: jest.fn(async () => ({
     get: (name: string) =>
-      name.toLowerCase() === "authorization" ? mockHeaderStore.authorization : null,
+      name.toLowerCase() === "authorization"
+        ? mockHeaderStore.authorization
+        : null,
   })),
 }));
 
@@ -103,7 +107,7 @@ describe("requireAuth — cookie path (web)", () => {
 
   it("returns 500 when getUser throws", async () => {
     mockCookieClient.auth.getUser.mockRejectedValueOnce(
-      new Error("network error")
+      new Error("network error"),
     );
 
     const result = await requireAuth();
@@ -126,7 +130,10 @@ describe("requireAuth — bearer path (native)", () => {
 
   it("returns the user for a valid bearer token", async () => {
     mockHeaderStore.authorization = "Bearer valid-token";
-    mockGetUser.mockResolvedValueOnce({ data: { user: BEARER_USER }, error: null });
+    mockGetUser.mockResolvedValueOnce({
+      data: { user: BEARER_USER },
+      error: null,
+    });
 
     const result = await requireAuth();
 
@@ -138,7 +145,10 @@ describe("requireAuth — bearer path (native)", () => {
 
   it("accepts a lowercase bearer scheme", async () => {
     mockHeaderStore.authorization = "bearer valid-token";
-    mockGetUser.mockResolvedValueOnce({ data: { user: BEARER_USER }, error: null });
+    mockGetUser.mockResolvedValueOnce({
+      data: { user: BEARER_USER },
+      error: null,
+    });
 
     const result = await requireAuth();
 
@@ -197,7 +207,7 @@ describe("getRouteClient", () => {
       "anon-key",
       expect.objectContaining({
         global: { headers: { Authorization: "Bearer valid-token" } },
-      })
+      }),
     );
   });
 });

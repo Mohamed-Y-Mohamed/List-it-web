@@ -31,7 +31,7 @@ export default function TomorrowPage() {
 
   const dueTomorrow = useMemo(
     () => (task: TaskRow) => isSameLocalDay(task.due_date, tomorrow),
-    [tomorrow]
+    [tomorrow],
   );
 
   const { tasks, setTasks, collections, isLoading, isRefreshing, refresh } =
@@ -49,7 +49,7 @@ export default function TomorrowPage() {
         month: "long",
         day: "numeric",
       }),
-    [tomorrow]
+    [tomorrow],
   );
 
   return (

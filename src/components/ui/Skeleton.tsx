@@ -35,7 +35,9 @@ export function SkeletonTaskCard({ isDark }: { isDark: boolean }) {
   return (
     <div
       className={`rounded-xl border p-2.5 pl-3.5 ${
-        isDark ? "border-white/[0.08] bg-[#131A2B]/80" : "border-black/[0.06] bg-white/85"
+        isDark
+          ? "border-white/[0.08] bg-[#131A2B]/80"
+          : "border-black/[0.06] bg-white/85"
       }`}
       style={{
         borderLeft: `3px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)"}`,
@@ -63,7 +65,11 @@ export function SkeletonTaskList({
   count?: number;
 }) {
   return (
-    <div className="animate-pulse space-y-2" role="status" aria-label="Loading tasks">
+    <div
+      className="animate-pulse space-y-2"
+      role="status"
+      aria-label="Loading tasks"
+    >
       {Array.from({ length: count }, (_, i) => (
         <SkeletonTaskCard key={i} isDark={isDark} />
       ))}
@@ -76,7 +82,9 @@ export function SkeletonStatTile({ isDark }: { isDark: boolean }) {
   return (
     <div
       className={`rounded-2xl border p-4 ${
-        isDark ? "border-white/[0.08] bg-[#131A2B]" : "border-black/[0.06] bg-white"
+        isDark
+          ? "border-white/[0.08] bg-[#131A2B]"
+          : "border-black/[0.06] bg-white"
       }`}
       aria-hidden="true"
     >
@@ -91,7 +99,9 @@ export function SkeletonNoteCard({ isDark }: { isDark: boolean }) {
   return (
     <div
       className={`rounded-xl border p-2.5 pl-3.5 ${
-        isDark ? "border-white/[0.08] bg-[#131A2B]/80" : "border-black/[0.06] bg-white/85"
+        isDark
+          ? "border-white/[0.08] bg-[#131A2B]/80"
+          : "border-black/[0.06] bg-white/85"
       }`}
       style={{
         borderLeft: `3px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)"}`,

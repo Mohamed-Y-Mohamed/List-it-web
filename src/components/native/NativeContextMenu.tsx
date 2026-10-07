@@ -80,7 +80,7 @@ export default function NativeContextMenu({
 
     const left = Math.min(
       Math.max(origin.x - MENU_WIDTH / 2, VIEWPORT_MARGIN),
-      innerWidth - MENU_WIDTH - VIEWPORT_MARGIN
+      innerWidth - MENU_WIDTH - VIEWPORT_MARGIN,
     );
 
     const fitsBelow = origin.y + 12 + height < innerHeight - VIEWPORT_MARGIN;
@@ -121,7 +121,11 @@ export default function NativeContextMenu({
             className={`fixed z-[71] overflow-hidden rounded-[14px] shadow-2xl backdrop-blur-xl ${
               isDark ? "bg-gray-800/95" : "bg-white/95"
             }`}
-            style={{ top: position.top, left: position.left, width: MENU_WIDTH }}
+            style={{
+              top: position.top,
+              left: position.left,
+              width: MENU_WIDTH,
+            }}
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
@@ -227,7 +231,10 @@ export default function NativeContextMenu({
                                 {entry.swatch !== undefined && (
                                   <span
                                     className="h-2.5 w-2.5 shrink-0 rounded-full"
-                                    style={{ backgroundColor: entry.swatch || "#fb923c" }}
+                                    style={{
+                                      backgroundColor:
+                                        entry.swatch || "#fb923c",
+                                    }}
                                   />
                                 )}
                                 <span className="truncate">{entry.label}</span>

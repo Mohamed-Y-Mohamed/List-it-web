@@ -86,7 +86,7 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
 // taller than the screen by the top inset, so these screens scrolled a little past
 // their content and showed the wrapper padding at the end. The web keeps it: there
 // is no such wrapper there, and this is what stops a short page floating.
-const ROOT_MIN_HEIGHT = IS_NATIVE_BUILD ? '' : 'min-h-screen';
+const ROOT_MIN_HEIGHT = IS_NATIVE_BUILD ? "" : "min-h-screen";
 
 if (IS_NATIVE_BUILD) {
   SETTINGS_SECTIONS.splice(
@@ -106,7 +106,7 @@ if (IS_NATIVE_BUILD) {
       title: "Notifications",
       icon: Bell,
       description: "Reminders from your tasks",
-    }
+    },
   );
 }
 
@@ -430,7 +430,7 @@ export default function SettingsPage() {
     (type: NotificationState["type"], message: string) => {
       setNotification({ type, message, visible: true });
     },
-    []
+    [],
   );
 
   // Hide notification
@@ -495,7 +495,7 @@ export default function SettingsPage() {
       }
 
       setUserProfile((prev) =>
-        prev ? { ...prev, full_name: fullName.trim() } : null
+        prev ? { ...prev, full_name: fullName.trim() } : null,
       );
       showNotification("success", "Profile updated successfully");
     } catch (error) {
@@ -537,10 +537,7 @@ export default function SettingsPage() {
 
       if (!res.ok) {
         const errData = await res.json();
-        showNotification(
-          "error",
-          errData.error || "Failed to update password"
-        );
+        showNotification("error", errData.error || "Failed to update password");
         return;
       }
 
@@ -588,14 +585,14 @@ export default function SettingsPage() {
 
       if (!response.ok || !result.success) {
         throw new Error(
-          result.error || result.details || "Failed to delete account"
+          result.error || result.details || "Failed to delete account",
         );
       }
 
       // Account successfully deleted
       showNotification(
         "success",
-        "Account deleted successfully. Signing you out..."
+        "Account deleted successfully. Signing you out...",
       );
 
       // Clear local storage and sign out immediately
@@ -619,7 +616,7 @@ export default function SettingsPage() {
       console.error("Error deleting account:", error);
       showNotification(
         "error",
-        error instanceof Error ? error.message : "Failed to delete account"
+        error instanceof Error ? error.message : "Failed to delete account",
       );
       setIsSaving(false);
     }
@@ -915,7 +912,7 @@ export default function SettingsPage() {
                           year: "numeric",
                           month: "long",
                           day: "numeric",
-                        }
+                        },
                       )
                     : "Loading..."}
                 </div>

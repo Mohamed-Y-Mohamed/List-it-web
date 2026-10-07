@@ -22,25 +22,17 @@ interface NoteCardProps {
   list_id?: string | null;
   user_id?: string | null;
 
-  onPinChange?: (
-    noteId: string,
-    isPinned: boolean
-  ) => Promise<OperationResult>;
+  onPinChange?: (noteId: string, isPinned: boolean) => Promise<OperationResult>;
 
-  onColorChange?: (
-    noteId: string,
-    color: string
-  ) => Promise<OperationResult>;
+  onColorChange?: (noteId: string, color: string) => Promise<OperationResult>;
 
   onNoteUpdate?: (
     noteId: string,
     updatedTitle: string,
-    updatedDescription?: string
+    updatedDescription?: string,
   ) => Promise<OperationResult>;
 
-  onNoteDelete?: (
-    noteId: string
-  ) => Promise<OperationResult>;
+  onNoteDelete?: (noteId: string) => Promise<OperationResult>;
 
   className?: string;
 }
@@ -67,11 +59,9 @@ const NoteCard = ({
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [noteTitle, setNoteTitle] = useState(title || "");
-  const [noteDescription, setNoteDescription] = useState(
-    description || ""
-  );
+  const [noteDescription, setNoteDescription] = useState(description || "");
   const [noteBackgroundColor, setNoteBackgroundColor] = useState(
-    bg_color_hex || ""
+    bg_color_hex || "",
   );
 
   const [error, setError] = useState<string | null>(null);
@@ -105,8 +95,7 @@ const NoteCard = ({
           borderColor: "rgba(15,23,42,0.10)",
         };
 
-  const customColorIsLight =
-    safeColor && isLightColor(safeColor);
+  const customColorIsLight = safeColor && isLightColor(safeColor);
 
   const titleColour = safeColor
     ? customColorIsLight
@@ -140,9 +129,7 @@ const NoteCard = ({
      PIN
      ------------------------------------------------------- */
 
-  const handlePinClick = async (
-    event: React.MouseEvent
-  ) => {
+  const handlePinClick = async (event: React.MouseEvent) => {
     event.stopPropagation();
 
     if (!onPinChange || isProcessing) return;
@@ -154,9 +141,7 @@ const NoteCard = ({
 
       if (!result.success) {
         throw new Error(
-          result.error
-            ? String(result.error)
-            : "Failed to update pin"
+          result.error ? String(result.error) : "Failed to update pin",
         );
       }
     } catch (err) {
@@ -173,7 +158,7 @@ const NoteCard = ({
 
   const updateNoteColor = async (
     noteId: string,
-    color: string
+    color: string,
   ): Promise<OperationResult> => {
     if (!onColorChange) {
       return {
@@ -189,9 +174,7 @@ const NoteCard = ({
 
       if (!result.success) {
         throw new Error(
-          result.error
-            ? String(result.error)
-            : "Failed to update colour"
+          result.error ? String(result.error) : "Failed to update colour",
         );
       }
 
@@ -218,7 +201,7 @@ const NoteCard = ({
   const updateNote = async (
     noteId: string,
     updatedTitle: string,
-    updatedDescription?: string
+    updatedDescription?: string,
   ): Promise<OperationResult> => {
     if (!onNoteUpdate) {
       return {
@@ -233,14 +216,12 @@ const NoteCard = ({
       const result = await onNoteUpdate(
         noteId,
         updatedTitle,
-        updatedDescription
+        updatedDescription,
       );
 
       if (!result.success) {
         throw new Error(
-          result.error
-            ? String(result.error)
-            : "Failed to update note"
+          result.error ? String(result.error) : "Failed to update note",
         );
       }
 
@@ -271,9 +252,7 @@ const NoteCard = ({
      Parent removes the note locally and updates cache.
      ------------------------------------------------------- */
 
-  const deleteNote = async (
-    noteId: string
-  ): Promise<OperationResult> => {
+  const deleteNote = async (noteId: string): Promise<OperationResult> => {
     if (!onNoteDelete) {
       return {
         success: false,
@@ -288,9 +267,7 @@ const NoteCard = ({
 
       if (!result.success) {
         throw new Error(
-          result.error
-            ? String(result.error)
-            : "Failed to delete note"
+          result.error ? String(result.error) : "Failed to delete note",
         );
       }
 
@@ -321,9 +298,7 @@ const NoteCard = ({
     bg_color_hex: noteBackgroundColor || null,
 
     created_at:
-      typeof created_at === "string"
-        ? new Date(created_at)
-        : created_at,
+      typeof created_at === "string" ? new Date(created_at) : created_at,
 
     collection_id: collection_id || null,
     list_id: list_id || null,
@@ -366,11 +341,7 @@ const NoteCard = ({
               : "hover:border-slate-300 hover:shadow-sm"
           }
 
-          ${
-            isProcessing
-              ? "pointer-events-none opacity-60"
-              : ""
-          }
+          ${isProcessing ? "pointer-events-none opacity-60" : ""}
 
           ${className}
         `}
@@ -378,10 +349,7 @@ const NoteCard = ({
         tabIndex={0}
         aria-label={`Open note: ${displayTitle}`}
         onKeyDown={(event) => {
-          if (
-            event.key === "Enter" ||
-            event.key === " "
-          ) {
+          if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
             setIsSidebarOpen(true);
           }
@@ -391,9 +359,7 @@ const NoteCard = ({
         <div
           className="absolute inset-y-3 left-0 w-[3px] rounded-r-full"
           style={{
-            backgroundColor:
-              safeColor ||
-              (isDark ? "#64748b" : "#94a3b8"),
+            backgroundColor: safeColor || (isDark ? "#64748b" : "#94a3b8"),
           }}
         />
 
@@ -424,9 +390,7 @@ const NoteCard = ({
             >
               <AlertCircle className="h-3 w-3 shrink-0" />
 
-              <span className="truncate">
-                {error}
-              </span>
+              <span className="truncate">{error}</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -460,9 +424,7 @@ const NoteCard = ({
             >
               <CalendarDays className="h-3 w-3 shrink-0" />
 
-              <span>
-                {formatDisplayDate(created_at)}
-              </span>
+              <span>{formatDisplayDate(created_at)}</span>
             </div>
           </div>
 
@@ -471,11 +433,7 @@ const NoteCard = ({
             type="button"
             onClick={handlePinClick}
             disabled={isProcessing}
-            aria-label={
-              is_pinned
-                ? "Unpin note"
-                : "Pin note"
-            }
+            aria-label={is_pinned ? "Unpin note" : "Pin note"}
             className={`
               flex
               h-7
@@ -497,11 +455,7 @@ const NoteCard = ({
               className={`
                 h-3.5
                 w-3.5
-                ${
-                  is_pinned
-                    ? "fill-current"
-                    : ""
-                }
+                ${is_pinned ? "fill-current" : ""}
               `}
             />
           </button>
@@ -538,7 +492,6 @@ const NoteCard = ({
             "
           >
             <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-
             Pinned
           </div>
         )}
@@ -570,11 +523,7 @@ const NoteCard = ({
             note={noteData}
             onColorChange={updateNoteColor}
             onNoteUpdate={updateNote}
-            onNoteDelete={
-              onNoteDelete
-                ? deleteNote
-                : undefined
-            }
+            onNoteDelete={onNoteDelete ? deleteNote : undefined}
             isProcessing={isProcessing}
           />
         )}

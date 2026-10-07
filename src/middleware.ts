@@ -45,7 +45,6 @@ export async function middleware(request: NextRequest) {
     "/notcomplete",
     "/priority",
     "/today",
-    "/recurring",
     "/stats",
     "/tomorrow",
     "/overdue",

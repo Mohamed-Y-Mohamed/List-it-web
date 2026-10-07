@@ -84,7 +84,8 @@ const CreateTaskModal = ({
     if (!isOpen) return;
 
     if (initialCollectionId) setSelectedCollectionId(initialCollectionId);
-    else if (defaultCollection?.id) setSelectedCollectionId(defaultCollection.id);
+    else if (defaultCollection?.id)
+      setSelectedCollectionId(defaultCollection.id);
     else if (collections.length > 0) setSelectedCollectionId(collections[0].id);
     else setSelectedCollectionId("");
 
@@ -112,7 +113,7 @@ const CreateTaskModal = ({
     () => () => {
       if (errorTimer.current) clearTimeout(errorTimer.current);
     },
-    []
+    [],
   );
 
   const showError = useCallback((message: string) => {
@@ -153,7 +154,7 @@ const CreateTaskModal = ({
 
       if (result && !result.success) {
         throw new Error(
-          result.error ? String(result.error) : "Failed to create task"
+          result.error ? String(result.error) : "Failed to create task",
         );
       }
       onClose();
@@ -290,7 +291,7 @@ const CreateTaskModal = ({
                 // An offset reminder with no due date can never fire.
                 if (!nextDate) {
                   setReminders((current) =>
-                    current.filter((reminder) => reminder.kind === "absolute")
+                    current.filter((reminder) => reminder.kind === "absolute"),
                   );
                 }
               }}
@@ -339,7 +340,9 @@ const CreateTaskModal = ({
         <div className="space-y-2">
           <SectionLabel isDark={isDark}>Pin</SectionLabel>
           <MetaToggle
-            icon={<Pin className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`} />}
+            icon={
+              <Pin className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`} />
+            }
             label="Pin this task"
             activeLabel="Pinned"
             active={isPinned}

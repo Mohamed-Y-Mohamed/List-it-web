@@ -20,6 +20,13 @@ interface TaskEdit {
   description?: string | null;
   due_date?: Date | null;
   is_pinned: boolean;
+  /**
+   * Sent by the detail sheet and previously undeclared, so the compiler said
+   * they did not exist while they arrived at runtime regardless. The sheet owns
+   * writing them; this hook only needs them to keep the on-screen row honest.
+   */
+  due_has_time?: boolean;
+  reminders?: unknown;
 }
 
 export function useTaskActions(
@@ -40,7 +47,7 @@ export function useTaskActions(
      * had the setter. Passed rather than fetched: the caller already holds them.
      */
     tasks?: TaskRow[];
-  } = {}
+  } = {},
 ) {
   const { user } = useAuth();
   const { removeWhen = true, collections = [], tasks = [] } = options;
@@ -52,8 +59,10 @@ export function useTaskActions(
 
   const guard = useCallback(
     () =>
-      user ? null : { success: false, error: "User not authenticated" as const },
-    [user]
+      user
+        ? null
+        : { success: false, error: "User not authenticated" as const },
+    [user],
   );
 
   const handleTaskComplete = useCallback(
@@ -96,8 +105,8 @@ export function useTaskActions(
                     is_completed: patch.is_completed,
                     date_completed: patch.date_completed,
                   }
-                : t
-            )
+                : t,
+            ),
           );
         }
 
@@ -107,7 +116,7 @@ export function useTaskActions(
         return { success: false, error };
       }
     },
-    [guard, removeWhen, setTasks, user]
+    [guard, removeWhen, setTasks, user],
   );
 
   const handleTaskPriority = useCallback(
@@ -119,7 +128,11 @@ export function useTaskActions(
         const { error } = await supabase
           .from("task")
           .update({ is_pinned: isPinned })
-          .eq("id", taskId);
+          .eq("id", taskId)
+          // Same scoping as the completion write above, and for the same
+          // reason. Three of the four writes in this hook were missing it while
+          // the fourth carried a comment explaining why it mattered.
+          .eq("user_id", user!.id);
 
         if (error) {
           console.error("Error updating task priority:", error);
@@ -128,8 +141,8 @@ export function useTaskActions(
 
         setTasks((previous) =>
           previous.map((t) =>
-            t.id === taskId ? { ...t, is_pinned: isPinned } : t
-          )
+            t.id === taskId ? { ...t, is_pinned: isPinned } : t,
+          ),
         );
 
         return { success: true };
@@ -138,7 +151,7 @@ export function useTaskActions(
         return { success: false, error };
       }
     },
-    [guard, setTasks]
+    [guard, setTasks, user],
   );
 
   const handleTaskUpdate = useCallback(
@@ -159,7 +172,8 @@ export function useTaskActions(
             due_date: dueDate,
             is_pinned: taskData.is_pinned,
           })
-          .eq("id", taskId);
+          .eq("id", taskId)
+          .eq("user_id", user!.id);
 
         if (error) {
           console.error("Error updating task:", error);
@@ -174,10 +188,20 @@ export function useTaskActions(
                   text: taskData.text,
                   description: taskData.description ?? null,
                   due_date: dueDate,
+                  // The sheet has already written these; carrying them into the
+                  // row on screen stops the card reading a freshly timed due
+                  // date with the old `due_has_time` and showing the wrong day
+                  // until the next full refetch.
+                  ...(taskData.due_has_time === undefined
+                    ? {}
+                    : { due_has_time: taskData.due_has_time }),
+                  ...(taskData.reminders === undefined
+                    ? {}
+                    : { reminders: taskData.reminders }),
                   is_pinned: taskData.is_pinned,
                 }
-              : t
-          )
+              : t,
+          ),
         );
 
         return { success: true };
@@ -186,7 +210,7 @@ export function useTaskActions(
         return { success: false, error };
       }
     },
-    [guard, setTasks]
+    [guard, setTasks, user],
   );
 
   /**
@@ -207,7 +231,7 @@ export function useTaskActions(
         return { success: false, error };
       }
     },
-    [guard, setTasks]
+    [guard, setTasks],
   );
 
   const handleCollectionChange = useCallback(
@@ -219,7 +243,8 @@ export function useTaskActions(
         const { error } = await supabase
           .from("task")
           .update({ collection_id: collectionId })
-          .eq("id", taskId);
+          .eq("id", taskId)
+          .eq("user_id", user!.id);
 
         if (error) {
           console.error("Error updating task collection:", error);
@@ -238,8 +263,8 @@ export function useTaskActions(
                   collection_id: collectionId,
                   collection_name: collectionName ?? undefined,
                 }
-              : t
-          )
+              : t,
+          ),
         );
 
         return { success: true };
@@ -248,7 +273,7 @@ export function useTaskActions(
         return { success: false, error };
       }
     },
-    [guard, collections, setTasks]
+    [guard, collections, setTasks, user],
   );
 
   // Named for the props they end up as, so a screen can spread the whole lot

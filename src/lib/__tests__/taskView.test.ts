@@ -90,15 +90,15 @@ describe("isSameLocalDay", () => {
   const day = new Date(2026, 8, 29); // 29 Sep 2026, local midnight
 
   it("matches a timestamp on that day", () => {
-    expect(isSameLocalDay(new Date(2026, 8, 29, 17, 30).toISOString(), day)).toBe(
-      true
-    );
+    expect(
+      isSameLocalDay(new Date(2026, 8, 29, 17, 30).toISOString(), day),
+    ).toBe(true);
   });
 
   it("rejects the day before", () => {
-    expect(isSameLocalDay(new Date(2026, 8, 28, 23, 59).toISOString(), day)).toBe(
-      false
-    );
+    expect(
+      isSameLocalDay(new Date(2026, 8, 28, 23, 59).toISOString(), day),
+    ).toBe(false);
   });
 
   it("treats a missing due date as no match", () => {
@@ -147,7 +147,8 @@ describe("recurrence, while the feature is out", () => {
 // on Scheduled what matters is when the next one lands.
 describe("bandByDueDate", () => {
   const today = new Date(2026, 8, 29); // 29 Sep 2026, local midnight
-  const on = (y: number, m: number, d: number) => new Date(y, m - 1, d, 9).toISOString();
+  const on = (y: number, m: number, d: number) =>
+    new Date(y, m - 1, d, 9).toISOString();
 
   it("puts each task in the band its due date falls in", () => {
     const bands = bandByDueDate(
@@ -157,7 +158,7 @@ describe("bandByDueDate", () => {
         task({ id: "next", due_date: on(2026, 9, 30) }),
         task({ id: "later", due_date: on(2026, 10, 15) }),
       ],
-      today
+      today,
     );
 
     expect(bands.overdue.map((t) => t.id)).toEqual(["late"]);
@@ -172,10 +173,14 @@ describe("bandByDueDate", () => {
     // stored rule is simply ignored — either way this lands under Today.
     const bands = bandByDueDate(
       [
-        task({ id: "habit", repeat_rule: { type: "daily" }, due_date: on(2026, 9, 29) }),
+        task({
+          id: "habit",
+          repeat_rule: { type: "daily" },
+          due_date: on(2026, 9, 29),
+        }),
         task({ id: "errand", due_date: on(2026, 9, 29) }),
       ],
-      today
+      today,
     );
 
     expect(bands.today.map((t) => t.id)).toEqual(["habit", "errand"]);
@@ -185,9 +190,12 @@ describe("bandByDueDate", () => {
     // Scheduled is dated tasks only; an undated one has no band to go in.
     const bands = bandByDueDate([task({ id: "someday" })], today);
 
-    expect(
-      [...bands.overdue, ...bands.today, ...bands.tomorrow, ...bands.upcoming]
-    ).toHaveLength(0);
+    expect([
+      ...bands.overdue,
+      ...bands.today,
+      ...bands.tomorrow,
+      ...bands.upcoming,
+    ]).toHaveLength(0);
   });
 
   it("keeps the order it was given within a band", () => {
@@ -197,7 +205,7 @@ describe("bandByDueDate", () => {
         task({ id: "a", due_date: on(2026, 10, 15) }),
         task({ id: "b", due_date: on(2026, 10, 2) }),
       ],
-      today
+      today,
     );
 
     expect(bands.upcoming.map((t) => t.id)).toEqual(["a", "b"]);

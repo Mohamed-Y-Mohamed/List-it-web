@@ -99,7 +99,9 @@ export default function ScrollingText({
         className={`inline-block whitespace-nowrap ${
           shouldScroll ? "" : "block w-full truncate"
         } ${className}`}
-        animate={shouldScroll ? { x: [0, 0, -distance, -distance, 0] } : { x: 0 }}
+        animate={
+          shouldScroll ? { x: [0, 0, -distance, -distance, 0] } : { x: 0 }
+        }
         transition={
           shouldScroll
             ? {

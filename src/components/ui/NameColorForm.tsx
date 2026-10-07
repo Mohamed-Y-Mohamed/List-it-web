@@ -145,7 +145,9 @@ export default function NameColorForm({
                     {selected && (
                       <Check
                         className={`h-4 w-4 drop-shadow ${
-                          isLightColor(color_hex) ? "text-gray-900" : "text-white"
+                          isLightColor(color_hex)
+                            ? "text-gray-900"
+                            : "text-white"
                         }`}
                       />
                     )}

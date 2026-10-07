@@ -29,7 +29,7 @@ describe("parseReminders", () => {
       parseReminders([
         { id: "a", kind: "offset", minutes: 60 },
         { id: "b", kind: "absolute", at: "2026-03-06T09:00:00.000Z" },
-      ])
+      ]),
     ).toHaveLength(2);
   });
 
@@ -38,14 +38,14 @@ describe("parseReminders", () => {
       parseReminders([
         null,
         "nope",
-        { kind: "offset", minutes: 60 },           // no id
-        { id: "", kind: "offset", minutes: 60 },   // empty id
-        { id: "c", kind: "offset" },               // no minutes
-        { id: "d", kind: "offset", minutes: -5 },  // negative
+        { kind: "offset", minutes: 60 }, // no id
+        { id: "", kind: "offset", minutes: 60 }, // empty id
+        { id: "c", kind: "offset" }, // no minutes
+        { id: "d", kind: "offset", minutes: -5 }, // negative
         { id: "e", kind: "offset", minutes: NaN },
         { id: "f", kind: "absolute", at: "not a date" },
-        { id: "g", kind: "weekly" },               // unknown kind
-      ])
+        { id: "g", kind: "weekly" }, // unknown kind
+      ]),
     ).toEqual([]);
   });
 
@@ -71,7 +71,10 @@ describe("dueMoment", () => {
   it("reads a date-only due date as 9am local", () => {
     // Stored at UTC noon as a marker rather than a real instant, so the hour has
     // to come from somewhere — this is the convention the due-today reminder used.
-    const due = dueMoment({ due_date: "2026-03-06T12:00:00.000Z", due_has_time: false });
+    const due = dueMoment({
+      due_date: "2026-03-06T12:00:00.000Z",
+      due_has_time: false,
+    });
     expect(due?.getHours()).toBe(DEFAULT_DUE_HOUR);
     expect(due?.getMinutes()).toBe(0);
   });
@@ -91,28 +94,32 @@ describe("dueMoment", () => {
 describe("reminderFireAt", () => {
   it("counts an offset back from the due moment", () => {
     const due = at(2026, 3, 6, 17);
-    expect(reminderFireAt({ id: "a", kind: "offset", minutes: 60 }, due)).toEqual(
-      at(2026, 3, 6, 16)
-    );
-    expect(reminderFireAt({ id: "a", kind: "offset", minutes: 60 * 24 }, due)).toEqual(
-      at(2026, 3, 5, 17)
-    );
+    expect(
+      reminderFireAt({ id: "a", kind: "offset", minutes: 60 }, due),
+    ).toEqual(at(2026, 3, 6, 16));
+    expect(
+      reminderFireAt({ id: "a", kind: "offset", minutes: 60 * 24 }, due),
+    ).toEqual(at(2026, 3, 5, 17));
   });
 
   it("fires at the due moment itself for a zero offset", () => {
     const due = at(2026, 3, 6, 17);
-    expect(reminderFireAt({ id: "a", kind: "offset", minutes: 0 }, due)).toEqual(due);
+    expect(
+      reminderFireAt({ id: "a", kind: "offset", minutes: 0 }, due),
+    ).toEqual(due);
   });
 
   it("has nothing to count back from without a due date", () => {
-    expect(reminderFireAt({ id: "a", kind: "offset", minutes: 60 }, null)).toBeNull();
+    expect(
+      reminderFireAt({ id: "a", kind: "offset", minutes: 60 }, null),
+    ).toBeNull();
   });
 
   it("ignores the due date entirely for an absolute reminder", () => {
     // Which is what makes it the only kind settable on an undated task.
     const fire = reminderFireAt(
       { id: "a", kind: "absolute", at: at(2026, 3, 1, 8).toISOString() },
-      null
+      null,
     );
     expect(fire).toEqual(at(2026, 3, 1, 8));
   });
@@ -125,8 +132,12 @@ describe("notificationId", () => {
   });
 
   it("differs across reminders on one task and across tasks", () => {
-    expect(notificationId("task-1", "r1")).not.toBe(notificationId("task-1", "r2"));
-    expect(notificationId("task-1", "r1")).not.toBe(notificationId("task-2", "r1"));
+    expect(notificationId("task-1", "r1")).not.toBe(
+      notificationId("task-1", "r2"),
+    );
+    expect(notificationId("task-1", "r1")).not.toBe(
+      notificationId("task-2", "r1"),
+    );
   });
 
   it("stays inside the 32-bit range the plugin accepts", () => {
@@ -165,12 +176,14 @@ describe("newReminderId", () => {
 describe("describeReminders", () => {
   it("summarises the collapsed row", () => {
     expect(describeReminders([])).toBe("None");
-    expect(describeReminders([{ id: "a", kind: "offset", minutes: 60 }])).toBe("1 hour before");
+    expect(describeReminders([{ id: "a", kind: "offset", minutes: 60 }])).toBe(
+      "1 hour before",
+    );
     expect(
       describeReminders([
         { id: "a", kind: "offset", minutes: 60 },
         { id: "b", kind: "offset", minutes: 120 },
-      ])
+      ]),
     ).toBe("2 reminders");
   });
 });

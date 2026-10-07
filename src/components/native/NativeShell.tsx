@@ -70,7 +70,7 @@ export default function NativeShell() {
 
     // Style.Dark means light text on a dark background, and vice versa.
     StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(
-      () => {}
+      () => {},
     );
   }, [isNative, theme]);
 
@@ -146,9 +146,9 @@ export default function NativeShell() {
         router.push(
           extra.taskId
             ? `${href}&task=${encodeURIComponent(extra.taskId)}`
-            : href
+            : href,
         );
-      }
+      },
     );
 
     return () => {
@@ -162,7 +162,10 @@ export default function NativeShell() {
     if (!isNative) return;
 
     const setOffset = (px: number) => {
-      document.documentElement.style.setProperty("--keyboard-offset", `${px}px`);
+      document.documentElement.style.setProperty(
+        "--keyboard-offset",
+        `${px}px`,
+      );
     };
 
     const shown = Keyboard.addListener("keyboardWillShow", (info) => {

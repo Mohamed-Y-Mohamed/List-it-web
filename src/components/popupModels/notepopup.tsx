@@ -23,7 +23,7 @@ interface CreateNoteModalProps {
       bg_color_hex: string;
       collection_id?: string;
     },
-    newNoteData?: Note
+    newNoteData?: Note,
   ) => Promise<{ success: boolean; error?: unknown }> | void;
   collections: Collection[];
   listId?: string;
@@ -41,8 +41,8 @@ const createUTCDate = (): Date => {
       now.getDate(),
       now.getHours(),
       now.getMinutes(),
-      now.getSeconds()
-    )
+      now.getSeconds(),
+    ),
   );
 };
 
@@ -76,7 +76,7 @@ const CreateNoteModal = ({
 
   const getDefaultCollection = useCallback(() => {
     const general = collections.find(
-      (c) => c.collection_name?.toLowerCase().trim() === "general"
+      (c) => c.collection_name?.toLowerCase().trim() === "general",
     );
     if (general) return general;
     if (listId) {
@@ -167,7 +167,7 @@ const CreateNoteModal = ({
       const t = setTimeout(() => setError(null), 5000);
       setErrorTimeout(t);
     },
-    [errorTimeout]
+    [errorTimeout],
   );
 
   const handleColorSelect = (color: string) => {
@@ -199,7 +199,7 @@ const CreateNoteModal = ({
       // renders with no background at all.
       const collection = collections.find((c) => c.id === collectionId);
       const finalColor = resolveColor(
-        selectedColor || collection?.bg_color_hex || appColors[0]?.color_hex
+        selectedColor || collection?.bg_color_hex || appColors[0]?.color_hex,
       );
 
       // UPDATED: Create a proper Date object with UTC timezone for iOS compatibility
@@ -233,7 +233,7 @@ const CreateNoteModal = ({
             bg_color_hex: finalColor,
             collection_id: collectionId ?? undefined,
           },
-          data[0] as Note
+          data[0] as Note,
         );
       }
 
@@ -244,7 +244,6 @@ const CreateNoteModal = ({
       setIsSubmitting(false);
     }
   };
-
 
   const mutedText = isDark ? "text-gray-400" : "text-gray-500";
   const fieldClass = isDark
@@ -385,7 +384,9 @@ const CreateNoteModal = ({
                     {selected && (
                       <Check
                         className={`h-4 w-4 drop-shadow ${
-                          isLightColor(color_hex) ? "text-gray-900" : "text-white"
+                          isLightColor(color_hex)
+                            ? "text-gray-900"
+                            : "text-white"
                         }`}
                       />
                     )}
@@ -399,7 +400,9 @@ const CreateNoteModal = ({
         <div className="space-y-2">
           <SectionLabel isDark={isDark}>Pin</SectionLabel>
           <MetaToggle
-            icon={<Pin className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`} />}
+            icon={
+              <Pin className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`} />
+            }
             label="Pin this note"
             activeLabel="Pinned"
             active={isPinned}

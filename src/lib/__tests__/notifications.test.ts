@@ -103,7 +103,7 @@ describe("planReminders", () => {
           ],
         }),
       ],
-      NOW
+      NOW,
     );
     expect(planned).toHaveLength(2);
     expect(new Set(planned.map((p) => p.id)).size).toBe(2);
@@ -120,7 +120,7 @@ describe("planReminders", () => {
           reminders: [{ id: "r1", kind: "offset", minutes: 120 }],
         }),
       ],
-      NOW
+      NOW,
     );
     expect(planned).toEqual([]);
   });
@@ -131,7 +131,7 @@ describe("planReminders", () => {
         { ...hourBefore("t1"), is_completed: true },
         { ...hourBefore("t2"), is_deleted: true },
       ],
-      NOW
+      NOW,
     );
     expect(planned).toEqual([]);
   });
@@ -143,7 +143,7 @@ describe("planReminders", () => {
         due_date: new Date(2026, 2, 7 + i, 17, 0, 0),
         due_has_time: true,
         reminders: [{ id: "r1", kind: "offset", minutes: 60 }],
-      })
+      }),
     );
     const planned = planReminders(many, NOW);
 
@@ -172,7 +172,7 @@ describe("syncTaskReminders", () => {
     const [[payload]] = schedule.mock.calls;
     expect(payload.notifications).toHaveLength(1);
     expect(payload.notifications[0].schedule.at).toEqual(
-      new Date(2026, 2, 6, 16, 0, 0)
+      new Date(2026, 2, 6, 16, 0, 0),
     );
     expect(payload.notifications[0].extra).toEqual({
       taskId: "t1",
@@ -217,7 +217,7 @@ describe("syncTaskReminders", () => {
 
     expect(notification.title).toBe("A task");
     expect(notification.body).toBe(
-      "This is your scheduled reminder - tap to view or complete this"
+      "This is your scheduled reminder - tap to view or complete this",
     );
   });
 

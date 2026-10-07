@@ -21,43 +21,51 @@ export async function GET() {
   try {
     const today = new Date();
     const todayStr = formatDateForPostgres(today);
-    const tomorrowStr = formatDateForPostgres(new Date(today.getTime() + 86400000));
+    const tomorrowStr = formatDateForPostgres(
+      new Date(today.getTime() + 86400000),
+    );
 
-    const [totalRes, completedRes, overdueRes, dueTodayRes] = await Promise.allSettled([
-      supabase
-        .from("task")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("is_deleted", false),
-      supabase
-        .from("task")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("is_completed", true)
-        .eq("is_deleted", false),
-      supabase
-        .from("task")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("is_completed", false)
-        .eq("is_deleted", false)
-        .lt("due_date", todayStr),
-      supabase
-        .from("task")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("is_completed", false)
-        .eq("is_deleted", false)
-        .gte("due_date", todayStr)
-        .lt("due_date", tomorrowStr),
-    ]);
+    const [totalRes, completedRes, overdueRes, dueTodayRes] =
+      await Promise.allSettled([
+        supabase
+          .from("task")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("is_deleted", false),
+        supabase
+          .from("task")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("is_completed", true)
+          .eq("is_deleted", false),
+        supabase
+          .from("task")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("is_completed", false)
+          .eq("is_deleted", false)
+          .lt("due_date", todayStr),
+        supabase
+          .from("task")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("is_completed", false)
+          .eq("is_deleted", false)
+          .gte("due_date", todayStr)
+          .lt("due_date", tomorrowStr),
+      ]);
 
-    const total = totalRes.status === "fulfilled" ? totalRes.value.count ?? 0 : 0;
-    const completed = completedRes.status === "fulfilled" ? completedRes.value.count ?? 0 : 0;
-    const overdue = overdueRes.status === "fulfilled" ? overdueRes.value.count ?? 0 : 0;
-    const dueToday = dueTodayRes.status === "fulfilled" ? dueTodayRes.value.count ?? 0 : 0;
+    const total =
+      totalRes.status === "fulfilled" ? (totalRes.value.count ?? 0) : 0;
+    const completed =
+      completedRes.status === "fulfilled" ? (completedRes.value.count ?? 0) : 0;
+    const overdue =
+      overdueRes.status === "fulfilled" ? (overdueRes.value.count ?? 0) : 0;
+    const dueToday =
+      dueTodayRes.status === "fulfilled" ? (dueTodayRes.value.count ?? 0) : 0;
     const pending = Math.max(0, total - completed);
-    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const completionRate =
+      total > 0 ? Math.round((completed / total) * 100) : 0;
 
     // Today activity
     const [todayCompletedRes, todayCreatedRes] = await Promise.allSettled([
@@ -77,9 +85,13 @@ export async function GET() {
     ]);
 
     const todayCompleted =
-      todayCompletedRes.status === "fulfilled" ? todayCompletedRes.value.count ?? 0 : 0;
+      todayCompletedRes.status === "fulfilled"
+        ? (todayCompletedRes.value.count ?? 0)
+        : 0;
     const todayCreated =
-      todayCreatedRes.status === "fulfilled" ? todayCreatedRes.value.count ?? 0 : 0;
+      todayCreatedRes.status === "fulfilled"
+        ? (todayCreatedRes.value.count ?? 0)
+        : 0;
 
     // Priority (pinned) tasks
     const { data: priorityTasks } = await supabase
@@ -107,6 +119,9 @@ export async function GET() {
     });
   } catch (err) {
     logger.error("GET /api/dashboard unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

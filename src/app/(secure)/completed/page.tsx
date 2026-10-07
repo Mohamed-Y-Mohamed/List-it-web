@@ -467,7 +467,7 @@ export default function CompletedPage() {
             isCompleted: true,
             priority: task.priority || "medium",
             category: task.category || "general",
-          })
+          }),
         );
 
         setTasks(formattedTasks);
@@ -487,7 +487,7 @@ export default function CompletedPage() {
       (task) =>
         task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (task.description &&
-          task.description.toLowerCase().includes(searchTerm.toLowerCase()))
+          task.description.toLowerCase().includes(searchTerm.toLowerCase())),
     );
 
     const grouped: Record<string, DisplayTask[]> = {};
@@ -497,7 +497,7 @@ export default function CompletedPage() {
       const startOfDay = new Date(
         date.getFullYear(),
         date.getMonth(),
-        date.getDate()
+        date.getDate(),
       ).toISOString();
 
       if (!grouped[startOfDay]) {
@@ -721,7 +721,7 @@ export default function CompletedPage() {
                           {selectedDate &&
                             format(
                               new Date(selectedDate),
-                              "EEEE, MMMM dd, yyyy"
+                              "EEEE, MMMM dd, yyyy",
                             )}
                         </h2>
                         <div

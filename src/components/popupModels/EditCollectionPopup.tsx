@@ -21,7 +21,7 @@ interface EditCollectionPopupProps {
   onClose: () => void;
   onSubmit: (
     collectionId: string,
-    collectionData: { collection_name: string; bg_color_hex: string }
+    collectionData: { collection_name: string; bg_color_hex: string },
   ) => Promise<SubmissionResult> | void;
   existingCollections?: Collection[];
   currentCollection: Collection | null;
@@ -78,7 +78,8 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
         (collection) =>
           collection.id !== currentCollection?.id && // Exclude current collection from validation
           collection.collection_name &&
-          collection.collection_name.toLowerCase() === name.trim().toLowerCase()
+          collection.collection_name.toLowerCase() ===
+            name.trim().toLowerCase(),
       );
 
       if (caseInsensitiveMatch) {
@@ -87,7 +88,7 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
 
       return null; // Validation passed
     },
-    [existingCollections, currentCollection?.id]
+    [existingCollections, currentCollection?.id],
   );
 
   // Real-time validation as user types
@@ -112,7 +113,7 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
         }
       }
     },
-    [error, validateCollectionName]
+    [error, validateCollectionName],
   );
 
   // Click outside to close
@@ -191,7 +192,7 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
       } else if (existingCollections && existingCollections.length > 0) {
         const existingName = existingCollections[0].collection_name;
         setError(
-          `A collection named "${existingName}" already exists (case-insensitive)`
+          `A collection named "${existingName}" already exists (case-insensitive)`,
         );
         setIsLoading(false);
         setIsSubmitting(false);
@@ -249,7 +250,6 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
     collectionName.trim() &&
     !validateCollectionName(collectionName) &&
     hasChanges;
-
 
   return (
     <ModalShell

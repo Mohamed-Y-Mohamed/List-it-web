@@ -72,6 +72,21 @@ export function readNotificationPrefs(): NotificationPrefs {
   }
 }
 
+/**
+ * Fired when the choice changes, so whatever owns the OS's pending reminders
+ * can act on it.
+ *
+ * Writing the flag is not the same as applying it. `syncTaskReminders` is what
+ * cancels and schedules, and it only ran on a task change or a Capacitor
+ * `resume`. Settings is an in-app tab, so neither happened: turning reminders
+ * off left every queued alarm to fire anyway, and turning them back on
+ * scheduled nothing until the app had been backgrounded and reopened.
+ *
+ * A plain window event rather than a provider, because exactly one listener
+ * wants it and this module's own note says it is not shared state.
+ */
+export const NOTIFICATION_PREFS_CHANGED = "listit:notificationPrefsChanged";
+
 /** Records the choice. Silent on failure, for the same reason reads are. */
 export function writeNotificationPrefs(prefs: NotificationPrefs): void {
   if (typeof window === "undefined") return;
@@ -82,4 +97,8 @@ export function writeNotificationPrefs(prefs: NotificationPrefs): void {
     // The choice then lasts for this session only, which is a better outcome
     // than the switch refusing to move.
   }
+
+  // Outside the try on purpose: a storage failure still leaves the choice live
+  // for this session, so the device's reminders should still follow it.
+  window.dispatchEvent(new CustomEvent(NOTIFICATION_PREFS_CHANGED));
 }

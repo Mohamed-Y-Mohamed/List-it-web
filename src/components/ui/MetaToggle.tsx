@@ -51,7 +51,9 @@ export default function MetaToggle({
       style={active ? { backgroundColor: tone } : undefined}
     >
       {icon}
-      <span className="truncate">{active ? (activeLabel ?? label) : label}</span>
+      <span className="truncate">
+        {active ? (activeLabel ?? label) : label}
+      </span>
     </button>
   );
 }

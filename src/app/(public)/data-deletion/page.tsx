@@ -15,7 +15,13 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { AlertCircle, CheckCircle, Mail, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle,
+  Mail,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { IS_NATIVE_BUILD } from "@/lib/platform";
 
@@ -33,7 +39,7 @@ export default function DataDeletionPage() {
   const isDark = theme === "dark";
 
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
-    "idle"
+    "idle",
   );
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -44,7 +50,7 @@ export default function DataDeletionPage() {
 
     const form = event.currentTarget;
     const body = new URLSearchParams(
-      new FormData(form) as unknown as Record<string, string>
+      new FormData(form) as unknown as Record<string, string>,
     ).toString();
 
     try {
@@ -63,7 +69,7 @@ export default function DataDeletionPage() {
     } catch (error) {
       setStatus("error");
       setErrorMessage(
-        error instanceof Error ? error.message : "Something went wrong"
+        error instanceof Error ? error.message : "Something went wrong",
       );
     }
   };
@@ -113,9 +119,9 @@ export default function DataDeletionPage() {
                 className={`mt-1 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}
               >
                 In the app, open{" "}
-                <strong>Settings → Account → Delete Account</strong>. Your account
-                and everything in it are removed immediately — you will not have
-                to wait for anyone to process a request.
+                <strong>Settings → Account → Delete Account</strong>. Your
+                account and everything in it are removed immediately — you will
+                not have to wait for anyone to process a request.
               </p>
               <Link
                 href="/login"
@@ -139,7 +145,9 @@ export default function DataDeletionPage() {
               className={`mt-0.5 h-5 w-5 flex-shrink-0 ${isDark ? "text-orange-400" : "text-sky-600"}`}
             />
             <div className="w-full">
-              <h2 className="font-semibold">Can&apos;t sign in? Ask us instead</h2>
+              <h2 className="font-semibold">
+                Can&apos;t sign in? Ask us instead
+              </h2>
               <p
                 className={`mt-1 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}
               >
@@ -193,7 +201,11 @@ export default function DataDeletionPage() {
                   <p className="hidden">
                     <label>
                       Leave this field empty
-                      <input name="bot-field" tabIndex={-1} autoComplete="off" />
+                      <input
+                        name="bot-field"
+                        tabIndex={-1}
+                        autoComplete="off"
+                      />
                     </label>
                   </p>
 
@@ -247,8 +259,8 @@ export default function DataDeletionPage() {
                     >
                       <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
                       <span>
-                        Could not send your request ({errorMessage}). Please email
-                        us instead.
+                        Could not send your request ({errorMessage}). Please
+                        email us instead.
                       </span>
                     </div>
                   )}
@@ -284,7 +296,8 @@ export default function DataDeletionPage() {
           >
             Deletion is permanent and cannot be undone. Requests sent from this
             page are actioned within 30 days; deleting from inside the app is
-            immediate. We keep no backups of deleted accounts beyond that window.
+            immediate. We keep no backups of deleted accounts beyond that
+            window.
           </p>
         </section>
       </motion.div>

@@ -41,7 +41,9 @@ export default function ToggleSection({
       }`}
     >
       <div className="flex items-center gap-3 p-4">
-        <span className={isDark ? "text-gray-400" : "text-gray-500"}>{icon}</span>
+        <span className={isDark ? "text-gray-400" : "text-gray-500"}>
+          {icon}
+        </span>
 
         <span className="min-w-0 flex-1">
           <span
@@ -91,7 +93,10 @@ export default function ToggleSection({
             initial={reduceMotion ? false : { opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
-            transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.23, 1, 0.32, 1] }}
+            transition={{
+              duration: reduceMotion ? 0 : 0.2,
+              ease: [0.23, 1, 0.32, 1],
+            }}
             className="overflow-hidden"
           >
             <div

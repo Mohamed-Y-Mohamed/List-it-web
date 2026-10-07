@@ -77,7 +77,6 @@ export default function NotCompletedPage() {
   const actions = useTaskActions(setTasks, { collections, tasks });
   const sorted = useMemo(() => sortTasks(tasks), [tasks]);
 
-
   const grouped = useMemo(() => {
     // Routines are pulled out before banding and shown under their own
     // heading at the end. Banding them by how far past due they are says

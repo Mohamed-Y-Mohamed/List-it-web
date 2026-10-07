@@ -31,7 +31,7 @@ self.addEventListener("install", (event) => {
     caches
       .open(CACHE_NAME)
       .then((cache) => cache.addAll(STATIC_ASSETS))
-      .then(() => self.skipWaiting())
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -47,10 +47,10 @@ self.addEventListener("activate", (event) => {
         Promise.all(
           cacheNames
             .filter((name) => name !== CACHE_NAME)
-            .map((name) => caches.delete(name))
-        )
+            .map((name) => caches.delete(name)),
+        ),
       )
-      .then(() => self.clients.claim())
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -99,10 +99,7 @@ self.addEventListener("fetch", (event) => {
    * We do NOT put these responses into CACHE_NAME because an old
    * HTML document may contain references to an old Next.js build.
    */
-  if (
-    request.mode === "navigate" ||
-    request.destination === "document"
-  ) {
+  if (request.mode === "navigate" || request.destination === "document") {
     event.respondWith(
       fetch(request).catch(() => {
         return new Response(
@@ -159,9 +156,9 @@ self.addEventListener("fetch", (event) => {
               "Content-Type": "text/html; charset=utf-8",
               "Cache-Control": "no-store",
             },
-          }
+          },
         );
-      })
+      }),
     );
 
     return;
@@ -182,19 +179,29 @@ self.addEventListener("fetch", (event) => {
         return cachedResponse;
       }
 
-      return fetch(request).then((networkResponse) => {
-        if (!networkResponse.ok) {
+      return fetch(request)
+        .then((networkResponse) => {
+          if (!networkResponse.ok) {
+            return networkResponse;
+          }
+
+          const copy = networkResponse.clone();
+
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, copy);
+          });
+
           return networkResponse;
-        }
-
-        const copy = networkResponse.clone();
-
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(request, copy);
+        })
+        .catch(() => {
+          // Offline, for an asset listed as static that was never cached:
+          // `install` uses `cache.addAll`, which rejects as a whole if any one
+          // entry 404s, so the cache can legitimately be empty. Without this the
+          // rejection propagates out of `respondWith` and the browser reports a
+          // network error instead of letting the page degrade. The previous
+          // worker had a catch here; the rewrite dropped it.
+          return Response.error();
         });
-
-        return networkResponse;
-      });
-    })
+    }),
   );
 });

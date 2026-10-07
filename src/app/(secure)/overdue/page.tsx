@@ -92,7 +92,7 @@ export default function ScheduledPage() {
 
   const daysOverdue = useMemo(
     () => (dueDate: string) => daysBetween(dueDate, today),
-    [today]
+    [today],
   );
 
   // Everything bands together, recurring included — see `bandByDueDate`.
@@ -103,12 +103,12 @@ export default function ScheduledPage() {
     // Only across what has actually slipped. Averaging in things due next week
     // would report a negative delay, which reads as nonsense on a stat tile.
     const late = sorted.filter(
-      (task) => task.due_date && daysOverdue(task.due_date) > 0
+      (task) => task.due_date && daysOverdue(task.due_date) > 0,
     );
     if (late.length === 0) return 0;
     const total = late.reduce(
       (sum, task) => sum + daysOverdue(task.due_date as string),
-      0
+      0,
     );
     return Math.round(total / late.length);
   }, [sorted, daysOverdue]);

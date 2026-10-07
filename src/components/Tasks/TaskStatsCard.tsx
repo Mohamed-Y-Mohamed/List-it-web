@@ -83,11 +83,16 @@ export function TaskStatsCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       className={`rounded-2xl border p-4 ${
-        isDark ? "border-white/[0.08] bg-[#131A2B]" : "border-black/[0.06] bg-white"
+        isDark
+          ? "border-white/[0.08] bg-[#131A2B]"
+          : "border-black/[0.06] bg-white"
       }`}
     >
       <div className="flex items-center gap-1.5">
-        <Icon className={`h-3.5 w-3.5 shrink-0 ${tints.icon}`} aria-hidden="true" />
+        <Icon
+          className={`h-3.5 w-3.5 shrink-0 ${tints.icon}`}
+          aria-hidden="true"
+        />
         <h3
           className={`truncate text-[11px] font-medium uppercase tracking-[0.06em] ${
             isDark ? "text-gray-500" : "text-gray-400"

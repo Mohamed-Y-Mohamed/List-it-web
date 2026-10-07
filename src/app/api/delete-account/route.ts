@@ -11,7 +11,7 @@ export async function DELETE(request: NextRequest) {
     if (!userId) {
       return NextResponse.json(
         { error: "User ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -26,7 +26,7 @@ export async function DELETE(request: NextRequest) {
     if (user.id !== userId) {
       return NextResponse.json(
         { error: "You are not authorized to delete this account" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -36,7 +36,7 @@ export async function DELETE(request: NextRequest) {
     if (!supabaseUrl || !serviceRoleKey) {
       return NextResponse.json(
         { error: "Server configuration error" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -59,7 +59,7 @@ export async function DELETE(request: NextRequest) {
           error: "Authentication deletion failed",
           details: authDeleteError.message,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -110,7 +110,7 @@ export async function DELETE(request: NextRequest) {
         success: true,
         message: "Account deleted successfully",
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     return NextResponse.json(
@@ -118,7 +118,7 @@ export async function DELETE(request: NextRequest) {
         error: "Internal server error",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

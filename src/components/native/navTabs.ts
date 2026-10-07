@@ -10,7 +10,12 @@
 // Routes are deliberately the ones the web already serves — /stats keeps its
 // path and only the label reads "Progress", so nothing about the web app moves.
 
-import { ChartColumn, LayoutGrid, Settings, type LucideIcon } from "lucide-react";
+import {
+  ChartColumn,
+  LayoutGrid,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 
 export interface NavTab {
   /** Canonical path, without the static-export trailing slash. */

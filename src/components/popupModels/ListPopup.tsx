@@ -24,7 +24,7 @@ interface CreateListModalProps {
     listData: Omit<
       List,
       "id" | "created_at" | "tasks" | "notes" | "collections"
-    >
+    >,
   ) => Promise<SubmissionResult> | void;
   existingLists?: { id: string; list_name: string | null }[]; // Added for validation
 }
@@ -40,8 +40,8 @@ const createUTCDate = (): Date => {
       now.getDate(),
       now.getHours(),
       now.getMinutes(),
-      now.getSeconds()
-    )
+      now.getSeconds(),
+    ),
   );
 };
 
@@ -110,7 +110,7 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
       const caseInsensitiveMatch = allLists.find(
         (list) =>
           list.list_name &&
-          list.list_name.toLowerCase() === name.trim().toLowerCase()
+          list.list_name.toLowerCase() === name.trim().toLowerCase(),
       );
 
       if (caseInsensitiveMatch) {
@@ -119,7 +119,7 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
 
       return null; // Validation passed
     },
-    [allLists]
+    [allLists],
   );
 
   // Real-time validation as user types
@@ -141,7 +141,7 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
         }
       }
     },
-    [error, validateListName]
+    [error, validateListName],
   );
 
   // Reset, then focus, when the modal opens.
@@ -248,7 +248,7 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
       } else if (existingLists && existingLists.length > 0) {
         const existingName = existingLists[0].list_name;
         setError(
-          `A list named "${existingName}" already exists (case-insensitive)`
+          `A list named "${existingName}" already exists (case-insensitive)`,
         );
         setIsLoading(false);
         setIsSubmitting(false);
@@ -348,7 +348,6 @@ const CreateListModal: React.FC<CreateListModalProps> = ({
 
   // Check if form is valid for submit button state
   const isFormValid = listName.trim() && !validateListName(listName);
-
 
   return (
     <ModalShell

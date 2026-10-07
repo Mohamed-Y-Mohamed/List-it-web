@@ -59,7 +59,7 @@ export function useLongPress({ onLongPress, onTap }: LongPressHandlers) {
         onLongPress({ x, y });
       }, LONG_PRESS_MS);
     },
-    [onLongPress]
+    [onLongPress],
   );
 
   const onPointerDown = useCallback(
@@ -68,7 +68,7 @@ export function useLongPress({ onLongPress, onTap }: LongPressHandlers) {
       if (event.button !== 0) return;
       start(event.clientX, event.clientY);
     },
-    [start]
+    [start],
   );
 
   const onPointerMove = useCallback(
@@ -85,7 +85,7 @@ export function useLongPress({ onLongPress, onTap }: LongPressHandlers) {
         clear();
       }
     },
-    [clear]
+    [clear],
   );
 
   const onPointerUp = useCallback(() => {

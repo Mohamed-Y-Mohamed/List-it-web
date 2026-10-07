@@ -60,7 +60,7 @@ export default function NativeHelpSheet({
       setDirection(next > index ? 1 : -1);
       setIndex(next);
     },
-    [index]
+    [index],
   );
 
   // Closing resets to the top. The sheet is a reference rather than a sequence, so
@@ -94,7 +94,7 @@ export default function NativeHelpSheet({
       if (forward && index < HELP_TOPICS.length - 1) go(index + 1);
       else if (back && index > 0) go(index - 1);
     },
-    [index, go]
+    [index, go],
   );
 
   // Distance is small and the fade carries it. A full-width slide inside a sheet

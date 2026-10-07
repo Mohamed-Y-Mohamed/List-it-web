@@ -28,7 +28,10 @@ export async function GET() {
     return NextResponse.json({ data });
   } catch (err) {
     logger.error("GET /api/user/profile unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -61,6 +64,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ data });
   } catch (err) {
     logger.error("PATCH /api/user/profile unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

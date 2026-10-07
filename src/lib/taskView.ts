@@ -107,7 +107,12 @@ export interface DueDateBands {
  * given, so the caller sorts once rather than each band re-sorting.
  */
 export function bandByDueDate(tasks: TaskRow[], today: Date): DueDateBands {
-  const bands: DueDateBands = { overdue: [], today: [], tomorrow: [], upcoming: [] };
+  const bands: DueDateBands = {
+    overdue: [],
+    today: [],
+    tomorrow: [],
+    upcoming: [],
+  };
 
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -139,7 +144,13 @@ export function daysBetween(dueDate: string, today: Date): number {
  */
 export function sortTasks(tasks: TaskRow[]): TaskRow[] {
   return [...tasks].sort((a, b) => {
-    if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+    // Booleans, not the raw values. `is_pinned` is nullable and `null !== false`
+    // is true, so a null-against-false pair took this branch and returned 1 in
+    // both directions — an inconsistent comparator, and rows with a NULL column
+    // reordered between renders for no reason the user could see.
+    const aPinned = Boolean(a.is_pinned);
+    const bPinned = Boolean(b.is_pinned);
+    if (aPinned !== bPinned) return aPinned ? -1 : 1;
 
     const aHasDue = !!a.due_date;
     const bHasDue = !!b.due_date;

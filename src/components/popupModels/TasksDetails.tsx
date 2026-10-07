@@ -83,11 +83,11 @@ interface TaskSidebarProps {
   };
   onComplete: (
     taskId: string,
-    is_completed: boolean
+    is_completed: boolean,
   ) => Promise<OperationResult> | void;
   onPriorityChange: (
     taskId: string,
-    is_pinned: boolean
+    is_pinned: boolean,
   ) => Promise<OperationResult> | void;
   onTaskUpdate?: (
     taskId: string,
@@ -96,12 +96,19 @@ interface TaskSidebarProps {
       description?: string | null;
       due_date?: Date | null;
       is_pinned: boolean;
-    }
+      /**
+       * This sheet has always passed these two and never declared them, so a
+       * parent wanting to keep its own copy of the row in step could not see
+       * them and went stale until the next refetch.
+       */
+      due_has_time?: boolean;
+      reminders?: unknown;
+    },
   ) => Promise<OperationResult> | void;
   collections?: Collection[];
   onCollectionChange?: (
     taskId: string,
-    collectionId: string
+    collectionId: string,
   ) => Promise<OperationResult> | void;
   onTaskDelete?: (taskId: string) => Promise<OperationResult> | void;
   /** The list this task sits in, for the relationship row. */
@@ -144,9 +151,8 @@ const TaskSidebar = ({
   const sheetRef = useRef<HTMLDivElement>(null);
 
   // --- COLLECTIONS FOR THIS TASK'S LIST ---
-  const [collections, setCollections] = useState<CollectionOption[]>(
-    externalCollections
-  );
+  const [collections, setCollections] =
+    useState<CollectionOption[]>(externalCollections);
 
   useEffect(() => {
     if (!isOpen || !user) return;
@@ -167,23 +173,25 @@ const TaskSidebar = ({
   // --- FORM STATE ---
   const [taskText, setTaskText] = useState<string>(task.text || "");
   const [taskDescription, setTaskDescription] = useState<string>(
-    task.description || ""
+    task.description || "",
   );
   const [dueDate, setDueDate] = useState<string>(
-    task.due_date ? formatDateForInput(task.due_date, Boolean(task.due_has_time)) : ""
+    task.due_date
+      ? formatDateForInput(task.due_date, Boolean(task.due_has_time))
+      : "",
   );
   const [dueTime, setDueTime] = useState<string>(
-    task.due_has_time && task.due_date ? formatTimeForInput(task.due_date) : ""
+    task.due_has_time && task.due_date ? formatTimeForInput(task.due_date) : "",
   );
   const [reminders, setReminders] = useState<Reminder[]>(
-    parseReminders(task.reminders)
+    parseReminders(task.reminders),
   );
   const [selectedCollection, setSelectedCollection] = useState<string>(
-    task.collection_id || ""
+    task.collection_id || "",
   );
   const [isPinned, setIsPinned] = useState<boolean>(task.is_pinned || false);
   const [isCompleted, setIsCompleted] = useState<boolean>(
-    task.is_completed || false
+    task.is_completed || false,
   );
 
   const [isTaskChanged, setIsTaskChanged] = useState<boolean>(false);
@@ -216,10 +224,14 @@ const TaskSidebar = ({
     setTaskText(task.text || "");
     setTaskDescription(task.description || "");
     setDueDate(
-      task.due_date ? formatDateForInput(task.due_date, Boolean(task.due_has_time)) : ""
+      task.due_date
+        ? formatDateForInput(task.due_date, Boolean(task.due_has_time))
+        : "",
     );
     setDueTime(
-      task.due_has_time && task.due_date ? formatTimeForInput(task.due_date) : ""
+      task.due_has_time && task.due_date
+        ? formatTimeForInput(task.due_date)
+        : "",
     );
     setReminders(parseReminders(task.reminders));
     setSelectedCollection(task.collection_id || "");
@@ -253,7 +265,9 @@ const TaskSidebar = ({
       ? formatDateForInput(task.due_date, Boolean(task.due_has_time))
       : "";
     const oldDueTime =
-      task.due_has_time && task.due_date ? formatTimeForInput(task.due_date) : "";
+      task.due_has_time && task.due_date
+        ? formatTimeForInput(task.due_date)
+        : "";
 
     // Compared as JSON because both are plain data off a jsonb column; a deep
     // equality helper for two shapes this small would be ceremony.
@@ -267,7 +281,15 @@ const TaskSidebar = ({
         JSON.stringify(parseReminders(task.reminders));
 
     setIsTaskChanged(changed);
-  }, [taskText, taskDescription, dueDate, dueTime, selectedCollection, reminders, task]);
+  }, [
+    taskText,
+    taskDescription,
+    dueDate,
+    dueTime,
+    selectedCollection,
+    reminders,
+    task,
+  ]);
 
   // --- CLEANUP TIMEOUTS ---
   useEffect(
@@ -275,12 +297,12 @@ const TaskSidebar = ({
       if (errorTimer.current) clearTimeout(errorTimer.current);
       if (successTimer.current) clearTimeout(successTimer.current);
     },
-    []
+    [],
   );
 
   function formatDateForInput(
     date: Date | string | null | undefined,
-    hasTime = false
+    hasTime = false,
   ): string {
     if (!date) return "";
     try {
@@ -332,7 +354,7 @@ const TaskSidebar = ({
    * intent has to be held somewhere until it does.
    */
   const [pendingDiscard, setPendingDiscard] = useState<null | "close" | "edit">(
-    null
+    null,
   );
 
   const handleClose = useCallback(() => {
@@ -348,10 +370,14 @@ const TaskSidebar = ({
     setTaskText(task.text || "");
     setTaskDescription(task.description || "");
     setDueDate(
-      task.due_date ? formatDateForInput(task.due_date, Boolean(task.due_has_time)) : ""
+      task.due_date
+        ? formatDateForInput(task.due_date, Boolean(task.due_has_time))
+        : "",
     );
     setDueTime(
-      task.due_has_time && task.due_date ? formatTimeForInput(task.due_date) : ""
+      task.due_has_time && task.due_date
+        ? formatTimeForInput(task.due_date)
+        : "",
     );
     setReminders(parseReminders(task.reminders));
     setSelectedCollection(task.collection_id || "");
@@ -401,7 +427,7 @@ const TaskSidebar = ({
 
   /** Past its due day and still open. Drives the rose chip. */
   const isOverdue = Boolean(
-    dueDate && !isCompleted && dueDate < toDateKey(new Date())
+    dueDate && !isCompleted && dueDate < toDateKey(new Date()),
   );
 
   const dueLabel = dueDate ? formatDateKey(dueDate, dueTime || null) : null;
@@ -414,8 +440,8 @@ const TaskSidebar = ({
 
   /** The collection's stored colour, for the sheet's restrained tint. */
   const collectionColor =
-    collections.find((c) => c.id === (task.collection_id || ""))?.bg_color_hex ??
-    null;
+    collections.find((c) => c.id === (task.collection_id || ""))
+      ?.bg_color_hex ?? null;
 
   const formattedCompletedDate = task.date_completed
     ? formatDetailDate(task.date_completed)
@@ -431,7 +457,7 @@ const TaskSidebar = ({
       result &&
         typeof result === "object" &&
         "success" in result &&
-        !(result as OperationResult).success
+        !(result as OperationResult).success,
     );
 
   const toggleCompleted = async () => {
@@ -504,7 +530,7 @@ const TaskSidebar = ({
       // one screen and done on another.
       const completion = applyCompletion(
         { due_date: task.due_date, repeat_rule: task.repeat_rule },
-        isCompleted
+        isCompleted,
       );
 
       const updateData = {
@@ -539,7 +565,9 @@ const TaskSidebar = ({
         const result = await onTaskUpdate(task.id, updateData);
         if (resultFailed(result)) {
           throw new Error(
-            String((result as OperationResult).error || "Failed to update task")
+            String(
+              (result as OperationResult).error || "Failed to update task",
+            ),
           );
         }
       }
@@ -579,8 +607,9 @@ const TaskSidebar = ({
         if (resultFailed(result)) {
           throw new Error(
             String(
-              (result as OperationResult).error || "Failed to update collection"
-            )
+              (result as OperationResult).error ||
+                "Failed to update collection",
+            ),
           );
         }
         return { success: true };
@@ -649,7 +678,9 @@ const TaskSidebar = ({
         const result = await onTaskDelete(task.id);
         if (resultFailed(result)) {
           throw new Error(
-            String((result as OperationResult).error || "Failed to delete task")
+            String(
+              (result as OperationResult).error || "Failed to delete task",
+            ),
           );
         }
       }
@@ -670,7 +701,7 @@ const TaskSidebar = ({
     label: string,
     onClick: () => void,
     color: string,
-    disabled?: boolean
+    disabled?: boolean,
   ) => (
     <button
       type="button"
@@ -687,7 +718,7 @@ const TaskSidebar = ({
     label: string,
     onClick: () => void,
     disabled?: boolean,
-    tone?: string
+    tone?: string,
   ) => (
     <button
       type="button"
@@ -721,7 +752,7 @@ const TaskSidebar = ({
                 "Edit task",
                 () => setIsEditing(true),
                 PRIMARY,
-                isProcessing
+                isProcessing,
               )}
               {/* Delete sits here and nowhere near the completion control at the
                   top. They are one tap apart in intent and a world apart in
@@ -730,7 +761,7 @@ const TaskSidebar = ({
                 "Delete",
                 () => setShowDeleteConfirmation(true),
                 isProcessing,
-                DANGER
+                DANGER,
               )}
             </>
           ) : (
@@ -739,7 +770,7 @@ const TaskSidebar = ({
                 isSaving ? "Saving..." : "Save changes",
                 handleSaveTask,
                 PRIMARY,
-                isProcessing || !isTaskChanged || !taskText.trim()
+                isProcessing || !isTaskChanged || !taskText.trim(),
               )}
               {ghostButton("Cancel", handleCancelEdit, isProcessing)}
             </>
@@ -819,7 +850,10 @@ const TaskSidebar = ({
                   style={{ backgroundColor: isCompleted ? SUCCESS : INFO }}
                   aria-hidden="true"
                 />
-                <span style={{ color: isCompleted ? SUCCESS : undefined }} className={isCompleted ? "" : mutedText}>
+                <span
+                  style={{ color: isCompleted ? SUCCESS : undefined }}
+                  className={isCompleted ? "" : mutedText}
+                >
                   {isCompleted ? "Completed" : "Incomplete"}
                 </span>
                 {isCompleted && formattedCompletedDate && (
@@ -844,7 +878,11 @@ const TaskSidebar = ({
                 isDark={isDark}
               />
               <MetaToggle
-                icon={<Pin className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`} />}
+                icon={
+                  <Pin
+                    className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`}
+                  />
+                }
                 label="Pin"
                 activeLabel="Pinned"
                 active={isPinned}
@@ -858,7 +896,11 @@ const TaskSidebar = ({
             <div className="space-y-1.5">
               <SectionLabel isDark={isDark}>Due date</SectionLabel>
               {dueLabel ? (
-                <DateChip label={dueLabel} overdue={isOverdue} isDark={isDark} />
+                <DateChip
+                  label={dueLabel}
+                  overdue={isOverdue}
+                  isDark={isDark}
+                />
               ) : (
                 <button
                   type="button"
@@ -915,7 +957,10 @@ const TaskSidebar = ({
                 value={taskText}
                 onChange={(event) => {
                   setTaskText(event.target.value);
-                  if (error === "Task name is required" && event.target.value.trim()) {
+                  if (
+                    error === "Task name is required" &&
+                    event.target.value.trim()
+                  ) {
                     setError(null);
                   }
                 }}
@@ -982,7 +1027,9 @@ const TaskSidebar = ({
                     // lit over nothing. Fixed-time reminders are unaffected.
                     if (!nextDate) {
                       setReminders((current) =>
-                        current.filter((reminder) => reminder.kind === "absolute")
+                        current.filter(
+                          (reminder) => reminder.kind === "absolute",
+                        ),
                       );
                     }
                   }}
@@ -991,7 +1038,11 @@ const TaskSidebar = ({
               ) : (
                 <div className="flex items-center gap-2">
                   {dueLabel ? (
-                    <DateChip label={dueLabel} overdue={isOverdue} isDark={isDark} />
+                    <DateChip
+                      label={dueLabel}
+                      overdue={isOverdue}
+                      isDark={isDark}
+                    />
                   ) : (
                     <span className={`text-[14px] ${mutedText}`}>Not set</span>
                   )}
@@ -1045,7 +1096,11 @@ const TaskSidebar = ({
                   isDark={isDark}
                 />
                 <MetaToggle
-                  icon={<Pin className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`} />}
+                  icon={
+                    <Pin
+                      className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`}
+                    />
+                  }
                   label="Pin"
                   activeLabel="Pinned"
                   active={isPinned}

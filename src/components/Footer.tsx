@@ -45,7 +45,8 @@ const Footer = () => {
                 isDark ? "text-gray-400" : "text-gray-600"
               }`}
             >
-              Simple task & note management platform to help you stay organized and productive.
+              Simple task & note management platform to help you stay organized
+              and productive.
             </p>
 
             {/* Download links */}

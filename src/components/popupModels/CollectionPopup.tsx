@@ -59,7 +59,8 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
       const caseInsensitiveMatch = existingCollections.some(
         (collection) =>
           collection.collection_name &&
-          collection.collection_name.toLowerCase() === name.trim().toLowerCase()
+          collection.collection_name.toLowerCase() ===
+            name.trim().toLowerCase(),
       );
 
       if (caseInsensitiveMatch) {
@@ -68,7 +69,7 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
           (collection) =>
             collection.collection_name &&
             collection.collection_name.toLowerCase() ===
-              name.trim().toLowerCase()
+              name.trim().toLowerCase(),
         )?.collection_name;
 
         return `A collection named "${existingName}" already exists (case-insensitive)`;
@@ -76,7 +77,7 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
 
       return null; // Validation passed
     },
-    [existingCollections]
+    [existingCollections],
   );
 
   // Real-time validation as user types
@@ -101,14 +102,14 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
         }
       }
     },
-    [error, validateCollectionName]
+    [error, validateCollectionName],
   );
 
   useEffect(() => {
     if (isOpen) {
       setCollectionName(initialName);
       setSelectedColor(initialColor || "");
-      colorInitializedRef.current = !!(initialColor);
+      colorInitializedRef.current = !!initialColor;
       setError(null);
       setIsSubmitting(false);
       setTimeout(() => {
@@ -198,7 +199,7 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
       } catch (err: unknown) {
         console.error("Error submitting collection:", err);
         setError(
-          err instanceof Error ? err.message : "Failed to create collection"
+          err instanceof Error ? err.message : "Failed to create collection",
         );
       } finally {
         setIsLoading(false);
@@ -214,13 +215,12 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
       onSubmit,
       onClose,
       user,
-    ]
+    ],
   );
 
   // Check if form is valid for submit button state
   const isFormValid =
     collectionName.trim() && !validateCollectionName(collectionName);
-
 
   return (
     <ModalShell

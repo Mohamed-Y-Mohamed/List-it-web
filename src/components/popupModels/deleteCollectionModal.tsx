@@ -59,7 +59,7 @@ const DeleteCollectionModal = ({
     setSelectedCollections((prev) =>
       prev.includes(collectionId)
         ? prev.filter((id) => id !== collectionId)
-        : [...prev, collectionId]
+        : [...prev, collectionId],
     );
   };
 

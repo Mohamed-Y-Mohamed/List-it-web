@@ -155,7 +155,7 @@ export default function SwipeableRow({
 
       setOpen(next);
     },
-    [leadingWidth, trailingWidth, panelWidth, open]
+    [leadingWidth, trailingWidth, panelWidth, open],
   );
 
   const fire = useCallback((action: SwipeAction) => {
@@ -164,7 +164,11 @@ export default function SwipeableRow({
   }, []);
 
   const targetX =
-    open === "trailing" ? -trailingWidth : open === "leading" ? leadingWidth : 0;
+    open === "trailing"
+      ? -trailingWidth
+      : open === "leading"
+        ? leadingWidth
+        : 0;
 
   // Only the sides that actually have an action can be dragged towards, so a row
   // with one action cannot be pulled open in a direction that reveals nothing.
@@ -182,7 +186,7 @@ export default function SwipeableRow({
 
   const renderActions = (
     actions: SwipeAction[],
-    side: "leading" | "trailing"
+    side: "leading" | "trailing",
   ) => (
     // One strip pinned to the edge, panels laid out inside it in the order given.
     // Passing the destructive action last puts it against the outer edge, furthest
@@ -233,10 +237,14 @@ export default function SwipeableRow({
     // is needed once the row starts moving, or the card slides out past the edge of
     // the collection it sits in — but at rest it would clip the card's own
     // `hover:shadow-xl`, which is a visible change to a card nobody is touching.
-    <div className={`relative ${revealed ? `overflow-hidden ${radiusClass}` : ""}`}>
-      {revealed && leadingActions.length > 0 &&
+    <div
+      className={`relative ${revealed ? `overflow-hidden ${radiusClass}` : ""}`}
+    >
+      {revealed &&
+        leadingActions.length > 0 &&
         renderActions(leadingActions, "leading")}
-      {revealed && trailingActions.length > 0 &&
+      {revealed &&
+        trailingActions.length > 0 &&
         renderActions(trailingActions, "trailing")}
 
       <motion.div

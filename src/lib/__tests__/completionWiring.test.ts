@@ -26,8 +26,7 @@ const WRITE_PATHS = [
   "components/popupModels/TasksDetails.tsx",
 ];
 
-const read = (relative: string) =>
-  readFileSync(join(ROOT, relative), "utf8");
+const read = (relative: string) => readFileSync(join(ROOT, relative), "utf8");
 
 describe("completion wiring", () => {
   it.each(WRITE_PATHS)("%s decides completion with applyCompletion", (file) => {
@@ -45,7 +44,7 @@ describe("completion wiring", () => {
       // `is_completed: patch.is_completed` are the correct forms and are allowed.
       const rawWrites = source.match(/is_completed:\s*isCompleted\b/g) ?? [];
       expect(rawWrites).toEqual([]);
-    }
+    },
   );
 
   it("date_completed is never stamped alongside a raw completion flag", () => {
@@ -54,7 +53,7 @@ describe("completion wiring", () => {
     for (const file of WRITE_PATHS) {
       const source = read(file);
       expect(source).not.toMatch(
-        /date_completed:\s*isCompleted\s*\?\s*new Date\(\)/
+        /date_completed:\s*isCompleted\s*\?\s*new Date\(\)/,
       );
     }
   });

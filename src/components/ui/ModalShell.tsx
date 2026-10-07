@@ -86,9 +86,7 @@ export default function ModalShell({
           aria-modal="true"
           aria-label={title}
           className={`pointer-events-auto flex max-h-[92dvh] w-full flex-col border shadow-2xl ${hairline} ${
-            IS_NATIVE_BUILD
-              ? "rounded-t-[22px]"
-              : "mx-4 max-w-md rounded-2xl"
+            IS_NATIVE_BUILD ? "rounded-t-[22px]" : "mx-4 max-w-md rounded-2xl"
           }`}
           style={{ backgroundColor: surface }}
         >
@@ -119,7 +117,9 @@ export default function ModalShell({
 
           <div
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4"
-            style={{ paddingBottom: "calc(var(--keyboard-offset, 0px) + 0.5rem)" }}
+            style={{
+              paddingBottom: "calc(var(--keyboard-offset, 0px) + 0.5rem)",
+            }}
           >
             {children}
           </div>
@@ -138,6 +138,6 @@ export default function ModalShell({
         </div>
       </div>
     </>,
-    document.body
+    document.body,
   );
 }

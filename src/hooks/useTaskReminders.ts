@@ -13,6 +13,7 @@ import { useEffect } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
 import { isNativeApp } from "@/lib/platform";
 import { syncTaskReminders } from "@/lib/notifications";
+import { NOTIFICATION_PREFS_CHANGED } from "@/lib/notificationPrefs";
 import type { Task } from "@/types/schema";
 
 export function useTaskReminders(tasks: Task[], loaded: boolean): void {
@@ -40,8 +41,15 @@ export function useTaskReminders(tasks: Task[], loaded: boolean): void {
     // turned off while the app sat in the background.
     const listener = CapacitorApp.addListener("resume", sync);
 
+    // And the moment the master switch moves. Settings is an in-app tab, so
+    // flipping it fired neither trigger above: reminders turned off kept firing
+    // until the app was next backgrounded, and turned back on scheduled nothing
+    // while the switch read On.
+    window.addEventListener(NOTIFICATION_PREFS_CHANGED, sync);
+
     return () => {
       cancelled = true;
+      window.removeEventListener(NOTIFICATION_PREFS_CHANGED, sync);
       void listener.then((handle) => handle.remove()).catch(() => {});
     };
   }, [tasks, loaded]);

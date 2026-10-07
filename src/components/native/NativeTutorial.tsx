@@ -93,7 +93,7 @@ export default function NativeTutorial({ onDone }: { onDone: () => void }) {
       setDirection(next > index ? 1 : -1);
       setIndex(next);
     },
-    [index]
+    [index],
   );
 
   const advance = useCallback(() => {
@@ -122,7 +122,7 @@ export default function NativeTutorial({ onDone }: { onDone: () => void }) {
       if (forward && index < STEPS.length - 1) go(index + 1);
       else if (back && index > 0) go(index - 1);
     },
-    [index, go]
+    [index, go],
   );
 
   // Distance is small and the fade does most of the work — a full-width slide

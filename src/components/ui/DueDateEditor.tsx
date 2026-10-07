@@ -62,7 +62,9 @@ export default function DueDateEditor({
   return (
     <div
       className={`space-y-4 rounded-2xl border p-3.5 ${
-        isDark ? "border-white/[0.08] bg-white/[0.03]" : "border-black/[0.06] bg-black/[0.02]"
+        isDark
+          ? "border-white/[0.08] bg-white/[0.03]"
+          : "border-black/[0.06] bg-black/[0.02]"
       }`}
     >
       <div className="flex flex-wrap gap-2">
@@ -88,7 +90,9 @@ export default function DueDateEditor({
               setDraftTime("");
             }}
             className={`min-h-[36px] rounded-full px-3.5 text-[13px] font-medium transition-colors ${
-              isDark ? "bg-white/[0.06] text-rose-300" : "bg-black/[0.04] text-rose-600"
+              isDark
+                ? "bg-white/[0.06] text-rose-300"
+                : "bg-black/[0.04] text-rose-600"
             }`}
           >
             Clear date
@@ -110,7 +114,9 @@ export default function DueDateEditor({
         <div>
           <div className="relative">
             <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
-              <Clock className={`h-4 w-4 ${isDark ? "text-gray-500" : "text-gray-400"}`} />
+              <Clock
+                className={`h-4 w-4 ${isDark ? "text-gray-500" : "text-gray-400"}`}
+              />
             </span>
             <input
               type="time"
@@ -122,7 +128,9 @@ export default function DueDateEditor({
             />
           </div>
           {!draftTime && (
-            <p className={`pt-1.5 text-[11px] ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+            <p
+              className={`pt-1.5 text-[11px] ${isDark ? "text-gray-500" : "text-gray-400"}`}
+            >
               Optional. With no time it is due any time that day.
             </p>
           )}
@@ -132,7 +140,9 @@ export default function DueDateEditor({
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => onDone(draftDate, draftDate ? draftTime || null : null)}
+          onClick={() =>
+            onDone(draftDate, draftDate ? draftTime || null : null)
+          }
           className="min-h-[44px] flex-1 rounded-xl text-[14px] font-semibold text-white transition-opacity active:opacity-80"
           style={{ backgroundColor: INFO }}
         >

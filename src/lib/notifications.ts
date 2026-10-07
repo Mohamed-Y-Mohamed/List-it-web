@@ -167,7 +167,10 @@ export interface PlannedReminder {
  * same 32-bit id would mean one silently replacing the other, and a reminder that
  * never arrives is worse than one that was never offered.
  */
-export function planReminders(tasks: Task[], now: Date = new Date()): PlannedReminder[] {
+export function planReminders(
+  tasks: Task[],
+  now: Date = new Date(),
+): PlannedReminder[] {
   const planned: PlannedReminder[] = [];
   const seenIds = new Set<number>();
 
@@ -217,7 +220,7 @@ export function planReminders(tasks: Task[], now: Date = new Date()): PlannedRem
  */
 export async function syncTaskReminders(
   tasks: Task[],
-  now: Date = new Date()
+  now: Date = new Date(),
 ): Promise<number> {
   if (!isNativeApp()) return 0;
 

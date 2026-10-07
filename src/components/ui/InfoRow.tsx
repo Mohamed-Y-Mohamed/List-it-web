@@ -26,7 +26,9 @@ export default function InfoRow({
 
   return (
     <div className="flex min-h-[32px] items-baseline justify-between gap-4">
-      <span className={`text-[13px] ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+      <span
+        className={`text-[13px] ${isDark ? "text-gray-500" : "text-gray-400"}`}
+      >
         {label}
       </span>
       <span

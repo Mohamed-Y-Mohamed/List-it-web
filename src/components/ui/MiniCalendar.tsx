@@ -95,7 +95,7 @@ export default function MiniCalendar({
 
   const monthLabel = new Date(cursor.year, cursor.month, 1).toLocaleDateString(
     undefined,
-    { month: "long", year: "numeric" }
+    { month: "long", year: "numeric" },
   );
 
   const step = (delta: number) => {
@@ -109,13 +109,20 @@ export default function MiniCalendar({
     `${cursor.year}-${`${cursor.month + 1}`.padStart(2, "0")}-${`${day}`.padStart(2, "0")}`;
 
   const navClass = `flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
-    isDark ? "text-gray-300 active:bg-white/10" : "text-gray-600 active:bg-black/5"
+    isDark
+      ? "text-gray-300 active:bg-white/10"
+      : "text-gray-600 active:bg-black/5"
   }`;
 
   return (
     <div>
       <div className="flex items-center justify-between pb-2">
-        <button type="button" onClick={() => step(-1)} aria-label="Previous month" className={navClass}>
+        <button
+          type="button"
+          onClick={() => step(-1)}
+          aria-label="Previous month"
+          className={navClass}
+        >
           <ChevronLeft className="h-4 w-4" />
         </button>
         <span
@@ -124,7 +131,12 @@ export default function MiniCalendar({
         >
           {monthLabel}
         </span>
-        <button type="button" onClick={() => step(1)} aria-label="Next month" className={navClass}>
+        <button
+          type="button"
+          onClick={() => step(1)}
+          aria-label="Next month"
+          className={navClass}
+        >
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>

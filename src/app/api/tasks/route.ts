@@ -18,10 +18,7 @@ export async function GET(request: NextRequest) {
   const supabase = await getRouteClient();
 
   try {
-    let query = supabase
-      .from("task")
-      .select("*")
-      .eq("user_id", user.id);
+    let query = supabase.from("task").select("*").eq("user_id", user.id);
 
     const listId = searchParams.get("list_id");
     const collectionId = searchParams.get("collection_id");
@@ -31,11 +28,15 @@ export async function GET(request: NextRequest) {
 
     if (listId) query = query.eq("list_id", listId);
     if (collectionId) query = query.eq("collection_id", collectionId);
-    if (isCompleted !== null) query = query.eq("is_completed", isCompleted === "true");
-    if (isDeleted !== null) query = query.eq("is_deleted", isDeleted === "true");
+    if (isCompleted !== null)
+      query = query.eq("is_completed", isCompleted === "true");
+    if (isDeleted !== null)
+      query = query.eq("is_deleted", isDeleted === "true");
     if (isPinned !== null) query = query.eq("is_pinned", isPinned === "true");
 
-    const { data, error } = await query.order("created_at", { ascending: false });
+    const { data, error } = await query.order("created_at", {
+      ascending: false,
+    });
 
     if (error) {
       logger.error("GET /api/tasks error", error);
@@ -45,7 +46,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data });
   } catch (err) {
     logger.error("GET /api/tasks unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -80,7 +84,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data }, { status: 201 });
   } catch (err) {
     logger.error("POST /api/tasks unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -96,7 +103,10 @@ export async function PATCH(request: NextRequest) {
     delete updates.user_id;
 
     if (!id) {
-      return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Task ID is required" },
+        { status: 400 },
+      );
     }
 
     const supabase = await getRouteClient();
@@ -117,7 +127,10 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ data });
   } catch (err) {
     logger.error("PATCH /api/tasks unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -132,7 +145,10 @@ export async function DELETE(request: NextRequest) {
     const { id, hard } = body;
 
     if (!id) {
-      return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Task ID is required" },
+        { status: 400 },
+      );
     }
 
     const supabase = await getRouteClient();
@@ -160,6 +176,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (err) {
     logger.error("DELETE /api/tasks unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

@@ -104,21 +104,19 @@ const writeListCache = (
    DATE FORMATTER
    ========================================================= */
 
-const formatDateForPostgres = (date: Date): string => {
-  const year = date.getFullYear();
-
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-
-  const day = String(date.getDate()).padStart(2, "0");
-
-  const hours = String(date.getHours()).padStart(2, "0");
-
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-};
+/**
+ * An instant, serialised so the database cannot misread it.
+ *
+ * This used to build `YYYY-MM-DD HH:MM:SS` from the local getters, which is a
+ * wall-clock string carrying no offset — Postgres then read it in the server's
+ * zone. A task due 17:00 in BST was stored as 17:00Z and read back as 18:00,
+ * and `composeDue`'s UTC-noon date-only marker was shifted off noon entirely,
+ * which moved the day for anyone far enough east.
+ *
+ * `TasksDetails` never had the problem because it hands the `Date` to
+ * `JSON.stringify`, which calls `toISOString`. This is that, named.
+ */
+const toPostgresInstant = (date: Date): string => date.toISOString();
 
 /* =========================================================
    DELETE TASK API
@@ -273,8 +271,15 @@ export default function ListDetailView({ listId }: { listId: string }) {
       rows: T[],
     ): T[] =>
       [...rows].sort((a, b) => {
-        if (a.is_pinned !== b.is_pinned) {
-          return a.is_pinned ? -1 : 1;
+        // Compared as booleans. The column is nullable, and `null !== false` is
+        // true, so a null-against-false pair took this branch and returned 1
+        // whichever way round it was asked — a comparator that contradicts
+        // itself, which the sort is entitled to do anything with.
+        const aPinned = Boolean(a.is_pinned);
+        const bPinned = Boolean(b.is_pinned);
+
+        if (aPinned !== bPinned) {
+          return aPinned ? -1 : 1;
         }
 
         return (
@@ -939,7 +944,7 @@ export default function ListDetailView({ listId }: { listId: string }) {
 
             bg_color_hex: collectionData.bg_color_hex,
 
-            created_at: formatDateForPostgres(new Date()),
+            created_at: toPostgresInstant(new Date()),
           }),
         });
 
@@ -995,6 +1000,15 @@ export default function ListDetailView({ listId }: { listId: string }) {
       description: string;
       is_pinned: boolean;
       due_date?: Date;
+      /**
+       * Both of these are sent by TaskPopup and were being dropped on the
+       * floor: the parameter type did not name them and the POST did not
+       * forward them. A task created with a reminder saved with `reminders`
+       * null and no `due_has_time`, so the picked time was discarded and
+       * nothing was ever scheduled — silently, with no error anywhere.
+       */
+      due_has_time?: boolean;
+      reminders?: unknown;
       collection_id?: string;
     }) => {
       if (!listData || !user) {
@@ -1030,8 +1044,12 @@ export default function ListDetailView({ listId }: { listId: string }) {
             is_pinned: taskData.is_pinned || false,
 
             due_date: taskData.due_date
-              ? formatDateForPostgres(taskData.due_date)
+              ? toPostgresInstant(taskData.due_date)
               : null,
+
+            due_has_time: taskData.due_has_time ?? false,
+
+            reminders: taskData.reminders ?? null,
 
             collection_id: collectionId,
 
@@ -1041,7 +1059,7 @@ export default function ListDetailView({ listId }: { listId: string }) {
 
             is_deleted: false,
 
-            created_at: formatDateForPostgres(new Date()),
+            created_at: toPostgresInstant(new Date()),
           }),
         });
 
@@ -1302,7 +1320,7 @@ export default function ListDetailView({ listId }: { listId: string }) {
             description: taskData.description ?? null,
 
             due_date: taskData.due_date
-              ? formatDateForPostgres(taskData.due_date)
+              ? toPostgresInstant(taskData.due_date)
               : null,
 
             is_pinned: taskData.is_pinned,

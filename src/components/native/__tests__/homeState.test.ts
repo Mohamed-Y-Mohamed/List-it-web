@@ -32,16 +32,16 @@ describe("homeState", () => {
   });
 
   it("shows lists once one exists", () => {
-    expect(
-      homeState({ ...base, userListCount: 1, matchingListCount: 1 })
-    ).toBe("lists");
+    expect(homeState({ ...base, userListCount: 1, matchingListCount: 1 })).toBe(
+      "lists",
+    );
   });
 
   it("is not a first run while a search is active", () => {
     // Someone with no lists who types anything is searching, not starting out —
     // offering to create a list here answers a question they did not ask.
     expect(
-      homeState({ ...base, search: "shopping", matchingDefaultCount: 0 })
+      homeState({ ...base, search: "shopping", matchingDefaultCount: 0 }),
     ).toBe("search-miss");
   });
 
@@ -57,7 +57,7 @@ describe("homeState", () => {
         userListCount: 3,
         matchingListCount: 0,
         matchingDefaultCount: 0,
-      })
+      }),
     ).toBe("search-miss");
   });
 
@@ -69,7 +69,7 @@ describe("homeState", () => {
         userListCount: 3,
         matchingListCount: 0,
         matchingDefaultCount: 1,
-      })
+      }),
     ).toBe("lists");
   });
 });

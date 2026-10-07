@@ -134,7 +134,7 @@ const hashId = (id: string, length: number): number =>
  */
 export const getTaskPalette = (
   collectionId: string | null | undefined,
-  isDark: boolean
+  isDark: boolean,
 ): TaskPalette => {
   if (!collectionId) return isDark ? NEUTRAL_DARK : NEUTRAL_LIGHT;
   return PALETTES[hashId(collectionId, PALETTES.length)];
@@ -146,7 +146,7 @@ export const getTaskPalette = (
  */
 export const getTaskBorderColor = (
   collectionId: string | null | undefined,
-  isDark: boolean
+  isDark: boolean,
 ): string => getTaskPalette(collectionId, isDark).border;
 
 /**
@@ -155,5 +155,5 @@ export const getTaskBorderColor = (
  */
 export const getTaskAccentColor = (
   collectionId: string | null | undefined,
-  isDark: boolean
+  isDark: boolean,
 ): string => getTaskPalette(collectionId, isDark).text;

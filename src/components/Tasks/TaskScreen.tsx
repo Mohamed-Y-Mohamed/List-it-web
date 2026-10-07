@@ -57,7 +57,11 @@ interface TaskScreenProps {
   loadingLabel: string;
   stats?: TaskScreenStat[];
   /** Passed when there is nothing to show; omitted when there is. */
-  empty?: { title: string; message: string; icon?: "check" | "calendar" | "plus" };
+  empty?: {
+    title: string;
+    message: string;
+    icon?: "check" | "calendar" | "plus";
+  };
   children: React.ReactNode;
 }
 

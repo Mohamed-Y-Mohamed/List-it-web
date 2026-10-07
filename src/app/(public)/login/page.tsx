@@ -88,7 +88,7 @@ function LoginWithSearchParams() {
 
       if (errorInHash === "access_denied" && errorCode === "otp_expired") {
         setError(
-          "Your verification link has expired. Please request a new one using the form below."
+          "Your verification link has expired. Please request a new one using the form below.",
         );
       } else if (errorInHash) {
         setError(errorDescription || "Authentication error. Please try again.");
@@ -106,7 +106,7 @@ function LoginWithSearchParams() {
       setSuccess("Email verified successfully! You can now log in.");
     } else if (isPasswordReset) {
       setSuccess(
-        "Password reset successfully! You can now log in with your new password."
+        "Password reset successfully! You can now log in with your new password.",
       );
     } else if (errorParam) {
       setError(decodeURIComponent(errorParam));
@@ -144,7 +144,7 @@ function LoginWithSearchParams() {
     try {
       const { success, error, isEmailUnverified } = await login(
         email.trim(),
-        password
+        password,
       );
 
       if (!success) {
@@ -193,12 +193,12 @@ function LoginWithSearchParams() {
 
       if (success) {
         setSuccess(
-          `Verification email sent to ${emailToVerify}! Please check your inbox.`
+          `Verification email sent to ${emailToVerify}! Please check your inbox.`,
         );
       } else if (isRateLimited && waitTime) {
         setWaitTime(waitTime);
         setError(
-          `Please wait ${waitTime} seconds before requesting another email.`
+          `Please wait ${waitTime} seconds before requesting another email.`,
         );
 
         // Start countdown timer
@@ -216,7 +216,7 @@ function LoginWithSearchParams() {
       } else {
         setError(
           error?.message ||
-            "Failed to resend verification email. Please try again."
+            "Failed to resend verification email. Please try again.",
         );
       }
     } catch (err: unknown) {
@@ -265,30 +265,30 @@ function LoginWithSearchParams() {
           spent on decoration. */}
       {!isNative && (
         <>
-      <motion.div
-        animate={{
-          y: [0, -20, 0],
-          opacity: [0.1, 0.2, 0.1],
-        }}
-        transition={{
-          duration: 6,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="absolute top-1/4 right-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"
-      />
-      <motion.div
-        animate={{
-          y: [0, 20, 0],
-          opacity: [0.1, 0.15, 0.1],
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl"
-      />
+          <motion.div
+            animate={{
+              y: [0, -20, 0],
+              opacity: [0.1, 0.2, 0.1],
+            }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute top-1/4 right-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{
+              y: [0, 20, 0],
+              opacity: [0.1, 0.15, 0.1],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl"
+          />
         </>
       )}
 
