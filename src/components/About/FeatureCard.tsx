@@ -27,7 +27,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
       whileInView={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay }}
       whileHover={{ y: -5, scale: 1.02 }}
-      className={`text-center p-6 rounded-xl backdrop-blur-sm border transition-all duration-300 group ${
+      className={`text-center p-6 rounded-xl border transition-all duration-300 group ${
         isDark
           ? "bg-gray-800/50 border-gray-700/50 hover:bg-gray-800/70"
           : "bg-white/50 border-gray-300/50 hover:bg-white/70"

@@ -33,7 +33,7 @@ const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
       whileInView={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay }}
       whileHover={{ y: -8, scale: 1.02 }}
-      className={`rounded-xl p-6 sm:p-8 transition-all duration-300 backdrop-blur-sm border group relative overflow-hidden ${
+      className={`rounded-xl p-6 sm:p-8 transition-all duration-300 border group relative overflow-hidden ${
         isDark
           ? "bg-gray-800/50 border-gray-700/50 hover:bg-gray-800/70 hover:shadow-xl hover:shadow-gray-900/20"
           : "bg-white/50 border-gray-300/50 hover:bg-white/70 hover:shadow-xl hover:shadow-gray-300/20"

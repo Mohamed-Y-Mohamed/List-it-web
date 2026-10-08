@@ -53,7 +53,7 @@ const AboutUs = () => {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className={`mb-4 sm:mb-6 inline-block rounded-full backdrop-blur-sm ${
+              className={`mb-4 sm:mb-6 inline-block rounded-full ${
                 isDark
                   ? "bg-indigo-900/30 text-indigo-400 border border-indigo-500/30"
                   : "bg-indigo-100 text-indigo-600 border border-indigo-200"
@@ -123,7 +123,7 @@ const AboutUs = () => {
               className="lg:w-2/3"
             >
               <div
-                className={`rounded-xl border-l-4 border-indigo-500 backdrop-blur-sm ${
+                className={`rounded-xl border-l-4 border-indigo-500 ${
                   isDark ? "bg-gray-800/50" : "bg-white/50"
                 } p-6 sm:p-8 shadow-xl border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
               >
@@ -202,7 +202,7 @@ const AboutUs = () => {
                 transition={{ duration: 0.3 }}
                 className="relative"
               >
-                <div className="rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 p-3 shadow-2xl w-48 h-48 sm:w-64 sm:h-64 flex items-center justify-center backdrop-blur-sm">
+                <div className="rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 p-3 shadow-2xl w-48 h-48 sm:w-64 sm:h-64 flex items-center justify-center">
                   <Image
                     src="/apple-touch-icon.png"
                     alt="LIST IT Logo"
@@ -353,7 +353,7 @@ const AboutUs = () => {
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className={`text-center p-8 sm:p-12 rounded-xl backdrop-blur-sm border ${
+            className={`text-center p-8 sm:p-12 rounded-xl border ${
               isDark
                 ? "bg-gray-800/50 border-gray-700/50"
                 : "bg-white/50 border-gray-300/50"
