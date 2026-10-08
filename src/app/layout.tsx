@@ -7,6 +7,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import PWAProvider from "@/components/PWAProvider";
 import NativeShell from "@/components/native/NativeShell";
 import { IS_NATIVE_BUILD } from "@/lib/platform";
+import { SURFACE_RAMPS } from "@/lib/surfaceTheme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -80,6 +81,38 @@ export default function RootLayout({
   return (
     <html lang="en" className="w-full h-full">
       <head>
+        {/* Paints the stored theme and background before the first frame.
+            Render-blocking on purpose, and kept to a few hundred bytes for it.
+
+            ThemeContext reads localStorage in an effect, which is after mount and
+            therefore after paint: a dark-mode user saw one white frame, and once
+            the background became a preference that frame could be the wrong colour
+            as well as the wrong brightness. The CSS defaults below it can only know
+            the system setting, not the choice.
+
+            Everything is inside a try/catch returning silently: the WebView throws
+            rather than returning null when site data is blocked, and a background
+            preference is not worth taking the document down over. */}
+        <script
+          id="surface-theme-no-flash"
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{
+var RAMPS=${JSON.stringify(SURFACE_RAMPS)};
+var t=localStorage.getItem('theme');
+if(t!=='dark'&&t!=='light'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
+document.documentElement.classList.toggle('dark',t==='dark');
+var c=localStorage.getItem('listit.surface.'+t);
+if(c!=='mono'&&c!=='cool'&&c!=='warm'){c='mono';}
+var r=RAMPS[t][c],s=document.documentElement.style;
+s.setProperty('--surface-field',r.field);
+s.setProperty('--surface-deep',r.deep);
+s.setProperty('--surface-raised',r.raised);
+s.setProperty('--surface-card',r.card);
+s.setProperty('--surface-selected',r.selected);
+s.setProperty('--surface-border',r.border);
+}catch(e){}})();`,
+          }}
+        />
         {gaId && (
           <>
             <script

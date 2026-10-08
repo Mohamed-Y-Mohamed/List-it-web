@@ -84,7 +84,7 @@ export function TaskStatsCard({
       transition={{ duration: 0.2 }}
       className={`rounded-2xl border p-4 ${
         isDark
-          ? "border-white/[0.08] bg-[#131A2B]"
+          ? "border-white/[0.08] bg-[var(--surface-card)]"
           : "border-black/[0.06] bg-white"
       }`}
     >

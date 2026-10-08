@@ -143,7 +143,10 @@ export default function SecureLayout({
             <div
               className={[
                 "relative min-h-screen",
-                onTabRoot ? "pb-tab-bar" : "",
+                // Every native screen, not only the three roots. The tab bar now
+                // stays visible across a push, so without this a pushed screen's
+                // last card sits underneath it.
+                "pb-tab-bar",
                 needsTopInset ? "pt-safe-top" : "",
               ]
                 .filter(Boolean)

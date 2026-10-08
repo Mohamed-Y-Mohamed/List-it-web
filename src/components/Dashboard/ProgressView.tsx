@@ -212,7 +212,7 @@ export default function ProgressView({
     [lists, tasks],
   );
 
-  const card = isDark ? "bg-[#131A2B]" : "bg-white";
+  const card = isDark ? "bg-[var(--surface-card)]" : "bg-white";
   const edge = isDark ? "border-white/[0.08]" : "border-black/[0.06]";
   const muted = isDark ? "text-gray-400" : "text-gray-500";
   const strong = isDark ? "text-white" : "text-gray-900";
@@ -309,7 +309,7 @@ export default function ProgressView({
                       onClick={() => setRange(option.id)}
                       className={`rounded-[10px] px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
                         range === option.id
-                          ? `${isDark ? "bg-[#1B2440]" : "bg-white"} ${strong}`
+                          ? `${isDark ? "bg-[var(--surface-selected)]" : "bg-white"} ${strong}`
                           : muted
                       }`}
                     >

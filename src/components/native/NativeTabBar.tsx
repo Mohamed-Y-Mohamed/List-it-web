@@ -47,10 +47,21 @@ export default function NativeTabBar() {
     [router],
   );
 
-  // Hidden on screens pushed above a tab root — a list detail is not a
-  // destination, and keeping the bar there would offer to navigate away from a
-  // half-finished edit.
-  if (activeIndex === -1) return null;
+  // Shown on pushed screens too, not just the three roots.
+  //
+  // It used to return null whenever the path was not a root, which left a list
+  // detail with no way to reach Progress or Settings except the back gesture. The
+  // screens were already built for the bar being there: the list's floating Add
+  // sits at `calc(56px + var(--safe-bottom) + 4px)`, which is exactly this bar's
+  // height, and cleared nothing while it was hidden. Both iOS and Material keep a
+  // tab bar across a push within a tab, and the edits this once worried about
+  // interrupting all happen in modal sheets above it rather than on the screen.
+  //
+  // Which tab lights up is a separate question from which one is tappable. Every
+  // pushed screen in this app is reached from Lists, so that is the one that reads
+  // as current — but it stays tappable, because tapping the tab you are already
+  // inside is how you get back to its root.
+  const highlightIndex = activeIndex === -1 ? 0 : activeIndex;
 
   return (
     <nav
@@ -61,8 +72,11 @@ export default function NativeTabBar() {
       // behind the gesture pill.
       className={`fixed inset-x-0 bottom-0 z-40 pb-safe-bottom ${
         isDark
-          ? "bg-gray-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-          : "bg-white/90 shadow-[inset_0_1px_0_rgba(16,24,40,0.07)]"
+          ? // The ground a step below the page, not a fixed gray-950. A tab bar
+            // that stayed near-black while the user chose the warm charcoal
+            // background read as a different material bolted to the bottom.
+            "bg-[var(--surface-deep)]/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+          : "bg-[var(--surface-deep)]/90 shadow-[inset_0_1px_0_rgba(16,24,40,0.07)]"
       } backdrop-blur-xl`}
     >
       <ul
@@ -70,6 +84,10 @@ export default function NativeTabBar() {
         style={{ height: `${TAB_BAR_HEIGHT_PX}px` }}
       >
         {NAV_TABS.map((tab, index) => {
+          // Display vs behaviour: `isCurrent` draws the indicator, `isActive` is
+          // the narrower "already standing on this exact root", which is what
+          // decides whether a tap has anywhere to go.
+          const isCurrent = index === highlightIndex;
           const isActive = index === activeIndex;
           const Icon = tab.icon;
 
@@ -78,14 +96,14 @@ export default function NativeTabBar() {
               <button
                 type="button"
                 onClick={() => select(tab.path, isActive)}
-                aria-current={isActive ? "page" : undefined}
+                aria-current={isCurrent ? "page" : undefined}
                 className="touch-target relative flex h-full w-full flex-col items-center justify-center gap-0.5"
               >
                 {/* The active indicator. One element shared across tabs via
                     `layoutId`, so framer-motion slides it between them instead of
                     fading one out and another in — the difference between a bar
                     that tracks your finger and one that blinks. */}
-                {isActive && (
+                {isCurrent && (
                   <motion.span
                     layoutId="tab-indicator"
                     className={`absolute inset-x-3 inset-y-1.5 -z-10 rounded-[14px] ${
@@ -110,9 +128,9 @@ export default function NativeTabBar() {
                     size={22}
                     // Selection is never carried by colour alone: the active icon
                     // is drawn heavier and its label sits a weight above the rest.
-                    strokeWidth={isActive ? 2.5 : 1.9}
+                    strokeWidth={isCurrent ? 2.5 : 1.9}
                     className={
-                      isActive
+                      isCurrent
                         ? "text-blue-500"
                         : isDark
                           ? "text-gray-500"
@@ -121,7 +139,7 @@ export default function NativeTabBar() {
                   />
                   <span
                     className={`text-[11px] leading-none tracking-[-0.01em] ${
-                      isActive
+                      isCurrent
                         ? "font-semibold text-blue-500"
                         : isDark
                           ? "font-medium text-gray-500"

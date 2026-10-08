@@ -73,7 +73,7 @@ export default function NativeListCard({
     ? gestureHandlers
     : { onClick: onOpen, onContextMenu: gestureHandlers.onContextMenu };
 
-  const surface = isDark ? "bg-[#131A2B]" : "bg-white";
+  const surface = isDark ? "bg-[var(--surface-card)]" : "bg-white";
   const edge = isDark ? "border-white/[0.08]" : "border-black/[0.06]";
   const nameText = isDark ? "text-white" : "text-gray-900";
   const metaText = isDark ? "text-gray-400" : "text-gray-500";

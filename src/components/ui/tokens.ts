@@ -10,16 +10,29 @@
 // a class name cannot reach, and Tailwind 4's scanner only generates classes it
 // can see written out in full.
 
+// The five surfaces are no longer fixed hexes. The background is a preference now
+// (Settings -> Appearance), and a card has to stay visible against whichever field
+// the user picked — so these point at the custom properties that `lib/surfaceTheme`
+// writes onto the document element, and the ramp behind them changes together.
+//
+// Still exported under the same names, and still strings usable anywhere a colour
+// is: `style={{ backgroundColor: CARD }}` and `color-mix(in srgb, X 8%, ${CARD})`
+// both resolve a `var()` exactly as they resolved a hex. What they cannot do is be
+// interpolated into a Tailwind class name, which was never possible with the hex
+// either — the scanner only generates classes it can see written out in full.
+
 /** Deep page field. */
-export const FIELD = "#0B1222";
+export const FIELD = "var(--surface-field)";
 /** The darkest ground, behind the field. */
-export const DEEP = "#05080F";
+export const DEEP = "var(--surface-deep)";
 /** A raised surface sitting on the field. */
-export const RAISED = "#121829";
+export const RAISED = "var(--surface-raised)";
 /** A card. */
-export const CARD = "#131A2B";
+export const CARD = "var(--surface-card)";
 /** A selected or active surface. */
-export const SELECTED = "#1B2440";
+export const SELECTED = "var(--surface-selected)";
+/** The hairline that separates a card from its field. */
+export const BORDER = "var(--surface-border)";
 
 export const PRIMARY = "#6366F1";
 export const SUCCESS = "#10B981";
@@ -95,7 +108,11 @@ export function collectionTint(
   isDark: boolean,
   strength = 8,
 ): string {
-  const base = isDark ? CARD : "#FFFFFF";
-  if (!hex) return base;
-  return `color-mix(in srgb, ${hex} ${strength}%, ${base})`;
+  // `isDark` is no longer read: CARD is a custom property that already carries the
+  // right card colour for the current theme *and* the chosen background, which a
+  // branch here could only get wrong. Kept in the signature so the dozen call
+  // sites that pass it do not all have to change at once.
+  void isDark;
+  if (!hex) return CARD;
+  return `color-mix(in srgb, ${hex} ${strength}%, ${CARD})`;
 }

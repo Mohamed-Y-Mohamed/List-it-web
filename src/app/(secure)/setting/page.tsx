@@ -27,10 +27,19 @@ import {
   Rows3,
   ChevronDown,
   LogOut,
+  MessageSquarePlus,
+  ExternalLink,
 } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 import { useListLayout } from "@/hooks/useListLayout";
 import { type ListLayout } from "@/lib/listLayout";
+import {
+  SURFACE_LABELS,
+  SURFACE_ORDER,
+  surfaceRamp,
+  type SurfaceChoice,
+  type SurfaceTheme,
+} from "@/lib/surfaceTheme";
 import { ensureNotificationPermission } from "@/lib/notifications";
 import { useNotificationPrefs } from "@/hooks/useNotificationPrefs";
 import { DEFAULT_NOTIFICATION_PREFS } from "@/lib/notificationPrefs";
@@ -88,26 +97,27 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
 // is no such wrapper there, and this is what stops a short page floating.
 const ROOT_MIN_HEIGHT = IS_NATIVE_BUILD ? "" : "min-h-screen";
 
+// Appearance is on both platforms now. It was native-only because the only thing
+// in it the web lacked was a theme toggle, which the sidebar already had — but the
+// background choice has no home in the sidebar and is just as useful in a browser,
+// so the section moves out and the one native-only control inside it (List layout)
+// is gated on its own.
+SETTINGS_SECTIONS.splice(1, 0, {
+  id: "appearance",
+  title: "Appearance",
+  icon: Sun,
+  description: "Theme, background and layout",
+});
+
 if (IS_NATIVE_BUILD) {
-  SETTINGS_SECTIONS.splice(
-    1,
-    0,
-    {
-      id: "appearance",
-      title: "Appearance",
-      icon: Sun,
-      description: "Theme and layout style",
-    },
-    // Native only for the same reason the theme is, only more so: the browser
-    // has nothing to deliver, so a switch there would promise something the web
-    // build cannot keep.
-    {
-      id: "notifications",
-      title: "Notifications",
-      icon: Bell,
-      description: "Reminders from your tasks",
-    },
-  );
+  // Still native only, and for the stronger reason: the browser has nothing to
+  // deliver, so a switch there would promise something the web build cannot keep.
+  SETTINGS_SECTIONS.splice(2, 0, {
+    id: "notifications",
+    title: "Notifications",
+    icon: Bell,
+    description: "Reminders from your tasks",
+  });
 }
 
 // Notification component
@@ -191,19 +201,119 @@ const Notification: React.FC<{
 };
 
 /**
- * The List layout control: a row that states the current choice and opens a menu
- * under it.
+ * The List layout control: both options stated inline, one of them selected.
  *
  * It was a bare <select> pinned to the right of the row, which the system renders
- * as a grey box in its own typeface and which looked like a form field dropped into
- * a settings screen. This keeps the row itself as the target — the whole thing is
- * the button, not a control parked beside a label — and draws the menu in the app's
- * own radii, weights and accent.
+ * as a grey box in its own typeface, and then a custom menu that opened under the
+ * row. The menu could not work in this position. It was `absolute` inside the
+ * Appearance section, and that section sits in two boxes that both clip it: the
+ * body is `overflow-hidden` because the expand animates `height: 0 -> auto`, and
+ * the card around it is `overflow-hidden` so content keeps to the rounded corners.
+ * Both are load-bearing. Appearance is the last block in its card, so the menu
+ * opened past the bottom edge and was cut to a sliver — unusable on Android.
  *
- * Closes on choose, on Escape, and on a tap anywhere outside. Two options is short
- * enough that the arrow-key handling a long menu needs would be ceremony; Tab
- * reaches both, and Escape gets out.
+ * Two options do not need a popup. Stating both costs about 90px and gets rid of
+ * the open state, the Escape handler, the outside-click catcher and the entrance
+ * animation, none of which a pair of radio rows needs. It also reads as a pair with
+ * the Dark mode toggle directly above, which was always inline.
  */
+/**
+ * The background picker: three grounds for the theme you are currently in.
+ *
+ * Only the current theme's three are offered. A dark background says nothing about
+ * how the app should look in daylight, and showing six at once asks the user to
+ * imagine five of them. The sets are paired — Black with White, Navy with Cool
+ * grey, Charcoal with Warm paper — and stored separately, so switching theme keeps
+ * whichever ground was chosen for it.
+ *
+ * Each swatch previews the ramp rather than one colour: the field with a card
+ * drawn on it at the real radius and hairline. That is the thing worth showing,
+ * because the risk with a chosen background is a card that vanishes into it.
+ */
+const SurfaceSetting: React.FC<{
+  isDark: boolean;
+  theme: SurfaceTheme;
+  surface: SurfaceChoice;
+  onChange: (next: SurfaceChoice) => void;
+}> = ({ isDark, theme, surface, onChange }) => (
+  <div>
+    <div
+      id="background-label"
+      className={`mb-2 px-1 font-medium ${isDark ? "text-white" : "text-gray-900"}`}
+    >
+      Background
+    </div>
+
+    <div
+      role="radiogroup"
+      aria-labelledby="background-label"
+      className="grid grid-cols-3 gap-2.5"
+    >
+      {SURFACE_ORDER.map((choice) => {
+        const ramp = surfaceRamp(theme, choice);
+        const { label } = SURFACE_LABELS[theme][choice];
+        const isActive = choice === surface;
+
+        return (
+          <button
+            key={choice}
+            type="button"
+            role="radio"
+            aria-checked={isActive}
+            onClick={() => onChange(choice)}
+            className={`flex flex-col items-stretch gap-2 rounded-xl border p-2 text-left transition-colors ${
+              isActive
+                ? isDark
+                  ? "border-orange-400"
+                  : "border-sky-500"
+                : isDark
+                  ? "border-[var(--surface-border)]"
+                  : "border-gray-200"
+            }`}
+          >
+            <span
+              className="flex h-14 items-end rounded-lg p-1.5"
+              style={{ backgroundColor: ramp.field }}
+              aria-hidden="true"
+            >
+              <span
+                className="h-6 w-full rounded-md border"
+                style={{
+                  backgroundColor: ramp.card,
+                  borderColor: ramp.border,
+                }}
+              />
+            </span>
+
+            <span className="flex items-center justify-between gap-1">
+              <span
+                className={`truncate text-[13px] font-medium ${
+                  isDark ? "text-white" : "text-gray-900"
+                }`}
+              >
+                {label}
+              </span>
+              {isActive && (
+                <CheckCircle
+                  className={`h-3.5 w-3.5 shrink-0 ${
+                    isDark ? "text-orange-400" : "text-sky-500"
+                  }`}
+                />
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+
+    <p className="mt-2 px-1 text-[12px] text-gray-500">
+      {isDark
+        ? "Applies to dark mode. Light mode keeps its own choice."
+        : "Applies to light mode. Dark mode keeps its own choice."}
+    </p>
+  </div>
+);
+
 const LAYOUT_OPTIONS: {
   value: ListLayout;
   label: string;
@@ -229,147 +339,83 @@ const ListLayoutSetting: React.FC<{
   layout: ListLayout | null;
   onChange: (next: ListLayout) => void;
 }> = ({ isDark, layout, onChange }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
   // `layout` is null only for the frame before the stored value is read, and the
   // default is what it resolves to for anyone who has never opened this.
   const current =
     LAYOUT_OPTIONS.find((option) => option.value === layout) ??
     LAYOUT_OPTIONS[0];
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsOpen(false);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isOpen]);
-
   return (
-    <div
-      className={`relative rounded-lg border ${
-        isDark ? "border-gray-700 bg-gray-800/50" : "border-gray-200 bg-white"
-      }`}
-    >
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen((open) => !open)}
-        className="flex min-h-[44px] w-full items-center justify-between gap-4 p-4 text-left"
+    <div>
+      {/* The group needs a name of its own, now that no row carries one. */}
+      <div
+        id="list-layout-label"
+        className={`mb-2 px-1 font-medium ${isDark ? "text-white" : "text-gray-900"}`}
       >
-        <span className="flex min-w-0 items-center space-x-3">
-          <current.Icon
-            className={`h-5 w-5 shrink-0 ${isDark ? "text-orange-400" : "text-sky-500"}`}
-          />
-          {/* No second line here. The description wrapped to two at phone width,
-              which pushed the icon off centre against the row beside it, and each
-              option carries its own hint in the menu where it is actually useful. */}
-          <span
-            className={`min-w-0 truncate font-medium ${isDark ? "text-white" : "text-gray-900"}`}
-          >
-            List layout
-          </span>
-        </span>
+        List layout
+      </div>
 
-        <span className="flex shrink-0 items-center gap-1.5">
-          <span
-            className={`text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-700"}`}
-          >
-            {current.label}
-          </span>
-          <ChevronDown
-            className={`h-4 w-4 transition-transform duration-200 ${
-              isOpen ? "rotate-180" : ""
-            } ${isDark ? "text-gray-400" : "text-gray-500"}`}
-          />
-        </span>
-      </button>
-
-      {isOpen && (
-        <>
-          {/* Catches the tap that should close the menu. Behind it in the stack,
-              so the menu itself still takes its own clicks. */}
-          <button
-            type="button"
-            aria-hidden="true"
-            tabIndex={-1}
-            onClick={() => setIsOpen(false)}
-            className="fixed inset-0 z-10 cursor-default"
-          />
-
-          <motion.ul
-            role="listbox"
-            // Opens from the top edge, where the trigger is, and from 0.97 rather
-            // than nothing — things that scale up from zero read as arriving from
-            // somewhere else.
-            initial={{ opacity: 0, scale: 0.97, y: -4 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.15, ease: [0.23, 1, 0.32, 1] }}
-            style={{ transformOrigin: "top right" }}
-            className={`absolute right-3 top-full z-20 mt-1 w-[15rem] overflow-hidden rounded-lg border shadow-lg ${
-              isDark
-                ? "border-gray-700 bg-gray-800"
-                : "border-gray-200 bg-white"
-            }`}
-          >
-            {LAYOUT_OPTIONS.map((option) => {
-              const isActive = option.value === current.value;
-              return (
-                <li key={option.value} role="option" aria-selected={isActive}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onChange(option.value);
-                      setIsOpen(false);
-                    }}
-                    className={`flex w-full items-center gap-3 p-3 text-left transition-colors ${
-                      isActive
-                        ? isDark
-                          ? "bg-orange-500/15"
-                          : "bg-sky-50"
-                        : isDark
-                          ? "hover:bg-gray-700/50"
-                          : "hover:bg-gray-50"
-                    }`}
-                  >
-                    <option.Icon
-                      className={`h-5 w-5 shrink-0 ${
-                        isActive
-                          ? isDark
-                            ? "text-orange-400"
-                            : "text-sky-500"
-                          : isDark
-                            ? "text-gray-400"
-                            : "text-gray-500"
-                      }`}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span
-                        className={`block text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}
-                      >
-                        {option.label}
-                      </span>
-                      <span
-                        className={`block text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}
-                      >
-                        {option.hint}
-                      </span>
-                    </span>
-                    {/* The tick, not just a tint: colour alone is not a state. */}
-                    {isActive && (
-                      <CheckCircle
-                        className={`h-4 w-4 shrink-0 ${isDark ? "text-orange-400" : "text-sky-500"}`}
-                      />
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-          </motion.ul>
-        </>
-      )}
+      <div
+        role="radiogroup"
+        aria-labelledby="list-layout-label"
+        className={`overflow-hidden rounded-lg border ${
+          isDark
+            ? "divide-y divide-gray-700 border-[var(--surface-border)] bg-[var(--surface-raised)]"
+            : "divide-y divide-gray-200 border-gray-200 bg-white"
+        }`}
+      >
+        {LAYOUT_OPTIONS.map((option) => {
+          const isActive = option.value === current.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={isActive}
+              onClick={() => onChange(option.value)}
+              className={`flex min-h-[44px] w-full items-center gap-3 p-4 text-left transition-colors ${
+                isActive
+                  ? isDark
+                    ? "bg-orange-500/15"
+                    : "bg-sky-50"
+                  : isDark
+                    ? "hover:bg-[var(--surface-raised)]"
+                    : "hover:bg-gray-50"
+              }`}
+            >
+              <option.Icon
+                className={`h-5 w-5 shrink-0 ${
+                  isActive
+                    ? isDark
+                      ? "text-orange-400"
+                      : "text-sky-500"
+                    : isDark
+                      ? "text-gray-400"
+                      : "text-gray-500"
+                }`}
+              />
+              <span className="min-w-0 flex-1">
+                <span
+                  className={`block font-medium ${isDark ? "text-white" : "text-gray-900"}`}
+                >
+                  {option.label}
+                </span>
+                <span
+                  className={`block text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}
+                >
+                  {option.hint}
+                </span>
+              </span>
+              {/* The tick, not just a tint: colour alone is not a state. */}
+              {isActive && (
+                <CheckCircle
+                  className={`h-4 w-4 shrink-0 ${isDark ? "text-orange-400" : "text-sky-500"}`}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -405,7 +451,7 @@ export default function SettingsPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, surface, setSurface } = useTheme();
   const { user, logout } = useAuth();
   const isDark = theme === "dark";
 
@@ -649,7 +695,7 @@ export default function SettingsPage() {
             <div
               className={`flex items-center justify-between rounded-lg border p-4 ${
                 isDark
-                  ? "border-gray-700 bg-gray-800/50"
+                  ? "border-[var(--surface-border)] bg-[var(--surface-raised)]"
                   : "border-gray-200 bg-white"
               }`}
             >
@@ -694,11 +740,24 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            <ListLayoutSetting
+            <SurfaceSetting
               isDark={isDark}
-              layout={layout}
-              onChange={setLayout}
+              theme={isDark ? "dark" : "light"}
+              surface={surface}
+              onChange={setSurface}
             />
+
+            {/* Native only. The web dashboard has its own layout and nothing to
+                switch between, so offering the choice there would promise
+                something the browser build cannot keep — the same reasoning that
+                kept Notifications off the web. */}
+            {IS_NATIVE_BUILD && (
+              <ListLayoutSetting
+                isDark={isDark}
+                layout={layout}
+                onChange={setLayout}
+              />
+            )}
           </motion.div>
         );
 
@@ -729,7 +788,7 @@ export default function SettingsPage() {
               <div
                 className={`flex items-center justify-between rounded-lg border p-4 ${
                   isDark
-                    ? "border-gray-700 bg-gray-800/50"
+                    ? "border-[var(--surface-border)] bg-[var(--surface-raised)]"
                     : "border-gray-200 bg-white"
                 }`}
               >
@@ -840,7 +899,7 @@ export default function SettingsPage() {
                   <div
                     className={`flex-1 rounded-lg border px-3 py-2 ${
                       isDark
-                        ? "border-gray-600 bg-gray-700/50 text-gray-300"
+                        ? "border-[var(--surface-border)] bg-[var(--surface-raised)] text-gray-300"
                         : "border-gray-300 bg-gray-50 text-gray-700"
                     }`}
                   >
@@ -852,7 +911,7 @@ export default function SettingsPage() {
                   <div
                     className={`rounded-lg px-3 py-1 text-xs font-medium ${
                       isDark
-                        ? "bg-gray-700 text-gray-300"
+                        ? "bg-[var(--surface-raised)] text-gray-300"
                         : "bg-gray-100 text-gray-600"
                     }`}
                   >
@@ -882,7 +941,7 @@ export default function SettingsPage() {
                     onChange={(e) => setFullName(e.target.value)}
                     className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 ${
                       isDark
-                        ? "border-gray-600 bg-gray-700/50 text-white focus:border-orange-400 focus:ring-orange-400/20"
+                        ? "border-[var(--surface-border)] bg-[var(--surface-raised)] text-white focus:border-orange-400 focus:ring-orange-400/20"
                         : "border-gray-300 bg-white text-gray-900 focus:border-sky-500 focus:ring-sky-500/20"
                     }`}
                     placeholder="Enter your full name"
@@ -901,7 +960,7 @@ export default function SettingsPage() {
                 <div
                   className={`mt-1 rounded-lg border px-3 py-2 ${
                     isDark
-                      ? "border-gray-600 bg-gray-700/50 text-gray-300"
+                      ? "border-[var(--surface-border)] bg-[var(--surface-raised)] text-gray-300"
                       : "border-gray-300 bg-gray-50 text-gray-700"
                   }`}
                 >
@@ -925,7 +984,7 @@ export default function SettingsPage() {
                   disabled={isSaving || !fullName.trim()}
                   className={`flex items-center space-x-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                     isDark
-                      ? "bg-orange-500 text-white hover:bg-orange-600 disabled:bg-gray-700 disabled:text-gray-400"
+                      ? "bg-orange-500 text-white hover:bg-orange-600 disabled:bg-[var(--surface-raised)] disabled:text-gray-400"
                       : "bg-sky-500 text-white hover:bg-sky-600 disabled:bg-gray-300 disabled:text-gray-500"
                   } disabled:cursor-not-allowed`}
                 >
@@ -982,7 +1041,7 @@ export default function SettingsPage() {
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     className={`w-full rounded-lg border px-3 py-2 pr-10 focus:outline-none focus:ring-2 ${
                       isDark
-                        ? "border-gray-600 bg-gray-700/50 text-white focus:border-orange-400 focus:ring-orange-400/20"
+                        ? "border-[var(--surface-border)] bg-[var(--surface-raised)] text-white focus:border-orange-400 focus:ring-orange-400/20"
                         : "border-gray-300 bg-white text-gray-900 focus:border-sky-500 focus:ring-sky-500/20"
                     }`}
                     placeholder="Enter current password"
@@ -1024,7 +1083,7 @@ export default function SettingsPage() {
                     onChange={(e) => setNewPassword(e.target.value)}
                     className={`w-full rounded-lg border px-3 py-2 pr-10 focus:outline-none focus:ring-2 ${
                       isDark
-                        ? "border-gray-600 bg-gray-700/50 text-white focus:border-orange-400 focus:ring-orange-400/20"
+                        ? "border-[var(--surface-border)] bg-[var(--surface-raised)] text-white focus:border-orange-400 focus:ring-orange-400/20"
                         : "border-gray-300 bg-white text-gray-900 focus:border-sky-500 focus:ring-sky-500/20"
                     }`}
                     placeholder="Enter new password"
@@ -1071,7 +1130,7 @@ export default function SettingsPage() {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className={`w-full rounded-lg border px-3 py-2 pr-10 focus:outline-none focus:ring-2 ${
                       isDark
-                        ? "border-gray-600 bg-gray-700/50 text-white focus:border-orange-400 focus:ring-orange-400/20"
+                        ? "border-[var(--surface-border)] bg-[var(--surface-raised)] text-white focus:border-orange-400 focus:ring-orange-400/20"
                         : "border-gray-300 bg-white text-gray-900 focus:border-sky-500 focus:ring-sky-500/20"
                     }`}
                     placeholder="Confirm new password"
@@ -1108,7 +1167,7 @@ export default function SettingsPage() {
                   }
                   className={`flex items-center space-x-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                     isDark
-                      ? "bg-orange-500 text-white hover:bg-orange-600 disabled:bg-gray-700 disabled:text-gray-400"
+                      ? "bg-orange-500 text-white hover:bg-orange-600 disabled:bg-[var(--surface-raised)] disabled:text-gray-400"
                       : "bg-sky-500 text-white hover:bg-sky-600 disabled:bg-gray-300 disabled:text-gray-500"
                   } disabled:cursor-not-allowed`}
                 >
@@ -1219,7 +1278,7 @@ export default function SettingsPage() {
                       disabled={isSaving || deleteConfirmation !== "DELETE"}
                       className={`flex items-center space-x-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                         isDark
-                          ? "bg-red-600 text-white hover:bg-red-700 disabled:bg-gray-700 disabled:text-gray-400"
+                          ? "bg-red-600 text-white hover:bg-red-700 disabled:bg-[var(--surface-raised)] disabled:text-gray-400"
                           : "bg-red-600 text-white hover:bg-red-700 disabled:bg-gray-300 disabled:text-gray-500"
                       } disabled:cursor-not-allowed`}
                     >
@@ -1299,7 +1358,7 @@ export default function SettingsPage() {
                 key={section.id}
                 className={`overflow-hidden rounded-2xl border ${
                   isDark
-                    ? "border-white/[0.08] bg-[#131A2B]"
+                    ? "border-white/[0.08] bg-[var(--surface-card)]"
                     : "border-black/[0.06] bg-white"
                 }`}
               >
@@ -1371,6 +1430,45 @@ export default function SettingsPage() {
             );
           })}
 
+          {/* Feedback. Outside the sections for the same reason Sign out is: it
+              is a way out of the app, not a preference.
+
+              A plain anchor rather than the Browser plugin. capacitor.config.ts
+              sets no `allowNavigation` allowlist, so the WebView hands any
+              off-origin URL to the system browser — which is what we want, since
+              a Google Form opened inside the shell would trap the user on a page
+              with no address bar and no way back. `rel` is set because the form
+              opens in a context that could otherwise reach back through
+              `window.opener`. */}
+          <a
+            href="https://forms.gle/dE21epzC4L8Tx1Kd9"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex min-h-[56px] w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left ${
+              isDark
+                ? "border-white/[0.08] bg-[var(--surface-card)]"
+                : "border-black/[0.06] bg-white"
+            }`}
+          >
+            <MessageSquarePlus
+              className={`h-5 w-5 shrink-0 ${isDark ? "text-orange-400" : "text-sky-500"}`}
+            />
+            <span className="min-w-0 flex-1">
+              <span
+                className={`block text-[15px] font-medium ${isDark ? "text-white" : "text-gray-900"}`}
+              >
+                Feedback and feature requests
+              </span>
+              <span className="block text-[12px] text-gray-500">
+                Tell us what to build next
+              </span>
+            </span>
+            <ExternalLink
+              className={`h-4 w-4 shrink-0 ${isDark ? "text-gray-500" : "text-gray-400"}`}
+              aria-hidden="true"
+            />
+          </a>
+
           {/* Sign out. On the web this lives in the sidebar, which the native
               app does not have — without it there is no way to leave the account
               on Android. Outside the sections because it is not a setting. */}
@@ -1380,7 +1478,7 @@ export default function SettingsPage() {
               onClick={logout}
               className={`flex min-h-[56px] w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left ${
                 isDark
-                  ? "border-white/[0.08] bg-[#131A2B] text-orange-300"
+                  ? "border-white/[0.08] bg-[var(--surface-card)] text-orange-300"
                   : "border-black/[0.06] bg-white text-orange-600"
               }`}
             >

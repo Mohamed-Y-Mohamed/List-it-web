@@ -1,18 +1,31 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import {
+  applySurfaceRamp,
+  DEFAULT_SURFACE,
+  readSurfaceChoice,
+  surfaceRamp,
+  writeSurfaceChoice,
+  type SurfaceChoice,
+} from "@/lib/surfaceTheme";
 
 type ThemeType = "light" | "dark";
 
 interface ThemeContextType {
   theme: ThemeType;
   toggleTheme: () => void;
+  /** Which background ramp the current theme is painting. */
+  surface: SurfaceChoice;
+  setSurface: (choice: SurfaceChoice) => void;
 }
 
 // Create a context with default values
 const ThemeContext = createContext<ThemeContextType>({
   theme: "light",
   toggleTheme: () => {},
+  surface: DEFAULT_SURFACE,
+  setSurface: () => {},
 });
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
@@ -74,10 +87,32 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
+  // The chosen background for each theme, and the ramp that follows from it.
+  //
+  // Held here rather than in its own provider because it is a function of the
+  // theme: switching to light has to repaint with the light ramp in the same pass,
+  // and two providers would have meant one frame painted with the other's colours.
+  const [surface, setSurfaceState] = useState<SurfaceChoice>(DEFAULT_SURFACE);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const choice = readSurfaceChoice(theme);
+    setSurfaceState(choice);
+    applySurfaceRamp(surfaceRamp(theme, choice));
+  }, [theme, mounted]);
+
+  const setSurface = (choice: SurfaceChoice) => {
+    setSurfaceState(choice);
+    writeSurfaceChoice(theme, choice);
+    applySurfaceRamp(surfaceRamp(theme, choice));
+  };
+
   // Return the context value with the current state and the toggle function
   const contextValue = {
     theme,
     toggleTheme,
+    surface,
+    setSurface,
   };
 
   // During SSR, provide default values
