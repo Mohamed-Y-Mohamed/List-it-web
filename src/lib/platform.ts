@@ -46,7 +46,7 @@ export function getApiBaseUrl(): string {
   if (!base) {
     throw new Error(
       "NEXT_PUBLIC_API_BASE_URL must be set for the native build — " +
-        "the app cannot reach its API from inside the WebView without it."
+        "the app cannot reach its API from inside the WebView without it.",
     );
   }
   return base.replace(/\/+$/, "");

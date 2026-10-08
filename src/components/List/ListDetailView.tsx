@@ -1,196 +1,406 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Collection, List, Task, Note, OperationResult } from "@/types/schema";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { createPortal } from "react-dom";
+
+import { Collection, List, Note, OperationResult, Task } from "@/types/schema";
+
 import CollectionComponent from "@/components/Collection/index";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 
-// Import components
 import ListFilterPlus from "@/components/popupModels/ListFilter";
 import CreateCollectionModal from "@/components/popupModels/CollectionPopup";
 import CreateTaskModal from "@/components/popupModels/TaskPopup";
 import CreateNoteModal from "@/components/popupModels/notepopup";
 import DeleteCollectionModal from "@/components/popupModels/deleteCollectionModal";
 import EditCollectionPopup from "@/components/popupModels/EditCollectionPopup";
+
 import { apiFetch } from "@/lib/apiFetch";
+import { applyCompletion } from "@/lib/completion";
 import { IS_NATIVE_BUILD } from "@/lib/platform";
+
 import { useSetScreenTitle } from "@/components/native/ScreenTitleContext";
 import { useOptionalAppData } from "@/components/native/AppDataProvider";
+
 import AppSurface from "@/components/AppSurface";
 
-// Format date to yyyy-MM-dd'T'HH:mm:ss
-const formatDateForPostgres = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
+/* =========================================================
+   TYPES
+   ========================================================= */
 
-  // Return format without 'T': YYYY-MM-DD HH:mm:ss
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+interface ListDetailCache {
+  list: List;
+  collections: Collection[];
+  savedAt: number;
+}
+
+/* =========================================================
+   WEB CACHE
+
+   sessionStorage survives:
+   - component unmounts
+   - navigation to another page
+   - returning to the list
+   - browser refresh in the same tab
+
+   It is cleared when the browser tab/session ends.
+   ========================================================= */
+
+const CACHE_PREFIX = "list-it:list-detail:";
+
+const getCacheKey = (listId: string) => `${CACHE_PREFIX}${listId}`;
+
+const readListCache = (listId: string): ListDetailCache | null => {
+  if (typeof window === "undefined" || !listId) {
+    return null;
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(getCacheKey(listId));
+
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as ListDetailCache;
+
+    if (!parsed || !parsed.list || !Array.isArray(parsed.collections)) {
+      return null;
+    }
+
+    return parsed;
+  } catch (error) {
+    console.warn("Failed to read List Detail cache:", error);
+
+    return null;
+  }
 };
 
-// Add a handler for task deletion
+const writeListCache = (
+  listId: string,
+  list: List | null,
+  collections: Collection[],
+) => {
+  if (typeof window === "undefined" || !listId || !list) {
+    return;
+  }
+
+  try {
+    const cache: ListDetailCache = {
+      list,
+      collections,
+      savedAt: Date.now(),
+    };
+
+    window.sessionStorage.setItem(getCacheKey(listId), JSON.stringify(cache));
+  } catch (error) {
+    console.warn("Failed to write List Detail cache:", error);
+  }
+};
+
+/* =========================================================
+   DATE FORMATTER
+   ========================================================= */
+
+/**
+ * An instant, serialised so the database cannot misread it.
+ *
+ * This used to build `YYYY-MM-DD HH:MM:SS` from the local getters, which is a
+ * wall-clock string carrying no offset — Postgres then read it in the server's
+ * zone. A task due 17:00 in BST was stored as 17:00Z and read back as 18:00,
+ * and `composeDue`'s UTC-noon date-only marker was shifted off noon entirely,
+ * which moved the day for anyone far enough east.
+ *
+ * `TasksDetails` never had the problem because it hands the `Date` to
+ * `JSON.stringify`, which calls `toISOString`. This is that, named.
+ */
+const toPostgresInstant = (date: Date): string => date.toISOString();
+
+/* =========================================================
+   DELETE TASK API
+   ========================================================= */
+
 const handleTaskDelete = async (taskId: string) => {
   try {
     const res = await apiFetch("/api/tasks", {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: taskId }),
+
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({
+        id: taskId,
+      }),
     });
+
     if (!res.ok) {
       const errData = await res.json();
+
       throw new Error(errData.error || "Failed to delete task");
     }
-    return { success: true };
-  } catch (err) {
-    console.error("Error deleting task:", err);
-    return { success: false, error: err };
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error("Error deleting task:", error);
+
+    return {
+      success: false,
+      error,
+    };
   }
 };
 
-export default function ListDetailView({ listId }: { listId: string }) {
+/* =========================================================
+   COMPONENT
+   ========================================================= */
 
+export default function ListDetailView({ listId }: { listId: string }) {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+
   const isDark = theme === "dark";
 
-  // State for modals
+  /*
+   * Set when a reminder was tapped: NativeShell's notification handler routes
+   * here with the task
+   * id in the query. Only the collection holding that task opens; the rest of
+   * the screen stays shut, which is the point of arriving from a notification
+   * about one task.
+   */
+  const reminderTaskId = searchParams?.get("task") ?? null;
+
+  /* =======================================================
+     MODALS
+     ======================================================= */
+
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
+
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+
   const [isDeleteCollectionModalOpen, setIsDeleteCollectionModalOpen] =
     useState(false);
+
   const [isEditCollectionModalOpen, setIsEditCollectionModalOpen] =
     useState(false);
+
   const [selectedCollectionId, setSelectedCollectionId] = useState<
     string | null
-  >();
+  >(null);
+
   const [collectionToEdit, setCollectionToEdit] = useState<Collection | null>(
-    null
+    null,
   );
 
-  // Local state for the current list
+  /* =======================================================
+     DATA
+     ======================================================= */
+
   const [listData, setListData] = useState<List | null>(null);
 
-  // Give the native back bar this list's name instead of a generic "List".
-  // No-op on the web, which has no back bar.
-  useSetScreenTitle(listData?.list_name ?? null);
   const [collections, setCollections] = useState<Collection[]>([]);
+
+  /*
+   * Bumped by "Collapse all". Each collection owns whether it is open, so the
+   * instruction travels down as a counter rather than by lifting that state
+   * up: lifting it would make the screen the owner of something only the
+   * collection cares about, and hand every expand a re-render of the page.
+   */
+  const [collapseNonce, setCollapseNonce] = useState(0);
+
+  /* The floating Add is portalled, so it cannot render on the server pass. */
+  const [portalReady, setPortalReady] = useState(false);
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
+
+  const collapseAllCollections = useCallback(() => {
+    setCollapseNonce((previous) => previous + 1);
+  }, []);
+
   const [isLoading, setIsLoading] = useState(true);
+
   const [error, setError] = useState<string | null>(null);
-  const [loadingMessage, setLoadingMessage] = useState<string>(
-    "Loading collections..."
+
+  const [loadingMessage, setLoadingMessage] = useState(
+    "Loading collections...",
   );
 
-  // Add a refresh trigger to force re-fetch of data
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  /*
+   * Used only for explicit quiet revalidation.
+   *
+   * Unlike the old implementation this does NOT
+   * automatically turn the page back into a
+   * loading screen.
+   */
+  const [revalidationTrigger, setRevalidationTrigger] = useState(0);
 
-  // The shared native cache, or null on the web where no provider is mounted.
-  // Declared up here because refreshData below closes over it.
   const appData = useOptionalAppData();
 
-  // Function to trigger a data refresh
-  const refreshData = useCallback(() => {
-    setRefreshTrigger((prev) => prev + 1);
-    // On native, a change made on this screen also changes what the Lists tab
-    // shows — the "3 tasks · 1 note" caption under each card is computed from the
-    // same cached rows. Without this the home screen would keep showing the counts
-    // from before the edit until the next resume.
-    void appData?.refresh();
-  }, [appData]);
+  useSetScreenTitle(listData?.list_name ?? null);
 
-  // Function to check if a collection name is "General"
+  /* =======================================================
+     HELPERS
+     ======================================================= */
+
   const isGeneralCollection = useCallback(
     (collectionName: string | null): boolean => {
-      if (!collectionName) return false;
+      if (!collectionName) {
+        return false;
+      }
+
       return collectionName.trim().toLowerCase() === "general";
     },
-    []
+    [],
   );
 
-  // Get default collection ID (prioritize "General" collection)
-  const defaultCollectionId = useMemo(() => {
-    // First try to find "General" collection
-    const generalCollection = collections.find((c) =>
-      isGeneralCollection(c.collection_name)
-    );
-    if (generalCollection) {
-      return generalCollection.id;
-    }
-
-    // If no General collection, return the first collection
-    return collections.length > 0 ? collections[0].id : null;
-  }, [collections, isGeneralCollection]);
-
-  // ---------------------------------------------------------------------------
-  // Native data path
-  //
-  // The web effect below is a serial N+1: list, then collections, then a `for`
-  // loop awaiting a tasks request and a notes request per collection. That is
-  // `2 + 2N` requests in series — ten sequential round trips for a list with four
-  // collections, each costing two upstream calls because requireAuth verifies the
-  // JWT with Supabase Auth on every request. And `setIsLoading(false)` only runs
-  // in the `finally`, so one pulsing line of text covers the entire cascade.
-  //
-  // Native replaces all `2N` of those with **none**. AppDataProvider already holds
-  // every open task and live note for the user, fetched once at launch, and the
-  // filters are identical (`is_deleted=false`, `is_completed=false`) — so this
-  // screen's rows are already in memory and only need grouping by `collection_id`.
-  // What is left is the list row and its collections, fetched in parallel.
-  //
-  // First open: 2 parallel requests. Return visit: 2, with no spinner, because the
-  // collections are cached and paint immediately while they revalidate.
-  //
-  // `appData` is null off-native, where no provider is mounted, so the web arm is
-  // entirely unaffected.
-  const cachedLists = appData?.lists;
-  const cachedTasks = appData?.tasks;
-  const cachedNotes = appData?.notes;
-  const getCachedCollections = appData?.getCollections;
-  const putCachedCollections = appData?.putCollections;
-
-  // Pinned first, then newest. Both task and note lists were sorted this way by
-  // two identical inline comparators in the web path.
   const sortRows = useCallback(
-    <T extends { is_pinned: boolean | null; created_at: Date | string }>(
-      rows: T[]
+    <
+      T extends {
+        is_pinned: boolean | null;
+        created_at: Date | string;
+      },
+    >(
+      rows: T[],
     ): T[] =>
       [...rows].sort((a, b) => {
-        if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+        // Compared as booleans. The column is nullable, and `null !== false` is
+        // true, so a null-against-false pair took this branch and returned 1
+        // whichever way round it was asked — a comparator that contradicts
+        // itself, which the sort is entitled to do anything with.
+        const aPinned = Boolean(a.is_pinned);
+        const bPinned = Boolean(b.is_pinned);
+
+        if (aPinned !== bPinned) {
+          return aPinned ? -1 : 1;
+        }
+
         return (
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
       }),
-    []
+    [],
   );
 
-  // Native: derive what is on screen from the cache. No requests at all.
+  /* =======================================================
+     DEFAULT COLLECTION
+     ======================================================= */
+
+  const defaultCollectionId = useMemo(() => {
+    const general = collections.find((collection) =>
+      isGeneralCollection(collection.collection_name),
+    );
+
+    if (general) {
+      return general.id;
+    }
+
+    return collections.length > 0 ? collections[0].id : null;
+  }, [collections, isGeneralCollection]);
+
+  /* =======================================================
+     UPDATE LOCAL COLLECTIONS + CACHE
+
+     All local collection mutations go through this helper.
+     This means the UI and web cache stay synchronized.
+     ======================================================= */
+
+  const updateCollections = useCallback(
+    (updater: Collection[] | ((previous: Collection[]) => Collection[])) => {
+      setCollections((previous) => {
+        const next =
+          typeof updater === "function" ? updater(previous) : updater;
+
+        if (!IS_NATIVE_BUILD && listData) {
+          writeListCache(listId, listData, next);
+        }
+
+        return next;
+      });
+    },
+    [listData, listId],
+  );
+
+  /* =======================================================
+     KEEP CACHE SYNCHRONIZED WITH CURRENT STATE
+     ======================================================= */
+
   useEffect(() => {
-    if (!IS_NATIVE_BUILD || !appData) return;
-    if (!listId) return;
+    if (IS_NATIVE_BUILD) {
+      return;
+    }
+
+    if (!listData) {
+      return;
+    }
+
+    writeListCache(listId, listData, collections);
+  }, [listId, listData, collections]);
+
+  /* =======================================================
+     NATIVE CACHE
+     ======================================================= */
+
+  const cachedLists = appData?.lists;
+
+  const cachedTasks = appData?.tasks;
+
+  const cachedNotes = appData?.notes;
+
+  const getCachedCollections = appData?.getCollections;
+
+  const putCachedCollections = appData?.putCollections;
+
+  /* =======================================================
+     NATIVE — DISPLAY CACHE
+     ======================================================= */
+
+  useEffect(() => {
+    if (!IS_NATIVE_BUILD || !appData || !listId) {
+      return;
+    }
 
     const list = cachedLists?.find((item) => item.id === listId);
-    if (list) setListData(list);
+
+    if (list) {
+      setListData(list);
+    }
 
     const raw = getCachedCollections?.(listId);
-    if (!raw) return;
+
+    if (!raw) {
+      return;
+    }
 
     setCollections(
       raw.map((collection) => ({
         ...collection,
+
         tasks: sortRows(
-          (cachedTasks ?? []).filter((t) => t.collection_id === collection.id)
+          (cachedTasks ?? []).filter(
+            (task) => task.collection_id === collection.id,
+          ),
         ),
+
         notes: sortRows(
-          (cachedNotes ?? []).filter((n) => n.collection_id === collection.id)
+          (cachedNotes ?? []).filter(
+            (note) => note.collection_id === collection.id,
+          ),
         ),
+
         isPinned: false,
+
         is_default: isGeneralCollection(collection.collection_name),
-      })) as Collection[]
+      })) as Collection[],
     );
+
     setError(null);
     setIsLoading(false);
   }, [
@@ -204,590 +414,1009 @@ export default function ListDetailView({ listId }: { listId: string }) {
     isGeneralCollection,
   ]);
 
-  // Native: keep the list row and its collections fresh. Two requests, parallel.
+  /* =======================================================
+     NATIVE — QUIET REVALIDATION
+     ======================================================= */
+
   useEffect(() => {
-    if (!IS_NATIVE_BUILD || !appData) return;
+    if (!IS_NATIVE_BUILD || !appData) {
+      return;
+    }
+
     if (!listId || !user) {
       setIsLoading(false);
+
       setError("List ID or user not available");
+
       return;
     }
 
     let cancelled = false;
 
-    // Only show a spinner when there is genuinely nothing to show. On a return
-    // visit the cached collections are already painted, and replacing them with a
-    // loading state would be a step backwards.
-    if (!getCachedCollections?.(listId)) setIsLoading(true);
+    const existingCache = getCachedCollections?.(listId);
 
-    (async () => {
+    if (!existingCache) {
+      setIsLoading(true);
+    }
+
+    const fetchNativeData = async () => {
       try {
         const [listRes, collectionsRes] = await Promise.all([
           apiFetch(`/api/lists?id=${listId}`),
+
           apiFetch(`/api/collections?list_id=${listId}`),
         ]);
 
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
 
-        if (!listRes.ok) throw new Error("Failed to fetch list");
-        const { data: list } = await listRes.json();
-        if (!list) throw new Error("List not found");
+        if (!listRes.ok) {
+          throw new Error("Failed to fetch list");
+        }
 
-        if (!collectionsRes.ok) throw new Error("Failed to fetch collections");
+        const { data: fetchedList } = await listRes.json();
+
+        if (!fetchedList) {
+          throw new Error("List not found");
+        }
+
+        if (!collectionsRes.ok) {
+          throw new Error("Failed to fetch collections");
+        }
+
         const { data: collectionsData } = await collectionsRes.json();
 
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
 
-        setListData(list as List);
+        setListData(fetchedList as List);
+
         setError(null);
-        // Writing to the cache is what re-runs the derive effect above, which is
-        // what actually puts the collections on screen.
+
         putCachedCollections?.(listId, (collectionsData ?? []) as Collection[]);
-      } catch (err) {
-        if (cancelled) return;
-        console.error("Error fetching list data:", err);
-        setError(err instanceof Error ? err.message : "An error occurred");
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        console.error("Error fetching native list data:", error);
+
+        /*
+         * If cached content is already
+         * visible, don't replace the
+         * entire screen with an error.
+         */
+        if (!getCachedCollections?.(listId)) {
+          setError(
+            error instanceof Error ? error.message : "An error occurred",
+          );
+        }
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
-    })();
+    };
+
+    void fetchNativeData();
 
     return () => {
       cancelled = true;
     };
-    // Deliberately not depending on `appData` or the cache getters: this is the
-    // revalidation, and re-running it whenever the cache changes — which the
-    // derive effect above causes — would fetch in a loop.
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listId, user, refreshTrigger]);
+  }, [listId, user, revalidationTrigger]);
 
-  // Effect to fetch list data
+  /* =======================================================
+     WEB — RESTORE CACHE IMMEDIATELY
+
+     This happens before the network revalidation.
+
+     Returning to the list therefore looks like:
+
+       cache -> display
+                ↓
+          background fetch
+                ↓
+          update if changed
+
+     NOT:
+
+       loading -> refetch everything -> display
+     ======================================================= */
+
   useEffect(() => {
-    // Native has its own path above. Everything below this line is the web app's
-    // original behaviour, unchanged.
-    if (IS_NATIVE_BUILD) return;
+    if (IS_NATIVE_BUILD) {
+      return;
+    }
 
-    const fetchListData = async () => {
-      if (!listId || !user) {
-        setIsLoading(false);
-        setError("List ID or user not available");
-        return;
-      }
+    if (!listId) {
+      return;
+    }
 
+    const cached = readListCache(listId);
+
+    if (!cached) {
+      return;
+    }
+
+    setListData(cached.list);
+
+    setCollections(cached.collections);
+
+    setError(null);
+    setIsLoading(false);
+  }, [listId]);
+
+  /* =======================================================
+     WEB — FETCH COMPLETE LIST
+
+     First visit:
+       show loading state
+
+     Return visit:
+       cache is already visible
+       revalidate quietly
+
+     All task/note requests run IN PARALLEL.
+     ======================================================= */
+
+  useEffect(() => {
+    if (IS_NATIVE_BUILD) {
+      return;
+    }
+
+    if (!listId || !user) {
+      setIsLoading(false);
+
+      setError("List ID or user not available");
+
+      return;
+    }
+
+    let cancelled = false;
+
+    const cached = readListCache(listId);
+
+    /*
+     * Only show loading if there is
+     * genuinely nothing to display.
+     */
+    if (!cached) {
       setIsLoading(true);
-      setError(null);
-      setLoadingMessage("Loading collections...");
 
+      setLoadingMessage("Loading collections...");
+    }
+
+    const fetchWebListData = async () => {
       try {
-        // Fetch the list data
-        const listRes = await apiFetch(`/api/lists?id=${listId}`);
+        /*
+         * Fetch list + collections together.
+         *
+         * OLD:
+         * list -> collections
+         *
+         * NEW:
+         * list + collections
+         */
+        const [listRes, collectionsRes] = await Promise.all([
+          apiFetch(`/api/lists?id=${listId}`),
+
+          apiFetch(`/api/collections?list_id=${listId}`),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
         if (!listRes.ok) {
           const errData = await listRes.json();
+
           throw new Error(errData.error || "Failed to fetch list");
         }
-        const { data: listData } = await listRes.json();
 
-        if (!listData) {
+        if (!collectionsRes.ok) {
+          const errData = await collectionsRes.json();
+
+          throw new Error(errData.error || "Failed to fetch collections");
+        }
+
+        const { data: fetchedList } = await listRes.json();
+
+        const { data: collectionsData } = await collectionsRes.json();
+
+        if (!fetchedList) {
           throw new Error("List not found");
         }
 
-        setListData(listData as List);
-        setLoadingMessage("Loading collections and content...");
-
-        // Fetch collections for this list
-        const collectionsRes = await apiFetch(
-          `/api/collections?list_id=${listId}`
-        );
-        if (!collectionsRes.ok) {
-          const errData = await collectionsRes.json();
-          throw new Error(errData.error || "Failed to fetch collections");
+        if (cancelled) {
+          return;
         }
-        const { data: collectionsData } = await collectionsRes.json();
 
-        // Initialize collections with tasks and notes arrays
-        const collectionsWithData = (collectionsData || []).map(
-          (collection: Collection) => ({
-            ...collection,
-            tasks: [] as Task[],
-            notes: [] as Note[],
-            isPinned: false,
-            is_default: isGeneralCollection(collection.collection_name),
-          })
+        const rawCollections = (collectionsData ?? []) as Collection[];
+
+        if (!cached) {
+          setLoadingMessage("Loading collection content...");
+        }
+
+        /*
+         * Fetch tasks + notes for EVERY
+         * collection concurrently.
+         *
+         * No serial for-loop.
+         */
+        const hydratedCollections = await Promise.all(
+          rawCollections.map(async (collection): Promise<Collection> => {
+            try {
+              const [tasksRes, notesRes] = await Promise.all([
+                apiFetch(
+                  `/api/tasks?collection_id=${collection.id}&is_deleted=false&is_completed=false`,
+                ),
+
+                apiFetch(
+                  `/api/notes?collection_id=${collection.id}&is_deleted=false`,
+                ),
+              ]);
+
+              let tasks: Task[] = [];
+
+              let notes: Note[] = [];
+
+              if (tasksRes.ok) {
+                const result = await tasksRes.json();
+
+                tasks = sortRows((result.data ?? []) as Task[]);
+              } else {
+                console.error(
+                  `Failed to fetch tasks for collection ${collection.id}`,
+                );
+              }
+
+              if (notesRes.ok) {
+                const result = await notesRes.json();
+
+                notes = sortRows((result.data ?? []) as Note[]);
+              } else {
+                console.error(
+                  `Failed to fetch notes for collection ${collection.id}`,
+                );
+              }
+
+              return {
+                ...collection,
+                tasks,
+                notes,
+                isPinned: false,
+
+                is_default: isGeneralCollection(collection.collection_name),
+              };
+            } catch (collectionError) {
+              console.error(
+                `Failed to hydrate collection ${collection.id}:`,
+                collectionError,
+              );
+
+              /*
+               * Preserve cached content for
+               * this collection if available.
+               */
+              const oldCollection = cached?.collections.find(
+                (item) => item.id === collection.id,
+              );
+
+              return {
+                ...collection,
+
+                tasks: oldCollection?.tasks ?? [],
+
+                notes: oldCollection?.notes ?? [],
+
+                isPinned: false,
+
+                is_default: isGeneralCollection(collection.collection_name),
+              };
+            }
+          }),
         );
 
-        setCollections(collectionsWithData as Collection[]);
-
-        // Fetch tasks and notes for each collection
-        for (const collection of collectionsWithData) {
-          try {
-            const tasksRes = await apiFetch(
-              `/api/tasks?collection_id=${collection.id}&is_deleted=false&is_completed=false`
-            );
-            if (!tasksRes.ok) {
-              console.error(
-                `Error fetching tasks for collection ${collection.id}`
-              );
-            } else {
-              const { data: tasks } = await tasksRes.json();
-              const sorted = ((tasks as Task[]) || []).sort((a, b) => {
-                if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
-                return (
-                  new Date(b.created_at).getTime() -
-                  new Date(a.created_at).getTime()
-                );
-              });
-              setCollections((prev) =>
-                prev.map((c) =>
-                  c.id === collection.id ? { ...c, tasks: sorted } : c
-                )
-              );
-            }
-          } catch (taskError) {
-            console.error(
-              `Failed to process tasks for collection ${collection.id}:`,
-              taskError
-            );
-          }
-
-          try {
-            const notesRes = await apiFetch(
-              `/api/notes?collection_id=${collection.id}&is_deleted=false`
-            );
-            if (!notesRes.ok) {
-              console.error(
-                `Error fetching notes for collection ${collection.id}`
-              );
-            } else {
-              const { data: notes } = await notesRes.json();
-              const sorted = ((notes as Note[]) || []).sort((a, b) => {
-                if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
-                return (
-                  new Date(b.created_at).getTime() -
-                  new Date(a.created_at).getTime()
-                );
-              });
-              setCollections((prev) =>
-                prev.map((c) =>
-                  c.id === collection.id ? { ...c, notes: sorted } : c
-                )
-              );
-            }
-          } catch (noteError) {
-            console.error(
-              `Failed to process notes for collection ${collection.id}:`,
-              noteError
-            );
-          }
+        if (cancelled) {
+          return;
         }
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError(err instanceof Error ? err.message : "An error occurred");
+
+        const finalList = fetchedList as List;
+
+        setListData(finalList);
+
+        setCollections(hydratedCollections);
+
+        setError(null);
+
+        writeListCache(listId, finalList, hydratedCollections);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        console.error("Error fetching List Detail:", error);
+
+        /*
+         * If cache exists, keep showing
+         * it. A background refresh error
+         * should not destroy usable UI.
+         */
+        if (!cached) {
+          setError(
+            error instanceof Error ? error.message : "An error occurred",
+          );
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     };
 
-    fetchListData();
-  }, [listId, user, refreshTrigger, isGeneralCollection]);
+    void fetchWebListData();
 
-  // Handler for editing a collection
+    return () => {
+      cancelled = true;
+    };
+  }, [listId, user, revalidationTrigger, isGeneralCollection, sortRows]);
+
+  /* =======================================================
+     QUIET REVALIDATE
+
+     Does NOT set isLoading(true).
+     ======================================================= */
+
+  const revalidateData = useCallback(() => {
+    setRevalidationTrigger((previous) => previous + 1);
+
+    if (IS_NATIVE_BUILD) {
+      void appData?.refresh();
+    }
+  }, [appData]);
+
+  /* =======================================================
+     LIST UPDATED EVENT
+
+     Update known list colour immediately.
+
+     Then quietly revalidate instead of
+     displaying the loading screen.
+     ======================================================= */
+
+  useEffect(() => {
+    const handleListUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        listId: string;
+        newColor?: string;
+        newName?: string;
+      }>;
+
+      const {
+        listId: updatedListId,
+        newColor,
+        newName,
+      } = customEvent.detail ?? {};
+
+      if (updatedListId !== listId) {
+        return;
+      }
+
+      setListData((previous) => {
+        if (!previous) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+
+          ...(newColor
+            ? {
+                bg_color_hex: newColor,
+              }
+            : {}),
+
+          ...(newName
+            ? {
+                list_name: newName,
+              }
+            : {}),
+        };
+      });
+
+      revalidateData();
+    };
+
+    window.addEventListener("listUpdated", handleListUpdated);
+
+    return () => {
+      window.removeEventListener("listUpdated", handleListUpdated);
+    };
+  }, [listId, revalidateData]);
+
+  /* =======================================================
+     EDIT COLLECTION
+     ======================================================= */
+
   const handleEditCollection = useCallback(async (collection: Collection) => {
     setCollectionToEdit(collection);
+
     setIsEditCollectionModalOpen(true);
-    return { success: true };
+
+    return {
+      success: true,
+    };
   }, []);
-  useEffect(() => {
-    const handleListUpdated = (event: CustomEvent) => {
-      const { listId: updatedListId, newColor } = event.detail;
 
-      // Check if the updated list is the current list being displayed
-      if (updatedListId === listId) {
-        console.log(
-          `List ${updatedListId} was updated with new color ${newColor}, refreshing collections...`
-        );
+  /* =======================================================
+     COLLECTION EDIT SUBMIT
 
-        // Refresh the data to reflect the updated list and collections
-        refreshData();
-      }
-    };
+     EditCollectionPopup already performs
+     the server operation.
 
-    // Add event listener for list updates
-    window.addEventListener("listUpdated", handleListUpdated as EventListener);
+     We only update local state here.
 
-    // Cleanup event listener on component unmount
-    return () => {
-      window.removeEventListener(
-        "listUpdated",
-        handleListUpdated as EventListener
-      );
-    };
-  }, [listId, refreshData]);
-  // Handler for submitting collection edits
+     NO complete List Detail refetch.
+     ======================================================= */
+
   const handleEditCollectionSubmit = useCallback(
     async (
       collectionId: string,
-      collectionData: { collection_name: string; bg_color_hex: string }
-    ): Promise<{ success: boolean; error?: unknown }> => {
+
+      collectionData: {
+        collection_name: string;
+        bg_color_hex: string;
+      },
+    ): Promise<{
+      success: boolean;
+      error?: unknown;
+    }> => {
       try {
-        // Update the local state immediately for better UX
-        setCollections((prevCollections) =>
-          prevCollections.map((collection) =>
+        updateCollections((previous) =>
+          previous.map((collection) =>
             collection.id === collectionId
               ? {
                   ...collection,
+
                   collection_name: collectionData.collection_name,
+
                   bg_color_hex: collectionData.bg_color_hex,
+
+                  is_default: isGeneralCollection(
+                    collectionData.collection_name,
+                  ),
                 }
-              : collection
-          )
+              : collection,
+          ),
         );
 
-        // Close the edit modal
         setIsEditCollectionModalOpen(false);
+
         setCollectionToEdit(null);
 
-        // Refresh the data from the server to ensure consistency
-        await refreshData();
+        return {
+          success: true,
+        };
+      } catch (error) {
+        console.error("Error handling collection edit:", error);
 
-        return { success: true };
-      } catch (err) {
-        console.error("Error handling collection edit:", err);
-        return { success: false, error: err };
+        return {
+          success: false,
+          error,
+        };
       }
     },
-    [refreshData]
+    [updateCollections, isGeneralCollection],
   );
 
-  // Handler for creating a new collection
+  /* =======================================================
+     CREATE COLLECTION
+     ======================================================= */
+
   const handleCreateCollection = useCallback(
     async (collectionData: {
       collection_name: string;
       bg_color_hex: string;
     }) => {
       if (!listData || !user) {
-        console.error(
-          "Cannot create collection: List data or user not available"
-        );
-        return { success: false, error: "Missing list data or user" };
+        return {
+          success: false,
+          error: "Missing list data or user",
+        };
       }
 
       try {
-        // Insert the new collection
         const res = await apiFetch("/api/collections", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
           body: JSON.stringify({
             list_id: listData.id,
+
             collection_name: collectionData.collection_name,
+
             bg_color_hex: collectionData.bg_color_hex,
-            created_at: formatDateForPostgres(new Date()),
+
+            created_at: toPostgresInstant(new Date()),
           }),
         });
+
         if (!res.ok) {
           const errData = await res.json();
+
           throw new Error(errData.error || "Failed to create collection");
         }
+
         const { data } = await res.json();
 
-        if (data) {
-          // Add the new collection to the state
-          const newCollection: Collection = {
-            ...(data as Collection),
-            tasks: [],
-            notes: [],
-            isPinned: false,
-            // Check if the new collection is "General"
-            is_default: isGeneralCollection(collectionData.collection_name),
+        if (!data) {
+          return {
+            success: false,
+            error: "No data returned from creation",
           };
-
-          setCollections((prev) => [...prev, newCollection]);
-          return { success: true };
         }
-        return { success: false, error: "No data returned from creation" };
-      } catch (err) {
-        console.error("Error creating collection:", err);
-        return { success: false, error: err };
+
+        const newCollection: Collection = {
+          ...(data as Collection),
+
+          tasks: [],
+          notes: [],
+          isPinned: false,
+
+          is_default: isGeneralCollection(collectionData.collection_name),
+        };
+
+        updateCollections((previous) => [...previous, newCollection]);
+
+        return {
+          success: true,
+        };
+      } catch (error) {
+        console.error("Error creating collection:", error);
+
+        return {
+          success: false,
+          error,
+        };
       }
     },
-    [listData, user, isGeneralCollection]
+    [listData, user, isGeneralCollection, updateCollections],
   );
 
-  // Handler for creating a new task
+  /* =======================================================
+     CREATE TASK
+     ======================================================= */
+
   const handleTaskSubmit = useCallback(
     async (taskData: {
       text: string;
       description: string;
       is_pinned: boolean;
       due_date?: Date;
+      /**
+       * Both of these are sent by TaskPopup and were being dropped on the
+       * floor: the parameter type did not name them and the POST did not
+       * forward them. A task created with a reminder saved with `reminders`
+       * null and no `due_has_time`, so the picked time was discarded and
+       * nothing was ever scheduled — silently, with no error anywhere.
+       */
+      due_has_time?: boolean;
+      reminders?: unknown;
       collection_id?: string;
     }) => {
       if (!listData || !user) {
-        console.error("Cannot create task: List data or user not available");
-        return { success: false, error: "Missing list data or user" };
+        return {
+          success: false,
+          error: "Missing list data or user",
+        };
       }
 
       try {
-        // Use the selected collection ID from the modal or default if available
         const collectionId =
           taskData.collection_id || selectedCollectionId || defaultCollectionId;
 
-        // Create the task in the database with all required fields
+        if (!collectionId) {
+          return {
+            success: false,
+            error: "No collection available",
+          };
+        }
+
         const res = await apiFetch("/api/tasks", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
           body: JSON.stringify({
             text: taskData.text,
+
             description: taskData.description || null,
+
             is_pinned: taskData.is_pinned || false,
+
             due_date: taskData.due_date
-              ? formatDateForPostgres(taskData.due_date)
+              ? toPostgresInstant(taskData.due_date)
               : null,
+
+            due_has_time: taskData.due_has_time ?? false,
+
+            reminders: taskData.reminders ?? null,
+
             collection_id: collectionId,
+
             list_id: listData.id,
+
             is_completed: false,
+
             is_deleted: false,
-            created_at: formatDateForPostgres(new Date()),
+
+            created_at: toPostgresInstant(new Date()),
           }),
         });
+
         if (!res.ok) {
           const errData = await res.json();
+
           throw new Error(errData.error || "Failed to create task");
         }
+
         const { data } = await res.json();
 
-        if (data) {
-          const newTask = data as Task;
-
-          // Get the collection this task belongs to
-          if (newTask.collection_id) {
-            // Update the collection with the new task - ensure proper typing
-            setCollections((prevCollections) =>
-              prevCollections.map((collection) => {
-                if (collection.id === newTask.collection_id) {
-                  // Add the task to the beginning of the collection's tasks array
-                  return {
-                    ...collection,
-                    tasks: [newTask, ...(collection.tasks || [])],
-                  };
-                }
-                return collection;
-              })
-            );
-          }
-
-          // Reset selected collection
-          setSelectedCollectionId(null);
-          return { success: true };
+        if (!data) {
+          return {
+            success: false,
+            error: "No data returned from creation",
+          };
         }
-        return { success: false, error: "No data returned from creation" };
-      } catch (err) {
-        console.error("Error creating task:", err);
-        return { success: false, error: err };
+
+        const newTask = data as Task;
+
+        if (newTask.collection_id) {
+          updateCollections((previous) =>
+            previous.map((collection) =>
+              collection.id === newTask.collection_id
+                ? {
+                    ...collection,
+
+                    tasks: sortRows([newTask, ...(collection.tasks ?? [])]),
+                  }
+                : collection,
+            ),
+          );
+        }
+
+        setSelectedCollectionId(null);
+
+        return {
+          success: true,
+        };
+      } catch (error) {
+        console.error("Error creating task:", error);
+
+        return {
+          success: false,
+          error,
+        };
       }
     },
-    [listData, user, selectedCollectionId, defaultCollectionId]
+    [
+      listData,
+      user,
+      selectedCollectionId,
+      defaultCollectionId,
+      updateCollections,
+      sortRows,
+    ],
   );
 
-  // Handler for task completion
+  /* =======================================================
+     COMPLETE TASK
+     ======================================================= */
+
   const handleTaskComplete = useCallback(
     async (taskId: string, isCompleted: boolean) => {
       try {
-        // Update the task in the database
+        /*
+         * What a completion writes is
+         * decided in one place, so the
+         * three write paths cannot
+         * disagree about the flag or
+         * the timestamp format.
+         */
+        const completion = applyCompletion({}, isCompleted);
+
         const res = await apiFetch("/api/tasks", {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
           body: JSON.stringify({
             id: taskId,
-            is_completed: isCompleted,
-            date_completed: isCompleted
-              ? formatDateForPostgres(new Date())
-              : null,
+
+            is_completed: completion.is_completed,
+
+            date_completed: completion.date_completed,
           }),
         });
+
         if (!res.ok) {
           const errData = await res.json();
+
           throw new Error(errData.error || "Failed to update task");
         }
+
         const { data: updatedTask } = await res.json();
 
-        if (updatedTask) {
-          // If task is completed, remove it from the UI entirely
-          if (isCompleted) {
-            setCollections((prevCollections) =>
-              prevCollections.map((collection) => {
-                if (collection.id === (updatedTask as Task).collection_id) {
-                  return {
+        if (!updatedTask) {
+          return {
+            success: false,
+            error: "No data returned from update",
+          };
+        }
+
+        /*
+         * Completed tasks don't belong
+         * in this List Detail view.
+         */
+        if (isCompleted) {
+          updateCollections((previous) =>
+            previous.map((collection) => ({
+              ...collection,
+
+              tasks: (collection.tasks ?? []).filter(
+                (task) => task.id !== taskId,
+              ),
+            })),
+          );
+        } else {
+          updateCollections((previous) =>
+            previous.map((collection) =>
+              collection.id === (updatedTask as Task).collection_id
+                ? {
                     ...collection,
-                    tasks: (collection.tasks || []).filter(
-                      (task) => task.id !== taskId
-                    ),
-                  };
-                }
-                return collection;
-              })
-            );
-          } else {
-            // If task is uncompleted, update it in place
-            setCollections((prevCollections) =>
-              prevCollections.map((collection) => {
-                if (collection.id === (updatedTask as Task).collection_id) {
-                  return {
-                    ...collection,
-                    tasks: (collection.tasks || []).map((task) =>
+
+                    tasks: (collection.tasks ?? []).map((task) =>
                       task.id === taskId
                         ? ({
                             ...task,
-                            is_completed: isCompleted,
-                            date_completed: isCompleted ? new Date() : null,
+
+                            ...updatedTask,
                           } as Task)
-                        : task
+                        : task,
                     ),
-                  };
-                }
-                return collection;
-              })
-            );
-          }
-          return { success: true };
+                  }
+                : collection,
+            ),
+          );
         }
-        return { success: false, error: "No data returned from update" };
-      } catch (err) {
-        console.error("Error completing task:", err);
-        return { success: false, error: err };
+
+        return {
+          success: true,
+        };
+      } catch (error) {
+        console.error("Error completing task:", error);
+
+        return {
+          success: false,
+          error,
+        };
       }
     },
-    []
+    [updateCollections],
   );
 
-  // Handler for task priority
+  /* =======================================================
+     TASK PRIORITY
+     ======================================================= */
+
   const handleTaskPriority = useCallback(
     async (taskId: string, isPinned: boolean) => {
       try {
-        // Update the task in the database
         const res = await apiFetch("/api/tasks", {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: taskId, is_pinned: isPinned }),
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            id: taskId,
+            is_pinned: isPinned,
+          }),
         });
+
         if (!res.ok) {
           const errData = await res.json();
+
           throw new Error(errData.error || "Failed to update task");
         }
+
         const { data: updatedTask } = await res.json();
 
-        if (updatedTask) {
-          // Update the task in the collections state
-          if ((updatedTask as Task).collection_id) {
-            setCollections((prevCollections) =>
-              prevCollections.map((collection) => {
-                if (collection.id === (updatedTask as Task).collection_id) {
-                  return {
-                    ...collection,
-                    tasks: (collection.tasks || []).map((task) =>
-                      task.id === taskId
-                        ? ({ ...task, is_pinned: isPinned } as Task)
-                        : task
-                    ),
-                  };
-                }
-                return collection;
-              })
-            );
-          }
-          return { success: true };
+        if (!updatedTask) {
+          return {
+            success: false,
+            error: "No data returned from update",
+          };
         }
-        return { success: false, error: "No data returned from update" };
-      } catch (err) {
-        console.error("Error updating task priority:", err);
-        return { success: false, error: err };
+
+        updateCollections((previous) =>
+          previous.map((collection) => {
+            if (collection.id !== (updatedTask as Task).collection_id) {
+              return collection;
+            }
+
+            const nextTasks = (collection.tasks ?? []).map((task) =>
+              task.id === taskId
+                ? ({
+                    ...task,
+                    ...updatedTask,
+                    is_pinned: isPinned,
+                  } as Task)
+                : task,
+            );
+
+            return {
+              ...collection,
+              tasks: sortRows(nextTasks),
+            };
+          }),
+        );
+
+        return {
+          success: true,
+        };
+      } catch (error) {
+        console.error("Error updating task priority:", error);
+
+        return {
+          success: false,
+          error,
+        };
       }
     },
-    []
+    [updateCollections, sortRows],
   );
 
-  // Handler for task updates
+  /* =======================================================
+     UPDATE TASK
+     ======================================================= */
+
   const handleTaskUpdate = useCallback(
     async (
       taskId: string,
+
       taskData: {
         text: string;
         description?: string | null;
         due_date?: Date | null;
         is_pinned: boolean;
-      }
+      },
     ) => {
       try {
-        // Update the task in the database
         const res = await apiFetch("/api/tasks", {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
           body: JSON.stringify({
             id: taskId,
+
             text: taskData.text,
+
             description: taskData.description ?? null,
+
             due_date: taskData.due_date
-              ? formatDateForPostgres(taskData.due_date)
+              ? toPostgresInstant(taskData.due_date)
               : null,
+
             is_pinned: taskData.is_pinned,
           }),
         });
+
         if (!res.ok) {
           const errData = await res.json();
+
           throw new Error(errData.error || "Failed to update task");
         }
+
         const { data: updatedTask } = await res.json();
 
-        if (updatedTask) {
-          // Update the task in the collections state
-          if ((updatedTask as Task).collection_id) {
-            setCollections((prevCollections) =>
-              prevCollections.map((collection) => {
-                if (collection.id === (updatedTask as Task).collection_id) {
-                  return {
-                    ...collection,
-                    tasks: (collection.tasks || []).map((task) =>
-                      task.id === taskId ? (updatedTask as Task) : task
-                    ),
-                  };
-                }
-                return collection;
-              })
-            );
-          }
-          return { success: true };
+        if (!updatedTask) {
+          return {
+            success: false,
+            error: "No data returned from update",
+          };
         }
-        return { success: false, error: "No data returned from update" };
-      } catch (err) {
-        console.error("Error updating task:", err);
-        return { success: false, error: err };
+
+        updateCollections((previous) =>
+          previous.map((collection) => {
+            if (collection.id !== (updatedTask as Task).collection_id) {
+              return collection;
+            }
+
+            return {
+              ...collection,
+
+              tasks: sortRows(
+                (collection.tasks ?? []).map((task) =>
+                  task.id === taskId ? (updatedTask as Task) : task,
+                ),
+              ),
+            };
+          }),
+        );
+
+        return {
+          success: true,
+        };
+      } catch (error) {
+        console.error("Error updating task:", error);
+
+        return {
+          success: false,
+          error,
+        };
       }
     },
-    []
+    [updateCollections, sortRows],
   );
 
-  // Handler for task deletion that updates UI state
-  const handleTaskDeleteWithUIUpdate = useCallback(async (taskId: string) => {
-    try {
-      // Call the delete function
-      const { success, error } = await handleTaskDelete(taskId);
+  /* =======================================================
+     DELETE TASK
+     ======================================================= */
 
-      if (!success) throw error;
+  const handleTaskDeleteWithUIUpdate = useCallback(
+    async (taskId: string) => {
+      try {
+        const result = await handleTaskDelete(taskId);
 
-      // Update UI by removing the deleted task from all collections
-      setCollections((prevCollections) =>
-        prevCollections.map((collection) => ({
-          ...collection,
-          tasks: (collection.tasks || []).filter((task) => task.id !== taskId),
-        }))
-      );
-      return { success: true };
-    } catch (err) {
-      console.error("Error handling task deletion:", err);
-      return { success: false, error: err };
-    }
-  }, []);
+        if (!result.success) {
+          throw result.error;
+        }
 
-  // Handler for creating a new note
+        updateCollections((previous) =>
+          previous.map((collection) => ({
+            ...collection,
+
+            tasks: (collection.tasks ?? []).filter(
+              (task) => task.id !== taskId,
+            ),
+          })),
+        );
+
+        return {
+          success: true,
+        };
+      } catch (error) {
+        console.error("Error handling task deletion:", error);
+
+        return {
+          success: false,
+          error,
+        };
+      }
+    },
+    [updateCollections],
+  );
+
+  /* =======================================================
+     CREATE NOTE
+     ======================================================= */
+
   const handleNoteSubmit = useCallback(
     async (
       noteData: {
@@ -796,448 +1425,628 @@ export default function ListDetailView({ listId }: { listId: string }) {
         bg_color_hex: string;
         collection_id?: string;
       },
-      newNoteData?: Note // Receive back the complete note data from modal
+
+      newNoteData?: Note,
     ) => {
       if (!listData || !user) {
-        console.error("Cannot create note: List data or user not available");
-        return { success: false, error: "Missing list data or user" };
+        return {
+          success: false,
+          error: "Missing list data or user",
+        };
       }
 
       try {
-        // If we already have the complete note data from the modal, use it directly
+        /*
+         * Some versions of NotePopup
+         * already create the note and
+         * return it here.
+         */
         if (newNoteData) {
-          // Check if the note has a collection ID
           if (newNoteData.collection_id) {
-            // Find the collection this note belongs to and add it to the UI
-            setCollections((prevCollections) =>
-              prevCollections.map((collection) => {
-                if (collection.id === newNoteData.collection_id) {
-                  // Add the new note to the beginning of the collection's notes array
-                  return {
-                    ...collection,
-                    notes: [newNoteData, ...(collection.notes || [])],
-                  };
-                }
-                return collection;
-              })
+            updateCollections((previous) =>
+              previous.map((collection) =>
+                collection.id === newNoteData.collection_id
+                  ? {
+                      ...collection,
+
+                      notes: sortRows([
+                        newNoteData,
+
+                        ...(collection.notes ?? []),
+                      ]),
+                    }
+                  : collection,
+              ),
             );
           }
 
-          // Reset selected collection
           setSelectedCollectionId(null);
-          return { success: true };
+
+          return {
+            success: true,
+          };
         }
 
-        // Use the selected collection ID from the modal or default if available
         const collectionId =
           noteData.collection_id || selectedCollectionId || defaultCollectionId;
 
-        // Create the note in the database if we don't have newNoteData
+        if (!collectionId) {
+          return {
+            success: false,
+            error: "No collection available",
+          };
+        }
+
         const res = await apiFetch("/api/notes", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
           body: JSON.stringify({
             title: noteData.title,
+
             description: noteData.description || null,
+
             bg_color_hex: noteData.bg_color_hex,
+
             collection_id: collectionId,
+
             list_id: listData.id,
+
             is_deleted: false,
+
             is_pinned: false,
           }),
         });
+
         if (!res.ok) {
           const errData = await res.json();
+
           throw new Error(errData.error || "Failed to create note");
         }
+
         const { data } = await res.json();
 
-        if (data) {
-          const newNote = data as Note;
-
-          // Get the collection this note belongs to
-          if (newNote.collection_id) {
-            // Update the collection with the new note
-            setCollections((prevCollections) =>
-              prevCollections.map((collection) => {
-                if (collection.id === newNote.collection_id) {
-                  return {
-                    ...collection,
-                    notes: [newNote, ...(collection.notes || [])],
-                  };
-                }
-                return collection;
-              })
-            );
-          }
-
-          // Reset selected collection
-          setSelectedCollectionId(null);
-          return { success: true };
+        if (!data) {
+          return {
+            success: false,
+            error: "No data returned from creation",
+          };
         }
-        return { success: false, error: "No data returned from creation" };
-      } catch (err) {
-        console.error("Error creating note:", err);
-        return { success: false, error: err };
+
+        const newNote = data as Note;
+
+        if (newNote.collection_id) {
+          updateCollections((previous) =>
+            previous.map((collection) =>
+              collection.id === newNote.collection_id
+                ? {
+                    ...collection,
+
+                    notes: sortRows([newNote, ...(collection.notes ?? [])]),
+                  }
+                : collection,
+            ),
+          );
+        }
+
+        setSelectedCollectionId(null);
+
+        return {
+          success: true,
+        };
+      } catch (error) {
+        console.error("Error creating note:", error);
+
+        return {
+          success: false,
+          error,
+        };
       }
     },
-    [listData, user, selectedCollectionId, defaultCollectionId]
+    [
+      listData,
+      user,
+      selectedCollectionId,
+      defaultCollectionId,
+      updateCollections,
+      sortRows,
+    ],
   );
 
-  // Handler for note pinning
+  /* =======================================================
+     NOTE PIN
+     ======================================================= */
+
   const handleNotePin = useCallback(
     async (noteId: string, isPinned: boolean) => {
       try {
-        // Update the note in the database
         const res = await apiFetch("/api/notes", {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: noteId, is_pinned: isPinned }),
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            id: noteId,
+
+            is_pinned: isPinned,
+          }),
         });
+
         if (!res.ok) {
           const errData = await res.json();
+
           throw new Error(errData.error || "Failed to update note");
         }
+
         const { data: updatedNote } = await res.json();
 
-        if (updatedNote) {
-          // Update the note in the collections state
-          if ((updatedNote as Note).collection_id) {
-            setCollections((prevCollections) =>
-              prevCollections.map((collection) => {
-                if (collection.id === (updatedNote as Note).collection_id) {
-                  return {
-                    ...collection,
-                    notes: (collection.notes || []).map((note) =>
-                      note.id === noteId
-                        ? ({ ...note, is_pinned: isPinned } as Note)
-                        : note
-                    ),
-                  };
-                }
-                return collection;
-              })
-            );
-          }
-          return { success: true };
+        if (!updatedNote) {
+          return {
+            success: false,
+            error: "No data returned from update",
+          };
         }
-        return { success: false, error: "No data returned from update" };
-      } catch (err) {
-        console.error("Error updating note pin status:", err);
-        return { success: false, error: err };
+
+        updateCollections((previous) =>
+          previous.map((collection) => {
+            if (collection.id !== (updatedNote as Note).collection_id) {
+              return collection;
+            }
+
+            return {
+              ...collection,
+
+              notes: sortRows(
+                (collection.notes ?? []).map((note) =>
+                  note.id === noteId
+                    ? ({
+                        ...note,
+                        ...updatedNote,
+                        is_pinned: isPinned,
+                      } as Note)
+                    : note,
+                ),
+              ),
+            };
+          }),
+        );
+
+        return {
+          success: true,
+        };
+      } catch (error) {
+        console.error("Error updating note pin status:", error);
+
+        return {
+          success: false,
+          error,
+        };
       }
     },
-    []
+    [updateCollections, sortRows],
   );
 
-  // Handler for note color change
+  /* =======================================================
+     NOTE COLOUR
+     ======================================================= */
+
   const handleNoteColorChange = useCallback(
     async (noteId: string, color: string) => {
       try {
-        // Update the note in the database
         const res = await apiFetch("/api/notes", {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: noteId, bg_color_hex: color }),
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            id: noteId,
+
+            bg_color_hex: color,
+          }),
         });
+
         if (!res.ok) {
           const errData = await res.json();
+
           throw new Error(errData.error || "Failed to update note");
         }
+
         const { data: updatedNote } = await res.json();
 
-        if (updatedNote) {
-          // Update the note in the collections state
-          if ((updatedNote as Note).collection_id) {
-            setCollections((prevCollections) =>
-              prevCollections.map((collection) => {
-                if (collection.id === (updatedNote as Note).collection_id) {
-                  return {
-                    ...collection,
-                    notes: (collection.notes || []).map((note) =>
-                      note.id === noteId
-                        ? ({ ...note, bg_color_hex: color } as Note)
-                        : note
-                    ),
-                  };
-                }
-                return collection;
-              })
-            );
-          }
-          return { success: true };
+        if (!updatedNote) {
+          return {
+            success: false,
+            error: "No data returned from update",
+          };
         }
-        return { success: false, error: "No data returned from update" };
-      } catch (err) {
-        console.error("Error updating note color:", err);
-        return { success: false, error: err };
+
+        updateCollections((previous) =>
+          previous.map((collection) =>
+            collection.id === (updatedNote as Note).collection_id
+              ? {
+                  ...collection,
+
+                  notes: (collection.notes ?? []).map((note) =>
+                    note.id === noteId
+                      ? ({
+                          ...note,
+                          ...updatedNote,
+                          bg_color_hex: color,
+                        } as Note)
+                      : note,
+                  ),
+                }
+              : collection,
+          ),
+        );
+
+        return {
+          success: true,
+        };
+      } catch (error) {
+        console.error("Error updating note color:", error);
+
+        return {
+          success: false,
+          error,
+        };
       }
     },
-    []
+    [updateCollections],
   );
 
-  // Handler for note updates
+  /* =======================================================
+     UPDATE NOTE
+
+     IMPORTANT:
+     Old version called refreshData() here.
+
+     Removed.
+
+     The returned note is enough to update
+     the exact item locally.
+     ======================================================= */
+
   const handleNoteUpdate = useCallback(
     async (
       noteId: string,
       updatedTitle: string,
-      updatedDescription?: string
+      updatedDescription?: string,
     ) => {
       try {
-        // Update the note in the database
-        const updateData: { title: string; description?: string | null } = {
+        const updateData: {
+          title: string;
+          description?: string | null;
+        } = {
           title: updatedTitle,
         };
 
-        // Only include description if it's provided (allows clearing the description)
         if (updatedDescription !== undefined) {
           updateData.description = updatedDescription || null;
         }
 
         const res = await apiFetch("/api/notes", {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: noteId, ...updateData }),
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            id: noteId,
+            ...updateData,
+          }),
         });
+
         if (!res.ok) {
           const errData = await res.json();
+
           throw new Error(errData.error || "Failed to update note");
         }
+
         const { data: updatedNote } = await res.json();
 
-        if (updatedNote) {
-          // Update the note in the collections state
-          if ((updatedNote as Note).collection_id) {
-            setCollections((prevCollections) =>
-              prevCollections.map((collection) => {
-                if (collection.id === (updatedNote as Note).collection_id) {
-                  return {
-                    ...collection,
-                    notes: (collection.notes || []).map((note) =>
-                      note.id === noteId ? (updatedNote as Note) : note
-                    ),
-                  };
-                }
-                return collection;
-              })
-            );
-          }
-
-          // Refresh all data when a note is updated to ensure collection changes are reflected
-          refreshData();
-
-          return { success: true };
+        if (!updatedNote) {
+          return {
+            success: false,
+            error: "No data returned from update",
+          };
         }
-        return { success: false, error: "No data returned from update" };
-      } catch (err) {
-        console.error("Error updating note:", err);
-        return { success: false, error: err };
+
+        updateCollections((previous) =>
+          previous.map((collection) =>
+            collection.id === (updatedNote as Note).collection_id
+              ? {
+                  ...collection,
+
+                  notes: (collection.notes ?? []).map((note) =>
+                    note.id === noteId ? (updatedNote as Note) : note,
+                  ),
+                }
+              : collection,
+          ),
+        );
+
+        return {
+          success: true,
+        };
+      } catch (error) {
+        console.error("Error updating note:", error);
+
+        return {
+          success: false,
+          error,
+        };
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [updateCollections],
   );
 
-  // Handler for changing a task's collection
+  /* =======================================================
+     MOVE TASK
+     ======================================================= */
+
   const handleTaskCollectionChange = useCallback(
     async (
       taskId: string,
-      newCollectionId: string
+      newCollectionId: string,
     ): Promise<OperationResult> => {
       try {
-        // First find the task and its current collection
-        let taskToMove = null;
-        let oldCollectionId = null;
+        let taskToMove: Task | null = null;
+
+        let oldCollectionId: string | null = null;
 
         for (const collection of collections) {
-          if (!collection.tasks) continue;
+          const foundTask = collection.tasks?.find(
+            (task) => task.id === taskId,
+          );
 
-          const foundTask = collection.tasks.find((task) => task.id === taskId);
           if (foundTask) {
-            taskToMove = { ...foundTask };
+            taskToMove = {
+              ...foundTask,
+            };
+
             oldCollectionId = collection.id;
+
             break;
           }
         }
 
         if (!taskToMove) {
-          return { success: false, error: "Task not found" };
+          return {
+            success: false,
+            error: "Task not found",
+          };
         }
 
-        // Update the collection_id in the database
         const res = await apiFetch("/api/tasks", {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: taskId, collection_id: newCollectionId }),
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            id: taskId,
+
+            collection_id: newCollectionId,
+          }),
         });
+
         if (!res.ok) {
           const errData = await res.json();
+
           throw new Error(errData.error || "Failed to update task collection");
         }
 
-        // Update local state to move the task between collections
-        setCollections((prevCollections) => {
-          // Create a copy of the collections
-          const updatedCollections = [...prevCollections];
+        const { data: serverTask } = await res.json();
 
-          // Remove the task from its old collection
-          if (oldCollectionId) {
-            const oldCollectionIndex = updatedCollections.findIndex(
-              (c) => c.id === oldCollectionId
-            );
-            if (
-              oldCollectionIndex >= 0 &&
-              updatedCollections[oldCollectionIndex].tasks
-            ) {
-              updatedCollections[oldCollectionIndex] = {
-                ...updatedCollections[oldCollectionIndex],
-                tasks:
-                  updatedCollections[oldCollectionIndex].tasks?.filter(
-                    (t) => t.id !== taskId
-                  ) || [],
+        const movedTask: Task = serverTask
+          ? (serverTask as Task)
+          : ({
+              ...taskToMove,
+
+              collection_id: newCollectionId,
+            } as Task);
+
+        updateCollections((previous) =>
+          previous.map((collection) => {
+            /*
+             * Remove from old collection.
+             */
+            if (collection.id === oldCollectionId) {
+              return {
+                ...collection,
+
+                tasks: (collection.tasks ?? []).filter(
+                  (task) => task.id !== taskId,
+                ),
               };
             }
-          }
 
-          // Add the task to its new collection with updated collection_id
-          const newCollectionIndex = updatedCollections.findIndex(
-            (c) => c.id === newCollectionId
-          );
-          if (newCollectionIndex >= 0) {
-            // Update the task's collection_id
-            const updatedTask = {
-              ...taskToMove,
-              collection_id: newCollectionId,
-            };
+            /*
+             * Add to new collection.
+             */
+            if (collection.id === newCollectionId) {
+              return {
+                ...collection,
 
-            // Add the task to the new collection
-            updatedCollections[newCollectionIndex] = {
-              ...updatedCollections[newCollectionIndex],
-              tasks: [
-                updatedTask,
-                ...(updatedCollections[newCollectionIndex].tasks || []),
-              ],
-            };
-          }
+                tasks: sortRows([
+                  movedTask,
 
-          return updatedCollections;
-        });
+                  ...(collection.tasks ?? []).filter(
+                    (task) => task.id !== taskId,
+                  ),
+                ]),
+              };
+            }
 
-        return { success: true };
-      } catch (err) {
-        console.error("Error changing task collection:", err);
-        return { success: false, error: err };
+            return collection;
+          }),
+        );
+
+        return {
+          success: true,
+        };
+      } catch (error) {
+        console.error("Error changing task collection:", error);
+
+        return {
+          success: false,
+          error,
+        };
       }
     },
-    [collections]
+    [collections, updateCollections, sortRows],
   );
 
-  // Handler for note deletion
+  /* =======================================================
+     DELETE NOTE
+
+     Old behaviour:
+       delete
+       -> local update
+       -> wait 500ms
+       -> refetch entire page
+
+     New behaviour:
+       delete
+       -> local/cache update
+       -> finished
+     ======================================================= */
+
   const handleNoteDelete = useCallback(
     async (noteId: string) => {
       try {
-        // First, find which collection contains this note
-        let noteCollectionId = null;
-        let foundNote = null;
-
-        // Find the note and its collection
-        for (const collection of collections) {
-          foundNote = collection.notes?.find((note) => note.id === noteId);
-          if (foundNote) {
-            noteCollectionId = collection.id;
-            break;
-          }
-        }
-
-        // Hard-delete the note
         const res = await apiFetch("/api/notes", {
           method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: noteId, hard: true }),
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            id: noteId,
+            hard: true,
+          }),
         });
+
         if (!res.ok) {
           const errData = await res.json();
+
           throw new Error(errData.error || "Failed to delete note");
         }
 
-        // Immediately update the UI to remove the note
-        if (noteCollectionId) {
-          setCollections((prevCollections) =>
-            prevCollections.map((collection) => {
-              if (collection.id === noteCollectionId) {
-                return {
-                  ...collection,
-                  notes: (collection.notes || []).filter(
-                    (note) => note.id !== noteId
-                  ),
-                };
-              }
-              return collection;
-            })
-          );
-        } else {
-          // If we can't find the specific collection, update all collections
-          setCollections((prevCollections) =>
-            prevCollections.map((collection) => ({
-              ...collection,
-              notes: (collection.notes || []).filter(
-                (note) => note.id !== noteId
-              ),
-            }))
-          );
-        }
+        updateCollections((previous) =>
+          previous.map((collection) => ({
+            ...collection,
 
-        // Finally, force a refresh after a short delay to ensure DB and UI are synced
-        setTimeout(() => {
-          refreshData();
-        }, 500);
+            notes: (collection.notes ?? []).filter(
+              (note) => note.id !== noteId,
+            ),
+          })),
+        );
 
-        return { success: true };
-      } catch (err) {
-        console.error("Error deleting note:", err);
-        return { success: false, error: err };
+        return {
+          success: true,
+        };
+      } catch (error) {
+        console.error("Error deleting note:", error);
+
+        return {
+          success: false,
+          error,
+        };
       }
     },
-    [collections, refreshData]
+    [updateCollections],
   );
 
-  // Handler for collections deleted from the DeleteCollectionModal
+  /* =======================================================
+     COLLECTIONS DELETED
+
+     The delete modal currently only tells this
+     component that deletion happened; it does
+     not return the deleted IDs.
+
+     Therefore we quietly revalidate here.
+
+     Crucially this DOES NOT show the loading
+     screen or clear existing content.
+     ======================================================= */
+
   const handleCollectionsDeleted = useCallback(() => {
-    // Refresh data after collections are deleted
-    refreshData();
-  }, [refreshData]);
+    revalidateData();
+  }, [revalidateData]);
 
-  // Memoized sort function to sort collections by pinned status
+  /*
+   * Which collection holds the task a reminder was tapped for.
+   *
+   * Resolved from the loaded collections rather than passed down, because the
+   * notification only knows the task and the list. Null until the data lands,
+   * so the collection opens as soon as there is something to open.
+   */
+  const reminderCollectionId = useMemo(() => {
+    if (!reminderTaskId) return null;
+
+    const owner = collections.find((collection) =>
+      (collection.tasks ?? []).some((task) => task.id === reminderTaskId),
+    );
+
+    return owner?.id ?? null;
+  }, [reminderTaskId, collections]);
+
+  /* =======================================================
+     SORT COLLECTIONS
+
+     General first.
+     Then oldest -> newest.
+     ======================================================= */
+
   const sortedCollections = useMemo(() => {
-    if (!collections) return [];
-
     return [...collections].sort((a, b) => {
-      const aIsGeneral = isGeneralCollection(a.collection_name);
-      const bIsGeneral = isGeneralCollection(b.collection_name);
+      const aGeneral = isGeneralCollection(a.collection_name);
 
-      // General first
-      if (aIsGeneral && !bIsGeneral) return -1;
-      if (!aIsGeneral && bIsGeneral) return 1;
+      const bGeneral = isGeneralCollection(b.collection_name);
 
-      // Then by creation date ascending (oldest first, newest last)
+      if (aGeneral && !bGeneral) {
+        return -1;
+      }
+
+      if (!aGeneral && bGeneral) {
+        return 1;
+      }
+
       return (
         new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
     });
   }, [collections, isGeneralCollection]);
 
-  // Close modal handlers with proper cleanup
+  /* =======================================================
+     MODAL CLOSE HANDLERS
+     ======================================================= */
+
   const handleCloseCollectionModal = useCallback(() => {
     setIsCollectionModalOpen(false);
   }, []);
 
   const handleCloseTaskModal = useCallback(() => {
     setIsTaskModalOpen(false);
+
     setSelectedCollectionId(null);
   }, []);
 
   const handleCloseNoteModal = useCallback(() => {
     setIsNoteModalOpen(false);
+
     setSelectedCollectionId(null);
   }, []);
 
@@ -1247,120 +2056,204 @@ export default function ListDetailView({ listId }: { listId: string }) {
 
   const handleCloseEditCollectionModal = useCallback(() => {
     setIsEditCollectionModalOpen(false);
+
     setCollectionToEdit(null);
   }, []);
 
+  /* =======================================================
+     RENDER
+     ======================================================= */
+
+  /* Declared once and placed twice: inline beside the title on web, portalled
+     to a floating position on native. Same element, same handlers. */
+  const addMenu = (
+    <ListFilterPlus
+      onCollapseAll={
+        collections.length > 0 ? collapseAllCollections : undefined
+      }
+      onCreateCollection={() => setIsCollectionModalOpen(true)}
+      onCreateTask={() => {
+        setSelectedCollectionId(null);
+        setIsTaskModalOpen(true);
+      }}
+      onCreateNote={() => {
+        setSelectedCollectionId(null);
+        setIsNoteModalOpen(true);
+      }}
+      onDeleteCollections={() => setIsDeleteCollectionModalOpen(true)}
+    />
+  );
+
   return (
     <main
-      className={`transition-all min-h-screen duration-300 
-     pb-20 w-full relative
-    ${isDark ? "text-gray-200" : "text-gray-800"}
-    `}
+      className={`
+        relative
+        min-h-screen
+        w-full
+        pb-20
+        transition-all
+        duration-300
+        ${isDark ? "text-gray-200" : "text-gray-800"}
+      `}
     >
       <AppSurface />
-      {/* `pt-20` clears the web header. On native it was 80px of nothing on top of
-          a back bar that is `sticky` rather than fixed, so it already takes its own
-          height in the flow and the padding was being counted twice — which is the
-          empty band the screen opened with, above a plus floating in it. */}
+
       <div
-        className={`p-4 box-border ${IS_NATIVE_BUILD ? "pt-2" : "pt-20"}`}
+        className={`
+          box-border
+          p-4
+          ${IS_NATIVE_BUILD ? "pt-2" : "pt-20"}
+        `}
       >
-        <div className={`max-w-6xl mx-auto`}>
-          {/* Loading state */}
-          {isLoading ? (
+        <div className="mx-auto max-w-6xl">
+          {/* ===============================================
+              FIRST LOAD
+
+              Only shown when there is no cache.
+             =============================================== */}
+
+          {isLoading && !listData ? (
             <div
-              className={`text-center py-10 rounded-xl ${
-                isDark
-                  ? "bg-gray-800 text-gray-300"
-                  : "bg-white/90 text-gray-500"
-              } shadow-md border-l-4 border-orange-500`}
+              className={`
+                rounded-xl
+                border-l-4
+                border-orange-500
+                py-10
+                text-center
+                shadow-md
+                ${
+                  isDark
+                    ? "bg-gray-800 text-gray-300"
+                    : "bg-white/90 text-gray-500"
+                }
+              `}
             >
               <div className="animate-pulse">
                 <p className="text-lg">{loadingMessage}</p>
               </div>
             </div>
-          ) : error ? (
+          ) : error && !listData ? (
+            /* =============================================
+               HARD ERROR
+
+               Only replaces the screen if there is
+               no cached/usable list available.
+               ============================================= */
+
             <div
-              className={`text-center py-10 rounded-xl ${
-                isDark ? "bg-gray-800 text-red-300" : "bg-white/90 text-red-700"
-              } shadow-md border-l-4 border-red-500`}
+              className={`
+                rounded-xl
+                border-l-4
+                border-red-500
+                py-10
+                text-center
+                shadow-md
+                ${
+                  isDark
+                    ? "bg-gray-800 text-red-300"
+                    : "bg-white/90 text-red-700"
+                }
+              `}
             >
               <p className="text-lg">{error}</p>
             </div>
           ) : listData ? (
             <>
-              {/* Header with list name.
-                  Native drops the name and keeps only the create menu. The back
-                  bar above already carries it — useSetScreenTitle feeds it at the
-                  top of this component — so this was the same word twice, and
-                  because it is painted in the list's own colour a short name read
-                  as a stray coloured bar beside the plus rather than as a title.
-                  Losing the row also starts the collections a row higher, which is
-                  the whole point of the screen. Web keeps it: there is no back bar
-                  there, so this h1 is the only place the list is named. */}
+              {/* ===========================================
+                  LIST HEADER
+                 =========================================== */}
+
               <div
-                className={`flex items-center px-4 ${
-                  IS_NATIVE_BUILD ? "justify-end mb-2" : "justify-between mb-6"
-                }`}
+                className={`
+                  flex
+                  items-center
+                  px-4
+                  ${
+                    IS_NATIVE_BUILD
+                      ? "mb-2 justify-end"
+                      : "mb-6 justify-between"
+                  }
+                `}
               >
                 {!IS_NATIVE_BUILD && (
                   <h1
-                    className={`text-2xl font-bold truncate mr-2 ${
-                      isDark ? "text-gray-100" : "text-gray-800"
-                    }`}
-                    style={{ color: listData.bg_color_hex ?? "#ffffff" }}
+                    className={`
+                      mr-2
+                      truncate
+                      text-2xl
+                      font-bold
+                      ${isDark ? "text-gray-100" : "text-gray-800"}
+                    `}
+                    style={{
+                      color: listData.bg_color_hex ?? "#ffffff",
+                    }}
                   >
                     {listData.list_name}
                   </h1>
                 )}
-                <div className="flex-shrink-0">
-                  <ListFilterPlus
-                    onCreateCollection={() => setIsCollectionModalOpen(true)}
-                    onCreateTask={() => {
-                      setSelectedCollectionId(null);
-                      setIsTaskModalOpen(true);
-                    }}
-                    onCreateNote={() => {
-                      setSelectedCollectionId(null);
-                      setIsNoteModalOpen(true);
-                    }}
-                    onDeleteCollections={() =>
-                      setIsDeleteCollectionModalOpen(true)
-                    }
-                  />
-                </div>
+
+                {/* Web keeps the quiet icon button beside the title. On native
+                    it is the screen's floating Add and belongs at the bottom,
+                    which is what `ListFilterPlus` already dresses itself for —
+                    it styles a filled circle and opens its menu upward "just
+                    above the tab bar". Only the placement was missing, so the
+                    button sat in the top corner contradicting its own menu. */}
+                {!IS_NATIVE_BUILD && (
+                  <div className="flex-shrink-0">{addMenu}</div>
+                )}
               </div>
 
-              {/* Empty state or collections list */}
+              {/* ===========================================
+                  COLLECTIONS
+                 =========================================== */}
+
               {collections.length === 0 ? (
                 <div
-                  className={`text-center py-16 rounded-xl ${
-                    isDark
-                      ? "bg-gray-900/80 text-gray-300"
-                      : "bg-white/90 text-gray-500"
-                  } shadow-md`}
+                  className={`
+                    rounded-xl
+                    py-16
+                    text-center
+                    shadow-md
+                    ${
+                      isDark
+                        ? "bg-gray-900/80 text-gray-300"
+                        : "bg-white/90 text-gray-500"
+                    }
+                  `}
                 >
-                  <p className="text-lg mb-4">
+                  <p className="mb-4 text-lg">
                     No collections in this list yet.
                   </p>
+
                   <button
+                    type="button"
                     onClick={() => setIsCollectionModalOpen(true)}
-                    className={`px-4 py-2 rounded-md ${
-                      isDark
-                        ? "bg-orange-600 hover:bg-orange-700 text-white"
-                        : "bg-orange-500 hover:bg-orange-600 text-white"
-                    } shadow-md transition-colors duration-200`}
+                    className={`
+                      rounded-md
+                      px-4
+                      py-2
+                      text-white
+                      shadow-md
+                      transition-colors
+                      duration-200
+                      ${
+                        isDark
+                          ? "bg-orange-600 hover:bg-orange-700"
+                          : "bg-orange-500 hover:bg-orange-600"
+                      }
+                    `}
                   >
                     Create your first collection
                   </button>
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* Collection components */}
                   {sortedCollections.map((collection) => (
                     <CollectionComponent
                       key={collection.id}
                       id={collection.id}
+                      collapseNonce={collapseNonce}
+                      autoExpand={collection.id === reminderCollectionId}
                       collection_name={collection.collection_name || ""}
                       bg_color_hex={collection.bg_color_hex || ""}
                       created_at={collection.created_at}
@@ -1377,7 +2270,7 @@ export default function ListDetailView({ listId }: { listId: string }) {
                       onNoteUpdate={handleNoteUpdate}
                       onNoteDelete={handleNoteDelete}
                       onCollectionEdit={handleEditCollection}
-                      collections={collections} // Pass all collections
+                      collections={collections}
                     />
                   ))}
                 </div>
@@ -1385,11 +2278,19 @@ export default function ListDetailView({ listId }: { listId: string }) {
             </>
           ) : (
             <div
-              className={`text-center py-10 rounded-xl ${
-                isDark
-                  ? "bg-gray-800 text-gray-300"
-                  : "bg-white/90 text-gray-500"
-              } shadow-md border-l-4 border-orange-500`}
+              className={`
+                rounded-xl
+                border-l-4
+                border-orange-500
+                py-10
+                text-center
+                shadow-md
+                ${
+                  isDark
+                    ? "bg-gray-800 text-gray-300"
+                    : "bg-white/90 text-gray-500"
+                }
+              `}
             >
               <p className="text-lg">List not found.</p>
             </div>
@@ -1397,38 +2298,36 @@ export default function ListDetailView({ listId }: { listId: string }) {
         </div>
       </div>
 
-      {/* Modal Components */}
+      {/* ===================================================
+          MODALS
+         =================================================== */}
+
       {listData && (
         <>
           <CreateCollectionModal
             isOpen={isCollectionModalOpen}
             onClose={handleCloseCollectionModal}
             onSubmit={handleCreateCollection}
-            existingCollections={collections} // Pass existing collections for validation
+            existingCollections={collections}
           />
 
-          {/* Task Modal */}
           <CreateTaskModal
             isOpen={isTaskModalOpen}
             onClose={handleCloseTaskModal}
             onSubmit={handleTaskSubmit}
             collections={collections}
-            // Pass selectedCollectionId but make it optional
             selectedCollectionId={selectedCollectionId ?? undefined}
           />
 
-          {/* Note Modal */}
           <CreateNoteModal
             isOpen={isNoteModalOpen}
             onClose={handleCloseNoteModal}
             onSubmit={handleNoteSubmit}
             collections={collections}
             listId={listId}
-            // Pass selectedCollectionId but make it optional
             selectedCollectionId={selectedCollectionId ?? undefined}
           />
 
-          {/* Delete Collections Modal */}
           <DeleteCollectionModal
             isOpen={isDeleteCollectionModalOpen}
             onClose={handleCloseDeleteModal}
@@ -1436,7 +2335,6 @@ export default function ListDetailView({ listId }: { listId: string }) {
             onCollectionsDeleted={handleCollectionsDeleted}
           />
 
-          {/* Edit Collection Modal */}
           <EditCollectionPopup
             isOpen={isEditCollectionModalOpen}
             onClose={handleCloseEditCollectionModal}
@@ -1446,6 +2344,29 @@ export default function ListDetailView({ listId }: { listId: string }) {
           />
         </>
       )}
+
+      {/* The floating Add, on native only.
+
+          Portalled to the body, and that is not optional: NativeTransition wraps
+          this screen in a `transform`, which makes it the containing block for
+          any `position: fixed` child. Rendered in place the button measures
+          itself against the transition wrapper rather than the viewport. The
+          same trap NativeHome and the detail sheets documented.
+
+          `pb-20` on <main> already reserves the room, so nothing rests under it. */}
+      {IS_NATIVE_BUILD &&
+        portalReady &&
+        !isLoading &&
+        listData &&
+        createPortal(
+          <div
+            className="fixed right-5 z-40"
+            style={{ bottom: "calc(56px + var(--safe-bottom) + 4px)" }}
+          >
+            {addMenu}
+          </div>,
+          document.body,
+        )}
     </main>
   );
 }

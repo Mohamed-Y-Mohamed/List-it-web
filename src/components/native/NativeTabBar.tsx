@@ -44,7 +44,7 @@ export default function NativeTabBar() {
       // hardware back walk backwards through every tab the user had visited.
       router.replace(appPath(path));
     },
-    [router]
+    [router],
   );
 
   // Hidden on screens pushed above a tab root — a list detail is not a

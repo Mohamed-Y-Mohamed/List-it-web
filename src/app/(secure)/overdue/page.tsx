@@ -1,16 +1,25 @@
 "use client";
 
-// Tasks whose due date has passed, grouped by how far past.
+// Scheduled: everything with a date on it, soonest problem first.
 //
-// The only screen that filters in the query by date rather than after the
-// fetch, and one of two that group rather than showing a flat list — so it
-// supplies its own body while still sitting in the shared frame.
+// This was Overdue, and showed only what had already slipped. That made it a
+// screen you opened to feel bad and never to plan, and it meant the question
+// "what is coming up?" had no home at all. It now covers anything dated and
+// unfinished, with overdue as the first band rather than the whole screen.
+//
+// Today still has its own screen, and still wins for one-off work due today.
+// This one is the wider view: what has slipped, what lands today, and what is
+// coming.
+//
+// One of two screens that band rather than showing a flat list, so it supplies
+// its own body while still sitting in the shared frame.
 
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
   Calendar,
+  CalendarClock,
   Clock,
   Target,
   TrendingDown,
@@ -18,48 +27,55 @@ import {
 import { useTheme } from "@/context/ThemeContext";
 import { useTaskView } from "@/hooks/useTaskView";
 import { useTaskActions } from "@/hooks/useTaskActions";
-import { sortTasks, toPostgresDate } from "@/lib/taskView";
+import { bandByDueDate, daysBetween, sortTasks } from "@/lib/taskView";
 import TaskScreen from "@/components/Tasks/TaskScreen";
 import TaskList, { type TaskListHandlers } from "@/components/Tasks/TaskList";
 import { TaskSectionHeader } from "@/components/Tasks/TaskStatsCard";
 import type { Collection as SchemaCollection } from "@/types/schema";
 import type { TaskRow } from "@/types/taskView";
 
-/** How the three bands are labelled and coloured, worst first. */
+/** The four bands, most urgent first. */
 const BANDS = [
   {
-    key: "critical" as const,
-    title: "Critical Priority",
+    key: "overdue" as const,
+    title: "Overdue",
     color: "text-red-600 dark:text-red-400",
-    bgColor: "bg-red-100 dark:bg-red-900/30",
     icon: AlertTriangle,
     cardClassName: "border-l-4 border-red-600",
   },
   {
-    key: "high" as const,
-    title: "High Priority",
+    key: "today" as const,
+    title: "Today",
     color: "text-orange-600 dark:text-orange-400",
-    bgColor: "bg-orange-100 dark:bg-orange-900/30",
     icon: Clock,
     cardClassName: "border-l-4 border-orange-500",
   },
   {
-    key: "medium" as const,
-    title: "Recently Overdue",
-    color: "text-yellow-600 dark:text-yellow-400",
-    bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
+    key: "tomorrow" as const,
+    title: "Tomorrow",
+    color: "text-amber-600 dark:text-amber-400",
     icon: Calendar,
-    cardClassName: "border-l-4 border-yellow-500",
+    cardClassName: "border-l-4 border-amber-500",
+  },
+  {
+    key: "upcoming" as const,
+    title: "Upcoming",
+    color: "text-sky-600 dark:text-sky-400",
+    icon: CalendarClock,
+    cardClassName: "border-l-4 border-sky-500",
   },
 ];
 
-export default function OverduePage() {
+/**
+ * Anything with a date on it. Module level, not an inline arrow: useTaskView puts
+ * the predicate in `refresh`'s dependency array, so a fresh identity each render
+ * means a fetch each render.
+ */
+const isScheduled = (task: TaskRow) => Boolean(task.due_date);
+
+export default function ScheduledPage() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-
-  // Anything due strictly before midnight today. Expressed in the query rather
-  // than as a predicate, so the rows never leave the database.
-  const dueBefore = useMemo(() => toPostgresDate(new Date()), []);
 
   const {
     tasks,
@@ -69,97 +85,83 @@ export default function OverduePage() {
     isRefreshing,
     refresh,
     today,
-  } = useTaskView({ isCompleted: false, dueBefore });
+  } = useTaskView({ isCompleted: false, predicate: isScheduled });
 
-  const actions = useTaskActions(setTasks, { collections });
+  const actions = useTaskActions(setTasks, { collections, tasks });
   const sorted = useMemo(() => sortTasks(tasks), [tasks]);
 
   const daysOverdue = useMemo(
-    () => (dueDate: string) => {
-      const due = new Date(dueDate);
-      due.setHours(0, 0, 0, 0);
-      return Math.ceil(
-        (today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)
-      );
-    },
-    [today]
+    () => (dueDate: string) => daysBetween(dueDate, today),
+    [today],
   );
 
-  const grouped = useMemo(() => {
-    const groups: Record<"critical" | "high" | "medium", TaskRow[]> = {
-      critical: [],
-      high: [],
-      medium: [],
-    };
-
-    sorted.forEach((task) => {
-      if (!task.due_date) return;
-      const days = daysOverdue(task.due_date);
-      if (days > 7) groups.critical.push(task);
-      else if (days >= 3) groups.high.push(task);
-      else groups.medium.push(task);
-    });
-
-    return groups;
-  }, [sorted, daysOverdue]);
+  // Everything bands together, recurring included — see `bandByDueDate`.
+  const grouped = useMemo(() => bandByDueDate(sorted, today), [sorted, today]);
 
   const averageDaysOverdue = useMemo(() => {
     if (sorted.length === 0) return 0;
-    const total = sorted.reduce(
-      (sum, task) => (task.due_date ? sum + daysOverdue(task.due_date) : sum),
-      0
+    // Only across what has actually slipped. Averaging in things due next week
+    // would report a negative delay, which reads as nonsense on a stat tile.
+    const late = sorted.filter(
+      (task) => task.due_date && daysOverdue(task.due_date) > 0,
     );
-    return Math.round(total / sorted.length);
+    if (late.length === 0) return 0;
+    const total = late.reduce(
+      (sum, task) => sum + daysOverdue(task.due_date as string),
+      0,
+    );
+    return Math.round(total / late.length);
   }, [sorted, daysOverdue]);
 
   return (
     <TaskScreen
       isDark={isDark}
-      icon={AlertTriangle}
-      accent={{ dark: "text-red-400", light: "text-red-500" }}
-      title="Overdue Tasks"
+      icon={CalendarClock}
+      accent={{ dark: "text-sky-400", light: "text-sky-500" }}
+      title="Scheduled"
       subtitle={
         <>
-          {sorted.length} task{sorted.length !== 1 ? "s" : ""} need
-          {sorted.length === 1 ? "s" : ""} your immediate attention
+          {sorted.length} dated task{sorted.length !== 1 ? "s" : ""}
+          {grouped.overdue.length > 0
+            ? `, ${grouped.overdue.length} overdue`
+            : ", nothing overdue"}
         </>
       }
       onRefresh={refresh}
       isRefreshing={isRefreshing}
       isLoading={isLoading}
-      loadingLabel="Loading overdue tasks..."
+      loadingLabel="Loading your schedule..."
       stats={
         sorted.length > 0
           ? [
               {
-                title: "Total Overdue",
-                value: sorted.length,
+                title: "Overdue",
+                value: grouped.overdue.length,
                 icon: AlertTriangle,
                 color: "bg-red-500",
-                description: "Tasks past due",
+                description: "Past their date",
               },
               {
-                title: "Critical Items",
-                value: grouped.critical.length,
+                title: "Due Today",
+                value: grouped.today.length,
+                icon: Clock,
+                color: "bg-orange-500",
+                description: "Landing today",
+              },
+              {
+                title: "Upcoming",
+                value: grouped.tomorrow.length + grouped.upcoming.length,
                 icon: TrendingDown,
-                color: "bg-red-600",
-                description: "7+ days overdue",
+                color: "bg-sky-500",
+                description: "Still ahead of you",
               },
               {
                 title: "Average Delay",
                 value: averageDaysOverdue,
-                icon: Clock,
-                color: "bg-orange-500",
-                suffix: " days",
-                description: "Days overdue",
-              },
-              {
-                title: "Completion Rate",
-                value: Math.max(0, 100 - sorted.length * 5),
                 icon: Target,
                 color: "bg-yellow-500",
-                suffix: "%",
-                description: "Time management",
+                suffix: " days",
+                description: "Across what has slipped",
               },
             ]
           : undefined
@@ -167,9 +169,9 @@ export default function OverduePage() {
       empty={
         sorted.length === 0
           ? {
-              title: "No overdue tasks",
+              title: "Nothing scheduled",
               message:
-                "Excellent! You're all caught up and have no overdue tasks.",
+                "Tasks with a date show up here, whether they have slipped, land today, or are still ahead of you.",
               icon: "check",
             }
           : undefined
@@ -182,7 +184,7 @@ export default function OverduePage() {
         className="space-y-8"
       >
         {BANDS.map((band) => (
-          <OverdueBand
+          <ScheduledBand
             key={band.key}
             band={band}
             tasks={grouped[band.key]}
@@ -196,7 +198,7 @@ export default function OverduePage() {
   );
 }
 
-function OverdueBand({
+function ScheduledBand({
   band,
   tasks,
   collections,
@@ -222,10 +224,8 @@ function OverdueBand({
         title={band.title}
         count={tasks.length}
         color={band.color}
-        bgColor={band.bgColor}
         icon={band.icon}
         isDark={isDark}
-        subject="need attention"
       />
       <div className="space-y-4">
         <TaskList

@@ -65,7 +65,7 @@ const STEPS: readonly Step[] = [
     title: "Turn on reminders?",
     // Says what will be sent and how often, because that is what the decision
     // actually turns on. Notifications are the only permission the app asks for.
-    body: "Give a task a due date and List It can remind you on the day. You get one reminder a day, covering everything due. Android will ask your permission first, and this is the only permission the app needs.",
+    body: "Give a task a date and add your own reminders: an hour before, a day before, or a time you pick. You only hear from List It when you have asked to. Android will ask your permission first, and this is the only permission the app needs.",
     isPermissionRequest: true,
   },
 ] as const;
@@ -102,7 +102,7 @@ export default function NativeOnboarding() {
       setDirection(next > index ? 1 : -1);
       setIndex(next);
     },
-    [index]
+    [index],
   );
 
   const advance = useCallback(() => {
@@ -129,7 +129,7 @@ export default function NativeOnboarding() {
       if (forward && index < STEPS.length - 1) go(index + 1);
       else if (back && index > 0) go(index - 1);
     },
-    [index, go]
+    [index, go],
   );
 
   // Asking here rather than when the first reminder is due is the whole point of
@@ -220,7 +220,11 @@ export default function NativeOnboarding() {
             ) : (
               Icon && (
                 <div className="mb-8 flex h-20 w-20 items-center justify-center rounded-[22px] bg-orange-500/10">
-                  <Icon size={36} strokeWidth={1.8} className="text-orange-500" />
+                  <Icon
+                    size={36}
+                    strokeWidth={1.8}
+                    className="text-orange-500"
+                  />
                 </div>
               )
             )}

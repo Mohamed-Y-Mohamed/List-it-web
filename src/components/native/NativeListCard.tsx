@@ -1,35 +1,53 @@
 "use client";
 
-// The list card shapes on the Lists screen:
+// The list shapes on the Lists screen.
 //
-//   * grid   — 100pt tall, three to a row, icon above a centred name and counts
-//   * pinned — 50pt tall, laid out horizontally, scrolls sideways
-//   * row    — full width, one per line, icon beside a left-aligned name and counts
+//   * overview — a built-in view. Compact, name and a colour accent, nothing else.
+//   * pinned   — the horizontal rail. Smaller than a normal card.
+//   * grid     — the user's own lists in Cards layout, two to a row.
+//   * row      — the same lists in List layout, each its own full-width container.
 //
-// The first two are ports of the iOS lists screen. `row` is what the List layout
-// setting switches the user's own lists to, and is the shape the swipe actions need:
-// a full-width row has somewhere for a panel to come from, where a card one third of
-// the screen wide does not.
+// No decorative icons on any of them. A list is identified by its name, its
+// colour and the space around it; a generic checklist glyph repeated eight times
+// down a screen identifies nothing and was the loudest thing on the page. The
+// colour survives as a small accent — a dot, or a hairline bar — which is enough
+// to tell two lists apart without competing with their names.
 //
-// Colour identifies a list through a faint wash and a hairline edge, with the
-// icon chip carrying it at full strength. Every variant opens its context menu
-// on a long press.
+// Surfaces come from the product palette: #131A2B for a card on the #0B1222
+// field, with borders at 6–10% white. Light mode keeps a white card and a
+// hairline grey, since the palette is specified for the dark interface.
 
 import React from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Pin } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useLongPress } from "@/hooks/useLongPress";
 import type { List, Note, Task } from "@/types/schema";
-import { ListIcon, ListInfo, listColor } from "./listVisuals";
+import { listColor } from "./listVisuals";
+
+export type ListCardVariant = "overview" | "pinned" | "grid" | "row";
 
 interface NativeListCardProps {
   list: List;
   tasks: Task[];
   notes: Note[];
-  variant: "grid" | "pinned" | "row";
+  variant: ListCardVariant;
   onOpen: () => void;
-  /** Omitted for the built-in default lists, which have nothing to pin or edit. */
+  /** Omitted for the built-in views, which have nothing to pin or delete. */
   onLongPress?: (position: { x: number; y: number }) => void;
+}
+
+/**
+ * `4 tasks · 2 notes`, counted from the user's real rows.
+ *
+ * Never an open count: the spec drops "2 open" from every card, and a second
+ * number next to the first invites the reader to work out the difference.
+ */
+function countsLabel(list: List, tasks: Task[], notes: Note[]): string {
+  const taskCount = tasks.filter((task) => task.list_id === list.id).length;
+  const noteCount = notes.filter((note) => note.list_id === list.id).length;
+  return `${taskCount} task${taskCount === 1 ? "" : "s"} · ${noteCount} note${
+    noteCount === 1 ? "" : "s"
+  }`;
 }
 
 export default function NativeListCard({
@@ -43,86 +61,140 @@ export default function NativeListCard({
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const color = listColor(list);
-  const isGrid = variant === "grid";
-  const isRow = variant === "row";
-
-  // Colour identifies the list without shouting: a faint wash over the surface
-  // and a hairline edge, with the icon carrying it at full strength. The earlier
-  // treatment stacked a 1.5px solid border, a solid side bar and a coloured
-  // shadow on every card, which read as clutter once six of them shared a screen.
-  const surface = isDark ? "#0b0f17" : "#ffffff";
-  const cardStyle: React.CSSProperties = {
-    backgroundImage: `linear-gradient(${surface}, ${surface}), linear-gradient(160deg, ${color}${isDark ? "26" : "14"}, ${color}00 65%)`,
-    backgroundOrigin: "border-box",
-    backgroundClip: "padding-box, border-box",
-    borderColor: `${color}${isDark ? "3d" : "2e"}`,
-    boxShadow: isDark
-      ? "0 1px 2px rgba(0,0,0,0.5)"
-      : "0 1px 2px rgba(16,24,40,0.05), 0 4px 10px -4px rgba(16,24,40,0.08)",
-  };
 
   const gestureHandlers = useLongPress({
     onLongPress: onLongPress ?? (() => {}),
     onTap: onOpen,
   });
 
-  // Without a menu to open there is nothing to hold for, so fall back to a plain
-  // click rather than arming a long press that would buzz and do nothing.
+  // Nothing to hold for without a menu, so fall back to a plain click rather
+  // than arming a long press that would buzz and do nothing.
   const pressHandlers = onLongPress
     ? gestureHandlers
     : { onClick: onOpen, onContextMenu: gestureHandlers.onContextMenu };
 
+  const surface = isDark ? "bg-[#131A2B]" : "bg-white";
+  const edge = isDark ? "border-white/[0.08]" : "border-black/[0.06]";
+  const nameText = isDark ? "text-white" : "text-gray-900";
+  const metaText = isDark ? "text-gray-400" : "text-gray-500";
+
+  const base = `relative flex touch-manipulation select-none overflow-hidden rounded-2xl border ${surface} ${edge} transition-transform duration-100 active:scale-[0.98]`;
+
+  // A built-in view: a fixed destination with a name. No counts — those come
+  // from the screen's own filter, not from a list_id, and a wrong number is
+  // worse than none.
+  if (variant === "overview") {
+    return (
+      <button
+        type="button"
+        {...pressHandlers}
+        className={`${base} min-h-[52px] w-full items-center justify-between gap-2 px-3.5 py-3`}
+      >
+        <span className={`truncate text-[14px] font-medium ${nameText}`}>
+          {list.list_name}
+        </span>
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ backgroundColor: color }}
+          aria-hidden="true"
+        />
+      </button>
+    );
+  }
+
+  // The pinned rail. Deliberately smaller than a normal card — it is a shortcut
+  // to something already in the list below, not a second copy of it.
+  if (variant === "pinned") {
+    return (
+      <button
+        type="button"
+        {...pressHandlers}
+        aria-label={`Open list ${list.list_name || "Untitled"}`}
+        className={`${base} h-[58px] w-[160px] shrink-0 flex-col items-start justify-center gap-0.5 px-3.5`}
+      >
+        <span className="flex w-full items-center gap-2">
+          <span
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ backgroundColor: color }}
+            aria-hidden="true"
+          />
+          <span className={`truncate text-[14px] font-medium ${nameText}`}>
+            {list.list_name || "Untitled"}
+          </span>
+        </span>
+        <span
+          className={`w-full truncate pl-4 text-left text-[11px] ${metaText}`}
+        >
+          {countsLabel(list, tasks, notes)}
+        </span>
+      </button>
+    );
+  }
+
+  // List layout: each list its own full-width container, never all of them
+  // inside one shared bordered parent.
+  if (variant === "row") {
+    return (
+      <button
+        type="button"
+        {...pressHandlers}
+        aria-label={`Open list ${list.list_name || "Untitled"}`}
+        className={`${base} min-h-[64px] w-full items-center gap-3 px-4 py-3`}
+      >
+        <span
+          className="h-7 w-1 shrink-0 rounded-full"
+          style={{ backgroundColor: color }}
+          aria-hidden="true"
+        />
+        {/* min-w-0 is what lets the name truncate instead of pushing the
+            chevron off the end of the row. */}
+        <span className="min-w-0 flex-1 text-left">
+          <span
+            className={`flex items-center gap-1.5 truncate text-[15px] font-medium ${nameText}`}
+          >
+            {list.list_name || "Untitled"}
+            {list.is_pinned && (
+              <Pin className="h-3 w-3 shrink-0 fill-current text-orange-400" />
+            )}
+          </span>
+          <span className={`block truncate text-[12px] ${metaText}`}>
+            {countsLabel(list, tasks, notes)}
+          </span>
+        </span>
+        <ChevronRight
+          size={18}
+          className="shrink-0 text-gray-400 dark:text-gray-500"
+        />
+      </button>
+    );
+  }
+
+  // Cards layout: two to a row, each about half the available width.
   return (
     <button
       type="button"
       {...pressHandlers}
       aria-label={`Open list ${list.list_name || "Untitled"}`}
-      className={`relative flex touch-manipulation select-none items-center overflow-hidden rounded-2xl border transition-transform duration-100 active:scale-[0.97] ${
-        isDark ? "text-white" : "text-gray-900"
-      } ${
-        isGrid
-          ? // Trimmed from 112. Both grids keep the same height on purpose — in
-            // the Cards layout the built-in views and the user's own lists sit in
-            // stacked grids and a different height each would read as a mistake —
-            // so this comes off both, and it is a trim rather than a cut because
-            // the name still has to clear two lines inside it.
-            "h-[104px] w-full flex-col justify-center gap-2 px-2 py-3"
-          : isRow
-            ? // Taller than the pinned card: this one carries two lines of text
-              // rather than one, and is the whole target for a row in a list.
-              "h-[64px] w-full gap-3 px-3.5"
-            : "h-[56px] shrink-0 gap-3 px-3.5"
-      }`}
-      style={cardStyle}
+      className={`${base} min-h-[84px] w-full flex-col items-start justify-between gap-2 p-3.5 text-left`}
     >
-      {isGrid ? (
-        <>
-          <ListIcon list={list} />
-          <span className="w-full">
-            <ListInfo list={list} tasks={tasks} notes={notes} shape="grid" />
-          </span>
-        </>
-      ) : isRow ? (
-        <>
-          <ListIcon list={list} size={34} />
-          {/* min-w-0 is what lets the name truncate instead of pushing the
-              chevron off the end of the row. */}
-          <span className="min-w-0 flex-1">
-            <ListInfo list={list} tasks={tasks} notes={notes} shape="row" />
-          </span>
-          {/* The row is as wide as the screen, so nothing about its shape says
-              "this opens something" the way a tappable card does. */}
-          <ChevronRight
-            size={18}
-            className="shrink-0 text-gray-400 dark:text-gray-500"
-          />
-        </>
-      ) : (
-        <>
-          <ListIcon list={list} size={30} />
-          <ListInfo list={list} tasks={tasks} notes={notes} shape="pinned" />
-        </>
-      )}
+      <span className="flex w-full items-start gap-2">
+        <span
+          className="mt-[5px] h-2 w-2 shrink-0 rounded-full"
+          style={{ backgroundColor: color }}
+          aria-hidden="true"
+        />
+        <span
+          className={`line-clamp-2 flex-1 text-[14px] font-medium leading-snug ${nameText}`}
+        >
+          {list.list_name || "Untitled"}
+        </span>
+        {list.is_pinned && (
+          <Pin className="mt-[3px] h-3 w-3 shrink-0 fill-current text-orange-400" />
+        )}
+      </span>
+      <span className={`truncate text-[11px] ${metaText}`}>
+        {countsLabel(list, tasks, notes)}
+      </span>
     </button>
   );
 }

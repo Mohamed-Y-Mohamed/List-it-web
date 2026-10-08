@@ -1,8 +1,19 @@
 "use client";
 
+// Nothing here yet.
+//
+// Short title, one supporting sentence, one action if there is a sensible one.
+// The old version was a 16rem-tall panel with a 40px glyph in a tinted circle,
+// which made an empty screen the loudest screen in the app — and on a phone it
+// pushed the one useful control below the fold.
+//
+// The icon survives at half the size and without the circle. It is a quiet mark
+// saying which kind of empty this is, not an illustration.
+
 import React from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { CheckCircle2, CalendarClock, Plus } from "lucide-react";
+import { PRIMARY } from "@/components/ui/tokens";
 
 interface EmptyStateProps {
   title: string;
@@ -11,6 +22,12 @@ interface EmptyStateProps {
   actionLabel?: string;
   onAction?: () => void;
 }
+
+const ICONS = {
+  check: CheckCircle2,
+  calendar: CalendarClock,
+  plus: Plus,
+} as const;
 
 const EmptyState: React.FC<EmptyStateProps> = ({
   title,
@@ -21,57 +38,45 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 }) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-
-  let IconComponent;
-  let iconBgColor;
-  let iconFgColor;
-
-  switch (icon) {
-    case "calendar":
-      IconComponent = CalendarClock;
-      iconBgColor = isDark ? "bg-blue-900/30" : "bg-blue-100";
-      iconFgColor = isDark ? "text-blue-300" : "text-blue-600";
-      break;
-    case "plus":
-      IconComponent = Plus;
-      iconBgColor = isDark ? "bg-purple-900/30" : "bg-purple-100";
-      iconFgColor = isDark ? "text-purple-300" : "text-purple-600";
-      break;
-    case "check":
-    default:
-      IconComponent = CheckCircle2;
-      iconBgColor = isDark ? "bg-green-900/30" : "bg-green-100";
-      iconFgColor = isDark ? "text-green-300" : "text-green-600";
-  }
+  const Icon = ICONS[icon] ?? CheckCircle2;
 
   return (
     <div
-      className={`text-center py-16 rounded-xl ${
-        isDark ? "bg-gray-800/20 text-gray-300" : "bg-white text-gray-500"
-      } shadow-lg transition-all duration-300`}
+      className={`rounded-2xl border px-5 py-8 text-center ${
+        isDark
+          ? "border-white/[0.08] bg-[#131A2B]"
+          : "border-black/[0.06] bg-white"
+      }`}
     >
-      <div className="flex flex-col items-center justify-center space-y-5">
-        <div className={`p-4 rounded-full ${iconBgColor}`}>
-          <IconComponent className={`h-10 w-10 ${iconFgColor}`} />
-        </div>
-        <div className="space-y-2">
-          <p className="text-xl font-medium">{title}</p>
-          <p className="text-sm max-w-sm mx-auto">{message}</p>
-        </div>
+      <Icon
+        className={`mx-auto h-5 w-5 ${isDark ? "text-gray-600" : "text-gray-300"}`}
+        aria-hidden="true"
+      />
+      <p
+        className={`pt-2.5 text-[15px] font-semibold ${
+          isDark ? "text-gray-100" : "text-gray-900"
+        }`}
+      >
+        {title}
+      </p>
+      <p
+        className={`mx-auto max-w-xs pt-1 text-[13px] leading-relaxed ${
+          isDark ? "text-gray-400" : "text-gray-500"
+        }`}
+      >
+        {message}
+      </p>
 
-        {actionLabel && onAction && (
-          <button
-            onClick={onAction}
-            className={`mt-4 px-4 py-2 rounded-lg font-medium transition-colors ${
-              isDark
-                ? "bg-blue-600 hover:bg-blue-700 text-white"
-                : "bg-blue-500 hover:bg-blue-600 text-white"
-            }`}
-          >
-            {actionLabel}
-          </button>
-        )}
-      </div>
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-4 min-h-[40px] rounded-xl px-4 text-[14px] font-semibold text-white transition-opacity active:opacity-85"
+          style={{ backgroundColor: PRIMARY }}
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 };

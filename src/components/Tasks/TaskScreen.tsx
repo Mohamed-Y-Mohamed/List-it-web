@@ -1,40 +1,37 @@
 "use client";
 
-// The frame every task screen sits in: tinted background, header with an icon,
-// a title, a count line and a refresh button, then an optional row of figure
-// tiles, then the body.
+// The frame every default view sits in: Today, Tomorrow, Priority, Completed,
+// Not Completed, Overdue.
 //
-// All six screens had their own copy of this, differing only in the tint and
-// the words. Keeping it here means a change to the header reaches all of them,
-// and a new screen is a config rather than another 150 lines of chrome.
+// All six screens had their own copy of this, differing only in the tint and the
+// words. Keeping it here means a change to the header reaches all of them, and a
+// new screen is a config rather than another 150 lines of chrome.
+//
+// These six are the only things in the app that keep an icon. User lists are
+// identified by name, colour and spacing — a generic checklist glyph repeated
+// down a screen identifies nothing. A built-in view is different: it is a fixed
+// destination with a fixed meaning, and the icon is the quickest way to tell
+// Overdue from Completed at a glance.
+//
+// Back sits above the title rather than beside it. These screens are reached
+// from the Lists home, the bottom navigation is hidden while inside one, and it
+// stays reachable when the list is scrolled because it is above the scroll
+// rather than in it.
 //
 // The body is a child rather than a prop because the screens genuinely differ
 // there: most render a flat list, Not Completed groups by due date, Completed
-// groups by when it was finished. Forcing those into one prop would have been
-// an abstraction pretending six things are one.
+// groups by when it was finished. Forcing those into one prop would have been an
+// abstraction pretending six things are one.
 
 import React from "react";
 import { motion } from "framer-motion";
-import { RefreshCw } from "lucide-react";
+import { ChevronLeft, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
 import EmptyState from "@/components/popupModels/emptystate";
 import { TaskStatsCard } from "./TaskStatsCard";
 import AppSurface from "@/components/AppSurface";
-
-// The `bg-*` fill matching each accent's `text-*` class, spelled out so Tailwind
-// can see both halves. Covers every pair the six screens pass; add a row here
-// alongside any new accent.
-const ACCENT_HALOS: Record<string, string> = {
-  "text-orange-400": "bg-orange-400",
-  "text-orange-500": "bg-orange-500",
-  "text-purple-400": "bg-purple-400",
-  "text-purple-500": "bg-purple-500",
-  "text-yellow-400": "bg-yellow-400",
-  "text-yellow-500": "bg-yellow-500",
-  "text-red-400": "bg-red-400",
-  "text-red-500": "bg-red-500",
-  "text-teal-400": "bg-teal-400",
-  "text-teal-500": "bg-teal-500",
-};
+import { SkeletonStatTile, SkeletonTaskList } from "@/components/ui/Skeleton";
+import { appPath } from "@/lib/routes";
 
 export interface TaskScreenStat {
   title: string;
@@ -49,7 +46,7 @@ export interface TaskScreenStat {
 interface TaskScreenProps {
   isDark: boolean;
   icon: React.ElementType;
-  /** Tailwind text classes for the header icon and the loading spinner. */
+  /** Tailwind text classes for the header icon. */
   accent: { dark: string; light: string };
   title: string;
   /** A node, not a string: Tomorrow emphasises the date inside its count line. */
@@ -60,7 +57,11 @@ interface TaskScreenProps {
   loadingLabel: string;
   stats?: TaskScreenStat[];
   /** Passed when there is nothing to show; omitted when there is. */
-  empty?: { title: string; message: string; icon?: "check" | "calendar" | "plus" };
+  empty?: {
+    title: string;
+    message: string;
+    icon?: "check" | "calendar" | "plus";
+  };
   children: React.ReactNode;
 }
 
@@ -78,129 +79,122 @@ export default function TaskScreen({
   empty,
   children,
 }: TaskScreenProps) {
+  const router = useRouter();
   const accentText = isDark ? accent.dark : accent.light;
 
-  // The matching fill for the halo behind the loading spinner.
+  // The left padding is `pl-4 md:pl-20`, not a flat `pl-20`.
   //
-  // This was `accentText.replace("text-", "bg-")`, which Tailwind's scanner cannot
-  // see — so `bg-purple-400`, `bg-yellow-400` and `bg-red-400` were never
-  // generated and the halo simply did not render on Tomorrow, Priority or Overdue.
-  // Ironic given the note at the grid below explaining exactly this hazard.
-  const accentHalo = ACCENT_HALOS[accentText] ?? "bg-gray-400";
-
-  // The right padding below is `pr-4 md:pr-16`, not the flat `pr-16` five of
-  // the six screens had. Overdue had already been made responsive and the rest
-  // had not, so on a narrow screen they threw away four rem down the side.
+  // The 80px only exists to clear the desktop sidebar, which is not there below
+  // `md` — so on a phone it was 80px of dead space down the left with only 16px
+  // on the right, and five of these six screens sat visibly pushed to one side.
+  // Completed is a separate implementation and already had this responsive,
+  // which is why it was the only default view that looked centred.
   return (
     <main
-      className={`transition-all pt-16 pr-4 md:pr-16 min-h-screen duration-300 pb-20 w-full relative
-      ${isDark ? "text-gray-200" : "text-gray-800"}`}
+      className={`relative min-h-screen w-full pb-20 pr-4 pt-6 transition-all duration-300 md:pr-16 md:pt-10 ${
+        isDark ? "text-gray-200" : "text-gray-800"
+      }`}
     >
       <AppSurface />
 
-      {/* `pl-4 md:pl-20`, not a flat `pl-20`.
-          The 80px only exists to clear the desktop sidebar, which is not there
-          below `md` — so on a phone it was 80px of dead space down the left with
-          only the root's 16px on the right, and every one of these five screens sat
-          visibly pushed to one side. Completed is a separate implementation and
-          already had this responsive, which is why it was the only default view
-          that looked centred.
-          The same mistake was fixed for the right padding in the comment above;
-          this is the other half of it. Matches Settings and Progress. */}
-      <div className="max-w-7xl pl-4 md:pl-20 w-full mx-auto">
+      <div className="mx-auto w-full max-w-7xl pl-4 md:pl-20">
         <motion.header
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-8"
+          transition={{ duration: 0.25 }}
+          className="mb-6"
         >
-          <div className="flex justify-between items-center">
-            <div>
-              <div className="flex items-center mb-2">
-                <Icon className={`h-7 w-7 mr-3 ${accentText}`} />
+          <button
+            type="button"
+            onClick={() => router.push(appPath("/List"))}
+            className={`-ml-2 mb-2 flex min-h-[44px] items-center gap-1 rounded-full px-2 pr-3 text-[14px] font-medium ${
+              isDark
+                ? "text-gray-300 active:bg-white/10"
+                : "text-gray-600 active:bg-black/5"
+            }`}
+            aria-label="Back to lists"
+          >
+            <ChevronLeft className="h-5 w-5" />
+            Lists
+          </button>
+
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2.5">
+                <Icon className={`h-6 w-6 shrink-0 ${accentText}`} />
                 <h1
-                  className={`text-3xl md:text-4xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}
+                  className={`truncate text-[26px] font-bold leading-tight md:text-[32px] ${
+                    isDark ? "text-white" : "text-gray-900"
+                  }`}
                 >
                   {title}
                 </h1>
               </div>
               <p
-                className={`text-base ${isDark ? "text-gray-400" : "text-gray-600"}`}
+                className={`pt-1 text-[13px] ${
+                  isDark ? "text-gray-400" : "text-gray-600"
+                }`}
               >
                 {subtitle}
               </p>
             </div>
 
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
+              type="button"
               onClick={onRefresh}
               disabled={isRefreshing}
-              className={`p-3 rounded-xl transition-all duration-200 shadow-sm ${
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-colors ${
                 isDark
-                  ? "bg-gray-800/50 hover:bg-gray-700/50 text-gray-300"
-                  : "bg-white/50 hover:bg-gray-100/50 text-gray-700"
-              } ${isRefreshing ? "animate-pulse" : ""}`}
+                  ? "border-white/[0.08] bg-[#131A2B] text-gray-300 active:bg-white/10"
+                  : "border-black/[0.06] bg-white text-gray-700 active:bg-black/5"
+              }`}
               aria-label="Refresh tasks"
             >
               <RefreshCw
-                className={`h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`}
+                className={`h-[18px] w-[18px] ${isRefreshing ? "animate-spin" : ""}`}
               />
-            </motion.button>
+            </button>
           </div>
         </motion.header>
 
+        {/* Written out rather than interpolated: Tailwind scans source text for
+            class names, so a built-up `md:grid-cols-${n}` would never make it
+            into the stylesheet. */}
         {stats && stats.length > 0 && (
-          // Written out rather than interpolated: Tailwind scans source text
-          // for class names, so a built-up `md:grid-cols-${n}` would never make
-          // it into the stylesheet.
           <div
-            className={`grid grid-cols-1 gap-4 mb-8 ${
+            className={`mb-6 grid grid-cols-2 gap-2.5 ${
               stats.length >= 4 ? "md:grid-cols-4" : "md:grid-cols-3"
             }`}
           >
-            {stats.map((stat) => (
-              <TaskStatsCard
-                key={stat.title}
-                {...stat}
-                isDark={isDark}
-                isLoading={isLoading}
-              />
-            ))}
+            {isLoading
+              ? stats.map((stat) => (
+                  <SkeletonStatTile key={stat.title} isDark={isDark} />
+                ))
+              : stats.map((stat) => (
+                  <TaskStatsCard
+                    key={stat.title}
+                    {...stat}
+                    isDark={isDark}
+                    isLoading={false}
+                  />
+                ))}
           </div>
         )}
 
         {isLoading ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6 }}
-            className={`text-center py-16 rounded-xl ${
-              isDark ? "bg-gray-800/50 text-gray-300" : "bg-white/50 text-gray-500"
-            } shadow-sm backdrop-blur-sm border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
-          >
-            <div className="flex flex-col items-center justify-center space-y-4">
-              <div className="relative">
-                <RefreshCw className={`h-10 w-10 animate-spin ${accentText}`} />
-                <div
-                  className={`absolute inset-0 animate-pulse ${accentHalo} rounded-full opacity-20`}
-                />
-              </div>
-              <p className="text-lg font-medium">{loadingLabel}</p>
-            </div>
-          </motion.div>
+          // A skeleton the same height as a task card, not a spinner. The layout
+          // does not jump when the rows land, and the shape says "a list is
+          // coming" before the first one exists. `loadingLabel` lives on as the
+          // accessible name so a screen reader still hears which screen is busy.
+          <div aria-label={loadingLabel}>
+            <SkeletonTaskList isDark={isDark} />
+          </div>
         ) : empty ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6 }}
-          >
-            <EmptyState
-              title={empty.title}
-              message={empty.message}
-              icon={empty.icon ?? "check"}
-            />
-          </motion.div>
+          <EmptyState
+            title={empty.title}
+            message={empty.message}
+            icon={empty.icon ?? "check"}
+          />
         ) : (
           children
         )}

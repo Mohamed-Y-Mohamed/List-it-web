@@ -91,7 +91,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center">
               <div className="flex items-center">
-                <div className="h-8 w-8 bg-orange-500 rounded-md mr-2 flex items-center justify-center text-white font-bold">
+                <div className="h-8 w-8 bg-indigo-500 rounded-md mr-2 flex items-center justify-center text-white font-bold">
                   <Image
                     src="/app-icon.jpeg"
                     alt="App Icon"
@@ -103,7 +103,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
                 </div>
                 <div
                   className={`text-2xl font-bold ${
-                    isDark ? "text-orange-400" : "text-sky-500"
+                    isDark ? "text-indigo-400" : "text-indigo-500"
                   }`}
                 >
                   LIST IT
@@ -118,8 +118,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
                   onClick={() => navigateTo("/landingpage")}
                   className={`rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 ${
                     isDark
-                      ? "text-gray-300 hover:text-orange-400"
-                      : "text-gray-700 hover:text-orange-500"
+                      ? "text-gray-300 hover:text-indigo-400"
+                      : "text-gray-700 hover:text-indigo-500"
                   }`}
                 >
                   Home
@@ -128,8 +128,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
                   onClick={() => navigateTo("/aboutus")}
                   className={`rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 ${
                     isDark
-                      ? "text-gray-300 hover:text-orange-400"
-                      : "text-gray-700 hover:text-orange-500"
+                      ? "text-gray-300 hover:text-indigo-400"
+                      : "text-gray-700 hover:text-indigo-500"
                   }`}
                 >
                   About
@@ -142,8 +142,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
                 onClick={toggleTheme}
                 className={`p-2 rounded-full ${
                   isDark
-                    ? "bg-gray-800 text-orange-400 hover:bg-gray-700"
-                    : "bg-gray-100 text-sky-500 hover:bg-gray-200"
+                    ? "bg-gray-800 text-indigo-400 hover:bg-gray-700"
+                    : "bg-gray-100 text-indigo-500 hover:bg-gray-200"
                 }`}
                 aria-label={
                   isDark ? "Switch to light mode" : "Switch to dark mode"
@@ -159,8 +159,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                     className={`flex items-center justify-center rounded-full p-1 h-10 w-10 border ${
                       isDark
-                        ? "bg-gray-800 text-orange-400 hover:bg-gray-700 border-gray-700"
-                        : "bg-gray-100 text-sky-500 hover:bg-gray-200 border-gray-200"
+                        ? "bg-gray-800 text-indigo-400 hover:bg-gray-700 border-gray-700"
+                        : "bg-gray-100 text-indigo-500 hover:bg-gray-200 border-gray-200"
                     }`}
                     aria-label="User menu"
                   >
@@ -219,8 +219,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
                     onClick={() => navigateTo("/login")}
                     className={`rounded-md px-4 py-2 text-sm font-medium ${
                       isDark
-                        ? "text-gray-300 hover:text-orange-400"
-                        : "text-gray-700 hover:text-orange-500"
+                        ? "text-gray-300 hover:text-indigo-400"
+                        : "text-gray-700 hover:text-indigo-500"
                     }`}
                   >
                     Log in
@@ -229,8 +229,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
                     onClick={() => navigateTo("/register")}
                     className={`rounded-md px-4 py-2 text-sm font-medium text-white ${
                       isDark
-                        ? "bg-orange-600 hover:bg-orange-700"
-                        : "bg-orange-500 hover:bg-orange-600"
+                        ? "bg-indigo-600 hover:bg-indigo-700"
+                        : "bg-indigo-500 hover:bg-indigo-600"
                     }`}
                   >
                     Sign up
@@ -243,8 +243,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className={`lg:hidden inline-flex items-center justify-center p-2 rounded-md ${
                   isDark
-                    ? "text-gray-300 hover:text-orange-400"
-                    : "text-gray-700 hover:text-orange-500"
+                    ? "text-gray-300 hover:text-indigo-400"
+                    : "text-gray-700 hover:text-indigo-500"
                 }`}
                 aria-label="Toggle mobile menu"
               >
@@ -272,8 +272,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
                     onClick={() => navigateTo("/landingpage")}
                     className={`block w-full text-left rounded-md px-3 py-2 text-base font-medium ${
                       isDark
-                        ? "text-gray-300 hover:text-orange-400"
-                        : "text-gray-700 hover:text-orange-500"
+                        ? "text-gray-300 hover:text-indigo-400"
+                        : "text-gray-700 hover:text-indigo-500"
                     }`}
                   >
                     Home
@@ -282,8 +282,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
                     onClick={() => navigateTo("/aboutus")}
                     className={`block w-full text-left rounded-md px-3 py-2 text-base font-medium ${
                       isDark
-                        ? "text-gray-300 hover:text-orange-400"
-                        : "text-gray-700 hover:text-orange-500"
+                        ? "text-gray-300 hover:text-indigo-400"
+                        : "text-gray-700 hover:text-indigo-500"
                     }`}
                   >
                     About
@@ -297,8 +297,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
                     onClick={() => navigateTo("/login")}
                     className={`block w-full text-left rounded-md px-3 py-2 text-base font-medium ${
                       isDark
-                        ? "text-gray-300 hover:text-orange-400"
-                        : "text-gray-700 hover:text-orange-500"
+                        ? "text-gray-300 hover:text-indigo-400"
+                        : "text-gray-700 hover:text-indigo-500"
                     }`}
                   >
                     Log in
@@ -307,8 +307,8 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ children }) => {
                     onClick={() => navigateTo("/register")}
                     className={`block w-full text-left rounded-md px-3 py-2 text-base font-medium text-white ${
                       isDark
-                        ? "bg-orange-600 hover:bg-orange-700"
-                        : "bg-orange-500 hover:bg-orange-600"
+                        ? "bg-indigo-600 hover:bg-indigo-700"
+                        : "bg-indigo-500 hover:bg-indigo-600"
                     }`}
                   >
                     Sign up

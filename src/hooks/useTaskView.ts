@@ -12,7 +12,7 @@
 // The screens differ only in which tasks they want, so that is all they pass.
 // Everything else here was the same on every one of them.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/utils/client";
 import { useAuth } from "@/context/AuthContext";
 import type { Collection as SchemaCollection } from "@/types/schema";
@@ -45,11 +45,50 @@ export function useTaskView(filters: TaskViewFilters) {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  /**
+   * Which day it is, re-checked rather than captured once.
+   *
+   * `today` was memoised on `[]`, so it was computed at mount and never again.
+   * These screens stay mounted on the web, so a session left open past midnight
+   * kept banding against yesterday: Today listed yesterday's tasks and today's
+   * turned up under Tomorrow, until the page was reloaded.
+   */
+  const [dayStamp, setDayStamp] = useState(() => new Date().toDateString());
+
+  /** Guards the state writes at the end of `refresh`. See the note there. */
+  const latestRequest = useRef(0);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const check = () => {
+      const next = new Date().toDateString();
+      setDayStamp((current) => (current === next ? current : next));
+    };
+
+    // A minute is plenty, and it costs nothing: the compare is a string and
+    // state only changes on the one tick a day where it actually differs.
+    const timer = window.setInterval(check, 60_000);
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("focus", check);
+
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("focus", check);
+    };
+  }, []);
+
   const today = useMemo(() => {
     const date = new Date();
     date.setHours(0, 0, 0, 0);
     return date;
-  }, []);
+  }, [dayStamp]);
 
   // Destructured so the callback depends on the individual values rather than
   // the object, which every render recreates.
@@ -57,6 +96,15 @@ export function useTaskView(filters: TaskViewFilters) {
 
   const refresh = useCallback(async () => {
     if (!user) return;
+
+    // Three awaits with four state writes at the end and nothing guarding them.
+    // Navigating away mid-flight wrote to an unmounted component, and two
+    // overlapping refreshes could land out of order — the older response
+    // overwriting the newer, leaving pre-mutation rows on screen until the next
+    // refresh. The id makes only the most recent call allowed to write.
+    const requestId = ++latestRequest.current;
+    const isCurrent = () =>
+      mounted.current && latestRequest.current === requestId;
 
     setIsLoading(true);
     setIsRefreshing(true);
@@ -97,13 +145,18 @@ export function useTaskView(filters: TaskViewFilters) {
       });
 
       const { data: listsData } = listIds.size
-        ? await supabase.from("list").select("*").in("id", [...listIds])
+        ? await supabase
+            .from("list")
+            .select("*")
+            .in("id", [...listIds])
         : { data: [] };
 
       const listMap = new Map(listsData?.map((list) => [list.id, list]));
       const collectionMap = new Map(
-        collectionsData?.map((collection) => [collection.id, collection])
+        collectionsData?.map((collection) => [collection.id, collection]),
       );
+
+      if (!isCurrent()) return;
 
       // One state write, where this used to set collections twice — once bare
       // and once with the list names — and render in between.
@@ -118,7 +171,7 @@ export function useTaskView(filters: TaskViewFilters) {
           list_name: collection.list_id
             ? (listMap.get(collection.list_id)?.list_name ?? null)
             : null,
-        }))
+        })),
       );
 
       setTasks(
@@ -131,13 +184,15 @@ export function useTaskView(filters: TaskViewFilters) {
           list_name: task.list_id
             ? (listMap.get(task.list_id)?.list_name ?? "Default List")
             : "Default List",
-        }))
+        })),
       );
     } catch (error) {
       console.error("Unexpected error fetching tasks:", error);
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if (isCurrent()) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
   }, [user, isCompleted, isPinned, dueBefore, predicate, today]);
 

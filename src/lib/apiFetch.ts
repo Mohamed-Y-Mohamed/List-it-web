@@ -15,7 +15,7 @@ import { getApiBaseUrl, isNativeApp } from "@/lib/platform";
 
 export async function apiFetch(
   path: string,
-  init: RequestInit = {}
+  init: RequestInit = {},
 ): Promise<Response> {
   if (!isNativeApp()) {
     return fetch(path, init);

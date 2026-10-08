@@ -33,14 +33,14 @@ describe("isTabRoot", () => {
     "treats %s as a root too, trailing slash and all",
     (path) => {
       expect(isTabRoot(path)).toBe(true);
-    }
+    },
   );
 
   it.each(["/today", "/overdue", "/List", "/login", "/"])(
     "does not treat %s as a root",
     (path) => {
       expect(isTabRoot(path)).toBe(false);
-    }
+    },
   );
 
   it("does not match a screen pushed below a tab root", () => {

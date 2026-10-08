@@ -14,14 +14,14 @@
 // on both paths — a cookie-less client would otherwise fall back to the anon
 // role and silently return nothing.
 
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
   createClient,
   type SupabaseClient,
   type User,
 } from "@supabase/supabase-js";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { createClient as createCookieClient } from "@/utils/server";
 
 type AuthSuccess = { user: User; error: null };
 type AuthFailure = { user: null; error: NextResponse };
@@ -55,23 +55,36 @@ export async function requireAuth(): Promise<AuthSuccess | AuthFailure> {
     user: null,
     error: NextResponse.json(
       { error: "Authentication required" },
-      { status: 401 }
+      { status: 401 },
     ),
   });
   const serverError = (): AuthFailure => ({
     user: null,
-    error: NextResponse.json({ error: "Authentication error" }, { status: 500 }),
+    error: NextResponse.json(
+      { error: "Authentication error" },
+      { status: 500 },
+    ),
   });
 
   try {
-    // 1. Cookie session — the web path, unchanged.
-    const cookieClient = createServerComponentClient({ cookies });
+    // 1. Cookie session — the web path.
+    //
+    // `getUser` rather than `getSession`: a session read comes straight back
+    // out of the cookie, so a forged or stale one is returned as fact and
+    // Supabase itself warns about trusting it on a server. `getUser` verifies
+    // the token against the auth server before answering, which is what an
+    // authorization check has to do.
+    const cookieClient = await createCookieClient();
     const { data: cookieData, error: cookieError } =
-      await cookieClient.auth.getSession();
+      await cookieClient.auth.getUser();
 
-    if (cookieError) return serverError();
-    if (cookieData.session?.user) {
-      return { user: cookieData.session.user, error: null };
+    // No cookie session is the ordinary native case, not a failure: fall
+    // through to the bearer token below rather than 500ing the request.
+    if (cookieData?.user) {
+      return { user: cookieData.user, error: null };
+    }
+    if (cookieError && cookieError.status && cookieError.status >= 500) {
+      return serverError();
     }
 
     // 2. Bearer token — the native path. The token is verified against Supabase
@@ -102,7 +115,7 @@ export async function requireAuth(): Promise<AuthSuccess | AuthFailure> {
 export async function getRouteClient(): Promise<SupabaseClient> {
   const token = await readBearerToken();
   if (!token) {
-    return createServerComponentClient({ cookies });
+    return createCookieClient();
   }
 
   const { url, anonKey } = supabaseEnv();

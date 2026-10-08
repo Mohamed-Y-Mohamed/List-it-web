@@ -26,8 +26,8 @@ mockChain.then = (res: any, rej?: any) =>
   Promise.resolve(dbResult).then(res, rej);
 
 const mockSupabaseClient = { from: jest.fn().mockReturnValue(mockChain) };
-jest.mock("@supabase/auth-helpers-nextjs", () => ({
-  createServerComponentClient: jest.fn(() => mockSupabaseClient),
+jest.mock("@/utils/server", () => ({
+  createClient: jest.fn(async () => mockSupabaseClient),
 }));
 
 // Imports
@@ -123,7 +123,6 @@ describe("GET /api/colors_retriever", () => {
     const body = await res.json();
     expect(body.error).toBe("DB error");
   });
-
 
   it("queries the app_colors table ordered by id ascending", async () => {
     authOk();

@@ -88,7 +88,7 @@ function LoginWithSearchParams() {
 
       if (errorInHash === "access_denied" && errorCode === "otp_expired") {
         setError(
-          "Your verification link has expired. Please request a new one using the form below."
+          "Your verification link has expired. Please request a new one using the form below.",
         );
       } else if (errorInHash) {
         setError(errorDescription || "Authentication error. Please try again.");
@@ -106,7 +106,7 @@ function LoginWithSearchParams() {
       setSuccess("Email verified successfully! You can now log in.");
     } else if (isPasswordReset) {
       setSuccess(
-        "Password reset successfully! You can now log in with your new password."
+        "Password reset successfully! You can now log in with your new password.",
       );
     } else if (errorParam) {
       setError(decodeURIComponent(errorParam));
@@ -144,7 +144,7 @@ function LoginWithSearchParams() {
     try {
       const { success, error, isEmailUnverified } = await login(
         email.trim(),
-        password
+        password,
       );
 
       if (!success) {
@@ -193,12 +193,12 @@ function LoginWithSearchParams() {
 
       if (success) {
         setSuccess(
-          `Verification email sent to ${emailToVerify}! Please check your inbox.`
+          `Verification email sent to ${emailToVerify}! Please check your inbox.`,
         );
       } else if (isRateLimited && waitTime) {
         setWaitTime(waitTime);
         setError(
-          `Please wait ${waitTime} seconds before requesting another email.`
+          `Please wait ${waitTime} seconds before requesting another email.`,
         );
 
         // Start countdown timer
@@ -216,7 +216,7 @@ function LoginWithSearchParams() {
       } else {
         setError(
           error?.message ||
-            "Failed to resend verification email. Please try again."
+            "Failed to resend verification email. Please try again.",
         );
       }
     } catch (err: unknown) {
@@ -243,20 +243,22 @@ function LoginWithSearchParams() {
       // exactly the 3rem it had; on the device it grows to clear the status bar
       // and the gesture pill while the gradient behind still runs edge to edge.
       style={{
-        paddingTop: "max(3rem, env(safe-area-inset-top, 0px))",
-        paddingBottom: "max(3rem, env(safe-area-inset-bottom, 0px))",
+        paddingTop: "max(3rem, var(--safe-top))",
+        paddingBottom: "max(3rem, var(--safe-bottom))",
       }}
     >
       {/* Background.
-          On native the app's own launch field replaces the gradient, so the
-          splash hands over to this screen with no visible change of surface.
-          The two gradient variants and both blur blobs below are web-only. */}
+          On native the app's own launch field replaces it, so the splash hands
+          over to this screen with no visible change of surface.
+          Web gets the product's own flat field rather than the five-stop blue
+          gradient this used to carry, for the same reason: the site and the app
+          should not look like two products. Both blur blobs below are web-only. */}
       {isNative ? (
         <div className={`absolute inset-0 -z-10 size-full ${AUTH_FIELD}`} />
       ) : isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#020617_0%,#0f172a_20%,#1e293b_40%,#0f1629_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(37,99,235,0.2)_0%,transparent_58%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(96,165,250,0.12)_0%,transparent_48%)] before:content-[''] after:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full bg-[#0B1222]" />
       ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#f0f9ff_0%,#e0f2fe_25%,#bae6fd_50%,#e0f2fe_75%,#f8fafc_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(59,130,246,0.12)_0%,transparent_55%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(147,197,253,0.08)_0%,transparent_45%)] before:content-[''] after:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full bg-[#F6F8FC]" />
       )}
 
       {/* Floating elements. Two infinitely animating blurs that belong to the
@@ -265,30 +267,30 @@ function LoginWithSearchParams() {
           spent on decoration. */}
       {!isNative && (
         <>
-      <motion.div
-        animate={{
-          y: [0, -20, 0],
-          opacity: [0.1, 0.2, 0.1],
-        }}
-        transition={{
-          duration: 6,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="absolute top-1/4 right-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"
-      />
-      <motion.div
-        animate={{
-          y: [0, 20, 0],
-          opacity: [0.1, 0.15, 0.1],
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl"
-      />
+          <motion.div
+            animate={{
+              y: [0, -20, 0],
+              opacity: [0.1, 0.2, 0.1],
+            }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute top-1/4 right-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{
+              y: [0, 20, 0],
+              opacity: [0.1, 0.15, 0.1],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl"
+          />
         </>
       )}
 

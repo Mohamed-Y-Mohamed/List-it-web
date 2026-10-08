@@ -22,6 +22,7 @@ import {
   Shield,
   Sun,
   Moon,
+  Bell,
   LayoutGrid,
   Rows3,
   ChevronDown,
@@ -30,6 +31,9 @@ import {
 import { apiFetch } from "@/lib/apiFetch";
 import { useListLayout } from "@/hooks/useListLayout";
 import { type ListLayout } from "@/lib/listLayout";
+import { ensureNotificationPermission } from "@/lib/notifications";
+import { useNotificationPrefs } from "@/hooks/useNotificationPrefs";
+import { DEFAULT_NOTIFICATION_PREFS } from "@/lib/notificationPrefs";
 import AppSurface from "@/components/AppSurface";
 
 // Types
@@ -82,15 +86,28 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
 // taller than the screen by the top inset, so these screens scrolled a little past
 // their content and showed the wrapper padding at the end. The web keeps it: there
 // is no such wrapper there, and this is what stops a short page floating.
-const ROOT_MIN_HEIGHT = IS_NATIVE_BUILD ? '' : 'min-h-screen';
+const ROOT_MIN_HEIGHT = IS_NATIVE_BUILD ? "" : "min-h-screen";
 
 if (IS_NATIVE_BUILD) {
-  SETTINGS_SECTIONS.splice(1, 0, {
-    id: "appearance",
-    title: "Appearance",
-    icon: Sun,
-    description: "Light and dark theme",
-  });
+  SETTINGS_SECTIONS.splice(
+    1,
+    0,
+    {
+      id: "appearance",
+      title: "Appearance",
+      icon: Sun,
+      description: "Theme and layout style",
+    },
+    // Native only for the same reason the theme is, only more so: the browser
+    // has nothing to deliver, so a switch there would promise something the web
+    // build cannot keep.
+    {
+      id: "notifications",
+      title: "Notifications",
+      icon: Bell,
+      description: "Reminders from your tasks",
+    },
+  );
 }
 
 // Notification component
@@ -368,7 +385,7 @@ const LoadingSpinner: React.FC<{ isDark: boolean }> = ({ isDark }) => (
 );
 
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState("profile");
+  const [activeSection, setActiveSection] = useState<string | null>("profile");
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -397,12 +414,23 @@ export default function SettingsPage() {
   // practice — the whole Appearance section is.
   const { layout, setLayout } = useListLayout();
 
+  // Also per device rather than per account: a reminder is delivered by the
+  // install that holds this, so silencing one phone should not silence another.
+  const { prefs: notificationPrefs, setPrefs: setNotificationPrefs } =
+    useNotificationPrefs();
+
+  // null only for the frame before the stored value is read, and the default is
+  // what it resolves to for anyone who has never opened this.
+  const remindersEnabled =
+    notificationPrefs?.remindersEnabled ??
+    DEFAULT_NOTIFICATION_PREFS.remindersEnabled;
+
   // Show notification
   const showNotification = useCallback(
     (type: NotificationState["type"], message: string) => {
       setNotification({ type, message, visible: true });
     },
-    []
+    [],
   );
 
   // Hide notification
@@ -467,7 +495,7 @@ export default function SettingsPage() {
       }
 
       setUserProfile((prev) =>
-        prev ? { ...prev, full_name: fullName.trim() } : null
+        prev ? { ...prev, full_name: fullName.trim() } : null,
       );
       showNotification("success", "Profile updated successfully");
     } catch (error) {
@@ -509,10 +537,7 @@ export default function SettingsPage() {
 
       if (!res.ok) {
         const errData = await res.json();
-        showNotification(
-          "error",
-          errData.error || "Failed to update password"
-        );
+        showNotification("error", errData.error || "Failed to update password");
         return;
       }
 
@@ -560,14 +585,14 @@ export default function SettingsPage() {
 
       if (!response.ok || !result.success) {
         throw new Error(
-          result.error || result.details || "Failed to delete account"
+          result.error || result.details || "Failed to delete account",
         );
       }
 
       // Account successfully deleted
       showNotification(
         "success",
-        "Account deleted successfully. Signing you out..."
+        "Account deleted successfully. Signing you out...",
       );
 
       // Clear local storage and sign out immediately
@@ -591,7 +616,7 @@ export default function SettingsPage() {
       console.error("Error deleting account:", error);
       showNotification(
         "error",
-        error instanceof Error ? error.message : "Failed to delete account"
+        error instanceof Error ? error.message : "Failed to delete account",
       );
       setIsSaving(false);
     }
@@ -674,6 +699,111 @@ export default function SettingsPage() {
               layout={layout}
               onChange={setLayout}
             />
+          </motion.div>
+        );
+
+      case "notifications":
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="space-y-6"
+          >
+            <div>
+              <h2
+                className={`text-2xl font-semibold ${isDark ? "text-white" : "text-gray-900"}`}
+              >
+                Notifications
+              </h2>
+              <p
+                className={`mt-1 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}
+              >
+                Choose what List It interrupts you for on this device.
+              </p>
+            </div>
+
+            {/* The note belongs to the row, so it sits closer to it than the
+                sections are to each other. */}
+            <div className="space-y-3">
+              <div
+                className={`flex items-center justify-between rounded-lg border p-4 ${
+                  isDark
+                    ? "border-gray-700 bg-gray-800/50"
+                    : "border-gray-200 bg-white"
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <Bell
+                    className={`h-5 w-5 ${isDark ? "text-orange-400" : "text-sky-500"}`}
+                  />
+                  <div>
+                    <div
+                      className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}
+                    >
+                      Task reminders
+                    </div>
+                    <div
+                      className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}
+                    >
+                      {remindersEnabled ? "On" : "Off"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* The pill is 28px tall, which is well under what a thumb
+                    needs. The button is the full 44 and the pill is drawn
+                    inside it, so the row looks the same as the Dark mode one
+                    and the target is the size it should always have been. */}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={remindersEnabled}
+                  aria-label="Toggle task reminders"
+                  onClick={() => {
+                    const next = !remindersEnabled;
+                    setNotificationPrefs({ remindersEnabled: next });
+
+                    // The one place in Settings allowed to ask. Scheduling itself
+                    // only ever checks, because it runs again on every resume and
+                    // a prompt there traps anyone who dismisses it. Turning this
+                    // on is an explicit request to be notified, so it is the right
+                    // moment to ask the OS.
+                    if (next) void ensureNotificationPermission();
+                  }}
+                  className="flex h-11 w-12 shrink-0 items-center"
+                >
+                  <span
+                    className={`relative block h-7 w-12 rounded-full transition-colors duration-200 ${
+                      remindersEnabled
+                        ? isDark
+                          ? "bg-orange-500"
+                          : "bg-sky-500"
+                        : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      // `left-0` anchors the knob to the track. Without it the
+                      // knob takes its static position at the end of the span
+                      // and the translate then pushes it clean outside the pill.
+                      className={`absolute left-0 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                        remindersEnabled
+                          ? "translate-x-[26px]"
+                          : "translate-x-1"
+                      }`}
+                    />
+                  </span>
+                </button>
+              </div>
+
+              <p
+                className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}
+              >
+                Turning this off keeps every reminder you have set, it just
+                stops them being delivered. Reminders arrive through the mobile
+                app, so this covers this device only.
+              </p>
+            </div>
           </motion.div>
         );
 
@@ -782,7 +912,7 @@ export default function SettingsPage() {
                           year: "numeric",
                           month: "long",
                           day: "numeric",
-                        }
+                        },
                       )
                     : "Loading..."}
                 </div>
@@ -1148,120 +1278,125 @@ export default function SettingsPage() {
           </p>
         </motion.header>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Settings Navigation */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="lg:col-span-1"
-          >
-            <div
-              className={`rounded-xl p-4 backdrop-blur-sm border ${
-                isDark
-                  ? "bg-gray-800/50 border-gray-700/50"
-                  : "bg-white/50 border-gray-300/50"
-              } shadow-sm`}
-            >
-              <nav className="space-y-2">
-                {SETTINGS_SECTIONS.map((section) => {
-                  const Icon = section.icon;
-                  const isActive = activeSection === section.id;
+        {/* Collapsible sections, one open at a time.
 
-                  return (
-                    <button
-                      key={section.id}
-                      onClick={() => setActiveSection(section.id)}
-                      className={`w-full flex items-start space-x-3 p-3 rounded-lg text-left transition-all duration-200 ${
-                        isActive
-                          ? isDark
-                            ? "bg-orange-500/20 text-orange-400 border-orange-400/50"
-                            : "bg-sky-100 text-sky-700 border-sky-300"
-                          : isDark
-                            ? "text-gray-300 hover:bg-gray-700/50 hover:text-orange-400"
-                            : "text-gray-700 hover:bg-gray-100 hover:text-sky-600"
-                      } border ${
-                        isActive
-                          ? isDark
-                            ? "border-orange-400/50"
-                            : "border-sky-300"
-                          : "border-transparent"
+            This was a navigation column beside a content panel — a desktop shape
+            that on a phone stacked into a list of links above the thing they
+            controlled, so every change meant scrolling past the menu to see the
+            result. Each section now opens where it stands, and only the open one
+            draws its controls.
+
+            `null` is a real state: every section can be shut. The old version
+            always had one selected, so there was no way to see the four headings
+            on their own. */}
+        <div className="space-y-3">
+          {SETTINGS_SECTIONS.map((section) => {
+            const Icon = section.icon;
+            const isOpen = activeSection === section.id;
+
+            return (
+              <div
+                key={section.id}
+                className={`overflow-hidden rounded-2xl border ${
+                  isDark
+                    ? "border-white/[0.08] bg-[#131A2B]"
+                    : "border-black/[0.06] bg-white"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setActiveSection(isOpen ? null : section.id)}
+                  aria-expanded={isOpen}
+                  className="flex min-h-[60px] w-full items-center gap-3 px-4 py-3.5 text-left"
+                >
+                  <Icon
+                    className={`h-5 w-5 shrink-0 ${
+                      isOpen
+                        ? "text-[#6366F1]"
+                        : isDark
+                          ? "text-gray-400"
+                          : "text-gray-500"
+                    }`}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={`block truncate text-[15px] font-medium ${
+                        isDark ? "text-white" : "text-gray-900"
                       }`}
                     >
-                      <Icon className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <div className="font-medium">{section.title}</div>
-                        <div
-                          className={`text-xs ${
-                            isActive
-                              ? isDark
-                                ? "text-orange-300"
-                                : "text-sky-600"
-                              : isDark
-                                ? "text-gray-500"
-                                : "text-gray-500"
-                          }`}
-                        >
-                          {section.description}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+                      {section.title}
+                    </span>
+                    <span
+                      className={`block truncate text-[12px] ${
+                        isDark ? "text-gray-500" : "text-gray-500"
+                      }`}
+                    >
+                      {section.description}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className={`h-4.5 w-4.5 shrink-0 transition-transform duration-200 ${
+                      isOpen ? "rotate-180" : ""
+                    } ${isDark ? "text-gray-500" : "text-gray-400"}`}
+                  />
+                </button>
 
-                {/* Sign out. On the web this lives in the sidebar, which the
-                    native app does not have — without it there is no way to
-                    leave the account on Android. Placed here and tinted orange
-                    to match the iOS SettingsView, which lists Sign Out directly
-                    above Delete Account. */}
-                {IS_NATIVE_BUILD && (
-                  <button
-                    onClick={logout}
-                    className={`mt-2 flex w-full items-start space-x-3 rounded-lg border border-transparent p-3 text-left transition-all duration-200 ${
-                      isDark
-                        ? "text-orange-300 hover:bg-orange-500/10"
-                        : "text-orange-600 hover:bg-orange-50"
-                    }`}
-                  >
-                    <LogOut className="mt-0.5 h-5 w-5 flex-shrink-0" />
-                    <div>
-                      <div className="font-medium">Sign Out</div>
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      // 200ms, inside the 180–220 the brief asks for.
+                      transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                      className="overflow-hidden"
+                    >
                       <div
-                        className={`text-xs ${isDark ? "text-gray-500" : "text-gray-500"}`}
+                        className={`border-t px-4 py-5 ${
+                          isDark ? "border-white/[0.06]" : "border-black/[0.05]"
+                        }`}
                       >
-                        Leave this account on this device
+                        {isLoading ? (
+                          <div className="flex items-center justify-center py-8">
+                            <LoadingSpinner isDark={isDark} />
+                          </div>
+                        ) : (
+                          renderSectionContent()
+                        )}
                       </div>
-                    </div>
-                  </button>
-                )}
-              </nav>
-            </div>
-          </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
 
-          {/* Settings Content */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="lg:col-span-3"
-          >
-            <div
-              className={`rounded-xl p-6 backdrop-blur-sm border ${
+          {/* Sign out. On the web this lives in the sidebar, which the native
+              app does not have — without it there is no way to leave the account
+              on Android. Outside the sections because it is not a setting. */}
+          {IS_NATIVE_BUILD && (
+            <button
+              type="button"
+              onClick={logout}
+              className={`flex min-h-[56px] w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left ${
                 isDark
-                  ? "bg-gray-800/50 border-gray-700/50"
-                  : "bg-white/50 border-gray-300/50"
-              } shadow-sm`}
+                  ? "border-white/[0.08] bg-[#131A2B] text-orange-300"
+                  : "border-black/[0.06] bg-white text-orange-600"
+              }`}
             >
-              {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <LoadingSpinner isDark={isDark} />
-                </div>
-              ) : (
-                renderSectionContent()
-              )}
-            </div>
-          </motion.div>
+              <LogOut className="h-5 w-5 shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-medium">Sign Out</span>
+                <span
+                  className={`block text-[12px] ${
+                    isDark ? "text-gray-500" : "text-gray-500"
+                  }`}
+                >
+                  Leave this account on this device
+                </span>
+              </span>
+            </button>
+          )}
         </div>
       </div>
 

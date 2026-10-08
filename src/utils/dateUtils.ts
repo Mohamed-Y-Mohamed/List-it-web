@@ -8,7 +8,7 @@ import { isValid } from "date-fns";
  * Returns null if the input is falsy or invalid.
  */
 export const toDateObject = (
-  date: Date | string | null | undefined
+  date: Date | string | null | undefined,
 ): Date | null => {
   if (!date) return null;
   try {
@@ -25,7 +25,7 @@ export const toDateObject = (
  * Returns "No date" for falsy input, "Invalid date" for unparsable values.
  */
 export const formatDisplayDate = (
-  date: Date | string | null | undefined
+  date: Date | string | null | undefined,
 ): string => {
   if (!date) return "No date";
   try {
@@ -48,7 +48,7 @@ export const formatDisplayDate = (
  * Used alongside `formatDisplayDate` on task cards.
  */
 export const formatDisplayTime = (
-  date: Date | string | null | undefined
+  date: Date | string | null | undefined,
 ): string => {
   if (!date) return "";
   try {
@@ -64,12 +64,61 @@ export const formatDisplayTime = (
 };
 
 /**
+ * A task's due date and time as a card should show them.
+ *
+ * Which timezone to read it in depends on what kind of due date it is, and
+ * getting that wrong is visible: a date-only task is stored at **UTC noon** as
+ * a marker, so it has to be read back in UTC. Read locally, one stored late in
+ * the evening renders as the following day — and the cards also printed the
+ * stored midnight as if it were a deadline the user had set.
+ *
+ * `TasksDetails` already made this distinction in `formatDateForInput`, which
+ * is why the card and the detail sheet disagreed about the same task: the card
+ * said "Oct 4 · 12:37 AM" where the sheet said "Sat, Oct 3". One rule, used by
+ * both cards, so they cannot drift again.
+ */
+export const formatTaskDue = (
+  date: Date | string | null | undefined,
+  hasTime: boolean | null | undefined,
+): { date: string | null; time: string | null } => {
+  if (!date) return { date: null, time: null };
+
+  try {
+    const d = date instanceof Date ? date : new Date(date);
+    if (!isValid(d)) return { date: null, time: null };
+
+    // Any falsy value counts as date-only, null included. That is not a guess:
+    // the detail sheet decides with `Boolean(task.due_has_time)`, and a card
+    // that treated null as "unknown, read it locally" would disagree with the
+    // sheet for every row where the column was never written.
+    if (!hasTime) {
+      return {
+        date: d.toLocaleDateString(undefined, {
+          timeZone: "UTC",
+          month: "short",
+          day: "numeric",
+          year:
+            d.getUTCFullYear() !== new Date().getUTCFullYear()
+              ? "numeric"
+              : undefined,
+        }),
+        time: null,
+      };
+    }
+
+    return { date: formatDisplayDate(d), time: formatDisplayTime(d) };
+  } catch {
+    return { date: null, time: null };
+  }
+};
+
+/**
  * Format a date with full detail: "Jan 15, 2024, 02:30 PM".
  * Used in the task sidebar detail view.
  * Returns "Unknown date" for falsy input, "Invalid date" for unparsable values.
  */
 export const formatDetailDate = (
-  date: Date | string | null | undefined
+  date: Date | string | null | undefined,
 ): string => {
   if (!date) return "Unknown date";
   try {

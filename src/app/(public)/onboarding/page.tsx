@@ -16,7 +16,7 @@ import { IS_NATIVE_BUILD } from "@/lib/platform";
 // Its own chunk, and never requested by the web bundle.
 const NativeOnboarding = dynamic(
   () => import("@/components/native/NativeOnboarding"),
-  { ssr: false }
+  { ssr: false },
 );
 
 export default function OnboardingPage() {

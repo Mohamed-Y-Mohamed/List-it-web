@@ -24,7 +24,9 @@ export async function GET(request: NextRequest) {
     const listId = searchParams.get("list_id");
     if (listId) query = query.eq("list_id", listId);
 
-    const { data, error } = await query.order("collection_name", { ascending: true });
+    const { data, error } = await query.order("collection_name", {
+      ascending: true,
+    });
 
     if (error) {
       logger.error("GET /api/collections error", error);
@@ -34,7 +36,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data });
   } catch (err) {
     logger.error("GET /api/collections unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -69,7 +74,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data }, { status: 201 });
   } catch (err) {
     logger.error("POST /api/collections unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -85,7 +93,10 @@ export async function PATCH(request: NextRequest) {
     delete updates.user_id;
 
     if (!id) {
-      return NextResponse.json({ error: "Collection ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Collection ID is required" },
+        { status: 400 },
+      );
     }
 
     const supabase = await getRouteClient();
@@ -106,7 +117,10 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ data });
   } catch (err) {
     logger.error("PATCH /api/collections unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -122,7 +136,10 @@ export async function DELETE(request: NextRequest) {
     const { ids } = body as { ids: string[] };
 
     if (!ids || ids.length === 0) {
-      return NextResponse.json({ error: "Collection IDs are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Collection IDs are required" },
+        { status: 400 },
+      );
     }
 
     const supabase = await getRouteClient();
@@ -135,13 +152,22 @@ export async function DELETE(request: NextRequest) {
       .eq("user_id", user.id);
 
     if (ownershipError) {
-      logger.error("DELETE /api/collections ownership check error", ownershipError);
-      return NextResponse.json({ error: ownershipError.message }, { status: 500 });
+      logger.error(
+        "DELETE /api/collections ownership check error",
+        ownershipError,
+      );
+      return NextResponse.json(
+        { error: ownershipError.message },
+        { status: 500 },
+      );
     }
 
     const ownedIds = (owned ?? []).map((c: { id: string }) => c.id);
     if (ownedIds.length === 0) {
-      return NextResponse.json({ error: "No matching collections found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "No matching collections found" },
+        { status: 404 },
+      );
     }
 
     // Delete children first to maintain referential integrity
@@ -161,6 +187,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (err) {
     logger.error("DELETE /api/collections unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

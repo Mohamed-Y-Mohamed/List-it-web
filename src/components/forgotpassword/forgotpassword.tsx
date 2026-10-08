@@ -69,7 +69,7 @@ export const ForgotPassword: React.FC = () => {
         email.trim(),
         {
           redirectTo: resetUrl,
-        }
+        },
       );
 
       if (error) throw error;

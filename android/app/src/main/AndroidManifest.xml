@@ -66,8 +66,16 @@
       SCHEDULE_EXACT_ALARM sends the user into system Settings to grant "Alarms &
       reminders", and Play restricts it to alarm clocks and calendars — a to-do
       reminder is unlikely to qualify and shipping it invites a policy rejection.
-      A "this is due today" nudge does not need to land on the second, so the
-      reminder is scheduled inexactly instead and neither permission is needed.
+      A reminder does not need to land on the second, so it is scheduled
+      inexactly instead and neither permission is needed.
+
+      Removing these does NOT by itself make a reminder merely late — it made
+      reminders not arrive at all, until src/lib/notifications.ts started sending
+      allowWhileIdle. That flag selects AlarmManager.setAndAllowWhileIdle, the
+      one no-permission call that both wakes the device and is exempt from Doze.
+      Without it the plugin falls back to AlarmManager.set(RTC), which does
+      neither. If reminders ever go quiet again, check that flag before
+      suspecting these two lines.
     -->
     <uses-permission
         android:name="android.permission.SCHEDULE_EXACT_ALARM"

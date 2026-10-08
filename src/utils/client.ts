@@ -1,4 +1,6 @@
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+// `createBrowserClient` is also the name of the local function below, so the
+// import is aliased rather than renaming a function three other modules call.
+import { createBrowserClient as createCookieClient } from "@supabase/ssr";
 import {
   createClient as createSupabaseClient,
   type SupabaseClient,
@@ -20,9 +22,10 @@ function supabaseEnv() {
  *
  * The two builds need different session storage:
  *
- *   * Web — `createClientComponentClient` keeps the session in a cookie, which is
- *     what `middleware.ts` and the /api/* route handlers read on every request.
- *     The server is what keeps that cookie alive, so it must stay cookie-based.
+ *   * Web — the `@supabase/ssr` browser client keeps the session in a cookie,
+ *     which is what `middleware.ts` and the /api/* route handlers read on every
+ *     request. The server is what keeps that cookie alive, so it must stay
+ *     cookie-based.
  *
  *   * Native — there is no server. The static export runs entirely in the WebView,
  *     so nothing refreshes a server-managed cookie and the session is silently
@@ -32,11 +35,12 @@ function supabaseEnv() {
  *     `apiFetch` sends that token as a bearer header instead of relying on cookies.
  */
 function createBrowserClient(): SupabaseClient {
+  const { supabaseUrl, supabaseKey } = supabaseEnv();
+
   if (!IS_NATIVE_BUILD) {
-    return createClientComponentClient();
+    return createCookieClient(supabaseUrl, supabaseKey);
   }
 
-  const { supabaseUrl, supabaseKey } = supabaseEnv();
   return createSupabaseClient(supabaseUrl, supabaseKey, {
     auth: {
       persistSession: true,

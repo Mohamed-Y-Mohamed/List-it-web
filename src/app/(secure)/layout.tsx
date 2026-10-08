@@ -43,8 +43,7 @@ export default function SecureLayout({
   // they would start underneath the opaque band globals.css pins over the status
   // bar. The Lists tab is excluded because NativeHome pins its own header with
   // pt-safe-top already, and padding it here would inset it twice.
-  const needsTopInset =
-    onTabRoot && normalisePath(pathname) !== HOME_TAB_PATH;
+  const needsTopInset = onTabRoot && normalisePath(pathname) !== HOME_TAB_PATH;
 
   // The walkthrough, for an account that has never seen it. Native only — the
   // hook short-circuits on IS_NATIVE_BUILD, so the web bundle never carries it
@@ -142,15 +141,13 @@ export default function SecureLayout({
                 AppSurface goes behind everything, including that padding, so
                 there is no strip left for the html background to show through. */}
             <div
-              className={
-                [
-                  "relative min-h-screen",
-                  onTabRoot ? "pb-tab-bar" : "",
-                  needsTopInset ? "pt-safe-top" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")
-              }
+              className={[
+                "relative min-h-screen",
+                onTabRoot ? "pb-tab-bar" : "",
+                needsTopInset ? "pt-safe-top" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
             >
               <AppSurface />
               <NativeTransition>{children}</NativeTransition>

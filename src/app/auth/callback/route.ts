@@ -1,8 +1,7 @@
 // app/auth/callback/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { createClient } from "@/utils/server";
 
 type Metadata = {
   full_name?: string;
@@ -30,7 +29,7 @@ export async function GET(request: NextRequest) {
     url.replace(/([^:]\/)\/+/g, "$1");
 
   // 3️⃣ Initialize Supabase helper bound to this request's cookies
-  const supabase = createRouteHandlerClient({ cookies: () => cookies() });
+  const supabase = await createClient();
 
   // —— 4️⃣ Handle signup email confirmation ——
   if (type === "email" && tokenHash) {
@@ -41,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       const errorUrl = `${siteUrl}/verification?status=error&message=${encodeURIComponent(
-        error.message
+        error.message,
       )}`;
       return NextResponse.redirect(new URL(fixDoubleSlashes(errorUrl)));
     }
@@ -51,7 +50,7 @@ export async function GET(request: NextRequest) {
     await supabase.auth.signOut({ scope: "global" });
 
     return NextResponse.redirect(
-      new URL(fixDoubleSlashes(`${siteUrl}/verification?status=success`))
+      new URL(fixDoubleSlashes(`${siteUrl}/verification?status=success`)),
     );
   }
 
@@ -63,7 +62,7 @@ export async function GET(request: NextRequest) {
     });
     if (error) {
       return NextResponse.redirect(
-        new URL(`/login?error=${encodeURIComponent(error.message)}`, siteUrl)
+        new URL(`/login?error=${encodeURIComponent(error.message)}`, siteUrl),
       );
     }
     return NextResponse.redirect(new URL("/resetPassword", siteUrl));
@@ -142,7 +141,7 @@ export async function GET(request: NextRequest) {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       return NextResponse.redirect(
-        new URL(`/login?error=${encodeURIComponent(msg)}`, siteUrl)
+        new URL(`/login?error=${encodeURIComponent(msg)}`, siteUrl),
       );
     }
   }

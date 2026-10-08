@@ -27,7 +27,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
       whileInView={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay }}
       whileHover={{ y: -5, scale: 1.02 }}
-      className={`text-center p-6 rounded-xl backdrop-blur-sm border transition-all duration-300 group ${
+      className={`text-center p-6 rounded-xl border transition-all duration-300 group ${
         isDark
           ? "bg-gray-800/50 border-gray-700/50 hover:bg-gray-800/70"
           : "bg-white/50 border-gray-300/50 hover:bg-white/70"
@@ -36,8 +36,8 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
       <motion.div
         className={`w-16 h-16 mx-auto mb-4 rounded-xl flex items-center justify-center ${
           isDark
-            ? "bg-orange-900/30 text-orange-400"
-            : "bg-orange-100 text-orange-600"
+            ? "bg-indigo-900/30 text-indigo-400"
+            : "bg-indigo-100 text-indigo-600"
         }`}
         whileHover={{ scale: 1.1, rotate: 5 }}
         transition={{ duration: 0.2 }}

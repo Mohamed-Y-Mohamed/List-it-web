@@ -70,7 +70,7 @@ export function isUsableHex(value: string | null | undefined): boolean {
  */
 export function resolveColor(
   value: string | null | undefined,
-  fallback: string = DEFAULT_COLOR_HEX
+  fallback: string = DEFAULT_COLOR_HEX,
 ): string {
   return normaliseHex(value) ?? fallback;
 }

@@ -31,13 +31,13 @@ export default function TomorrowPage() {
 
   const dueTomorrow = useMemo(
     () => (task: TaskRow) => isSameLocalDay(task.due_date, tomorrow),
-    [tomorrow]
+    [tomorrow],
   );
 
   const { tasks, setTasks, collections, isLoading, isRefreshing, refresh } =
     useTaskView({ isCompleted: false, predicate: dueTomorrow });
 
-  const actions = useTaskActions(setTasks, { collections });
+  const actions = useTaskActions(setTasks, { collections, tasks });
 
   const sorted = useMemo(() => sortTasks(tasks), [tasks]);
   const pinnedCount = sorted.filter((task) => task.is_pinned).length;
@@ -49,7 +49,7 @@ export default function TomorrowPage() {
         month: "long",
         day: "numeric",
       }),
-    [tomorrow]
+    [tomorrow],
   );
 
   return (

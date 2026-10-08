@@ -14,10 +14,13 @@ import type { Collection as SchemaCollection } from "@/types/schema";
 import type { TaskActionResult, TaskRow } from "@/types/taskView";
 
 export interface TaskListHandlers {
-  onComplete: (taskId: string, isCompleted: boolean) => Promise<TaskActionResult>;
+  onComplete: (
+    taskId: string,
+    isCompleted: boolean,
+  ) => Promise<TaskActionResult>;
   onPriorityChange: (
     taskId: string,
-    isPinned: boolean
+    isPinned: boolean,
   ) => Promise<TaskActionResult>;
   onTaskUpdate: (
     taskId: string,
@@ -26,12 +29,12 @@ export interface TaskListHandlers {
       description?: string | null;
       due_date?: Date | null;
       is_pinned: boolean;
-    }
+    },
   ) => Promise<TaskActionResult>;
   onTaskDelete: (taskId: string) => Promise<TaskActionResult>;
   onCollectionChange: (
     taskId: string,
-    collectionId: string
+    collectionId: string,
   ) => Promise<TaskActionResult>;
 }
 
@@ -68,6 +71,8 @@ export default function TaskList({
             description={task.description}
             created_at={task.created_at}
             due_date={task.due_date}
+            due_has_time={task.due_has_time}
+            reminders={task.reminders}
             is_completed={task.is_completed}
             date_completed={task.date_completed}
             is_pinned={task.is_pinned}

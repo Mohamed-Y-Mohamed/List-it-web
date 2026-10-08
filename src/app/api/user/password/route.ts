@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     if (!currentPassword || !newPassword) {
       return NextResponse.json(
         { error: "currentPassword and newPassword are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -29,22 +29,22 @@ export async function POST(request: NextRequest) {
 
     if (!supabaseUrl || !supabaseAnonKey) {
       logger.error(
-        "POST /api/user/password configuration error: missing Supabase env vars"
+        "POST /api/user/password configuration error: missing Supabase env vars",
       );
       return NextResponse.json(
         { error: "Server configuration error: Supabase is not configured" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     const userEmail = user?.email;
     if (!userEmail) {
       logger.error(
-        "POST /api/user/password configuration error: session is missing user email"
+        "POST /api/user/password configuration error: session is missing user email",
       );
       return NextResponse.json(
         { error: "Server configuration error: user email not available" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     if (signInError) {
       return NextResponse.json(
         { error: "Current password is incorrect" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -70,10 +70,7 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       logger.error("POST /api/user/password updateUser error", updateError);
-      return NextResponse.json(
-        { error: updateError.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
@@ -81,7 +78,7 @@ export async function POST(request: NextRequest) {
     logger.error("POST /api/user/password unexpected error", err);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

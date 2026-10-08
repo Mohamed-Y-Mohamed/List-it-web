@@ -32,35 +32,30 @@ const BANDS: {
   key: GroupKey;
   title: string;
   color: string;
-  bgColor: string;
   icon: React.ElementType;
 }[] = [
   {
     key: "today",
     title: "Due Today",
     color: "text-blue-700 dark:text-blue-400",
-    bgColor: "bg-gray-100 dark:bg-blue-300/30",
     icon: Target,
   },
   {
     key: "tomorrow",
     title: "Due Tomorrow",
     color: "text-purple-600 dark:text-purple-400",
-    bgColor: "bg-purple-100 dark:bg-purple-900/30",
     icon: Calendar,
   },
   {
     key: "future",
     title: "Upcoming",
     color: "text-green-600 dark:text-green-400",
-    bgColor: "bg-green-100 dark:bg-green-900/30",
     icon: Clock,
   },
   {
     key: "no_date",
-    title: "Ongoing Tasks",
+    title: "Ongoing",
     color: "text-gray-600 dark:text-gray-400",
-    bgColor: "bg-gray-100 dark:bg-gray-800/30",
     icon: InfinityIcon,
   },
 ];
@@ -79,10 +74,14 @@ export default function NotCompletedPage() {
     today,
   } = useTaskView({ isCompleted: false, predicate: isUndatedOrAhead });
 
-  const actions = useTaskActions(setTasks, { collections });
+  const actions = useTaskActions(setTasks, { collections, tasks });
   const sorted = useMemo(() => sortTasks(tasks), [tasks]);
 
   const grouped = useMemo(() => {
+    // Routines are pulled out before banding and shown under their own
+    // heading at the end. Banding them by how far past due they are says
+    // nothing useful about something that comes round again regardless.
+    const oneOff = sorted;
     const groups: Record<GroupKey, TaskRow[]> = {
       today: [],
       tomorrow: [],
@@ -93,7 +92,7 @@ export default function NotCompletedPage() {
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
 
-    sorted.forEach((task) => {
+    oneOff.forEach((task) => {
       if (!task.due_date) {
         groups.no_date.push(task);
         return;
@@ -222,7 +221,6 @@ function TaskBand({
         title={band.title}
         count={tasks.length}
         color={band.color}
-        bgColor={band.bgColor}
         icon={band.icon}
         isDark={isDark}
       />

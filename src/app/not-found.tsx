@@ -15,11 +15,13 @@ const NotFound: React.FC = () => {
         ${isDark ? "text-gray-200" : "text-gray-800"}
       `}
     >
-      {/* Background Gradient */}
+      {/* Background. The product's own flat field, light and dark. This page
+          carried the last of the brown-and-orange gradients that made the site
+          look like a different product from the app. */}
       {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(251,146,60,0.1)_0%,transparent_50%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full bg-[#0B1222]" />
       ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_top_right,rgba(251,146,60,0.05)_0%,transparent_70%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full bg-[#F6F8FC]" />
       )}
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

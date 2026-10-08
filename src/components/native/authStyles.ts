@@ -77,4 +77,4 @@ export const AUTH_LINK = "text-[15px] font-medium text-orange-500";
  * means they are responsible for insetting their own content.
  */
 export const AUTH_SCROLL_PADDING =
-  "calc(env(safe-area-inset-bottom, 0px) + var(--keyboard-offset, 0px) + 1.5rem)";
+  "calc(var(--safe-bottom) + var(--keyboard-offset, 0px) + 1.5rem)";

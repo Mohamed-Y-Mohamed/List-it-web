@@ -87,7 +87,10 @@ export default function NativeSheet({
     }
 
     // A decisive upward drag promotes a medium sheet to full height.
-    if (detent === "medium" && (info.offset.y < -60 || info.velocity.y < -400)) {
+    if (
+      detent === "medium" &&
+      (info.offset.y < -60 || info.velocity.y < -400)
+    ) {
       setDetent("large");
     }
     y.set(0);
@@ -117,9 +120,7 @@ export default function NativeSheet({
             // than replacing it. The blur is what keeps the text legible at that
             // opacity: without it the cards behind show through the copy.
             className={`fixed inset-x-0 bottom-0 z-[61] flex flex-col overflow-hidden rounded-t-[25px] backdrop-blur-2xl ${
-              isDark
-                ? "bg-gray-900/60 text-white"
-                : "bg-white/60 text-gray-900"
+              isDark ? "bg-gray-900/60 text-white" : "bg-white/60 text-gray-900"
             }`}
             style={{ height: DETENT_HEIGHT[detent], y }}
             initial={reduceMotion ? { y: 0, opacity: 0 } : { y: "100%" }}
@@ -154,17 +155,14 @@ export default function NativeSheet({
             {/* Only the content scrolls, so the handle and title stay put. The
                 bottom padding clears the navigation bar and the keyboard.
 
-                The `max()` floor is load-bearing on Android, not belt-and-braces:
-                Chromium derives env(safe-area-inset-bottom) from display-cutout
-                insets, so on a device with no bottom cutout it reports 0 and an
-                inset-only value would leave the last row under the navigation bar.
-                Same reasoning as pb-sheet-safe in globals.css, which carries the
-                fuller explanation. */}
+                Capacitor measures the navigation bar natively and publishes it
+                as --safe-area-inset-bottom; --safe-bottom reads that and falls
+                back to env() off-Android. See the note in globals.css. */}
             <div
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5"
               style={{
                 paddingBottom:
-                  "max(5rem, calc(env(safe-area-inset-bottom, 0px) + var(--keyboard-offset, 0px) + 1.25rem))",
+                  "calc(var(--safe-bottom) + var(--keyboard-offset, 0px) + 1.25rem)",
               }}
             >
               {children}

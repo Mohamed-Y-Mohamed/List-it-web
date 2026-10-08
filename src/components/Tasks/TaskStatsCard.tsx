@@ -11,6 +11,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import AnimatedCounter from "./AnimatedCounter";
+import { SkeletonStatTile } from "@/components/ui/Skeleton";
 
 // The tints each tile colour maps to, written out as whole class names.
 //
@@ -69,61 +70,53 @@ export function TaskStatsCard({
   const tints = TILE_TINTS[color] ?? FALLBACK_TINTS;
 
   if (isLoading) {
-    return (
-      <div
-        className={`p-4 rounded-xl ${isDark ? "bg-gray-800/50" : "bg-white/50"} shadow-sm animate-pulse backdrop-blur-sm`}
-      >
-        <div className="flex items-center justify-between mb-3">
-          <div
-            className={`h-10 w-10 rounded-lg ${isDark ? "bg-gray-700" : "bg-gray-200"}`}
-          />
-        </div>
-        <div
-          className={`h-4 w-16 rounded ${isDark ? "bg-gray-700" : "bg-gray-200"} mb-2`}
-        />
-        <div
-          className={`h-6 w-12 rounded ${isDark ? "bg-gray-700" : "bg-gray-200"}`}
-        />
-      </div>
-    );
+    return <SkeletonStatTile isDark={isDark} />;
   }
 
+  // The number is the thing. It used to sit third in the reading order behind a
+  // tinted icon tile and a blurred colour blob, both of which were decoration on
+  // a tile whose entire job is to show one figure. The glyph stays as a small
+  // tint beside the label; the blob is gone.
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-      className={`p-4 rounded-xl ${isDark ? "bg-gray-800/50" : "bg-white/50"}
-        shadow-sm relative overflow-hidden group hover:shadow-lg transition-all duration-300 backdrop-blur-sm border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
+      transition={{ duration: 0.2 }}
+      className={`rounded-2xl border p-4 ${
+        isDark
+          ? "border-white/[0.08] bg-[#131A2B]"
+          : "border-black/[0.06] bg-white"
+      }`}
     >
-      <div
-        className={`absolute -bottom-2 -right-2 h-16 w-16 rounded-full blur-xl opacity-20 ${color}
-        group-hover:opacity-40 transition-opacity duration-300`}
-      />
-
-      <div className="flex items-center justify-between mb-3 relative z-10">
-        <div
-          className={`p-2 rounded-lg ${tints.chip} ${isDark ? "bg-opacity-20" : ""}`}
-        >
-          <Icon className={`h-5 w-5 ${tints.icon}`} />
-        </div>
-      </div>
-
-      <div className="relative z-10">
+      <div className="flex items-center gap-1.5">
+        <Icon
+          className={`h-3.5 w-3.5 shrink-0 ${tints.icon}`}
+          aria-hidden="true"
+        />
         <h3
-          className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-gray-500"} mb-1`}
+          className={`truncate text-[11px] font-medium uppercase tracking-[0.06em] ${
+            isDark ? "text-gray-500" : "text-gray-400"
+          }`}
         >
           {title}
         </h3>
-        <div className="text-2xl font-bold mb-1">
-          <AnimatedCounter value={value} suffix={suffix} />
-        </div>
-        {description && (
-          <p className={`text-xs ${isDark ? "text-gray-500" : "text-gray-400"}`}>
-            {description}
-          </p>
-        )}
       </div>
+
+      <div
+        className={`pt-1.5 text-[26px] font-bold leading-none ${
+          isDark ? "text-white" : "text-gray-900"
+        }`}
+      >
+        <AnimatedCounter value={value} suffix={suffix} />
+      </div>
+
+      {description && (
+        <p
+          className={`pt-1 text-[11px] ${isDark ? "text-gray-500" : "text-gray-400"}`}
+        >
+          {description}
+        </p>
+      )}
     </motion.div>
   );
 }
@@ -131,51 +124,57 @@ export function TaskStatsCard({
 interface TaskSectionHeaderProps {
   title: string;
   count: number;
-  /** Tailwind `text-*` class for the title and the count pill. */
+  /** Tailwind `text-*` class tinting the icon to the band's colour. */
   color: string;
-  /** Tailwind `bg-*` class behind the icon and the count pill. */
-  bgColor: string;
   icon: React.ElementType;
   isDark: boolean;
-  /** Reads "{count} task(s) {subject}". */
-  subject?: string;
 }
 
+/**
+ * The heading above one band of tasks.
+ *
+ * A rule across the row with the name at the front, which is the divider the
+ * Lists tab uses between its sections and the one `TaskGroups` uses between
+ * one-offs and routines. It was a bordered card with a tinted icon tile, a title,
+ * a restatement of the count as a sentence and then the count again as a pill —
+ * four pieces of chrome introducing as little as one task, stacked three or four
+ * deep down a screen until the bands outweighed the tasks in them.
+ *
+ * A divider separates without announcing itself, which is the whole job here.
+ */
 export function TaskSectionHeader({
   title,
   count,
   color,
-  bgColor,
   icon: Icon,
   isDark,
-  subject = "to complete",
 }: TaskSectionHeaderProps) {
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.5 }}
-      className={`flex items-center justify-between p-4 rounded-lg mb-4 backdrop-blur-sm ${
-        isDark ? "bg-gray-800/40" : "bg-white/40"
-      } border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
+      className="mb-3 flex items-center gap-2.5"
     >
-      <div className="flex items-center">
-        <div className={`p-2 rounded-lg ${bgColor} mr-3`}>
-          <Icon className={`h-5 w-5 ${color}`} />
-        </div>
-        <div>
-          <h2 className={`text-lg font-semibold ${color}`}>{title}</h2>
-          <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-            {count} task{count !== 1 ? "s" : ""} {subject}
-          </p>
-        </div>
-      </div>
-
-      <div
-        className={`px-3 py-1 rounded-full ${bgColor} ${color} font-medium text-sm`}
+      <Icon className={`h-4 w-4 shrink-0 ${color}`} />
+      <h2
+        className={`shrink-0 text-[13px] font-semibold uppercase tracking-[0.06em] ${
+          isDark ? "text-gray-400" : "text-gray-500"
+        }`}
+      >
+        {title}
+      </h2>
+      <span
+        className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
+        style={{ backgroundColor: "#FF9500" }}
       >
         {count}
-      </div>
+      </span>
+      {/* Takes the rest of the row, so the rule starts where the label ends
+          however long the label is. */}
+      <span
+        className={`h-px flex-1 ${isDark ? "bg-white/10" : "bg-black/10"}`}
+      />
     </motion.div>
   );
 }

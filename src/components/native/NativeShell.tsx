@@ -16,7 +16,7 @@ import { StatusBar, Style } from "@capacitor/status-bar";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { useTheme } from "@/context/ThemeContext";
 import { useIsNative } from "@/hooks/useIsNative";
-import { appPath } from "@/lib/routes";
+import { appPath, listHref } from "@/lib/routes";
 import { HOME_TAB_PATH, isTabRoot } from "./navTabs";
 
 export default function NativeShell() {
@@ -70,7 +70,7 @@ export default function NativeShell() {
 
     // Style.Dark means light text on a dark background, and vice versa.
     StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(
-      () => {}
+      () => {},
     );
   }, [isNative, theme]);
 
@@ -112,17 +112,43 @@ export default function NativeShell() {
     // window with no handler attached, during which a back press closes the app.
   }, [isNative, router]);
 
-  // Tapping the due-today reminder opens the Today view, which is the list of
-  // exactly what the notification was about. The notification is a summary, so
-  // there is no single task to open.
+  // Tapping a reminder opens the list the task lives in.
+  //
+  // This used to push /today unconditionally, which was right when there was one
+  // notification a day summarising everything due: there was no single task to
+  // open. A reminder now belongs to one task, and landing on a screen that may
+  // not even contain it is a dead end. syncTaskReminders puts the ids in `extra`
+  // for exactly this.
+  //
+  // Falls back to Today when the payload is missing — an older notification
+  // scheduled before this shipped, or one whose list has since been deleted.
   useEffect(() => {
     if (!isNative) return;
 
     const listener = LocalNotifications.addListener(
       "localNotificationActionPerformed",
-      () => {
-        router.push(appPath("/today"));
-      }
+      (event) => {
+        const extra = event.notification?.extra as
+          | { listId?: string | null; taskId?: string | null }
+          | undefined;
+
+        if (!extra?.listId) {
+          router.push(appPath("/today"));
+          return;
+        }
+
+        // Straight to the task's own view, not just the list it lives on.
+        //
+        // The detail sheet has no route — its open state lives inside the task
+        // card — so the task id rides along as a query param and the collection
+        // holding that row opens it on arrival. See `?task=` in Collection.
+        const href = listHref(extra.listId, true);
+        router.push(
+          extra.taskId
+            ? `${href}&task=${encodeURIComponent(extra.taskId)}`
+            : href,
+        );
+      },
     );
 
     return () => {
@@ -136,7 +162,10 @@ export default function NativeShell() {
     if (!isNative) return;
 
     const setOffset = (px: number) => {
-      document.documentElement.style.setProperty("--keyboard-offset", `${px}px`);
+      document.documentElement.style.setProperty(
+        "--keyboard-offset",
+        `${px}px`,
+      );
     };
 
     const shown = Keyboard.addListener("keyboardWillShow", (info) => {

@@ -55,7 +55,7 @@ export function logoutRedirectUrl(isNative: boolean, hadError = false): string {
 /** The list id the given location is showing, in either URL shape. */
 export function activeListId(
   pathname: string,
-  searchParams: URLSearchParams | null
+  searchParams: URLSearchParams | null,
 ): string | null {
   if (pathname.includes("/List/")) {
     return pathname.split("/List/")[1] || null;

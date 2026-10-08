@@ -4,15 +4,13 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  CalendarDays,
   Clock,
   Folder,
   ListTodo,
   StickyNote,
   Pin,
   ChevronDown,
-  Check,
-  Calendar,
-  Star,
   Target,
   TrendingUp,
   Zap,
@@ -21,6 +19,8 @@ import {
   Rocket,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { publicSurface, publicVars } from "@/components/ui/publicSurface";
+import { PRIMARY, STATUS_META, taskStatus } from "@/components/ui/tokens";
 
 // Type definitions
 interface Task {
@@ -64,6 +64,9 @@ interface Collection {
 }
 
 //  demo data
+//
+// Shaped to show all four task states, because the legend below the demo names
+// all four and a demo that only ever shows "normal" teaches nothing.
 const initialData: { collections: Collection[] } = {
   collections: [
     {
@@ -79,18 +82,26 @@ const initialData: { collections: Collection[] } = {
           description:
             "Complete analysis and prepare slides for the team meeting",
           created_at: new Date(),
-          due_date: new Date(new Date().setDate(new Date().getDate() + 2)),
+          due_date: new Date(new Date().setDate(new Date().getDate() - 2)),
           is_completed: false,
           is_pinned: true,
         },
         {
           id: "task2",
           text: "Schedule client meeting",
-          description: "Coordinate with sales team about new proposal",
+          description: "Coordinate with sales team about the new proposal",
           created_at: new Date(),
-          due_date: new Date(new Date().setDate(new Date().getDate() + 5)),
+          due_date: new Date(new Date().setDate(new Date().getDate() + 3)),
           is_completed: false,
-          is_pinned: false,
+          is_pinned: true,
+        },
+        {
+          id: "task5",
+          text: "Review the design system",
+          description: "Check spacing and colour tokens against the brief",
+          created_at: new Date(),
+          is_completed: false,
+          is_pinned: true,
         },
       ],
       notes: [
@@ -116,7 +127,7 @@ const initialData: { collections: Collection[] } = {
         {
           id: "task3",
           text: "Grocery shopping",
-          description: "Milk, eggs, bread, fruits",
+          description: "Milk, eggs, bread, fruit",
           created_at: new Date(),
           due_date: new Date(new Date().setDate(new Date().getDate() + 1)),
           is_completed: false,
@@ -148,6 +159,43 @@ const initialData: { collections: Collection[] } = {
   ],
 };
 
+/* ===========================================================================
+   The demo below mirrors the real product.
+
+   Someone arriving here is deciding whether to install the app, so the three
+   things they are shown — a collection, a task card, a note card — are built
+   to the same spec as the components they will actually meet:
+
+     Collection   src/components/Collection/index.tsx
+     Task card    src/components/Tasks/customcard.tsx
+     Note card    src/components/Notes/noteCard.tsx
+
+   Radii, padding, type scale, stripe widths and colours are copied from those
+   files rather than chosen here, and the status colours come from `ui/tokens`,
+   which is the same source the real cards read. Where a value looks oddly
+   specific — `text-[14px]`, `px-[18px]`, `w-[4px]` — it was copied, not picked.
+
+   If you change one of those three components, change this. A shop window
+   showing a product you no longer sell is worse than no shop window. This is
+   exactly how the tutorial mocks went stale.
+
+   Two deliberate departures, both noted again at the site:
+     - no `backdrop-blur` anywhere (the real Collection has one); on this page
+       it cost 20fps of scroll and, over a flat field, bought nothing
+     - the cards carry no checkbox or pin button on their face, because the
+       real ones do not either — completing and pinning live in the detail
+       sheet and the hold menu
+   =========================================================================== */
+
+/** Date as the real cards print it. `formatTaskDue` is the app's own rule. */
+const formatDemoDate = (date: Date | undefined): string => {
+  if (!date) return "";
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+};
+
 //  Task Card Component
 interface TaskCardProps {
   id: string;
@@ -156,6 +204,8 @@ interface TaskCardProps {
   due_date?: Date;
   is_completed: boolean;
   is_pinned: boolean;
+  collection_name?: string;
+  list_name?: string;
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({
@@ -165,174 +215,177 @@ const TaskCard: React.FC<TaskCardProps> = ({
   due_date,
   is_completed,
   is_pinned,
+  collection_name,
+  list_name,
 }) => {
-  const [isCompleted, setIsCompleted] = useState<boolean>(!!is_completed);
-  const [isPinned, setIsPinned] = useState<boolean>(!!is_pinned);
+  // The card face is static, as the real one is. Clicking it toggles the
+  // completed look, which is a state the real card genuinely has — rather than
+  // inventing a checkbox the product does not put there.
+  const [completed, setCompleted] = useState<boolean>(!!is_completed);
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
-  const formatDate = (date: Date | string | null | undefined): string => {
-    if (!date) return "No date";
-    try {
-      const dateObj = date instanceof Date ? date : new Date(date);
-      return dateObj.toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return "Invalid date";
-    }
-  };
-
-  const handleCompletionToggle = (e: React.MouseEvent): void => {
-    e.stopPropagation();
-    setIsCompleted(!isCompleted);
-  };
-
-  const handlePriorityToggle = (e: React.MouseEvent): void => {
-    e.stopPropagation();
-    setIsPinned(!isPinned);
-  };
+  const scheduled = Boolean(due_date);
+  const overdue = Boolean(due_date && due_date.getTime() < Date.now() && !completed);
+  const status = taskStatus(overdue, !!is_pinned, scheduled);
+  const statusInfo = STATUS_META[status];
+  const formattedDate = formatDemoDate(due_date);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
+    <motion.article
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      whileHover={{ y: -2, scale: 1.02 }}
+      transition={{ duration: 0.2 }}
+      whileHover={{ y: -1 }}
+      onClick={() => setCompleted((previous) => !previous)}
       data-id={id}
-      className={`rounded-xl border p-4 transition-all duration-300 cursor-pointer backdrop-blur-sm group
+      role="button"
+      tabIndex={0}
+      aria-label={`${text} - ${completed ? "completed" : "not completed"}`}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          setCompleted((previous) => !previous);
+        }
+      }}
+      className={`
+        group relative cursor-pointer select-none overflow-hidden
+        rounded-2xl border transition-all duration-200
         ${
           isDark
-            ? "bg-gray-800/40 border-gray-700/50 hover:bg-gray-800/60 hover:shadow-xl hover:shadow-gray-900/20"
-            : "bg-white/40 border-gray-300/50 hover:bg-white/60 hover:shadow-xl hover:shadow-gray-300/20"
-        }`}
+            ? `
+              border-white/[0.07]
+              bg-[#131a28]
+              hover:border-white/[0.12]
+              hover:bg-[#161e2e]
+              hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)]
+            `
+            : `
+              border-slate-200/80
+              bg-white
+              hover:border-slate-300
+              hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]
+            `
+        }
+        ${completed ? "opacity-60" : ""}
+      `}
     >
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="flex items-start space-x-3 overflow-hidden flex-1 min-w-0">
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={handleCompletionToggle}
-            className={`flex-shrink-0 flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all duration-200 mt-0.5 ${
-              isDark
-                ? isCompleted
-                  ? "border-green-400 bg-green-500 text-gray-900"
-                  : "border-gray-600 bg-gray-700/50 hover:border-green-500"
-                : isCompleted
-                  ? "border-green-500 bg-green-500 text-white"
-                  : "border-gray-300 bg-white/50 hover:border-green-500"
-            }`}
-            aria-label={isCompleted ? "Mark as incomplete" : "Mark as complete"}
-            type="button"
+      {/* Only meaningful states get a side colour. */}
+      {status !== "normal" && (
+        <div
+          className="absolute inset-y-0 left-0 w-[4px]"
+          style={{ backgroundColor: statusInfo.colour }}
+        />
+      )}
+
+      <div className="px-4 py-3.5 sm:px-[18px]">
+        {/* TITLE + STATUS */}
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <h3
+            className={`
+              min-w-0 flex-1 truncate
+              text-[14px] font-semibold leading-5 tracking-[-0.01em]
+              sm:text-[15px]
+              ${
+                completed
+                  ? isDark
+                    ? "text-slate-500 line-through"
+                    : "text-slate-400 line-through"
+                  : isDark
+                    ? "text-slate-100"
+                    : "text-slate-900"
+              }
+            `}
           >
-            <AnimatePresence>
-              {isCompleted && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Check className="h-3 w-3" />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.button>
+            {text || "Untitled Task"}
+          </h3>
 
-          <div className="flex-1 min-w-0">
-            <h4
-              className={`font-semibold text-sm sm:text-base truncate ${
-                isDark
-                  ? isCompleted
-                    ? "text-gray-400 line-through"
-                    : "text-gray-100"
-                  : isCompleted
-                    ? "text-gray-500 line-through"
-                    : "text-gray-800"
-              }`}
-            >
-              {text || "Untitled Task"}
-            </h4>
+          {/* Never display "Normal". */}
+          {status !== "normal" && (
+            <div className="flex shrink-0 items-center gap-1.5 pt-[2px]">
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: statusInfo.colour }}
+              />
 
-            <AnimatePresence>
-              {isPinned && (
-                <motion.span
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className={`inline-flex items-center text-xs px-2 py-1 rounded-full font-medium mt-1 ${
-                    isDark
-                      ? "bg-orange-900/30 text-orange-300 border border-orange-500/30"
-                      : "bg-orange-100 text-orange-600 border border-orange-200"
-                  }`}
-                >
-                  <Star className="h-3 w-3 mr-1 fill-current" />
-                  Priority
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </div>
+              <span
+                className={`
+                  text-[10px] font-semibold uppercase tracking-[0.07em]
+                  ${isDark ? "text-slate-400" : "text-slate-500"}
+                `}
+              >
+                {statusInfo.label}
+              </span>
+            </div>
+          )}
         </div>
 
-        <motion.button
-          whileHover={{ scale: 1.1, rotate: 15 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={handlePriorityToggle}
-          className={`flex-shrink-0 transition-all duration-200 p-2 rounded-lg ${
-            isDark
-              ? isPinned
-                ? "text-orange-400 bg-orange-900/30"
-                : "text-gray-500 hover:text-orange-400 hover:bg-gray-700/50"
-              : isPinned
-                ? "text-orange-500 bg-orange-100"
-                : "text-gray-400 hover:text-orange-500 hover:bg-orange-50"
-          }`}
-          aria-label={isPinned ? "Unpin task" : "Pin task"}
-        >
-          <Pin className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`} />
-        </motion.button>
-      </div>
+        {/* SCHEDULE DIRECTLY BELOW TITLE */}
+        {formattedDate && (
+          <div
+            className={`
+              mt-1.5 flex items-center gap-1.5 text-[11px] font-medium
+              ${
+                overdue && status !== "flagged"
+                  ? "text-rose-500"
+                  : isDark
+                    ? "text-slate-400"
+                    : "text-slate-500"
+              }
+            `}
+          >
+            <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+            <span>{formattedDate}</span>
+          </div>
+        )}
 
-      <AnimatePresence>
+        {/* DESCRIPTION */}
         {description && (
-          <motion.p
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className={`mb-3 text-xs sm:text-sm break-words ${
-              isDark
-                ? isCompleted
-                  ? "text-gray-500 line-through"
-                  : "text-gray-400"
-                : isCompleted
-                  ? "text-gray-400 line-through"
-                  : "text-gray-600"
-            }`}
+          <p
+            className={`
+              mt-2.5 line-clamp-2 text-[12px] leading-[1.5]
+              ${
+                completed
+                  ? isDark
+                    ? "text-slate-600"
+                    : "text-slate-400"
+                  : isDark
+                    ? "text-slate-400"
+                    : "text-slate-600"
+              }
+            `}
           >
             {description}
-          </motion.p>
+          </p>
         )}
-      </AnimatePresence>
 
-      {due_date && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className={`flex items-center text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-full w-fit transition-all duration-200 ${
-            isDark
-              ? "bg-gray-700/50 hover:bg-gray-700 border border-gray-600/50"
-              : "bg-gray-100/50 hover:bg-gray-200 border border-gray-200/50"
-          }`}
-        >
-          <Calendar className="mr-1 sm:mr-1.5 h-3 w-3 flex-shrink-0 text-purple-500" />
-          <span className="truncate">Due: {formatDate(due_date)}</span>
-        </motion.div>
-      )}
-    </motion.div>
+        {/* SMALL FOOTER */}
+        {(collection_name || list_name) && (
+          <div
+            className={`
+              mt-3 flex min-w-0 items-center gap-3 border-t pt-2.5
+              ${isDark ? "border-white/[0.055]" : "border-slate-100"}
+            `}
+          >
+            {collection_name && (
+              <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-slate-500">
+                <Folder className="h-3 w-3 shrink-0" />
+                <span className="max-w-[150px] truncate">
+                  {collection_name}
+                </span>
+              </div>
+            )}
+
+            {list_name && (
+              <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-slate-500">
+                <ListTodo className="h-3 w-3 shrink-0" />
+                <span className="max-w-[130px] truncate">{list_name}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </motion.article>
   );
 };
 
@@ -341,121 +394,154 @@ interface NoteCardProps {
   id: string;
   title: string | null;
   description: string | null;
+  created_at: Date;
   bg_color_hex: string | null;
   is_pinned: boolean;
 }
+
+/** The real card's rule: a light custom colour takes dark text. */
+const isLightHex = (hex: string): boolean => {
+  const value = hex.replace("#", "");
+  if (value.length !== 6) return false;
+  const r = parseInt(value.slice(0, 2), 16);
+  const g = parseInt(value.slice(2, 4), 16);
+  const b = parseInt(value.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 155;
+};
 
 const NoteCard: React.FC<NoteCardProps> = ({
   id,
   title,
   description,
+  created_at,
   bg_color_hex,
   is_pinned,
 }) => {
-  const [isPinned, setIsPinned] = useState<boolean>(!!is_pinned);
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
   const displayTitle = title || "Untitled Note";
+  const safeColor = bg_color_hex || null;
 
-  const cardStyle = bg_color_hex
+  const cardStyle: React.CSSProperties = safeColor
     ? {
-        background: `linear-gradient(135deg, ${bg_color_hex}dd 0%, ${bg_color_hex}aa 50%, ${bg_color_hex}bb 100%)`,
-        backdropFilter: "blur(10px)",
+        backgroundColor: `${safeColor}22`,
+        borderColor: `${safeColor}45`,
       }
-    : {};
+    : isDark
+      ? {
+          backgroundColor: "rgba(255,255,255,0.025)",
+          borderColor: "rgba(255,255,255,0.07)",
+        }
+      : {
+          backgroundColor: "rgba(255,255,255,0.65)",
+          borderColor: "rgba(15,23,42,0.10)",
+        };
 
-  const bgClass = !bg_color_hex
-    ? isDark
-      ? "bg-gray-800/50"
-      : "bg-yellow-50/50"
-    : "";
+  const customColorIsLight = safeColor && isLightHex(safeColor);
 
-  const useWhiteText = bg_color_hex
-    ? !["#FFD60A", "#34C759", "#00C7BE"].includes(bg_color_hex)
-    : isDark;
+  const titleColour = safeColor
+    ? customColorIsLight
+      ? "text-slate-900"
+      : "text-white"
+    : isDark
+      ? "text-slate-100"
+      : "text-slate-900";
 
-  const textColor = useWhiteText ? "text-white" : "text-gray-800";
-
-  const handlePinClick = (e: React.MouseEvent): void => {
-    e.stopPropagation();
-    e.preventDefault();
-    setIsPinned(!isPinned);
-  };
+  const secondaryColour = safeColor
+    ? customColorIsLight
+      ? "text-slate-700"
+      : "text-white/70"
+    : isDark
+      ? "text-slate-400"
+      : "text-slate-500";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      whileHover={{ y: -4, scale: 1.02 }}
-      transition={{ duration: 0.3 }}
-      className={`
-        rounded-xl p-4 shadow-sm hover:shadow-lg
-        relative overflow-hidden cursor-pointer
-        w-full h-28 sm:h-32 md:h-40 group
-        transition-all duration-300 backdrop-blur-sm border
-        ${bgClass}
-        ${isDark ? "border-gray-700/50" : "border-gray-300/50"}
-      `}
+    <motion.article
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18 }}
       style={cardStyle}
-      role="button"
-      aria-label={`Open note: ${displayTitle}`}
       data-id={id}
-    >
-      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-30 transition-opacity duration-300 bg-gradient-to-br from-white/20 to-transparent" />
-
-      <motion.button
-        whileHover={{ scale: 1.1, rotate: 15 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={handlePinClick}
-        className={`absolute top-3 right-3 p-2 rounded-lg backdrop-blur-sm transition-all duration-200 ${
+      className={`
+        group
+        relative
+        w-full
+        cursor-pointer
+        overflow-hidden
+        rounded-xl
+        border
+        px-4
+        py-3.5
+        transition-all
+        duration-200
+        ${
           isDark
-            ? "bg-black/20 hover:bg-black/40"
-            : "bg-white/20 hover:bg-white/40"
-        }`}
-        aria-label={isPinned ? "Unpin note" : "Pin note"}
-        type="button"
-      >
-        <Pin
-          className={`h-4 w-4 transition-all duration-200 ${
-            isPinned ? "fill-current text-orange-400" : textColor
-          }`}
-        />
-      </motion.button>
+            ? "hover:border-white/15 hover:bg-white/[0.045]"
+            : "hover:border-slate-300 hover:shadow-sm"
+        }
+      `}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open note: ${displayTitle}`}
+    >
+      {/* Note colour indicator */}
+      <div
+        className="absolute inset-y-3 left-0 w-[3px] rounded-r-full"
+        style={{
+          backgroundColor: safeColor || (isDark ? "#64748b" : "#94a3b8"),
+        }}
+      />
 
-      <AnimatePresence>
-        {isPinned && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className={`absolute top-3 left-3 px-2 py-1 rounded-full text-xs font-medium flex items-center backdrop-blur-sm ${
-              isDark
-                ? "bg-orange-900/40 text-orange-300 border border-orange-500/30"
-                : "bg-orange-100/60 text-orange-700 border border-orange-300/50"
-            }`}
+      {/* Header */}
+      <div className="flex min-w-0 items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <h4
+            className={`truncate text-[14px] font-semibold leading-5 ${titleColour}`}
+            title={displayTitle}
           >
-            <Star className="h-3 w-3 mr-1 fill-current" />
-            Pinned
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {displayTitle}
+          </h4>
 
-      <div className="absolute bottom-0 left-0 right-0 p-3">
-        <h4 className={`font-semibold ${textColor} truncate mb-1`}>
-          {displayTitle}
-        </h4>
-        {description && (
-          <p
-            className={`text-xs line-clamp-2 ${textColor} opacity-80 break-words`}
-            title={description}
+          {/* Date directly under title */}
+          <div
+            className={`mt-1 flex items-center gap-1.5 text-[11px] ${secondaryColour}`}
           >
-            {description}
-          </p>
-        )}
+            <CalendarDays className="h-3 w-3 shrink-0" />
+            <span>{formatDemoDate(created_at)}</span>
+          </div>
+        </div>
+
+        {/* Pin */}
+        <span
+          className={`
+            flex h-7 w-7 shrink-0 items-center justify-center rounded-md
+            ${is_pinned ? "text-amber-400" : `${secondaryColour} opacity-60`}
+          `}
+          aria-hidden="true"
+        >
+          <Pin className={`h-3.5 w-3.5 ${is_pinned ? "fill-current" : ""}`} />
+        </span>
       </div>
-    </motion.div>
+
+      {/* Description */}
+      {description && (
+        <p
+          title={description}
+          className={`mt-2.5 w-3/4 truncate text-[12px] leading-5 ${secondaryColour}`}
+        >
+          {description}
+        </p>
+      )}
+
+      {/* Pinned label */}
+      {is_pinned && (
+        <div className="mt-2 flex items-center gap-1 text-[10px] font-medium text-amber-400">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+          Pinned
+        </div>
+      )}
+    </motion.article>
   );
 };
 
@@ -468,6 +554,14 @@ interface CollectionComponentProps {
   notes: Note[];
   isPinned: boolean;
 }
+
+/** The legend the real collection draws, read from the same tokens. */
+const LEGEND = [
+  { label: "Normal", colour: STATUS_META.normal.colour },
+  { label: STATUS_META.pinned.label, colour: STATUS_META.pinned.colour },
+  { label: STATUS_META.overdue.label, colour: STATUS_META.overdue.colour },
+  { label: STATUS_META.flagged.label, colour: STATUS_META.flagged.colour },
+] as const;
 
 const CollectionComponent: React.FC<CollectionComponentProps> = ({
   id,
@@ -482,337 +576,324 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<"tasks" | "notes">("tasks");
 
+  const taskCount = tasks.length;
+  const noteCount = notes.length;
+  const colour = bg_color_hex || "#fb923c";
+
+  // Same ordering rule as the real collection: pinned first, then the rest.
   const priorityTasks = tasks.filter((task) => Boolean(task.is_pinned));
   const regularTasks = tasks.filter((task) => !task.is_pinned);
+  const orderedTasks = [...priorityTasks, ...regularTasks];
   const sortedNotes = [...notes].sort((a, b) => {
     if (a.is_pinned && !b.is_pinned) return -1;
     if (!a.is_pinned && b.is_pinned) return 1;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
-  const taskCount = tasks.length;
-  const noteCount = notes.length;
+  const colors = isDark
+    ? {
+        textPrimary: "text-slate-100",
+        textMuted: "text-slate-500",
+        outer: "border-white/[0.055] bg-white/[0.018]",
+        header: "bg-white/[0.012]",
+        count: "text-slate-500",
+        buttonHover: "hover:bg-white/[0.055]",
+      }
+    : {
+        textPrimary: "text-slate-900",
+        textMuted: "text-slate-400",
+        outer: "border-slate-200/70 bg-white/35",
+        header: "bg-white/25",
+        count: "text-slate-400",
+        buttonHover: "hover:bg-slate-100/70",
+      };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
+    <motion.section
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.25 }}
       data-collection-id={id}
       data-pinned={isPinned}
-      className={`rounded-xl overflow-hidden shadow-lg  transition-all duration-300 hover:shadow-xl backdrop-blur-sm border ${
-        isDark
-          ? "bg-gray-800/50 border-gray-700/50"
-          : "bg-white/50 border-gray-300/50"
-      }`}
+      // The real collection carries `backdrop-blur-[14px]` here. It is dropped
+      // on this page on purpose: over a flat field it is visually a no-op, and
+      // measured on the landing page the in-flow blurs cost ~20fps of scroll.
+      className={`
+        overflow-hidden
+        rounded-[18px]
+        border
+        transition-colors
+        duration-200
+        ${colors.outer}
+      `}
     >
-      {/* Collection Header */}
-      <div
-        className={`backdrop-blur-sm relative  ${isDark ? "bg-gray-800/60" : "bg-white/60"}`}
-      >
-        <div
-          className="absolute top-0 left-0 right-0 h-1 opacity-80"
-          style={{ backgroundColor: bg_color_hex || "#fb923c" }}
-        />
-
-        <motion.div
-          className={`flex items-center p-5 cursor-pointer transition-all duration-200 relative ${
-            isDark ? "hover:bg-gray-700/50" : "hover:bg-gray-100/50"
-          }`}
-          onClick={() => setIsExpanded(!isExpanded)}
-          whileHover={{ x: 2 }}
-          whileTap={{ scale: 0.98 }}
-          role="button"
-          aria-expanded={isExpanded}
-          aria-label={`${collection_name || "Unnamed Collection"} collection`}
-        >
-          <motion.div
-            className="relative mr-4"
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            transition={{ duration: 0.2 }}
-          >
+      {/* HEADER */}
+      <div className={`relative ${colors.header}`}>
+        <div className="px-4 py-4 sm:px-5 sm:py-5">
+          <div className="flex items-center gap-3">
+            {/* Collection colour */}
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg backdrop-blur-sm"
+              className="h-2.5 w-2.5 shrink-0 rounded-full"
               style={{
-                backgroundColor: bg_color_hex || "#fb923c",
-                boxShadow: `0 4px 20px ${bg_color_hex || "#fb923c"}30`,
+                backgroundColor: colour,
+                boxShadow: `0 0 0 3px ${colour}14`,
               }}
+              aria-hidden="true"
+            />
+
+            {/* Title + counts */}
+            <button
+              type="button"
+              onClick={() => setIsExpanded((previous) => !previous)}
+              aria-expanded={isExpanded}
+              className="min-w-0 flex-1 text-left"
             >
-              <ListTodo className="h-4 w-4 text-white" />
-            </div>
-          </motion.div>
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                <h3
+                  className={`
+                    max-w-full truncate
+                    text-[16px] font-semibold leading-6 tracking-[-0.015em]
+                    sm:text-[17px]
+                    ${colors.textPrimary}
+                  `}
+                >
+                  {collection_name || "Unnamed Collection"}
+                </h3>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3">
-              <h3
-                className={`font-semibold text-base sm:text-lg truncate ${
-                  isDark ? "text-gray-100" : "text-gray-800"
-                }`}
-              >
-                {collection_name || "Unnamed Collection"}
-              </h3>
-
-              <div className="flex items-center space-x-2 mt-1 sm:mt-0">
-                {taskCount > 0 && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      isDark
-                        ? "bg-orange-900/30 text-orange-300"
-                        : "bg-orange-100 text-orange-600"
-                    }`}
-                  >
-                    {taskCount} task{taskCount !== 1 ? "s" : ""}
-                  </motion.span>
-                )}
-
-                {noteCount > 0 && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      isDark
-                        ? "bg-blue-900/30 text-blue-400"
-                        : "bg-blue-100 text-blue-600"
-                    }`}
-                  >
-                    {noteCount} note{noteCount !== 1 ? "s" : ""}
-                  </motion.span>
-                )}
+                <span
+                  className={`whitespace-nowrap text-[11px] font-medium leading-5 ${colors.count}`}
+                >
+                  {taskCount} {taskCount === 1 ? "Task" : "Tasks"}
+                  <span className="mx-1.5 opacity-50">·</span>
+                  {noteCount} {noteCount === 1 ? "Note" : "Notes"}
+                </span>
               </div>
-            </div>
+            </button>
 
-            <p
-              className={`text-xs sm:text-sm mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}
+            {/* Expand */}
+            <button
+              type="button"
+              onClick={() => setIsExpanded((previous) => !previous)}
+              aria-label={isExpanded ? "Collapse collection" : "Expand collection"}
+              className={`
+                -mr-1 flex h-9 w-9 shrink-0 items-center justify-center
+                rounded-lg transition-colors
+                ${colors.textMuted} ${colors.buttonHover}
+              `}
             >
-              {taskCount + noteCount} total items
-            </p>
+              <motion.span
+                animate={{ rotate: isExpanded ? 0 : -90 }}
+                transition={{ duration: 0.2 }}
+                className="flex"
+              >
+                <ChevronDown className="h-4 w-4" strokeWidth={2} />
+              </motion.span>
+            </button>
           </div>
+        </div>
 
-          <motion.button
-            className={`p-2 rounded-lg transition-colors duration-200 ${
-              isDark
-                ? "text-gray-400 hover:bg-gray-700/50"
-                : "text-gray-600 hover:bg-gray-100/50"
-            }`}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            aria-label={isExpanded ? "Collapse" : "Expand"}
-          >
-            <motion.div
-              animate={{ rotate: isExpanded ? 0 : -90 }}
-              transition={{ duration: 0.3 }}
-            >
-              <ChevronDown className="h-5 w-5" />
-            </motion.div>
-          </motion.button>
-        </motion.div>
-
-        {/*  tabs */}
-        <AnimatePresence>
+        {/* EXPANDED CONTROLS */}
+        <AnimatePresence initial={false}>
           {isExpanded && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className={`flex border-t backdrop-blur-sm ${
-                isDark ? "border-gray-700" : "border-gray-200"
-              }`}
-              role="tablist"
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
             >
-              {["tasks", "notes"].map((tab) => (
-                <motion.button
-                  key={tab}
-                  className={`flex-1 py-3 px-4 text-sm font-medium transition-all relative ${
-                    activeTab === tab
-                      ? isDark
-                        ? "text-gray-100 bg-gray-700/60"
-                        : "text-gray-800 bg-gray-100/60"
-                      : isDark
-                        ? "text-gray-400 hover:bg-gray-700/50"
-                        : "text-gray-600 hover:bg-gray-100/50"
-                  }`}
-                  onClick={() => setActiveTab(tab as "tasks" | "notes")}
-                  whileHover={{ y: -1 }}
-                  whileTap={{ scale: 0.98 }}
-                  role="tab"
-                  aria-selected={activeTab === tab}
-                  aria-controls={`${tab}-panel`}
-                  id={`${tab}-tab`}
+              <div className="px-4 pb-1 sm:px-5">
+                {/* TASKS / NOTES SEGMENTED SWITCH */}
+                <div
+                  role="tablist"
+                  aria-label="Collection content"
+                  className={`
+                    inline-flex items-center gap-1 rounded-lg border p-1
+                    ${
+                      isDark
+                        ? "border-white/[0.07] bg-white/[0.025]"
+                        : "border-slate-200/80 bg-slate-100/50"
+                    }
+                  `}
                 >
-                  <div className="flex items-center justify-center space-x-2">
-                    {tab === "tasks" ? (
-                      <ListTodo className="h-4 w-4" />
-                    ) : (
-                      <StickyNote className="h-4 w-4" />
-                    )}
-                    <span className="capitalize">{tab}</span>
+                  {(
+                    [
+                      {
+                        key: "tasks",
+                        label: "Tasks",
+                        icon: ListTodo,
+                        count: taskCount,
+                      },
+                      {
+                        key: "notes",
+                        label: "Notes",
+                        icon: StickyNote,
+                        count: noteCount,
+                      },
+                    ] as const
+                  ).map((tab) => {
+                    const Icon = tab.icon;
+                    const active = activeTab === tab.key;
 
-                    {((tab === "tasks" && taskCount > 0) ||
-                      (tab === "notes" && noteCount > 0)) && (
-                      <span
-                        className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                          activeTab === tab
-                            ? "bg-white/20 text-current"
-                            : "bg-gray-500/20 text-gray-500"
-                        }`}
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        aria-controls={`${tab.key}-panel-${id}`}
+                        id={`${tab.key}-tab-${id}`}
+                        onClick={() => setActiveTab(tab.key)}
+                        className={`
+                          relative flex h-8 items-center gap-1.5
+                          rounded-md border px-3
+                          text-[12px] font-medium
+                          transition-all duration-150
+                          ${
+                            active
+                              ? isDark
+                                ? "border-white/[0.09] bg-white/[0.08] text-slate-100 shadow-sm"
+                                : "border-slate-200 bg-white text-slate-900 shadow-sm"
+                              : isDark
+                                ? "border-transparent text-slate-500 hover:bg-white/[0.035] hover:text-slate-300"
+                                : "border-transparent text-slate-500 hover:bg-white/60 hover:text-slate-700"
+                          }
+                        `}
                       >
-                        {tab === "tasks" ? taskCount : noteCount}
-                      </span>
-                    )}
-                  </div>
+                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                        <span>{tab.label}</span>
+                        <span
+                          className={`text-[10px] font-medium ${active ? "opacity-70" : "opacity-50"}`}
+                        >
+                          {tab.count}
+                        </span>
 
-                  {activeTab === tab && (
+                        {active && (
+                          <motion.span
+                            layoutId={`demo-collection-active-tab-${id}`}
+                            className="absolute bottom-[3px] left-3 right-3 h-[2px] rounded-full"
+                            style={{ backgroundColor: colour }}
+                            transition={{
+                              type: "spring",
+                              stiffness: 450,
+                              damping: 36,
+                            }}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* TASK STATUS LEGEND */}
+                <AnimatePresence initial={false}>
+                  {activeTab === "tasks" && (
                     <motion.div
-                      layoutId="activeTab"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full"
-                      style={{ backgroundColor: bg_color_hex || "#fb923c" }}
-                      transition={{ duration: 0.3 }}
-                    />
+                      initial={{ opacity: 0, y: -3 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -3 }}
+                      transition={{ duration: 0.15 }}
+                      aria-label="Task status legend"
+                      className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-3"
+                    >
+                      {LEGEND.map((entry) => (
+                        <span
+                          key={entry.label}
+                          className={`
+                            inline-flex items-center gap-1.5 whitespace-nowrap
+                            text-[10px] font-medium
+                            ${colors.textMuted}
+                          `}
+                        >
+                          <span
+                            className="h-[7px] w-[7px] rounded-full"
+                            style={{ backgroundColor: entry.colour }}
+                          />
+                          {entry.label}
+                        </span>
+                      ))}
+                    </motion.div>
                   )}
-                </motion.button>
-              ))}
+                </AnimatePresence>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Collection Content */}
-      <AnimatePresence>
+      {/* CONTENT */}
+      <AnimatePresence initial={false}>
         {isExpanded && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className={`p-5 backdrop-blur-sm ${isDark ? "bg-gray-800/40" : "bg-white/40"}`}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
             role="tabpanel"
-            id={activeTab === "tasks" ? "tasks-panel" : "notes-panel"}
-            aria-labelledby={activeTab === "tasks" ? "tasks-tab" : "notes-tab"}
+            id={
+              activeTab === "tasks"
+                ? `tasks-panel-${id}`
+                : `notes-panel-${id}`
+            }
+            aria-labelledby={
+              activeTab === "tasks" ? `tasks-tab-${id}` : `notes-tab-${id}`
+            }
           >
-            {activeTab === "tasks" && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.4 }}
-                className="space-y-4"
-              >
-                {priorityTasks.length > 0 && (
-                  <>
-                    <div className="space-y-3">
-                      {priorityTasks.map((task, index) => (
-                        <motion.div
-                          key={task.id}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.3, delay: index * 0.1 }}
-                        >
-                          <TaskCard
-                            id={task.id}
-                            text={task.text}
-                            description={task.description}
-                            due_date={task.due_date}
-                            is_completed={task.is_completed}
-                            is_pinned={task.is_pinned}
-                          />
-                        </motion.div>
-                      ))}
-                    </div>
-                    {regularTasks.length > 0 && (
-                      <div
-                        className={`border-t pt-4 ${isDark ? "border-gray-700" : "border-gray-200"}`}
-                      />
-                    )}
-                  </>
-                )}
-
-                {regularTasks.length > 0 ? (
-                  <div className="space-y-3">
-                    {regularTasks.map((task, index) => (
-                      <motion.div
+            <div className="px-4 pb-4 pt-1 sm:px-5 sm:pb-5">
+              {activeTab === "tasks" &&
+                (orderedTasks.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {orderedTasks.map((task) => (
+                      <TaskCard
                         key={task.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{
-                          duration: 0.3,
-                          delay: (priorityTasks.length + index) * 0.1,
-                        }}
-                      >
-                        <TaskCard
-                          id={task.id}
-                          text={task.text}
-                          description={task.description}
-                          due_date={task.due_date}
-                          is_completed={task.is_completed}
-                          is_pinned={task.is_pinned}
-                        />
-                      </motion.div>
+                        id={task.id}
+                        text={task.text}
+                        description={task.description}
+                        due_date={task.due_date}
+                        is_completed={task.is_completed}
+                        is_pinned={task.is_pinned}
+                        collection_name={collection_name}
+                      />
                     ))}
                   </div>
                 ) : (
-                  priorityTasks.length === 0 && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.4 }}
-                      className={`text-center py-12 ${isDark ? "text-gray-400" : "text-gray-600"}`}
-                    >
-                      <ListTodo className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-lg font-medium mb-1">No tasks yet</p>
-                      <p className="text-sm">Add tasks to organize your work</p>
-                    </motion.div>
-                  )
-                )}
-              </motion.div>
-            )}
-
-            {activeTab === "notes" && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.4 }}
-              >
-                {sortedNotes.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {sortedNotes.map((note, index) => (
-                      <motion.div
-                        key={note.id}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.3, delay: index * 0.1 }}
-                      >
-                        <NoteCard
-                          id={note.id}
-                          title={note.title}
-                          description={note.description}
-                          bg_color_hex={note.bg_color_hex}
-                          is_pinned={note.is_pinned}
-                        />
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.4 }}
-                    className={`text-center py-12 ${isDark ? "text-gray-400" : "text-gray-600"}`}
+                  <div
+                    className={`py-10 text-center text-[12px] ${colors.textMuted}`}
                   >
-                    <StickyNote className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-lg font-medium mb-1">No notes yet</p>
-                    <p className="text-sm">
-                      Create notes to capture your ideas
-                    </p>
-                  </motion.div>
-                )}
-              </motion.div>
-            )}
+                    <ListTodo className="mx-auto mb-2 h-8 w-8 opacity-40" />
+                    <p className="font-medium">No tasks yet</p>
+                  </div>
+                ))}
+
+              {activeTab === "notes" &&
+                (sortedNotes.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    {sortedNotes.map((note) => (
+                      <NoteCard
+                        key={note.id}
+                        id={note.id}
+                        title={note.title}
+                        description={note.description}
+                        created_at={note.created_at}
+                        bg_color_hex={note.bg_color_hex}
+                        is_pinned={note.is_pinned}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    className={`py-10 text-center text-[12px] ${colors.textMuted}`}
+                  >
+                    <StickyNote className="mx-auto mb-2 h-8 w-8 opacity-40" />
+                    <p className="font-medium">No notes yet</p>
+                  </div>
+                ))}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </motion.section>
   );
 };
 
@@ -859,11 +940,7 @@ const Hero: React.FC = () => {
 
   return (
     <section className="relative min-h-screen flex items-center">
-      {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a0f12_0%,#2d1b20_50%,#1a0f12_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
-      ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f8f6f7_0%,#ffffff_50%,#f8f6f7_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
-      )}
+      <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-field)]" />
 
       <div className="mx-auto max-w-7xl px-4 mb-24 py-16 sm:px-6 lg:px-8 pt-28">
         <div className="flex flex-col items-center justify-between lg:flex-row">
@@ -883,11 +960,11 @@ const Hero: React.FC = () => {
             >
               Organize Your Tasks & Notes with{" "}
               <span
-                className={`${isDark ? "text-orange-400" : "text-orange-500"} relative`}
+                className={`${isDark ? "text-indigo-400" : "text-indigo-500"} relative`}
               >
                 LIST IT
                 <motion.div
-                  className="absolute -bottom-2 left-0 h-1 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full"
+                  className="absolute -bottom-2 left-0 h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: "100%" }}
                   transition={{ duration: 1, delay: 1 }}
@@ -903,9 +980,10 @@ const Hero: React.FC = () => {
                 isDark ? "text-gray-300" : "text-gray-600"
               }`}
             >
-              A simple yet powerful task management tool to help you organize
-              collections, track tasks, and keep important notes all in one
-              place.
+              Lists hold collections, collections hold your tasks and notes. Set
+              a due date and up to five reminders, pin what matters, and let the
+              colour down the side of each card tell you what needs doing first.
+              Free, on the web and on your phone.
             </motion.p>
 
             <motion.div
@@ -922,9 +1000,9 @@ const Hero: React.FC = () => {
                   href="/register"
                   className={`inline-flex items-center justify-center rounded-xl ${
                     isDark
-                      ? "bg-orange-600 hover:bg-orange-700 text-white"
-                      : "bg-orange-500 hover:bg-orange-600 text-white"
-                  } px-8 py-4 text-base font-medium transition-all duration-200 shadow-lg hover:shadow-xl backdrop-blur-sm`}
+                      ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                      : "bg-indigo-500 hover:bg-indigo-600 text-white"
+                  } px-8 py-4 text-base font-medium transition-all duration-200 shadow-lg hover:shadow-xl`}
                 >
                   Get Started Free
                   <Rocket className="ml-2 h-5 w-5" />
@@ -937,7 +1015,7 @@ const Hero: React.FC = () => {
               >
                 <Link
                   href="/aboutus"
-                  className={`inline-flex items-center justify-center rounded-xl border backdrop-blur-sm ${
+                  className={`inline-flex items-center justify-center rounded-xl border ${
                     isDark
                       ? "border-gray-600 text-gray-300 hover:bg-gray-800/50"
                       : "border-gray-300 text-gray-700 hover:bg-gray-100/50"
@@ -958,7 +1036,7 @@ const Hero: React.FC = () => {
             <div
               className={`relative overflow-hidden rounded-2xl ${
                 isDark ? "bg-gray-800/40" : "bg-white/40"
-              } p-6 shadow-2xl backdrop-blur-sm border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
+              } p-6 shadow-2xl border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
             >
               <div className="space-y-6">
                 {initialData.collections.map((collection, index) => (
@@ -989,9 +1067,7 @@ const Hero: React.FC = () => {
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 1.2 }}
-        className={`absolute bottom-0  w-full ${
-          isDark ? "bg-orange-500/90" : "bg-orange-500/90"
-        } py-6 sm:py-8 text-center text-white backdrop-blur-sm`}
+        className={`absolute bottom-0  w-full bg-[var(--ps-primary)] py-6 sm:py-8 text-center text-white`}
       >
         <div className="mx-auto max-w-3xl px-4">
           <h2 className="mb-2 sm:mb-4 text-xl sm:text-2xl md:text-3xl font-bold">
@@ -1029,7 +1105,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
       whileInView={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay }}
       whileHover={{ y: -5, scale: 1.02 }}
-      className={`rounded-xl p-4 sm:p-6 transition-all duration-300 backdrop-blur-sm border group ${
+      className={`rounded-xl p-4 sm:p-6 transition-all duration-300 border group ${
         isDark
           ? "bg-gray-800/50 hover:bg-gray-800/70 border-gray-700/50 hover:shadow-xl hover:shadow-gray-900/20"
           : "bg-white/50 hover:bg-white/70 border-gray-300/50 hover:shadow-xl hover:shadow-gray-300/20"
@@ -1081,31 +1157,31 @@ const HowItWorksCard: React.FC<HowItWorksCardProps> = ({
       whileInView={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay }}
       whileHover={{ y: -5 }}
-      className={`rounded-xl p-4 sm:p-6 border-2 transition-all duration-300 backdrop-blur-sm group relative overflow-hidden ${
+      className={`rounded-xl p-4 sm:p-6 border-2 transition-all duration-300 group relative overflow-hidden ${
         isDark
-          ? "bg-gray-800/50 border-gray-700/50 hover:border-orange-500/50"
-          : "bg-white/50 border-gray-300/50 hover:border-orange-500/50"
+          ? "bg-gray-800/50 border-gray-700/50 hover:border-indigo-500/50"
+          : "bg-white/50 border-gray-300/50 hover:border-indigo-500/50"
       }`}
     >
       {/* Step number */}
       <div
         className={`absolute top-3 sm:top-4 right-3 sm:right-4 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold ${
           isDark
-            ? "bg-orange-900/50 text-orange-300"
-            : "bg-orange-100 text-orange-600"
+            ? "bg-indigo-900/50 text-indigo-300"
+            : "bg-indigo-100 text-indigo-600"
         }`}
       >
         {step}
       </div>
 
       {/* Subtle glow effect */}
-      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 bg-gradient-to-br from-orange-500/20 to-transparent" />
+      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 bg-gradient-to-br from-indigo-500/20 to-transparent" />
 
       <motion.div
         className={`inline-flex rounded-xl p-2 sm:p-3 mb-3 sm:mb-4 relative z-10 ${
           isDark
-            ? "bg-orange-900/30 text-orange-400"
-            : "bg-orange-100 text-orange-600"
+            ? "bg-indigo-900/30 text-indigo-400"
+            : "bg-indigo-100 text-indigo-600"
         }`}
         whileHover={{ scale: 1.1, rotate: 5 }}
         transition={{ duration: 0.2 }}
@@ -1153,7 +1229,7 @@ const BenefitCard: React.FC<BenefitCardProps> = ({
       whileInView={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.6, delay }}
       whileHover={{ x: 5 }}
-      className={`flex items-start p-4 sm:p-6 rounded-xl shadow-lg backdrop-blur-sm border transition-all duration-300 ${
+      className={`flex items-start p-4 sm:p-6 rounded-xl shadow-lg border transition-all duration-300 ${
         isDark
           ? "bg-gray-800/50 border-gray-700/50 hover:bg-gray-800/70"
           : "bg-white/50 border-gray-300/50 hover:bg-white/70"
@@ -1162,8 +1238,8 @@ const BenefitCard: React.FC<BenefitCardProps> = ({
       <motion.div
         className={`flex-shrink-0 p-2 sm:p-3 mr-3 sm:mr-4 rounded-xl ${
           isDark
-            ? "bg-orange-900/40 text-orange-400"
-            : "bg-orange-100 text-orange-600"
+            ? "bg-indigo-900/40 text-indigo-400"
+            : "bg-indigo-100 text-indigo-600"
         }`}
         whileHover={{ scale: 1.1, rotate: 5 }}
         transition={{ duration: 0.2 }}
@@ -1215,11 +1291,11 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
       >
         {title}{" "}
         <span
-          className={`${isDark ? "text-orange-400" : "text-orange-500"} relative`}
+          className={`${isDark ? "text-indigo-400" : "text-indigo-500"} relative`}
         >
           {highlight}
           <motion.div
-            className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full"
+            className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
             initial={{ width: 0 }}
             whileInView={{ width: "100%" }}
             transition={{ duration: 0.8, delay: 0.3 }}
@@ -1235,6 +1311,72 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
   );
 };
 
+/**
+ * The three levels the app is built from.
+ *
+ * Written out here because the marketing copy described the product entirely in
+ * adjectives — "powerful", "intelligent", "seamless" — and never once said what
+ * a list or a collection actually is. Every line below is something the app
+ * really does today; nothing here is aspirational.
+ */
+const STRUCTURE = [
+  {
+    name: "Lists",
+    what: "The top level. One per area of your life, each with its own colour so you can tell them apart at a glance.",
+    holds: [
+      "Pin the ones you open daily to the top",
+      "Rename, recolour or delete at any time",
+      "A running count of what is inside",
+    ],
+  },
+  {
+    name: "Collections",
+    what: "Groups inside a list. They start closed, so a long list opens quiet and you expand only what you need.",
+    holds: [
+      "Tasks and notes side by side, on their own tabs",
+      "Its own colour, carried through to the cards",
+      "Collapse the lot in one go from the list menu",
+    ],
+  },
+  {
+    name: "Tasks & notes",
+    what: "The actual work. A task can carry a due date, a time and up to five reminders; a note is free text with a colour.",
+    holds: [
+      "Reminders fire on the phone, not just in the app",
+      "Pin anything that matters more than the rest",
+      "Tick it off and it leaves the list, not your history",
+    ],
+  },
+] as const;
+
+/**
+ * The four task states, with the colours straight out of `ui/tokens` — the same
+ * values the stripe on a real task card uses, so this legend cannot drift away
+ * from the product it is describing.
+ */
+const TASK_STATES = [
+  {
+    label: "Normal",
+    colour: STATUS_META.normal.colour,
+    meaning: "Nothing pressing. No date, or one still comfortably ahead.",
+  },
+  {
+    label: "Pinned",
+    colour: STATUS_META.pinned.colour,
+    meaning: "You marked it important. It sorts above everything else.",
+  },
+  {
+    label: "Flagged",
+    colour: STATUS_META.flagged.colour,
+    meaning: "Pinned and scheduled. It matters and it is coming due.",
+  },
+  {
+    label: "Overdue",
+    colour: STATUS_META.overdue.colour,
+    meaning: "The date has passed. This one outranks the other three.",
+  },
+] as const;
+
 //  Landing Page Component
 const LandingPage: React.FC = () => {
   const { theme } = useTheme();
@@ -1244,7 +1386,7 @@ const LandingPage: React.FC = () => {
     {
       icon: (
         <Folder
-          className={`h-12 w-12 ${isDark ? "text-orange-400" : "text-orange-500"}`}
+          className={`h-12 w-12 ${isDark ? "text-indigo-400" : "text-indigo-500"}`}
         />
       ),
       title: "Smart Collections",
@@ -1305,23 +1447,22 @@ const LandingPage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen w-full">
+    <div
+      className="min-h-screen w-full bg-[var(--ps-field)] text-[var(--ps-text)]"
+      style={publicVars(publicSurface(isDark))}
+    >
       {/* Hero Section */}
       <Hero />
 
       {/* How It Works Section */}
       <section className="py-12 sm:py-16 lg:py-20 relative">
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a1a1a_0%,#232323_50%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(251,146,60,0.05)_0%,transparent_70%)] before:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f9fafb_0%,#ffffff_50%,#f3f4f6_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(251,146,60,0.03)_0%,transparent_70%)] before:content-['']" />
-        )}
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-band)]" />
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="How"
             highlight="LIST IT Works"
-            description="A structured approach to task & note management with hierarchical organization in ONE platform"
+            description="Three steps, once. After that it is just opening the app and getting on with it."
           />
 
           <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -1352,17 +1493,13 @@ const LandingPage: React.FC = () => {
 
       {/* Features Section */}
       <section className="py-12 sm:py-16 lg:py-20 relative">
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a0f12_0%,#2d1b20_50%,#1a0f12_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f8f6f7_0%,#ffffff_50%,#f8f6f7_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
-        )}
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-field)]" />
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="Everything You Need to"
             highlight="Stay Organized"
-            description="Powerful features designed to boost your productivity and streamline your workflow"
+            description="The things you will actually use, rather than a list of everything that was technically possible to build."
           />
 
           <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-4">
@@ -1375,17 +1512,13 @@ const LandingPage: React.FC = () => {
 
       {/* Interactive Demo Section */}
       <section className="py-12 sm:py-16 lg:py-20 relative">
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a1a1a_0%,#232323_50%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f0f9ff_0%,#ffffff_50%,#f8fafc_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
-        )}
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-band)]" />
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="See LIST IT in"
             highlight="Action"
-            description="Experience our interactive demo to see how LIST IT can transform your productivity"
+            description="This is the real component the app renders, not a screenshot. Expand a collection, switch to notes, tick something off."
           />
 
           <motion.div
@@ -1395,7 +1528,7 @@ const LandingPage: React.FC = () => {
             className="overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl"
           >
             <div
-              className={`p-4 sm:p-6 ${isDark ? "bg-gray-800/50" : "bg-white/50"} backdrop-blur-sm border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
+              className={`p-4 sm:p-6 ${isDark ? "bg-gray-800/50" : "bg-white/50"} border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
             >
               <div className="space-y-4 sm:space-y-6">
                 {initialData.collections.map((collection, index) => (
@@ -1421,19 +1554,111 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
+      {/* What you actually get.
+
+          The page described the product in adjectives and never in nouns: a
+          visitor could read the whole thing and still not know what a list,
+          a collection or a status colour was. This is the detail. Everything
+          named here is something the app really does, and the four status
+          dots are the exact colours `ui/tokens` ships, so the legend on this
+          page and the stripe on a task card cannot drift apart. */}
+      <section className="relative py-12 sm:py-16 lg:py-20">
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-band)]" />
+
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <SectionTitle
+            title="How it is"
+            highlight="Put Together"
+            description="Three levels, and nothing you have to learn twice. Here is exactly what each one holds."
+          />
+
+          <div className="grid gap-4 sm:gap-5 lg:grid-cols-3">
+            {STRUCTURE.map((level, index) => (
+              <motion.div
+                key={level.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                className="rounded-2xl border border-[var(--ps-border)] bg-[var(--ps-card)] p-6"
+              >
+                <div className="mb-3 flex items-center gap-3">
+                  <span
+                    aria-hidden="true"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[13px] font-semibold text-white"
+                    style={{ backgroundColor: PRIMARY }}
+                  >
+                    {index + 1}
+                  </span>
+                  <h3 className="text-[17px] font-semibold text-[var(--ps-text)]">
+                    {level.name}
+                  </h3>
+                </div>
+
+                <p className="mb-4 text-[14px] leading-relaxed text-[var(--ps-body)]">
+                  {level.what}
+                </p>
+
+                <ul className="space-y-1.5">
+                  {level.holds.map((item) => (
+                    <li
+                      key={item}
+                      className="flex gap-2 text-[13px] text-[var(--ps-muted)]"
+                    >
+                      <span aria-hidden="true">·</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* The status colours, named. A user meets these on their first task
+              and nothing in the app explains them, so they are explained here. */}
+          <div className="mt-10 rounded-2xl border border-[var(--ps-border)] bg-[var(--ps-card)] p-6 sm:p-8">
+            <h3 className="mb-2 text-[17px] font-semibold text-[var(--ps-text)]">
+              A task tells you where it stands
+            </h3>
+            <p className="mb-6 max-w-2xl text-[14px] leading-relaxed text-[var(--ps-body)]">
+              Every task carries a colour down its left edge. You never set it —
+              it follows the due date and the pin, so a glance down the list is
+              enough. Overdue always wins, because a pinned task you have missed
+              is still missed.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {TASK_STATES.map((state) => (
+                <div key={state.label} className="flex gap-3">
+                  <span
+                    aria-hidden="true"
+                    className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: state.colour }}
+                  />
+                  <div>
+                    <div className="text-[14px] font-medium text-[var(--ps-text)]">
+                      {state.label}
+                    </div>
+                    <div className="text-[13px] leading-relaxed text-[var(--ps-muted)]">
+                      {state.meaning}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Benefits Section */}
       <section className="py-12 sm:py-16 lg:py-20 relative">
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a0f12_0%,#2d1b20_50%,#1a0f12_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f8f6f7_0%,#ffffff_50%,#f8f6f7_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
-        )}
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-field)]" />
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="Work Smarter"
             highlight="Not Harder"
-            description="Discover how LIST IT can transform your productivity and simplify your workflow"
+            description="What changes once everything lives in one place and the app stops asking you to decide where things go."
           />
 
           <div className="grid gap-6 sm:gap-8 lg:grid-cols-3">
@@ -1449,9 +1674,7 @@ const LandingPage: React.FC = () => {
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
-        className={`py-12 sm:py-16 lg:py-20 text-white relative overflow-hidden ${
-          isDark ? "bg-orange-500/90" : "bg-orange-500/90"
-        } backdrop-blur-sm`}
+        className={`py-12 sm:py-16 lg:py-20 text-white relative overflow-hidden bg-[var(--ps-primary)]`}
       >
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden">
@@ -1510,19 +1733,14 @@ const LandingPage: React.FC = () => {
                   href="/register"
                   className={`inline-flex items-center justify-center rounded-xl ${
                     isDark
-                      ? "bg-gray-800 text-orange-400 hover:bg-gray-700"
-                      : "bg-white text-orange-500 hover:bg-gray-100"
-                  } px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl backdrop-blur-sm w-full sm:w-auto`}
+                      ? "bg-gray-800 text-indigo-400 hover:bg-gray-700"
+                      : "bg-white text-indigo-500 hover:bg-gray-100"
+                  } px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl w-full sm:w-auto`}
                 >
                   Get Started - It&apos;s Free!
                   <Users className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                 </Link>
               </motion.div>
-
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              ></motion.div>
             </motion.div>
 
             {/* Trust indicators */}

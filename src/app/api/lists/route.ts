@@ -47,7 +47,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data });
   } catch (err) {
     logger.error("GET /api/lists unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -82,7 +85,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data }, { status: 201 });
   } catch (err) {
     logger.error("POST /api/lists unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -98,7 +104,10 @@ export async function PATCH(request: NextRequest) {
     delete updates.user_id;
 
     if (!id) {
-      return NextResponse.json({ error: "List ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "List ID is required" },
+        { status: 400 },
+      );
     }
 
     const supabase = await getRouteClient();
@@ -119,7 +128,10 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ data });
   } catch (err) {
     logger.error("PATCH /api/lists unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -135,7 +147,10 @@ export async function DELETE(request: NextRequest) {
     const { id } = body as { id: string };
 
     if (!id) {
-      return NextResponse.json({ error: "List ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "List ID is required" },
+        { status: 400 },
+      );
     }
 
     const supabase = await getRouteClient();
@@ -184,6 +199,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (err) {
     logger.error("DELETE /api/lists unexpected error", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

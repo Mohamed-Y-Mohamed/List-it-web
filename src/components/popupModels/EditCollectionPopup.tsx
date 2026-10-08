@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { X, Check, AlertCircle, Edit3 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/client";
 import { Collection } from "@/types/schema";
 import { useAppColors } from "@/hooks/useAppColors";
-import { IS_NATIVE_BUILD } from "@/lib/platform";
+import ModalShell from "@/components/ui/ModalShell";
+import NameColorForm from "@/components/ui/NameColorForm";
+import { PRIMARY } from "@/components/ui/tokens";
 
 // Define a proper result type for submission
 interface SubmissionResult {
@@ -20,7 +21,7 @@ interface EditCollectionPopupProps {
   onClose: () => void;
   onSubmit: (
     collectionId: string,
-    collectionData: { collection_name: string; bg_color_hex: string }
+    collectionData: { collection_name: string; bg_color_hex: string },
   ) => Promise<SubmissionResult> | void;
   existingCollections?: Collection[];
   currentCollection: Collection | null;
@@ -77,7 +78,8 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
         (collection) =>
           collection.id !== currentCollection?.id && // Exclude current collection from validation
           collection.collection_name &&
-          collection.collection_name.toLowerCase() === name.trim().toLowerCase()
+          collection.collection_name.toLowerCase() ===
+            name.trim().toLowerCase(),
       );
 
       if (caseInsensitiveMatch) {
@@ -86,7 +88,7 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
 
       return null; // Validation passed
     },
-    [existingCollections, currentCollection?.id]
+    [existingCollections, currentCollection?.id],
   );
 
   // Real-time validation as user types
@@ -111,7 +113,7 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
         }
       }
     },
-    [error, validateCollectionName]
+    [error, validateCollectionName],
   );
 
   // Click outside to close
@@ -190,7 +192,7 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
       } else if (existingCollections && existingCollections.length > 0) {
         const existingName = existingCollections[0].collection_name;
         setError(
-          `A collection named "${existingName}" already exists (case-insensitive)`
+          `A collection named "${existingName}" already exists (case-insensitive)`,
         );
         setIsLoading(false);
         setIsSubmitting(false);
@@ -249,235 +251,58 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
     !validateCollectionName(collectionName) &&
     hasChanges;
 
-  if (!isOpen || !currentCollection) return null;
-
   return (
-    <>
-      <div
-        className="fixed inset-0 z-40 backdrop-blur-md bg-black/30"
-        onClick={!isLoading ? onClose : undefined}
-        aria-hidden="true"
-      />
-      <div
-        className={`fixed inset-0 z-50 flex items-center justify-center pointer-events-none ${IS_NATIVE_BUILD ? "native-dialog-scroll" : ""}`}
-      >
-        <div
-          ref={modalRef}
-          className={`w-full max-w-md pointer-events-auto p-6 rounded-lg shadow-xl mx-4 ${IS_NATIVE_BUILD ? "my-auto " : ""}${
-            isDark ? "bg-gray-800/50" : "bg-white/70"
-          }`}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-title"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <Edit3
-                className={`h-5 w-5 mr-2 ${isDark ? "text-orange-400" : "text-sky-500"}`}
-              />
-              <h2
-                id="modal-title"
-                className={`text-xl font-semibold ${isDark ? "text-gray-100" : "text-gray-800"}`}
-              >
-                Edit Collection
-              </h2>
-            </div>
-            <button
-              onClick={onClose}
-              className={`p-1 rounded-full ${
-                isDark
-                  ? "text-gray-400 hover:bg-gray-700"
-                  : "text-gray-500 hover:bg-gray-100"
-              }`}
-              aria-label="Close"
-              disabled={isLoading}
-              type="button"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          {error && (
-            <div
-              className={`mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md flex items-start
-              ${isDark ? "text-red-100" : "text-red-900"}`}
-              role="alert"
-            >
-              <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {successMessage && (
-            <div
-              className="mb-4 p-3 bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-900 dark:text-green-300 rounded-md"
-              role="status"
-            >
-              <Check className="h-5 w-5 mr-2 inline-block" />
-              <span>{successMessage}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label
-                htmlFor="collection-name"
-                className={`block mb-2 text-sm font-medium ${
-                  isDark ? "text-gray-300" : "text-gray-700"
-                }`}
-              >
-                Collection Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                ref={inputRef}
-                id="collection-name"
-                type="text"
-                placeholder="Enter collection name"
-                value={collectionName}
-                onChange={handleNameChange}
-                className={`w-full px-3 py-2 rounded-md border ${
-                  error &&
-                  (error.includes("name") || error.includes("already exists"))
-                    ? "border-red-500 focus:border-red-500"
-                    : isDark
-                      ? "bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400 focus:border-orange-500"
-                      : "bg-white border-gray-300 text-gray-800 placeholder-gray-400 focus:border-sky-500"
-                } focus:outline-none focus:ring-1 ${
-                  error &&
-                  (error.includes("name") || error.includes("already exists"))
-                    ? "focus:ring-red-500"
-                    : isDark
-                      ? "focus:ring-orange-500"
-                      : "focus:ring-sky-500"
-                }`}
-                required
-                maxLength={50}
-                disabled={isLoading}
-                aria-required="true"
-              />
-
-              {/* Show validation status */}
-              {collectionName.trim() && !error && (
-                <div className="mt-1">
-                  <p
-                    className={`text-xs ${isDark ? "text-gray-400" : "text-gray-600"}`}
-                  >
-                    ✓ Available name
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="mb-6">
-              <label
-                className={`block mb-2 text-sm font-medium ${
-                  isDark ? "text-gray-300" : "text-gray-700"
-                }`}
-              >
-                Collection Color <span className="text-red-500">*</span>
-              </label>
-              <div
-                className="flex flex-wrap gap-2"
-                role="radiogroup"
-                aria-label="Collection color"
-              >
-                {colorsLoading ? (
-                  <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-                    Loading colors…
-                  </span>
-                ) : (
-                  appColors.map(({ color_hex, color_name }) => {
-                    const isLight =
-                      color_hex.startsWith("#") &&
-                      parseInt(color_hex.slice(1, 3), 16) +
-                        parseInt(color_hex.slice(3, 5), 16) +
-                        parseInt(color_hex.slice(5, 7), 16) >
-                        384;
-                    const checkColor = isLight ? "text-gray-800" : "text-white";
-
-                    return (
-                      <button
-                        key={color_hex}
-                        type="button"
-                        title={color_name}
-                        className={`h-8 w-8 rounded-full flex items-center justify-center transition-all duration-200 ${
-                          selectedColor === color_hex
-                            ? isDark
-                              ? "ring-2 ring-offset-2 ring-offset-gray-800 ring-white scale-110"
-                              : "ring-2 ring-offset-2 ring-offset-gray-100 ring-gray-800 scale-110"
-                            : "hover:scale-105"
-                        }`}
-                        style={{ backgroundColor: color_hex }}
-                        onClick={() => setSelectedColor(color_hex)}
-                        aria-label={`Select ${color_name} color`}
-                        aria-pressed={selectedColor === color_hex}
-                        disabled={isLoading}
-                      >
-                        {selectedColor === color_hex && (
-                          <Check
-                            className={`h-4 w-4 ${checkColor} drop-shadow-md`}
-                          />
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className={`px-4 py-2 rounded-md transition-colors duration-200 ${
-                  isDark
-                    ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
-                disabled={isLoading}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className={`px-4 py-2 rounded-md ${
-                  isDark
-                    ? "bg-orange-600 hover:bg-orange-700 disabled:bg-orange-600/50"
-                    : "bg-sky-500 hover:bg-sky-600 disabled:bg-sky-500/50"
-                } text-white flex items-center justify-center min-w-[120px] disabled:cursor-not-allowed transition-colors duration-200`}
-                disabled={isLoading || !isFormValid || isSubmitting}
-              >
-                {isLoading ? (
-                  <svg
-                    className="animate-spin h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                ) : (
-                  "Update Collection"
-                )}
-              </button>
-            </div>
-          </form>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Edit collection"
+      isDark={isDark}
+      canClose={!isLoading}
+      footer={
+        <div className="space-y-2">
+          <button
+            type="submit"
+            form="edit-collection-form"
+            disabled={isLoading || !isFormValid || isSubmitting}
+            className="min-h-[48px] w-full rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-45"
+            style={{ backgroundColor: PRIMARY }}
+          >
+            {isLoading ? "Saving..." : "Save changes"}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isLoading}
+            className={`min-h-[44px] w-full rounded-2xl border text-[14px] font-medium disabled:opacity-45 ${
+              isDark
+                ? "border-white/[0.08] text-gray-300 active:bg-white/10"
+                : "border-black/[0.08] text-gray-700 active:bg-black/5"
+            }`}
+          >
+            Cancel
+          </button>
         </div>
-      </div>
-    </>
+      }
+    >
+      <NameColorForm
+        formId="edit-collection-form"
+        onSubmit={handleSubmit}
+        nameLabel="Collection name"
+        namePlaceholder="Collection name"
+        name={collectionName}
+        onNameChange={handleNameChange}
+        maxLength={50}
+        colors={appColors}
+        colorsLoading={colorsLoading}
+        selectedColor={selectedColor}
+        onSelectColor={setSelectedColor}
+        disabled={isLoading}
+        error={error}
+        successMessage={successMessage}
+        inputRef={inputRef}
+        isDark={isDark}
+      />
+    </ModalShell>
   );
 };
 

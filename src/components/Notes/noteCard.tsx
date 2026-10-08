@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useEffect, useState, memo } from "react";
-import { Pin, AlertCircle, Star, Edit3, Calendar } from "lucide-react";
+import React, { memo, useEffect, useState } from "react";
+import { AlertCircle, CalendarDays, Pin } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+
 import { useTheme } from "@/context/ThemeContext";
-import { motion, AnimatePresence } from "framer-motion";
 import NoteSidebar from "@/components/popupModels/notedetail";
 import { Note, OperationResult } from "@/types/schema";
 import { formatDisplayDate } from "@/utils/dateUtils";
 import { isLightColor, normaliseHex } from "@/lib/colors";
-import { useRouter } from "next/navigation";
 
 interface NoteCardProps {
   id: string;
@@ -21,14 +21,19 @@ interface NoteCardProps {
   collection_id?: string | null;
   list_id?: string | null;
   user_id?: string | null;
+
   onPinChange?: (noteId: string, isPinned: boolean) => Promise<OperationResult>;
+
   onColorChange?: (noteId: string, color: string) => Promise<OperationResult>;
+
   onNoteUpdate?: (
     noteId: string,
     updatedTitle: string,
-    updatedDescription?: string
+    updatedDescription?: string,
   ) => Promise<OperationResult>;
+
   onNoteDelete?: (noteId: string) => Promise<OperationResult>;
+
   className?: string;
 }
 
@@ -51,202 +56,177 @@ const NoteCard = ({
 }: NoteCardProps) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const router = useRouter();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [noteTitle, setNoteTitle] = useState(title || "");
   const [noteDescription, setNoteDescription] = useState(description || "");
   const [noteBackgroundColor, setNoteBackgroundColor] = useState(
-    bg_color_hex || ""
+    bg_color_hex || "",
   );
+
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const [errorTimeout, setErrorTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  // Update local state when props change
   useEffect(() => {
     setNoteTitle(title || "");
-    setNoteBackgroundColor(bg_color_hex || "");
     setNoteDescription(description || "");
-  }, [title, bg_color_hex, description]);
+    setNoteBackgroundColor(bg_color_hex || "");
+  }, [title, description, bg_color_hex]);
 
-  // Clear error after timeout
-  useEffect(() => {
-    return () => {
-      if (errorTimeout) {
-        clearTimeout(errorTimeout);
-      }
-    };
-  }, [errorTimeout]);
-
-  // If there's no title (null value from DB), use a placeholder
   const displayTitle = noteTitle || "Untitled Note";
-
-  // The stored colour, normalised to an exact #RRGGBB, or null if it is not one.
-  //
-  // The gradient below is built by appending `dd`/`aa`/`bb` to this value, and
-  // that only yields valid CSS for a 6-digit hex. Anything else — `#fff`, an
-  // `#RRGGBBAA`, a colour name, a stray space — produced an unparseable colour
-  // stop, at which point CSS discards the whole `background` declaration. Since
-  // the card's class list carries `border` but no background utility, the result
-  // was a completely transparent note: the reported "some notes don't have a
-  // background", failing silently with nothing in the console.
-  //
-  // Truthiness was the only check before, which a malformed string passes.
   const safeColor = normaliseHex(noteBackgroundColor);
 
-  //  color logic with better defaults
-  const getBackgroundStyle = () => {
-    if (safeColor) {
-      return {
-        background: `linear-gradient(135deg, ${safeColor}dd 0%, ${safeColor}aa 50%, ${safeColor}bb 100%)`,
-        backdropFilter: "blur(10px)",
-        borderColor: `${safeColor}40`,
-      };
-    }
+  /* -------------------------------------------------------
+     CARD COLOUR
+     ------------------------------------------------------- */
 
-    return isDark
+  const cardStyle: React.CSSProperties = safeColor
+    ? {
+        backgroundColor: `${safeColor}22`,
+        borderColor: `${safeColor}45`,
+      }
+    : isDark
       ? {
-          background:
-            "linear-gradient(135deg, rgba(31, 41, 55, 0.8) 0%, rgba(17, 24, 39, 0.9) 100%)",
-          backdropFilter: "blur(10px)",
-          borderColor: "rgba(75, 85, 99, 0.3)",
+          backgroundColor: "rgba(255,255,255,0.025)",
+          borderColor: "rgba(255,255,255,0.07)",
         }
       : {
-          background:
-            "linear-gradient(135deg, rgba(255, 248, 220, 0.8) 0%, rgba(254, 252, 232, 0.9) 100%)",
-          backdropFilter: "blur(10px)",
-          borderColor: "rgba(217, 119, 6, 0.2)",
+          backgroundColor: "rgba(255,255,255,0.65)",
+          borderColor: "rgba(15,23,42,0.10)",
         };
-  };
 
-  // Determine text color based on background.
-  //
-  // This used to keep its own list of "light" hex values and test membership with
-  // `lightColors.includes(colour.toLowerCase())` — but the list was written
-  // uppercase, so no lookup could ever match. Every decision therefore fell
-  // through to a raw channel sum, which returns NaN for a malformed value, and
-  // `NaN > 384` is false: white text on a light or absent background. (The
-  // landing page carries the same list and compares without lowercasing, which is
-  // why it worked there and this was never spotted.)
-  //
-  // isLightColor validates first and weights the channels perceptually, so yellow
-  // and cyan are correctly treated as light.
-  const getTextColor = () => {
-    if (!safeColor) {
-      return isDark ? "text-gray-100" : "text-gray-800";
-    }
+  const customColorIsLight = safeColor && isLightColor(safeColor);
 
-    return isLightColor(safeColor) ? "text-gray-800" : "text-white";
-  };
+  const titleColour = safeColor
+    ? customColorIsLight
+      ? "text-slate-900"
+      : "text-white"
+    : isDark
+      ? "text-slate-100"
+      : "text-slate-900";
 
-  const textColor = getTextColor();
+  const secondaryColour = safeColor
+    ? customColorIsLight
+      ? "text-slate-700"
+      : "text-white/70"
+    : isDark
+      ? "text-slate-400"
+      : "text-slate-500";
 
-  // Safe error handling function
-  const showError = (errorMessage: string) => {
-    setError(errorMessage);
-    if (errorTimeout) {
-      clearTimeout(errorTimeout);
-    }
-    const timeout = setTimeout(() => {
+  /* -------------------------------------------------------
+     ERROR
+     ------------------------------------------------------- */
+
+  const showError = (message: string) => {
+    setError(message);
+
+    window.setTimeout(() => {
       setError(null);
     }, 3000);
-    setErrorTimeout(timeout);
   };
 
-  const handlePinClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
+  /* -------------------------------------------------------
+     PIN
+     ------------------------------------------------------- */
+
+  const handlePinClick = async (event: React.MouseEvent) => {
+    event.stopPropagation();
 
     if (!onPinChange || isProcessing) return;
 
     setIsProcessing(true);
-    setError(null);
 
     try {
-      const newPinState = !is_pinned;
-      const result = await onPinChange(id, newPinState);
+      const result = await onPinChange(id, !is_pinned);
 
       if (!result.success) {
         throw new Error(
-          result.error ? String(result.error) : "Failed to update pin status"
+          result.error ? String(result.error) : "Failed to update pin",
         );
       }
     } catch (err) {
-      console.error("Error toggling pin status:", err);
-      showError("Failed to update pin status");
+      console.error("Error updating note pin:", err);
+      showError("Failed to update pin");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const openSidebar = () => {
-    if (!isProcessing) {
-      setIsSidebarOpen(true);
-    }
-  };
+  /* -------------------------------------------------------
+     COLOUR
+     ------------------------------------------------------- */
 
-  const closeSidebar = () => setIsSidebarOpen(false);
-
-  const updateNoteColor = async (noteId: string, color: string) => {
-    if (!onColorChange)
-      return Promise.resolve({
+  const updateNoteColor = async (
+    noteId: string,
+    color: string,
+  ): Promise<OperationResult> => {
+    if (!onColorChange) {
+      return {
         success: false,
-        error: "Color change handler not provided",
-      });
+        error: "Color handler not provided",
+      };
+    }
 
     setIsProcessing(true);
-    setError(null);
 
     try {
       const result = await onColorChange(noteId, color);
 
       if (!result.success) {
         throw new Error(
-          result.error ? String(result.error) : "Failed to update note color"
+          result.error ? String(result.error) : "Failed to update colour",
         );
       }
 
       setNoteBackgroundColor(color);
+
       return { success: true };
     } catch (err) {
-      console.error("Error updating note color:", err);
-      showError("Failed to update note color");
-      return { success: false, error: err };
+      console.error("Error updating note colour:", err);
+      showError("Failed to update colour");
+
+      return {
+        success: false,
+        error: err,
+      };
     } finally {
       setIsProcessing(false);
     }
   };
 
+  /* -------------------------------------------------------
+     UPDATE
+     ------------------------------------------------------- */
+
   const updateNote = async (
     noteId: string,
     updatedTitle: string,
-    updatedDescription?: string
-  ) => {
-    if (!onNoteUpdate)
-      return Promise.resolve({
+    updatedDescription?: string,
+  ): Promise<OperationResult> => {
+    if (!onNoteUpdate) {
+      return {
         success: false,
         error: "Update handler not provided",
-      });
+      };
+    }
 
     setIsProcessing(true);
-    setError(null);
 
     try {
       const result = await onNoteUpdate(
         noteId,
         updatedTitle,
-        updatedDescription
+        updatedDescription,
       );
 
       if (!result.success) {
         throw new Error(
-          result.error ? String(result.error) : "Failed to update note"
+          result.error ? String(result.error) : "Failed to update note",
         );
       }
 
       setNoteTitle(updatedTitle);
+
       if (updatedDescription !== undefined) {
         setNoteDescription(updatedDescription);
       }
@@ -255,256 +235,291 @@ const NoteCard = ({
     } catch (err) {
       console.error("Error updating note:", err);
       showError("Failed to update note");
-      return { success: false, error: err };
+
+      return {
+        success: false,
+        error: err,
+      };
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const deleteNote = async (noteId: string) => {
-    if (!onNoteDelete)
-      return Promise.resolve({
+  /* -------------------------------------------------------
+     DELETE
+
+     No router.refresh().
+     Parent removes the note locally and updates cache.
+     ------------------------------------------------------- */
+
+  const deleteNote = async (noteId: string): Promise<OperationResult> => {
+    if (!onNoteDelete) {
+      return {
         success: false,
         error: "Delete handler not provided",
-      });
+      };
+    }
 
     setIsProcessing(true);
-    setError(null);
 
     try {
       const result = await onNoteDelete(noteId);
+
       if (!result.success) {
         throw new Error(
-          result.error ? String(result.error) : "Failed to delete note"
+          result.error ? String(result.error) : "Failed to delete note",
         );
       }
 
-      closeSidebar();
-      router.refresh();
+      setIsSidebarOpen(false);
 
       return { success: true };
     } catch (err) {
       console.error("Error deleting note:", err);
       showError("Failed to delete note");
-      return { success: false, error: err };
+
+      return {
+        success: false,
+        error: err,
+      };
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Create a Note object to pass to the sidebar
+  /* -------------------------------------------------------
+     SIDEBAR DATA
+     ------------------------------------------------------- */
+
   const noteData: Note = {
     id,
-    title: noteTitle as string | null,
-    description: noteDescription as string | null,
-    bg_color_hex: noteBackgroundColor as string | null,
+    title: noteTitle || null,
+    description: noteDescription || null,
+    bg_color_hex: noteBackgroundColor || null,
+
     created_at:
       typeof created_at === "string" ? new Date(created_at) : created_at,
+
     collection_id: collection_id || null,
     list_id: list_id || null,
     user_id: user_id || null,
-    is_pinned: is_pinned || false,
-    is_deleted: is_deleted || false,
+    is_pinned: Boolean(is_pinned),
+    is_deleted: Boolean(is_deleted),
   };
 
-  // Don't render if note is deleted
-  if (is_deleted) {
-    return null;
-  }
+  if (is_deleted) return null;
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -20, scale: 0.95 }}
-        transition={{ duration: 0.3 }}
-        onHoverStart={() => setIsHovered(true)}
-        onHoverEnd={() => setIsHovered(false)}
+      <motion.article
+        initial={{ opacity: 0, y: 5 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+        onClick={() => {
+          if (!isProcessing) {
+            setIsSidebarOpen(true);
+          }
+        }}
+        style={cardStyle}
         className={`
-          rounded-xl p-5 shadow-sm relative overflow-hidden cursor-pointer
-          w-full h-40 md:h-44 border transition-all duration-300 group
-          ${isProcessing ? "opacity-70 pointer-events-none" : ""}
+          group
+          relative
+          w-full
+          cursor-pointer
+          overflow-hidden
+          rounded-xl
+          border
+          px-4
+          py-3.5
+          transition-all
+          duration-200
+
+          ${
+            isDark
+              ? "hover:border-white/15 hover:bg-white/[0.045]"
+              : "hover:border-slate-300 hover:shadow-sm"
+          }
+
+          ${isProcessing ? "pointer-events-none opacity-60" : ""}
+
           ${className}
         `}
-        /* No opaque base class here on purpose.
-           One was added as a floor against the transparent-card bug, but it was
-           redundant: getBackgroundStyle validates the hex first, so an unusable
-           value falls through to the themed gradient and can no longer produce an
-           invalid declaration for CSS to discard. The base was not free either —
-           the coloured gradient over it tops out at 87% opacity, so it tinted every
-           note that does have a colour. */
-        style={getBackgroundStyle()}
-        onClick={openSidebar}
-        whileHover={{ y: -4, scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
         role="button"
+        tabIndex={0}
         aria-label={`Open note: ${displayTitle}`}
-        data-id={id}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setIsSidebarOpen(true);
+          }
+        }}
       >
-        {/*  glow effect */}
-        <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-30 transition-opacity duration-300 bg-gradient-to-br from-white/20 to-transparent" />
+        {/* Note colour indicator */}
+        <div
+          className="absolute inset-y-3 left-0 w-[3px] rounded-r-full"
+          style={{
+            backgroundColor: safeColor || (isDark ? "#64748b" : "#94a3b8"),
+          }}
+        />
 
-        {/* Error notification */}
+        {/* Error */}
         <AnimatePresence>
           {error && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-              className="absolute top-0 left-0 right-0 z-20 bg-red-500/90 backdrop-blur-sm text-white text-xs py-2 px-3 flex items-center rounded-t-xl"
+              exit={{ opacity: 0 }}
+              className="
+                absolute
+                left-3
+                right-3
+                top-2
+                z-20
+                flex
+                items-center
+                gap-1.5
+                rounded-md
+                bg-red-500
+                px-2
+                py-1.5
+                text-[11px]
+                text-white
+                shadow
+              "
             >
-              <AlertCircle className="h-3 w-3 mr-2 flex-shrink-0" />
+              <AlertCircle className="h-3 w-3 shrink-0" />
+
               <span className="truncate">{error}</span>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Pin button */}
-        <motion.button
-          whileHover={{ scale: 1.1, rotate: 15 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={handlePinClick}
-          className={`absolute top-3 right-3 p-2 rounded-lg backdrop-blur-sm transition-all duration-200 z-10 ${
-            isDark
-              ? "bg-black/20 hover:bg-black/40 text-white/90 hover:text-white"
-              : "bg-white/20 hover:bg-white/40 text-gray-900/80 hover:text-gray-900"
-          } ${isProcessing ? "opacity-50" : ""}`}
-          aria-label={is_pinned ? "Unpin note" : "Pin note"}
-          disabled={isProcessing}
-          type="button"
-        >
-          <Pin
-            className={`h-5 w-5 transition-all duration-200 ${is_pinned ? "fill-current text-black" : ""}`}
-          />
-        </motion.button>
-
-        {/* Priority badge */}
-        <AnimatePresence>
-          {is_pinned && (
-            <motion.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className={`absolute top-3 left-3 px-2 py-1 rounded-full text-xs font-medium flex items-center backdrop-blur-sm ${
-                isDark
-                  ? "bg-orange-900/40 text-orange-300 border border-orange-500/30"
-                  : "bg-orange-100/60 text-orange-700 border border-orange-300/50"
-              }`}
-            >
-              <Star className="h-3 w-3 mr-1 fill-current" />
-              Pinned
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Content area */}
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-          >
-            {/* Title */}
+        {/* Header */}
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="min-w-0 flex-1">
             <h4
-              className={`font-semibold text-lg ${textColor} truncate mb-2 relative`}
+              className={`
+                truncate
+                text-[14px]
+                font-semibold
+                leading-5
+                ${titleColour}
+              `}
+              title={displayTitle}
             >
               {displayTitle}
-              <motion.div
-                className={`absolute -bottom-1 left-0 h-0.5 bg-current opacity-0 group-hover:opacity-60 transition-opacity duration-300`}
-                initial={{ width: 0 }}
-                animate={{ width: isHovered ? "100%" : 0 }}
-                transition={{ duration: 0.3 }}
-              />
             </h4>
 
-            {/* Description */}
-            {noteDescription && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-                className={`text-sm line-clamp-2 ${textColor} opacity-80 break-words leading-relaxed`}
-                title={noteDescription}
-              >
-                {noteDescription}
-              </motion.p>
-            )}
-
-            {/* Date and metadata */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4, delay: 0.3 }}
-              className={`flex items-center justify-between mt-3 pt-2 border-t ${
-                textColor === "text-white"
-                  ? "border-white/20"
-                  : "border-gray-600/20"
-              }`}
+            {/* Date directly under title */}
+            <div
+              className={`
+                mt-1
+                flex
+                items-center
+                gap-1.5
+                text-[11px]
+                ${secondaryColour}
+              `}
             >
-              <div
-                className={`flex items-center text-xs ${textColor} opacity-70`}
-              >
-                <Calendar className="h-3 w-3 mr-1" />
-                <span>{formatDisplayDate(created_at)}</span>
-              </div>
+              <CalendarDays className="h-3 w-3 shrink-0" />
 
-              <motion.div
-                className={`flex items-center text-xs ${textColor} opacity-70`}
-                whileHover={{ scale: 1.05 }}
-              >
-                <Edit3 className="h-3 w-3 mr-1" />
-                <span>Edit</span>
-              </motion.div>
-            </motion.div>
-          </motion.div>
+              <span>{formatDisplayDate(created_at)}</span>
+            </div>
+          </div>
+
+          {/* Pin */}
+          <button
+            type="button"
+            onClick={handlePinClick}
+            disabled={isProcessing}
+            aria-label={is_pinned ? "Unpin note" : "Pin note"}
+            className={`
+              flex
+              h-7
+              w-7
+              shrink-0
+              items-center
+              justify-center
+              rounded-md
+              transition-colors
+
+              ${
+                is_pinned
+                  ? "text-amber-400"
+                  : `${secondaryColour} opacity-60 hover:opacity-100`
+              }
+            `}
+          >
+            <Pin
+              className={`
+                h-3.5
+                w-3.5
+                ${is_pinned ? "fill-current" : ""}
+              `}
+            />
+          </button>
         </div>
 
-        {/* Hover indicator */}
-        <motion.div
-          className="absolute top-4 right-12 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-          initial={{ scale: 0 }}
-          animate={{ scale: isHovered ? 1 : 0 }}
-          transition={{ duration: 0.2 }}
-        >
+        {/* Description */}
+        {noteDescription && (
+          <p
+            title={noteDescription}
+            className={`
+              mt-2.5
+              w-3/4
+              truncate
+              text-[12px]
+              leading-5
+              ${secondaryColour}
+            `}
+          >
+            {noteDescription}
+          </p>
+        )}
+
+        {/* Pinned label */}
+        {is_pinned && (
           <div
-            className={`w-2 h-2 rounded-full ${
-              textColor === "text-white" ? "bg-white/60" : "bg-gray-600/60"
-            }`}
-          />
-        </motion.div>
+            className="
+              mt-2
+              flex
+              items-center
+              gap-1
+              text-[10px]
+              font-medium
+              text-amber-400
+            "
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+            Pinned
+          </div>
+        )}
 
-        {/* Processing overlay */}
-        <AnimatePresence>
-          {isProcessing && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-xl"
-            >
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                className={`w-6 h-6 border-2 border-t-transparent rounded-full ${
-                  textColor === "text-white"
-                    ? "border-white"
-                    : "border-gray-600"
-                }`}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+        {/* Processing */}
+        {isProcessing && (
+          <div className="absolute bottom-2 right-3">
+            <div
+              className="
+                h-3.5
+                w-3.5
+                animate-spin
+                rounded-full
+                border-2
+                border-slate-400/30
+                border-t-slate-400
+              "
+            />
+          </div>
+        )}
+      </motion.article>
 
-      {/*  sidebar */}
+      {/* Note details */}
       <AnimatePresence>
         {isSidebarOpen && (
           <NoteSidebar
             isOpen={isSidebarOpen}
-            onClose={closeSidebar}
+            onClose={() => setIsSidebarOpen(false)}
             note={noteData}
             onColorChange={updateNoteColor}
             onNoteUpdate={updateNote}
@@ -517,5 +532,4 @@ const NoteCard = ({
   );
 };
 
-// Use memo to prevent unnecessary re-renders
 export default memo(NoteCard);

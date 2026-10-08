@@ -12,7 +12,6 @@
 const NATIVE_ORIGINS = [
   "https://localhost", // Android (default androidScheme: https)
   "capacitor://localhost", // iOS
-  "http://localhost", // Android with cleartext scheme, dev only
 ];
 
 /** Extra origins for local development against `next dev`. */

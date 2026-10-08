@@ -82,7 +82,7 @@ interface ErrorState {
 // Utility functions
 const safeCalculatePercentage = (
   numerator: number,
-  denominator: number
+  denominator: number,
 ): number => {
   if (!denominator || denominator === 0 || !numerator || numerator < 0)
     return 0;
@@ -771,9 +771,11 @@ const NewUserWelcome: React.FC<{ isDark: boolean }> = ({ isDark }) => {
 // taller than the screen by the top inset, so these screens scrolled a little past
 // their content and showed the wrapper padding at the end. The web keeps it: there
 // is no such wrapper there, and this is what stops a short page floating.
-const ROOT_MIN_HEIGHT = IS_NATIVE_BUILD ? '' : 'min-h-screen';
+const ROOT_MIN_HEIGHT = IS_NATIVE_BUILD ? "" : "min-h-screen";
 
-export default function DashboardView({ heading = "Dashboard" }: { heading?: string } = {}) {
+export default function DashboardView({
+  heading = "Dashboard",
+}: { heading?: string } = {}) {
   const { theme } = useTheme();
   const { user } = useAuth();
   const isDark = theme === "dark";
@@ -846,7 +848,7 @@ export default function DashboardView({ heading = "Dashboard" }: { heading?: str
               .gte("due_date", todayFormatted)
               .lt(
                 "due_date",
-                formatDateForPostgres(new Date(today.getTime() + 86400000))
+                formatDateForPostgres(new Date(today.getTime() + 86400000)),
               ),
             supabase
               .from("task")
@@ -886,7 +888,7 @@ export default function DashboardView({ heading = "Dashboard" }: { heading?: str
         const pendingCount = Math.max(0, totalCount - completedCount);
         const completionRate = safeCalculatePercentage(
           completedCount,
-          totalCount
+          totalCount,
         );
 
         // Get today's activity
@@ -899,7 +901,7 @@ export default function DashboardView({ heading = "Dashboard" }: { heading?: str
               .gte("date_completed", todayFormatted)
               .lt(
                 "date_completed",
-                formatDateForPostgres(new Date(today.getTime() + 86400000))
+                formatDateForPostgres(new Date(today.getTime() + 86400000)),
               ),
             supabase
               .from("task")
@@ -907,7 +909,7 @@ export default function DashboardView({ heading = "Dashboard" }: { heading?: str
               .gte("created_at", todayFormatted)
               .lt(
                 "created_at",
-                formatDateForPostgres(new Date(today.getTime() + 86400000))
+                formatDateForPostgres(new Date(today.getTime() + 86400000)),
               ),
           ]);
 
@@ -932,14 +934,14 @@ export default function DashboardView({ heading = "Dashboard" }: { heading?: str
 
         // Get 7 days of metrics for charts
         const last7Days = Array.from({ length: 7 }, (_, i) =>
-          subDays(new Date(), 6 - i)
+          subDays(new Date(), 6 - i),
         );
         const dailyData: DailyMetric[] = [];
 
         for (const date of last7Days) {
           const dateStr = formatDateForPostgres(date);
           const nextDay = formatDateForPostgres(
-            new Date(date.getTime() + 86400000)
+            new Date(date.getTime() + 86400000),
           );
 
           try {
@@ -1049,7 +1051,7 @@ export default function DashboardView({ heading = "Dashboard" }: { heading?: str
             .sort(
               (a, b) =>
                 new Date(b.timestamp).getTime() -
-                new Date(a.timestamp).getTime()
+                new Date(a.timestamp).getTime(),
             )
             .slice(0, 10);
 
@@ -1323,4 +1325,3 @@ export default function DashboardView({ heading = "Dashboard" }: { heading?: str
     </main>
   );
 }
-

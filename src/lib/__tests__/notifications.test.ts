@@ -1,49 +1,63 @@
-/** @jest-environment node */
-
-// What syncDueTodayNotifications actually does to the pending notification.
+/**
+ * @jest-environment node
+ */
+// Per-task reminder scheduling.
 //
-// dueToday.test.ts covers which tasks qualify. This covers the consequence of
-// that decision reaching the scheduler — in particular that an empty task list
-// cancels the pending reminder rather than leaving it to fire. A task ticked off
-// is exactly what an empty list looks like, and the reminder surviving it was a
-// real defect: useDueTodayNotifications used to return early on
-// `tasks.length === 0`, so the cancel below never ran.
+// Most of this is ported rather than new. The due-today scheduler this replaces
+// pinned four behaviours that are still right and still easy to lose: cancel
+// before schedule, never schedule in the past, a refused permission still
+// cancels, and no repeats.
+//
+// A fifth pinned behaviour was wrong and is now inverted. It asserted that
+// allowWhileIdle was never sent, on the belief that it needed the exact-alarm
+// permission the manifest strips. It does not, and going without it meant every
+// reminder went out as a non-waking alarm that Doze was free to hold — so none
+// of them arrived. The replacement test pins the opposite.
+//
+// What is genuinely new is reconciliation. The old code used one fixed id, so
+// rescheduling replaced the pending notification for free and nothing could ever
+// be orphaned. Ids vary per reminder now, so a task deleted on another device
+// leaves its notification queued unless something goes and cancels it.
 
-import type { Task } from "@/types/schema";
-
-const schedule = jest.fn().mockResolvedValue(undefined);
-const cancel = jest.fn().mockResolvedValue(undefined);
-const createChannel = jest.fn().mockResolvedValue(undefined);
-const checkPermissions = jest.fn().mockResolvedValue({ display: "granted" });
-const requestPermissions = jest.fn().mockResolvedValue({ display: "granted" });
+const schedule = jest.fn();
+const cancel = jest.fn();
+const getPending = jest.fn();
+const createChannel = jest.fn();
+const checkPermissions = jest.fn();
+const requestPermissions = jest.fn();
 
 jest.mock("@capacitor/local-notifications", () => ({
   LocalNotifications: {
     schedule: (...args: unknown[]) => schedule(...args),
     cancel: (...args: unknown[]) => cancel(...args),
+    getPending: (...args: unknown[]) => getPending(...args),
     createChannel: (...args: unknown[]) => createChannel(...args),
-    checkPermissions: () => checkPermissions(),
-    requestPermissions: () => requestPermissions(),
+    checkPermissions: (...args: unknown[]) => checkPermissions(...args),
+    requestPermissions: (...args: unknown[]) => requestPermissions(...args),
   },
 }));
 
-// Everything in notifications.ts is a no-op off-native, so the tests have to
-// claim to be running inside the shell.
 jest.mock("@/lib/platform", () => ({
   isNativeApp: () => true,
+  IS_NATIVE_BUILD: true,
 }));
 
-import { DUE_TODAY_NOTIFICATION_ID } from "@/lib/dueToday";
-import { syncDueTodayNotifications } from "@/lib/notifications";
+const readNotificationPrefs = jest.fn();
+jest.mock("@/lib/notificationPrefs", () => ({
+  readNotificationPrefs: () => readNotificationPrefs(),
+}));
 
-// Fixed reference point: 26 Sep 2026, 10:00 local time.
-const NOW = new Date(2026, 8, 26, 10, 0, 0);
+import { planReminders, syncTaskReminders } from "@/lib/notifications";
+import { notificationId } from "@/lib/reminders";
+import type { Task } from "@/types/schema";
+
+const NOW = new Date(2026, 2, 6, 10, 0, 0);
 
 function task(overrides: Partial<Task> & { id: string }): Task {
   return {
     text: "A task",
     description: null,
-    created_at: new Date(2026, 8, 1),
+    created_at: NOW,
     due_date: null,
     is_completed: false,
     date_completed: null,
@@ -56,102 +70,224 @@ function task(overrides: Partial<Task> & { id: string }): Task {
   } as Task;
 }
 
+/** Due 17:00 today with a reminder an hour before, so it fires at 16:00. */
+const hourBefore = (id: string) =>
+  task({
+    id,
+    due_date: new Date(2026, 2, 6, 17, 0, 0),
+    due_has_time: true,
+    reminders: [{ id: "r1", kind: "offset", minutes: 60 }],
+  });
+
 beforeEach(() => {
-  jest.clearAllMocks();
-  checkPermissions.mockResolvedValue({ display: "granted" });
+  schedule.mockReset().mockResolvedValue(undefined);
+  cancel.mockReset().mockResolvedValue(undefined);
+  getPending.mockReset().mockResolvedValue({ notifications: [] });
+  createChannel.mockReset().mockResolvedValue(undefined);
+  checkPermissions.mockReset().mockResolvedValue({ display: "granted" });
+  requestPermissions.mockReset().mockResolvedValue({ display: "granted" });
+  readNotificationPrefs.mockReset().mockReturnValue({ remindersEnabled: true });
 });
 
-describe("syncDueTodayNotifications — an empty list still cancels", () => {
-  it("cancels the pending reminder and schedules nothing when there are no tasks", async () => {
-    const count = await syncDueTodayNotifications([], NOW);
-
-    expect(count).toBe(0);
-    expect(cancel).toHaveBeenCalledWith({
-      notifications: [{ id: DUE_TODAY_NOTIFICATION_ID }],
-    });
-    expect(schedule).not.toHaveBeenCalled();
+describe("planReminders", () => {
+  it("expands a task into one entry per reminder", () => {
+    const planned = planReminders(
+      [
+        task({
+          id: "t1",
+          due_date: new Date(2026, 2, 6, 17, 0, 0),
+          due_has_time: true,
+          reminders: [
+            { id: "r1", kind: "offset", minutes: 60 },
+            { id: "r2", kind: "offset", minutes: 120 },
+          ],
+        }),
+      ],
+      NOW,
+    );
+    expect(planned).toHaveLength(2);
+    expect(new Set(planned.map((p) => p.id)).size).toBe(2);
   });
 
-  it("cancels without ever asking for permission when there is nothing to show", async () => {
-    await syncDueTodayNotifications([], NOW);
-
-    // The permission prompt is reserved for the intro and for a real reminder.
-    // Firing it just to clear a notification would be asking for nothing.
-    expect(checkPermissions).not.toHaveBeenCalled();
-    expect(requestPermissions).not.toHaveBeenCalled();
+  it("never plans anything already past", () => {
+    // Due in an hour, reminder set two hours before. That moment has gone.
+    const planned = planReminders(
+      [
+        task({
+          id: "t1",
+          due_date: new Date(2026, 2, 6, 11, 0, 0),
+          due_has_time: true,
+          reminders: [{ id: "r1", kind: "offset", minutes: 120 }],
+        }),
+      ],
+      NOW,
+    );
+    expect(planned).toEqual([]);
   });
 
-  it("cancels when the only task due today has been completed", async () => {
-    const done = task({
-      id: "a",
-      due_date: new Date(2026, 8, 26, 13, 0),
-      is_completed: true,
-    });
+  it("skips completed and deleted tasks", () => {
+    const planned = planReminders(
+      [
+        { ...hourBefore("t1"), is_completed: true },
+        { ...hourBefore("t2"), is_deleted: true },
+      ],
+      NOW,
+    );
+    expect(planned).toEqual([]);
+  });
 
-    const count = await syncDueTodayNotifications([done], NOW);
+  it("orders soonest first and caps the queue", () => {
+    const many = Array.from({ length: 200 }, (_, i) =>
+      task({
+        id: `t${i}`,
+        due_date: new Date(2026, 2, 7 + i, 17, 0, 0),
+        due_has_time: true,
+        reminders: [{ id: "r1", kind: "offset", minutes: 60 }],
+      }),
+    );
+    const planned = planReminders(many, NOW);
 
-    expect(count).toBe(0);
-    expect(cancel).toHaveBeenCalled();
-    expect(schedule).not.toHaveBeenCalled();
+    expect(planned.length).toBeLessThanOrEqual(60);
+    const times = planned.map((p) => p.fireAt.getTime());
+    expect([...times].sort((a, b) => a - b)).toEqual(times);
+  });
+
+  it("carries the task and list on each entry, for the tap handler", () => {
+    const [planned] = planReminders([hourBefore("t1")], NOW);
+    expect(planned.taskId).toBe("t1");
+    expect(planned.listId).toBe("list-1");
+  });
+
+  it("uses a stable id so a resync replaces rather than stacks", () => {
+    const [first] = planReminders([hourBefore("t1")], NOW);
+    expect(first.id).toBe(notificationId("t1", "r1"));
   });
 });
 
-describe("syncDueTodayNotifications — scheduling", () => {
-  it("cancels before scheduling, so a re-sync replaces rather than stacks", async () => {
-    const soon = task({ id: "a", due_date: new Date(2026, 8, 26, 13, 0) });
+describe("syncTaskReminders", () => {
+  it("schedules what is planned, on the reminder channel", async () => {
+    const count = await syncTaskReminders([hourBefore("t1")], NOW);
 
-    await syncDueTodayNotifications([soon], NOW);
+    expect(count).toBe(1);
+    const [[payload]] = schedule.mock.calls;
+    expect(payload.notifications).toHaveLength(1);
+    expect(payload.notifications[0].schedule.at).toEqual(
+      new Date(2026, 2, 6, 16, 0, 0),
+    );
+    expect(payload.notifications[0].extra).toEqual({
+      taskId: "t1",
+      listId: "list-1",
+    });
+  });
 
-    expect(cancel).toHaveBeenCalledTimes(1);
-    expect(schedule).toHaveBeenCalledTimes(1);
-    expect(cancel.mock.invocationCallOrder[0]).toBeLessThan(
-      schedule.mock.invocationCallOrder[0]
+  it("schedules a waking alarm that survives Doze, without needing exact alarms", async () => {
+    // This pair is the whole reason a reminder arrives at all, and both halves
+    // are load-bearing. See the note at the top of lib/notifications.ts.
+    //
+    // allowWhileIdle lives on `schedule`, not on the notification — the plugin
+    // reads it via schedule.getBoolean("allowWhileIdle"). Setting it one level
+    // up type-checks, does nothing, and is exactly the bug this guards: the
+    // alarm then goes out as AlarmManager.set(RTC), which neither wakes the
+    // device nor runs during Doze, so a backgrounded reminder never fired.
+    //
+    // isExactNotification defaults to TRUE in the plugin, so leaving it off
+    // makes the alarm type depend on a permission the manifest strips. Pinning
+    // it false takes the inexact branch deliberately and needs no permission.
+    await syncTaskReminders([hourBefore("t1")], NOW);
+    const [[payload]] = schedule.mock.calls;
+    const [notification] = payload.notifications;
+
+    expect(notification.schedule.allowWhileIdle).toBe(true);
+    expect(notification.isExactNotification).toBe(false);
+    // Would make the plugin reject the whole call when exact alarms are denied.
+    expect(notification.isExactMandatory).toBeUndefined();
+    // Still no repeats: a reminder fires once, and the recurrence engine is
+    // what moves a repeating task forward.
+    expect(notification.schedule.repeats).toBeUndefined();
+  });
+
+  it("says the app name, the task, and one fixed line", async () => {
+    // Android draws the icon and "List It" in the header, so the notification
+    // reads: List It / task name / this. The body was tried as the task's
+    // description and as its due date; both repeat something the reader already
+    // knows and neither says the notification can be acted on.
+    await syncTaskReminders([hourBefore("t1")], NOW);
+    const [[payload]] = schedule.mock.calls;
+    const [notification] = payload.notifications;
+
+    expect(notification.title).toBe("A task");
+    expect(notification.body).toBe(
+      "This is your scheduled reminder - tap to view or complete this",
     );
   });
 
-  it("schedules exactly one notification, at the earliest thing due", async () => {
-    const later = task({ id: "b", due_date: new Date(2026, 8, 26, 17, 0) });
-    const earlier = task({ id: "a", due_date: new Date(2026, 8, 26, 13, 0) });
+  it("cancels an orphan the tasks no longer justify", async () => {
+    // A notification pending for a task since deleted. With one fixed id this
+    // could not happen; with per-reminder ids it is the common case.
+    getPending.mockResolvedValue({ notifications: [{ id: 999 }] });
 
-    const count = await syncDueTodayNotifications([later, earlier], NOW);
+    await syncTaskReminders([hourBefore("t1")], NOW);
 
-    expect(count).toBe(2);
-    const [[payload]] = schedule.mock.calls as [[{ notifications: unknown[] }]];
-    expect(payload.notifications).toHaveLength(1);
-
-    const notification = payload.notifications[0] as {
-      id: number;
-      schedule: { at: Date };
-      title: string;
-    };
-    expect(notification.id).toBe(DUE_TODAY_NOTIFICATION_ID);
-    expect(notification.schedule.at).toEqual(new Date(2026, 8, 26, 13, 0));
-    expect(notification.title).toContain("2");
+    expect(cancel).toHaveBeenCalledWith({ notifications: [{ id: 999 }] });
   });
 
-  it("never asks Android for an exact alarm", async () => {
-    const soon = task({ id: "a", due_date: new Date(2026, 8, 26, 13, 0) });
+  it("leaves a pending notification alone when it is still wanted", async () => {
+    const wanted = notificationId("t1", "r1");
+    getPending.mockResolvedValue({ notifications: [{ id: wanted }] });
 
-    await syncDueTodayNotifications([soon], NOW);
+    await syncTaskReminders([hourBefore("t1")], NOW);
 
-    // allowWhileIdle would require SCHEDULE_EXACT_ALARM, which Play restricts to
-    // alarm clocks and calendars and which is stripped from the manifest.
-    const [[payload]] = schedule.mock.calls as [
-      [{ notifications: Record<string, unknown>[] }],
-    ];
-    expect(payload.notifications[0].allowWhileIdle).toBeUndefined();
-    expect(payload.notifications[0].repeats).toBeUndefined();
+    expect(cancel).not.toHaveBeenCalled();
   });
 
-  it("schedules nothing when permission is refused", async () => {
-    checkPermissions.mockResolvedValue({ display: "denied" });
-    const soon = task({ id: "a", due_date: new Date(2026, 8, 26, 13, 0) });
+  it("cancels everything and schedules nothing when reminders are switched off", async () => {
+    // The master switch in Settings. The reminders stay on their tasks; only
+    // delivery stops, so turning it back on restores the lot.
+    readNotificationPrefs.mockReturnValue({ remindersEnabled: false });
+    getPending.mockResolvedValue({ notifications: [{ id: 123 }] });
 
-    const count = await syncDueTodayNotifications([soon], NOW);
+    const count = await syncTaskReminders([hourBefore("t1")], NOW);
 
     expect(count).toBe(0);
-    // Still cancelled: a stale reminder must not outlive a withdrawn permission.
+    expect(cancel).toHaveBeenCalledWith({ notifications: [{ id: 123 }] });
+    expect(schedule).not.toHaveBeenCalled();
+  });
+
+  it("still cancels when permission is refused", async () => {
+    // Otherwise a reminder set before the user said no outlives the refusal.
+    checkPermissions.mockResolvedValue({ display: "denied" });
+    getPending.mockResolvedValue({ notifications: [{ id: 999 }] });
+
+    const count = await syncTaskReminders([hourBefore("t1")], NOW);
+
+    expect(count).toBe(0);
     expect(cancel).toHaveBeenCalled();
     expect(schedule).not.toHaveBeenCalled();
+  });
+
+  it("does not ask for permission when there is nothing to deliver", async () => {
+    await syncTaskReminders([task({ id: "t1" })], NOW);
+
+    expect(checkPermissions).not.toHaveBeenCalled();
+    expect(requestPermissions).not.toHaveBeenCalled();
+    expect(schedule).not.toHaveBeenCalled();
+  });
+
+  it("survives the platform refusing getPending", async () => {
+    // Older platforms can throw here. Scheduling still replaces by id, so the
+    // worst case is an orphan lasting until the task list changes again.
+    getPending.mockRejectedValue(new Error("not supported"));
+
+    const count = await syncTaskReminders([hourBefore("t1")], NOW);
+
+    expect(count).toBe(1);
+    expect(schedule).toHaveBeenCalled();
+  });
+
+  it("resolves rather than throwing when scheduling fails", async () => {
+    // This runs off the back of a data refresh; a failure must not take a screen
+    // down with it.
+    schedule.mockRejectedValue(new Error("no"));
+    await expect(syncTaskReminders([hourBefore("t1")], NOW)).resolves.toBe(0);
   });
 });

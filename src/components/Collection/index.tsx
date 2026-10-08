@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   Edit3,
   ListTodo,
   Pin,
@@ -12,54 +13,38 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+
 import TaskCard from "@/components/Tasks/index";
 import NoteCard from "@/components/Notes/noteCard";
-import { Task, Note, Collection, OperationResult } from "@/types/schema";
+import { Collection, Note, OperationResult, Task } from "@/types/schema";
 import { useTheme } from "@/context/ThemeContext";
+import { STATUS_META } from "@/components/ui/tokens";
 import { IS_NATIVE_BUILD } from "@/lib/platform";
 import SwipeableRow, {
   type SwipeAction,
 } from "@/components/native/SwipeableRow";
 
-const STAGGER_STEP = 0.1;
-
-// Items past this position all animate in together.
-//
-// The delay was a flat, uncapped `index * 0.1`: with twenty tasks the last one
-// arrived two full seconds after the first, so the screen looked like it was still
-// loading long after the data had landed. That is a large part of why the list
-// screen felt slow on a phone. Capping how many items stagger keeps the sense of a
-// list assembling without making the tail wait for it.
-const MAX_STAGGERED_ITEMS = 8;
-
-// Type and badge sizes for the collection header.
-//
-// The phone build runs smaller than the web app on both. The collection name was
-// `text-lg` (18px) — fine in a desktop column, oversized on a 3.5in-wide card
-// beside a back bar whose own title is 16px — and the task/note capsules were
-// `px-2 py-1 text-xs`, which on a phone reads as two chunky pills competing with
-// the name they are annotating.
-//
-// Web keeps its original values exactly; only the native build steps down.
-const COLLECTION_TITLE_CLASS = IS_NATIVE_BUILD
-  ? "text-[15px]"
-  : "text-lg";
-
-const COUNT_BADGE_CLASS = IS_NATIVE_BUILD
-  ? "px-1.5 py-0.5 text-[10px]"
-  : "px-2 py-1 text-xs";
-
-const TAB_COUNT_BADGE_CLASS = IS_NATIVE_BUILD
-  ? "px-1.5 py-0.5 text-[10px]"
-  : "px-2 py-0.5 text-xs";
-
 /**
- * Adds swipe actions to a row on native, and renders it untouched on the web.
+ * The four task states, in the order the legend reads them.
  *
- * IS_NATIVE_BUILD is a compile-time constant, so the web build keeps only the
- * fragment branch and the SwipeableRow element is dropped from it entirely.
+ * `normal` carries no label on a card, so its name is written here rather than
+ * taken from `STATUS_META`; the colours come from the shared map so the legend
+ * cannot describe one thing and the cards draw another.
  */
+const LEGEND = [
+  { label: "Normal", colour: STATUS_META.normal.colour },
+  { label: STATUS_META.pinned.label, colour: STATUS_META.pinned.colour },
+  { label: STATUS_META.overdue.label, colour: STATUS_META.overdue.colour },
+  { label: STATUS_META.flagged.label, colour: STATUS_META.flagged.colour },
+] as const;
+
+const STAGGER_STEP = 0.055;
+const MAX_STAGGERED_ITEMS = 6;
+
+const entranceDelay = (index: number): number =>
+  Math.min(index, MAX_STAGGERED_ITEMS) * STAGGER_STEP;
+
 const MaybeSwipeable = ({
   leading,
   trailing,
@@ -77,13 +62,6 @@ const MaybeSwipeable = ({
     <>{children}</>
   );
 
-/** Entrance delay for the item at `index`, in seconds. */
-const entranceDelay = (index: number): number =>
-  IS_NATIVE_BUILD
-    ? Math.min(index, MAX_STAGGERED_ITEMS) * STAGGER_STEP
-    : // Web keeps the original uncapped timing.
-      index * STAGGER_STEP;
-
 interface CollectionComponentProps {
   id: string;
   collection_name: string;
@@ -93,15 +71,33 @@ interface CollectionComponentProps {
   content_count?: number;
   tasks?: Task[];
   notes?: Note[];
+
+  /**
+   * Bumped by the list screen's "Collapse all". A counter rather than a
+   * boolean: the same instruction has to be able to fire twice, and a flag
+   * that is already `true` cannot say "again".
+   */
+  collapseNonce?: number;
+
+  /**
+   * Open this collection without the user touching it. Set only for the
+   * collection holding the task behind a tapped reminder, so everything else
+   * on the screen stays shut.
+   */
+  autoExpand?: boolean;
+
   onTaskComplete: (
     taskId: string,
-    is_completed: boolean
+    is_completed: boolean,
   ) => Promise<OperationResult>;
+
   onTaskPriority: (
     taskId: string,
-    is_pinned: boolean
+    is_pinned: boolean,
   ) => Promise<OperationResult>;
+
   onTaskDelete?: (taskId: string) => Promise<OperationResult>;
+
   onTaskUpdate?: (
     taskId: string,
     taskData: {
@@ -109,27 +105,36 @@ interface CollectionComponentProps {
       description?: string | null;
       due_date?: Date | null;
       is_pinned: boolean;
-    }
+    },
   ) => Promise<OperationResult>;
+
   onCollectionChange?: (
     taskId: string,
-    collectionId: string
+    collectionId: string,
   ) => Promise<OperationResult>;
+
   onNotePin?: (noteId: string, isPinned: boolean) => Promise<OperationResult>;
+
   onNoteColorChange?: (
     noteId: string,
-    color: string
+    color: string,
   ) => Promise<OperationResult>;
+
   onNoteUpdate?: (
     noteId: string,
     updatedTitle: string,
-    updatedDescription?: string
+    updatedDescription?: string,
   ) => Promise<OperationResult>;
+
   onNoteDelete?: (noteId: string) => Promise<OperationResult>;
+
   onCollectionEdit?: (collection: Collection) => Promise<OperationResult>;
+
   collections?: Collection[];
   className?: string;
 }
+
+type Tab = "tasks" | "notes";
 
 const EnhancedCollectionComponent = ({
   id,
@@ -150,91 +155,123 @@ const EnhancedCollectionComponent = ({
   onCollectionEdit,
   collections = [],
   className = "",
+  collapseNonce,
+  autoExpand = false,
 }: CollectionComponentProps) => {
-  const collectionId = id;
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [activeTab, setActiveTab] = useState<"tasks" | "notes">("tasks");
+  /* All collections begin collapsed. */
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  /*
+   * Collapse all.
+   *
+   * Keyed on the nonce alone, and deliberately not on mount: the initial run
+   * is skipped by the ref so arriving on the screen does not count as an
+   * instruction to collapse something the user has just been sent to.
+   */
+  const lastCollapseNonce = useRef(collapseNonce);
+  useEffect(() => {
+    if (collapseNonce === lastCollapseNonce.current) return;
+    lastCollapseNonce.current = collapseNonce;
+    setIsExpanded(false);
+  }, [collapseNonce]);
+
+  /*
+   * Opened from a tapped reminder.
+   *
+   * Runs when the flag turns on rather than on every render, so the user can
+   * still close the collection afterwards and have it stay closed.
+   */
+  useEffect(() => {
+    if (autoExpand) setIsExpanded(true);
+  }, [autoExpand]);
+  const [activeTab, setActiveTab] = useState<Tab>("tasks");
+
   const [priorityTasks, setPriorityTasks] = useState<Task[]>([]);
   const [regularTasks, setRegularTasks] = useState<Task[]>([]);
   const [sortedNotes, setSortedNotes] = useState<Note[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [errorTimeout, setErrorTimeout] = useState<NodeJS.Timeout | null>(null);
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  const [isHovered, setIsHovered] = useState(false);
 
-  // Check if this is a "General" collection (case-insensitive)
-  const isGeneralCollection = useCallback(() => {
-    return collection_name?.toLowerCase().trim() === "general";
-  }, [collection_name]);
+  const isGeneralCollection = useCallback(
+    () => collection_name?.toLowerCase().trim() === "general",
+    [collection_name],
+  );
 
-  // Enhanced color scheme that complements our elegant background
-  const getColorScheme = () => {
-    if (isDark) {
-      return {
-        cardBg: "bg-gray-800/30",
-        headerBg: "bg-gray-800/50",
-        textPrimary: "text-gray-100",
-        textSecondary: "text-gray-400",
-        border: "border-gray-700/50",
-        hover: "hover:bg-gray-700/50",
-        errorText: "text-red-300",
-        errorBg: "bg-red-900/20",
-        tabHover: "hover:bg-gray-700/50",
-        activeTab: "bg-gray-700/60",
-        accent: "text-orange-400",
-        accentBg: "bg-orange-400/30",
+  const getEffectiveColor = useCallback(
+    () => bg_color_hex || "#fb923c",
+    [bg_color_hex],
+  );
+
+  const colors = isDark
+    ? {
+        textPrimary: "text-slate-100",
+        textSecondary: "text-slate-400",
+        textMuted: "text-slate-500",
+        outer: "border-white/[0.055] bg-white/[0.018]",
+        header: "bg-white/[0.012]",
+        content: "bg-transparent",
+        border: "border-white/[0.06]",
+        buttonHover: "hover:bg-white/[0.055]",
+        activeTab: "text-slate-100",
+        inactiveTab: "text-slate-500 hover:text-slate-300",
+        count: "text-slate-500",
+        errorBg: "bg-rose-500/[0.08]",
+        errorText: "text-rose-300",
+      }
+    : {
+        textPrimary: "text-slate-900",
+        textSecondary: "text-slate-600",
+        textMuted: "text-slate-400",
+        outer: "border-slate-200/70 bg-white/35",
+        header: "bg-white/25",
+        content: "bg-transparent",
+        border: "border-slate-200/70",
+        buttonHover: "hover:bg-slate-100/70",
+        activeTab: "text-slate-900",
+        inactiveTab: "text-slate-400 hover:text-slate-700",
+        count: "text-slate-400",
+        errorBg: "bg-rose-50/70",
+        errorText: "text-rose-700",
       };
-    } else {
-      return {
-        cardBg: "bg-white/40",
-        headerBg: "bg-white/60",
-        textPrimary: "text-gray-900",
-        textSecondary: "text-gray-600",
-        border: "border-gray-300/50",
-        hover: "hover:bg-gray-100/50",
-        errorText: "text-red-700",
-        errorBg: "bg-red-100/50",
-        tabHover: "hover:bg-gray-200/50",
-        activeTab: "bg-gray-200/60",
-        accent: "text-orange-600",
-        accentBg: "bg-orange-100/50",
-      };
-    }
-  };
 
-  const colors = getColorScheme();
+  /* =======================================================
+     SORTING
+     ======================================================= */
 
-  // Memoized sorting functions
   const sortTasks = useCallback((taskList: Task[] = []) => {
     try {
-      // Filter out deleted AND completed tasks
-      const validTasks =
-        taskList?.filter(
-          (task) => task && !task.is_deleted && !task.is_completed
-        ) || [];
-      const priority = validTasks.filter((task) => Boolean(task.is_pinned));
-      const regular = validTasks.filter((task) => !task.is_pinned);
-      return { priority, regular };
+      const validTasks = taskList.filter(
+        (task) => task && !task.is_deleted && !task.is_completed,
+      );
+
+      return {
+        priority: validTasks.filter((task) => Boolean(task.is_pinned)),
+        regular: validTasks.filter((task) => !task.is_pinned),
+      };
     } catch (err) {
       console.error("Error sorting tasks:", err);
       setError("Failed to process tasks");
-      return { priority: [], regular: [] };
+
+      return {
+        priority: [],
+        regular: [],
+      };
     }
   }, []);
 
   const sortNotes = useCallback((noteList: Note[] = []) => {
     try {
-      const validNotes =
-        noteList?.filter((note) => note && !note.is_deleted) || [];
+      const validNotes = noteList.filter((note) => note && !note.is_deleted);
+
       return [...validNotes].sort((a, b) => {
         if (Boolean(a.is_pinned) && !Boolean(b.is_pinned)) return -1;
         if (!Boolean(a.is_pinned) && Boolean(b.is_pinned)) return 1;
 
         const dateA =
           a.created_at instanceof Date ? a.created_at : new Date(a.created_at);
+
         const dateB =
           b.created_at instanceof Date ? b.created_at : new Date(b.created_at);
 
@@ -247,81 +284,78 @@ const EnhancedCollectionComponent = ({
     }
   }, []);
 
-  // Apply sorting when tasks or notes change
   useEffect(() => {
     const { priority, regular } = sortTasks(tasks);
+
     setPriorityTasks(priority);
     setRegularTasks(regular);
   }, [tasks, sortTasks]);
 
   useEffect(() => {
-    const sorted = sortNotes(notes);
-    setSortedNotes(sorted);
+    setSortedNotes(sortNotes(notes));
   }, [notes, sortNotes]);
+
   useEffect(() => {
-    // Force re-render when bg_color_hex prop changes
-    // This ensures the UI updates immediately when parent updates the color
-  }, [bg_color_hex]);
-  const getEffectiveColor = useCallback(() => {
-    // For General collections, the color might be updated externally
-    // Return the current bg_color_hex prop
-    return bg_color_hex || "#fb923c";
-  }, [bg_color_hex]);
-  // Auto-dismiss error after 5 seconds
-  useEffect(() => {
-    if (error) {
-      if (errorTimeout) {
-        clearTimeout(errorTimeout);
-      }
-      const timeout = setTimeout(() => {
-        setError(null);
-      }, 5000);
-      setErrorTimeout(timeout);
-    }
+    if (!error) return;
 
-    return () => {
-      if (errorTimeout) {
-        clearTimeout(errorTimeout);
-      }
-    };
-  }, [error, errorTimeout]);
+    const timeout = setTimeout(() => {
+      setError(null);
+    }, 5000);
 
-  // Calculate content counts
-  const taskCount =
-    tasks?.filter((task) => task && !task.is_deleted && !task.is_completed)
-      .length || 0;
-  const noteCount =
-    notes?.filter((note) => note && !note.is_deleted).length || 0;
+    return () => clearTimeout(timeout);
+  }, [error]);
 
-  // Safely handle API operations with error handling
+  /* =======================================================
+     COUNTS
+     ======================================================= */
+
+  const taskCount = tasks.filter(
+    (task) => task && !task.is_deleted && !task.is_completed,
+  ).length;
+
+  const noteCount = notes.filter((note) => note && !note.is_deleted).length;
+
+  /* =======================================================
+     SAFE OPERATION
+     ======================================================= */
+
   const safelyHandleOperation = async (
     operation: () => Promise<OperationResult>,
-    errorMessage: string
+    errorMessage: string,
   ): Promise<OperationResult> => {
     try {
       const result = await operation();
+
       if (!result.success) {
         throw new Error(result.error ? String(result.error) : errorMessage);
       }
+
       return { success: true };
     } catch (err) {
       console.error(`${errorMessage}:`, err);
       setError(errorMessage);
-      return { success: false, error: err };
+
+      return {
+        success: false,
+        error: err,
+      };
     }
   };
 
-  // Handle collection edit
+  /* =======================================================
+     COLLECTION
+     ======================================================= */
+
   const handleCollectionEdit = async () => {
     if (!onCollectionEdit) return;
 
     const collectionData: Collection = {
-      id: id,
+      id,
       collection_name: collection_name || "",
       bg_color_hex: bg_color_hex || "",
-      created_at: created_at,
-      list_id: "", // This will be populated by the parent
-      user_id: "", // This will be populated by the parent
+      created_at,
+      list_id: "",
+      user_id: "",
       tasks: tasks || [],
       notes: notes || [],
     };
@@ -334,20 +368,23 @@ const EnhancedCollectionComponent = ({
     }
   };
 
-  // Task handlers with error handling
+  /* =======================================================
+     TASK OPERATIONS
+     ======================================================= */
+
   const handleTaskCompleteWithErrorHandling = async (
     taskId: string,
-    isCompleted: boolean
-  ): Promise<{ success: boolean; error?: unknown }> => {
+    isCompleted: boolean,
+  ): Promise<OperationResult> => {
     const result = await safelyHandleOperation(
       () => onTaskComplete(taskId, isCompleted),
-      "Failed to update task status"
+      "Failed to update task status",
     );
 
-    // If task was completed successfully, remove it from local state immediately
     if (result.success && isCompleted) {
       const updatedTasks = tasks.filter((task) => task.id !== taskId);
       const { priority, regular } = sortTasks(updatedTasks);
+
       setPriorityTasks(priority);
       setRegularTasks(regular);
     }
@@ -357,13 +394,12 @@ const EnhancedCollectionComponent = ({
 
   const handleTaskPriorityWithErrorHandling = async (
     taskId: string,
-    isPinned: boolean
-  ): Promise<{ success: boolean; error?: unknown }> => {
-    return safelyHandleOperation(
+    isPinned: boolean,
+  ): Promise<OperationResult> =>
+    safelyHandleOperation(
       () => onTaskPriority(taskId, isPinned),
-      "Failed to update task priority"
+      "Failed to update task priority",
     );
-  };
 
   const handleTaskUpdateWithErrorHandling = async (
     taskId: string,
@@ -372,34 +408,41 @@ const EnhancedCollectionComponent = ({
       description?: string | null;
       due_date?: Date | null;
       is_pinned: boolean;
-    }
-  ): Promise<{ success: boolean; error?: unknown }> => {
+    },
+  ): Promise<OperationResult> => {
     if (!onTaskUpdate) {
-      return { success: false, error: "Task update handler not available" };
+      return {
+        success: false,
+        error: "Task update handler not available",
+      };
     }
 
     return safelyHandleOperation(
       () => onTaskUpdate(taskId, taskData),
-      "Failed to update task"
+      "Failed to update task",
     );
   };
 
   const handleTaskDeleteWithErrorHandling = async (
-    taskId: string
-  ): Promise<{ success: boolean; error?: unknown }> => {
+    taskId: string,
+  ): Promise<OperationResult> => {
     if (!onTaskDelete) {
-      return { success: false, error: "Task delete handler not available" };
+      return {
+        success: false,
+        error: "Task delete handler not available",
+      };
     }
 
     const result = await safelyHandleOperation(
       () => onTaskDelete(taskId),
-      "Failed to delete task"
+      "Failed to delete task",
     );
 
     if (result.success) {
       const { priority, regular } = sortTasks(
-        tasks.filter((t) => t.id !== taskId)
+        tasks.filter((task) => task.id !== taskId),
       );
+
       setPriorityTasks(priority);
       setRegularTasks(regular);
     }
@@ -407,18 +450,24 @@ const EnhancedCollectionComponent = ({
     return result;
   };
 
-  // Note handlers
+  /* =======================================================
+     NOTE OPERATIONS
+     ======================================================= */
+
   const handleNotePinWithErrorHandling = async (
     noteId: string,
-    isPinned: boolean
+    isPinned: boolean,
   ): Promise<OperationResult> => {
     if (!onNotePin) {
-      return { success: false, error: "Pin handler not available" };
+      return {
+        success: false,
+        error: "Pin handler not available",
+      };
     }
 
     const result = await safelyHandleOperation(
       () => onNotePin(noteId, isPinned),
-      "Failed to pin note"
+      "Failed to pin note",
     );
 
     if (result.success) {
@@ -430,60 +479,65 @@ const EnhancedCollectionComponent = ({
 
   const handleNoteColorChangeWithErrorHandling = async (
     noteId: string,
-    color: string
+    color: string,
   ): Promise<OperationResult> => {
     if (!onNoteColorChange) {
-      return { success: false, error: "Color change handler not available" };
+      return {
+        success: false,
+        error: "Color change handler not available",
+      };
     }
 
     return safelyHandleOperation(
       () => onNoteColorChange(noteId, color),
-      "Failed to change note color"
+      "Failed to change note color",
     );
   };
 
   const handleNoteUpdateWithErrorHandling = async (
     noteId: string,
     updatedTitle: string,
-    updatedDescription?: string
+    updatedDescription?: string,
   ): Promise<OperationResult> => {
     if (!onNoteUpdate) {
-      return { success: false, error: "Update handler not available" };
+      return {
+        success: false,
+        error: "Update handler not available",
+      };
     }
 
     return safelyHandleOperation(
       () => onNoteUpdate(noteId, updatedTitle, updatedDescription),
-      "Failed to update note"
+      "Failed to update note",
     );
   };
 
   const handleNoteDeleteWithErrorHandling = async (
-    noteId: string
+    noteId: string,
   ): Promise<OperationResult> => {
     if (!onNoteDelete) {
-      return { success: false, error: "Delete handler not available" };
+      return {
+        success: false,
+        error: "Delete handler not available",
+      };
     }
 
     const result = await safelyHandleOperation(
       () => onNoteDelete(noteId),
-      "Failed to delete note"
+      "Failed to delete note",
     );
 
     if (result.success) {
-      const updatedNotes = notes.filter((note) => note.id !== noteId);
-      setSortedNotes(sortNotes(updatedNotes));
+      setSortedNotes(sortNotes(notes.filter((note) => note.id !== noteId)));
     }
 
     return result;
   };
 
-  // The swipe actions each row offers. Native only — MaybeSwipeable drops them on
-  // the web.
-  //
-  // These reveal handlers the row already had, paired the way both platforms'
-  // conventions expect: the destructive action on the trailing edge, the common
-  // one-tap action on the leading edge. Nothing here can do anything the row's own
-  // controls could not already do.
+  /* =======================================================
+     NATIVE SWIPE ACTIONS
+     ======================================================= */
+
   const taskSwipeComplete = (taskId: string): SwipeAction => ({
     label: "Done",
     icon: CheckCircle2,
@@ -512,259 +566,602 @@ const EnhancedCollectionComponent = ({
     onAction: () => void handleNoteDeleteWithErrorHandling(noteId),
   });
 
-  // Clear any displayed errors
-  const clearError = () => {
-    setError(null);
-    if (errorTimeout) {
-      clearTimeout(errorTimeout);
-      setErrorTimeout(null);
-    }
-  };
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.5 }}
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
-      className={`${className} rounded-xl overflow-hidden shadow-lg transition-all duration-300 backdrop-blur-sm border ${colors.border} ${colors.cardBg}`}
-      data-collection-id={collectionId}
+    <motion.section
+      initial={{
+        opacity: 0,
+        y: 10,
+      }}
+      animate={{
+        opacity: 1,
+        y: 0,
+      }}
+      exit={{
+        opacity: 0,
+        y: -8,
+      }}
+      transition={{
+        duration: 0.25,
+      }}
+      data-collection-id={id}
+      className={`
+        ${className}
+        overflow-hidden
+        rounded-[18px]
+        border
+        backdrop-blur-[14px]
+        transition-colors
+        duration-200
+        ${colors.outer}
+      `}
     >
-      {/* Collection Header */}
-      <div className={`${colors.headerBg} backdrop-blur-sm relative`}>
-        {/* Accent border with collection color */}
-        <div
-          className="absolute top-0 left-0 right-0 h-1 opacity-80"
-          style={{ backgroundColor: getEffectiveColor() }}
-        />
+      {/* ===================================================
+          HEADER
+         =================================================== */}
 
-        <motion.div
-          className={`flex items-center p-5 cursor-pointer ${colors.hover} transition-all duration-200 relative`}
-          onClick={() => setIsExpanded(!isExpanded)}
-          whileHover={{ x: 2 }}
-          whileTap={{ scale: 0.98 }}
-          role="button"
-          aria-expanded={isExpanded}
-          aria-label={`${collection_name || "Unnamed Collection"} collection`}
+      <div
+        className={`
+          relative
+          ${colors.header}
+        `}
+      >
+        {/* Equal top/bottom padding keeps chevron centred */}
+        <div
+          className="
+            px-4
+            py-4
+            sm:px-5
+            sm:py-5
+          "
         >
-          {/* Enhanced collection icon */}
-          <motion.div
-            className="relative mr-4"
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            transition={{ duration: 0.2 }}
-          >
+          <div className="flex items-center gap-3">
+            {/* Collection colour */}
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg backdrop-blur-sm"
+              className="
+                h-2.5
+                w-2.5
+                shrink-0
+                rounded-full
+              "
               style={{
                 backgroundColor: getEffectiveColor(),
-                boxShadow: `0 4px 20px ${getEffectiveColor()}30`,
+                boxShadow: `0 0 0 3px ${getEffectiveColor()}14`,
               }}
-            ></div>
-            <div
-              className="absolute inset-0 rounded-xl opacity-30 blur-md"
-              style={{ backgroundColor: getEffectiveColor() }}
+              aria-hidden="true"
             />
-          </motion.div>
 
-          {/* Collection info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-3">
-              <h3
-                className={`font-semibold ${COLLECTION_TITLE_CLASS} ${colors.textPrimary} truncate`}
-              >
-                {collection_name || "Unnamed Collection"}
-              </h3>
-
-              {/* Content badges */}
-              <div className="flex items-center space-x-2">
-                {taskCount > 0 && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className={`${COUNT_BADGE_CLASS} rounded-full font-medium ${colors.accentBg} ${colors.accent}`}
-                  >
-                    {taskCount} task{taskCount !== 1 ? "s" : ""}
-                  </motion.span>
-                )}
-
-                {noteCount > 0 && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className={`${COUNT_BADGE_CLASS} rounded-full font-medium ${isDark ? "bg-blue-900/30 text-blue-400" : "bg-blue-100/50 text-blue-600"}`}
-                  >
-                    {noteCount} note{noteCount !== 1 ? "s" : ""}
-                  </motion.span>
-                )}
-              </div>
-            </div>
-
-            <p className={`text-sm ${colors.textSecondary} mt-1`}>
-              {taskCount + noteCount} total items
-            </p>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center space-x-2 ml-4">
-            {/* Edit button - only show if not General collection */}
-            {!isGeneralCollection() && onCollectionEdit && (
-              <motion.button
-                className={`p-2 rounded-lg ${colors.textSecondary} ${colors.hover} transition-colors duration-200`}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCollectionEdit();
-                }}
-                aria-label="Edit collection"
-              >
-                <Edit3 className="h-4 w-4" />
-              </motion.button>
-            )}
-
-            {/* Expand/Collapse button */}
-            <motion.button
-              className={`p-2 rounded-lg ${colors.textSecondary} ${colors.hover} transition-colors duration-200`}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              aria-label={isExpanded ? "Collapse" : "Expand"}
+            {/* Title + counts */}
+            <button
+              type="button"
+              onClick={() => setIsExpanded((previous) => !previous)}
+              aria-expanded={isExpanded}
+              className="
+                min-w-0
+                flex-1
+                text-left
+              "
             >
-              <motion.div
-                animate={{ rotate: isExpanded ? 0 : -90 }}
-                transition={{ duration: 0.3 }}
+              <div
+                className="
+                  flex
+                  flex-wrap
+                  items-baseline
+                  gap-x-3
+                  gap-y-0.5
+                "
               >
-                <ChevronDown className="h-5 w-5" />
-              </motion.div>
-            </motion.button>
-          </div>
-        </motion.div>
+                <h3
+                  className={`
+                    max-w-full
+                    truncate
+                    text-[16px]
+                    font-semibold
+                    leading-6
+                    tracking-[-0.015em]
+                    sm:text-[17px]
+                    ${colors.textPrimary}
+                  `}
+                >
+                  {collection_name || "Unnamed Collection"}
+                </h3>
 
-        {/* Error notification */}
+                <span
+                  className={`
+                    whitespace-nowrap
+                    text-[11px]
+                    font-medium
+                    leading-5
+                    ${colors.count}
+                  `}
+                >
+                  {taskCount} {taskCount === 1 ? "Task" : "Tasks"}
+                  <span className="mx-1.5 opacity-50">·</span>
+                  {noteCount} {noteCount === 1 ? "Note" : "Notes"}
+                </span>
+              </div>
+            </button>
+
+            {/* Header actions */}
+            <div
+              className="
+                -mr-1
+                flex
+                shrink-0
+                items-center
+                gap-0.5
+              "
+            >
+              {!isGeneralCollection() && onCollectionEdit && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void handleCollectionEdit();
+                  }}
+                  aria-label="Edit collection"
+                  className={`
+                    flex
+                    h-8
+                    w-8
+                    shrink-0
+                    items-center
+                    justify-center
+                    rounded-lg
+                    p-0
+                    transition-colors
+                    ${colors.textMuted}
+                    ${colors.buttonHover}
+                  `}
+                >
+                  <Edit3 className="h-[15px] w-[15px]" />
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsExpanded((previous) => !previous)}
+                aria-label={
+                  isExpanded ? "Collapse collection" : "Expand collection"
+                }
+                aria-expanded={isExpanded}
+                className={`
+                  flex
+                  h-8
+                  w-8
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-lg
+                  p-0
+                  transition-colors
+                  ${colors.textMuted}
+                  ${colors.buttonHover}
+                `}
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  {isExpanded ? (
+                    <motion.span
+                      key="expanded"
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.85 }}
+                      transition={{ duration: 0.1 }}
+                      className="
+                        flex
+                        h-5
+                        w-5
+                        items-center
+                        justify-center
+                      "
+                    >
+                      <ChevronDown className="h-4 w-4" strokeWidth={2} />
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="collapsed"
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.85 }}
+                      transition={{ duration: 0.1 }}
+                      className="
+                        flex
+                        h-5
+                        w-5
+                        items-center
+                        justify-center
+                      "
+                    >
+                      <ChevronRight className="h-4 w-4" strokeWidth={2} />
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Error */}
         <AnimatePresence>
           {error && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className={`px-5 py-3 ${colors.errorBg} ${colors.errorText} text-sm flex justify-between items-center backdrop-blur-sm`}
-              role="alert"
+              className="overflow-hidden"
             >
-              <div className="flex items-center">
-                <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
-                <span>{error}</span>
-              </div>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={clearError}
-                className="ml-3 p-1 rounded-full hover:bg-white/10 transition-colors"
-                aria-label="Dismiss error"
+              <div
+                role="alert"
+                className={`
+                  mx-4
+                  mb-3
+                  flex
+                  items-center
+                  justify-between
+                  gap-3
+                  rounded-lg
+                  px-3
+                  py-2.5
+                  text-[12px]
+                  sm:mx-5
+                  ${colors.errorBg}
+                  ${colors.errorText}
+                `}
               >
-                <X className="h-4 w-4" />
-              </motion.button>
+                <div className="flex min-w-0 items-center gap-2">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+
+                  <span className="truncate">{error}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setError(null)}
+                  aria-label="Dismiss error"
+                  className="
+                    shrink-0
+                    rounded-md
+                    p-1
+                    hover:bg-black/5
+                  "
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Enhanced tabs */}
-        <AnimatePresence>
+        {/* =================================================
+            EXPANDED CONTROLS
+           ================================================= */}
+
+        <AnimatePresence initial={false}>
           {isExpanded && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className={`flex border-t ${colors.border} backdrop-blur-sm`}
-              role="tablist"
+              initial={{
+                opacity: 0,
+                height: 0,
+              }}
+              animate={{
+                opacity: 1,
+                height: "auto",
+              }}
+              exit={{
+                opacity: 0,
+                height: 0,
+              }}
+              transition={{
+                duration: 0.2,
+              }}
+              className="overflow-hidden"
             >
-              {["tasks", "notes"].map((tab) => (
-                <motion.button
-                  key={tab}
-                  className={`flex-1 py-3 px-4 text-sm font-medium transition-all relative ${
-                    activeTab === tab
-                      ? `${colors.textPrimary} ${colors.activeTab}`
-                      : `${colors.textSecondary} ${colors.tabHover}`
-                  }`}
-                  onClick={() => setActiveTab(tab as "tasks" | "notes")}
-                  whileHover={{ y: -1 }}
-                  whileTap={{ scale: 0.98 }}
-                  role="tab"
-                  aria-selected={activeTab === tab}
-                  aria-controls={`${tab}-panel`}
-                  id={`${tab}-tab`}
+              <div
+                className="
+                  px-4
+                  pb-1
+                  sm:px-5
+                "
+              >
+                {/* =========================================
+                    TASKS / NOTES SEGMENTED SWITCH
+
+                    Outer box makes it obvious that these
+                    controls switch the collection view.
+
+                    Active tab gets:
+                    - stronger surface
+                    - inner border
+                    - collection-colour indicator
+                   ========================================= */}
+
+                <div
+                  role="tablist"
+                  aria-label="Collection content"
+                  className={`
+                    inline-flex
+                    items-center
+                    gap-1
+                    rounded-lg
+                    border
+                    p-1
+                    ${
+                      isDark
+                        ? "border-white/[0.07] bg-white/[0.025]"
+                        : "border-slate-200/80 bg-slate-100/50"
+                    }
+                  `}
                 >
-                  <div className="flex items-center justify-center space-x-2">
-                    {tab === "tasks" ? (
-                      <ListTodo className="h-4 w-4" />
-                    ) : (
-                      <StickyNote className="h-4 w-4" />
-                    )}
-                    <span className="capitalize">{tab}</span>
+                  {(
+                    [
+                      {
+                        key: "tasks",
+                        label: "Tasks",
+                        icon: ListTodo,
+                        count: taskCount,
+                      },
+                      {
+                        key: "notes",
+                        label: "Notes",
+                        icon: StickyNote,
+                        count: noteCount,
+                      },
+                    ] as const
+                  ).map((tab) => {
+                    const Icon = tab.icon;
+                    const active = activeTab === tab.key;
 
-                    {/* Count badges */}
-                    {((tab === "tasks" && taskCount > 0) ||
-                      (tab === "notes" && noteCount > 0)) && (
-                      <span
-                        className={`ml-2 ${TAB_COUNT_BADGE_CLASS} rounded-full ${
-                          activeTab === tab
-                            ? "bg-white/20 text-current"
-                            : "bg-gray-500/20 text-gray-500"
-                        }`}
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        aria-controls={`${tab.key}-panel`}
+                        id={`${tab.key}-tab`}
+                        onClick={() => setActiveTab(tab.key)}
+                        className={`
+                          relative
+                          flex
+                          h-8
+                          items-center
+                          gap-1.5
+                          rounded-md
+                          border
+                          px-3
+                          text-[12px]
+                          font-medium
+                          transition-all
+                          duration-150
+
+                          ${
+                            active
+                              ? isDark
+                                ? "border-white/[0.09] bg-white/[0.08] text-slate-100 shadow-sm"
+                                : "border-slate-200 bg-white text-slate-900 shadow-sm"
+                              : isDark
+                                ? "border-transparent text-slate-500 hover:bg-white/[0.035] hover:text-slate-300"
+                                : "border-transparent text-slate-500 hover:bg-white/60 hover:text-slate-700"
+                          }
+                        `}
                       >
-                        {tab === "tasks" ? taskCount : noteCount}
-                      </span>
-                    )}
-                  </div>
+                        <Icon className="h-3.5 w-3.5 shrink-0" />
 
-                  {/* Active tab indicator */}
-                  {activeTab === tab && (
+                        <span>{tab.label}</span>
+
+                        <span
+                          className={`
+                            text-[10px]
+                            font-medium
+                            ${active ? "opacity-70" : "opacity-50"}
+                          `}
+                        >
+                          {tab.count}
+                        </span>
+
+                        {active && (
+                          <motion.span
+                            layoutId={`collection-active-tab-${id}`}
+                            className="
+                              absolute
+                              bottom-[3px]
+                              left-3
+                              right-3
+                              h-[2px]
+                              rounded-full
+                            "
+                            style={{
+                              backgroundColor: getEffectiveColor(),
+                            }}
+                            transition={{
+                              type: "spring",
+                              stiffness: 450,
+                              damping: 36,
+                            }}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* =========================================
+                    TASK STATUS LEGEND
+                   ========================================= */}
+
+                <AnimatePresence initial={false}>
+                  {activeTab === "tasks" && (
                     <motion.div
-                      layoutId="activeTab"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full"
-                      style={{ backgroundColor: getEffectiveColor() }}
-                      transition={{ duration: 0.3 }}
-                    />
+                      initial={{
+                        opacity: 0,
+                        y: -3,
+                      }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                      }}
+                      exit={{
+                        opacity: 0,
+                        y: -3,
+                      }}
+                      transition={{
+                        duration: 0.15,
+                      }}
+                      aria-label="Task status legend"
+                      className="
+                        flex
+                        flex-wrap
+                        items-center
+                        gap-x-4
+                        gap-y-1.5
+                        py-3
+                      "
+                    >
+                      {/* The legend names the four states, so it has to read
+                          its colours from the same place the cards do. This was
+                          a third hand-written copy of the palette. */}
+                      {LEGEND.map((entry) => (
+                        <span
+                          key={entry.label}
+                          className={`
+                            inline-flex
+                            items-center
+                            gap-1.5
+                            whitespace-nowrap
+                            text-[10px]
+                            font-medium
+                            ${colors.textMuted}
+                          `}
+                        >
+                          <span
+                            className="
+                              h-[7px]
+                              w-[7px]
+                              shrink-0
+                              rounded-full
+                            "
+                            style={{
+                              backgroundColor: entry.colour,
+                              boxShadow: `0 0 0 2px ${entry.colour}12`,
+                            }}
+                            aria-hidden="true"
+                          />
+
+                          {entry.label}
+                        </span>
+                      ))}
+                    </motion.div>
                   )}
-                </motion.button>
-              ))}
+                </AnimatePresence>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Collection Content */}
-      <AnimatePresence>
+      {/* ===================================================
+          CONTENT
+         =================================================== */}
+
+      <AnimatePresence initial={false}>
         {isExpanded && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className={`${colors.cardBg} p-5 backdrop-blur-sm`}
-            role="tabpanel"
-            id={activeTab === "tasks" ? "tasks-panel" : "notes-panel"}
-            aria-labelledby={activeTab === "tasks" ? "tasks-tab" : "notes-tab"}
+            initial={{
+              opacity: 0,
+              height: 0,
+            }}
+            animate={{
+              opacity: 1,
+              height: "auto",
+            }}
+            exit={{
+              opacity: 0,
+              height: 0,
+            }}
+            transition={{
+              duration: 0.2,
+            }}
+            className="overflow-hidden"
           >
-            {activeTab === "tasks" && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.4 }}
-                className="space-y-4"
-              >
-                {/* Priority tasks */}
-                {priorityTasks.length > 0 && (
-                  <>
-                    <div className="space-y-3">
+            <div
+              role="tabpanel"
+              id={activeTab === "tasks" ? "tasks-panel" : "notes-panel"}
+              aria-labelledby={
+                activeTab === "tasks" ? "tasks-tab" : "notes-tab"
+              }
+              className={`
+                px-3
+                pb-4
+                sm:px-4
+                sm:pb-5
+
+                ${activeTab === "notes" ? "pt-4 sm:pt-5" : "pt-1"}
+
+                ${colors.content}
+              `}
+            >
+              {/* =================================================
+                  TASKS
+                 ================================================= */}
+
+              {activeTab === "tasks" && (
+                <motion.div
+                  key="tasks"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  {priorityTasks.length > 0 || regularTasks.length > 0 ? (
+                    <div className="space-y-2.5">
                       {priorityTasks.map((task, index) => (
                         <motion.div
                           key={task.id}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.3, delay: entranceDelay(index) }}
+                          initial={{
+                            opacity: 0,
+                            y: 6,
+                          }}
+                          animate={{
+                            opacity: 1,
+                            y: 0,
+                          }}
+                          transition={{
+                            duration: 0.2,
+                            delay: entranceDelay(index),
+                          }}
+                        >
+                          <MaybeSwipeable
+                            leading={taskSwipeComplete(task.id)}
+                            trailing={taskSwipeDelete(task.id)}
+                          >
+                            <TaskCard
+                              {...task}
+                              onComplete={handleTaskCompleteWithErrorHandling}
+                              onPriorityChange={
+                                handleTaskPriorityWithErrorHandling
+                              }
+                              onTaskUpdate={handleTaskUpdateWithErrorHandling}
+                              onTaskDelete={handleTaskDeleteWithErrorHandling}
+                              onCollectionChange={onCollectionChange}
+                              collections={collections}
+                            />
+                          </MaybeSwipeable>
+                        </motion.div>
+                      ))}
+
+                      {regularTasks.map((task, index) => (
+                        <motion.div
+                          key={task.id}
+                          initial={{
+                            opacity: 0,
+                            y: 6,
+                          }}
+                          animate={{
+                            opacity: 1,
+                            y: 0,
+                          }}
+                          transition={{
+                            duration: 0.2,
+                            delay: entranceDelay(priorityTasks.length + index),
+                          }}
                         >
                           <MaybeSwipeable
                             leading={taskSwipeComplete(task.id)}
@@ -785,116 +1182,187 @@ const EnhancedCollectionComponent = ({
                         </motion.div>
                       ))}
                     </div>
-
-                    {regularTasks.length > 0 && (
-                      <div className={`border-t ${colors.border} pt-4`} />
-                    )}
-                  </>
-                )}
-
-                {/* Regular tasks */}
-                {regularTasks.length > 0 ? (
-                  <div className="space-y-3">
-                    {regularTasks.map((task, index) => (
-                      <motion.div
-                        key={task.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{
-                          duration: 0.3,
-                          delay: entranceDelay(priorityTasks.length + index),
-                        }}
-                      >
-                        <MaybeSwipeable
-                          leading={taskSwipeComplete(task.id)}
-                          trailing={taskSwipeDelete(task.id)}
-                        >
-                          <TaskCard
-                            {...task}
-                            onComplete={handleTaskCompleteWithErrorHandling}
-                            onPriorityChange={handleTaskPriorityWithErrorHandling}
-                            onTaskUpdate={handleTaskUpdateWithErrorHandling}
-                            onTaskDelete={handleTaskDeleteWithErrorHandling}
-                            onCollectionChange={onCollectionChange}
-                            collections={collections}
-                          />
-                        </MaybeSwipeable>
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : (
-                  priorityTasks.length === 0 && (
+                  ) : (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      transition={{ duration: 0.4 }}
-                      className={`text-center py-12 ${colors.textSecondary}`}
+                      className={`
+                        flex
+                        min-h-[150px]
+                        flex-col
+                        items-center
+                        justify-center
+                        px-6
+                        py-8
+                        text-center
+                        ${colors.textMuted}
+                      `}
                     >
-                      <ListTodo className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-lg font-medium mb-1">No tasks yet</p>
-                      <p className="text-sm">Add tasks to organize your work</p>
-                    </motion.div>
-                  )
-                )}
-              </motion.div>
-            )}
-
-            {activeTab === "notes" && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.4 }}
-              >
-                {sortedNotes.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {sortedNotes.map((note, index) => (
-                      <motion.div
-                        key={note.id}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.3, delay: entranceDelay(index) }}
+                      <div
+                        className={`
+                          mb-3
+                          flex
+                          h-9
+                          w-9
+                          items-center
+                          justify-center
+                          rounded-xl
+                          ${isDark ? "bg-white/[0.035]" : "bg-slate-100/70"}
+                        `}
                       >
-                        <MaybeSwipeable
-                          leading={noteSwipePin(note.id, Boolean(note.is_pinned))}
-                          trailing={noteSwipeDelete(note.id)}
+                        <ListTodo className="h-4 w-4" />
+                      </div>
+
+                      <p
+                        className={`
+                          text-[13px]
+                          font-medium
+                          ${colors.textSecondary}
+                        `}
+                      >
+                        No tasks yet
+                      </p>
+
+                      <p className="mt-1 text-[11px]">
+                        Tasks added to this collection will appear here.
+                      </p>
+                    </motion.div>
+                  )}
+                </motion.div>
+              )}
+
+              {/* =================================================
+                  NOTES
+
+                  Extra top padding is applied to the content
+                  wrapper whenever Notes is active so the note
+                  cards do not sit directly against the switch.
+                 ================================================= */}
+
+              {activeTab === "notes" && (
+                <motion.div
+                  key="notes"
+                  initial={{
+                    opacity: 0,
+                    y: 3,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                  }}
+                  transition={{
+                    duration: 0.18,
+                  }}
+                >
+                  {sortedNotes.length > 0 ? (
+                    <div
+                      className="
+                        grid
+                        grid-cols-1
+                        gap-3
+                        sm:grid-cols-2
+                        lg:grid-cols-3
+                        xl:grid-cols-4
+                      "
+                    >
+                      {sortedNotes.map((note, index) => (
+                        <motion.div
+                          key={note.id}
+                          initial={{
+                            opacity: 0,
+                            y: 6,
+                          }}
+                          animate={{
+                            opacity: 1,
+                            y: 0,
+                          }}
+                          transition={{
+                            duration: 0.2,
+                            delay: entranceDelay(index),
+                          }}
                         >
-                          <NoteCard
-                            id={note.id}
-                            title={note.title}
-                            description={note.description}
-                            created_at={note.created_at}
-                            is_deleted={note.is_deleted}
-                            bg_color_hex={note.bg_color_hex}
-                            is_pinned={note.is_pinned}
-                            onPinChange={handleNotePinWithErrorHandling}
-                            onColorChange={handleNoteColorChangeWithErrorHandling}
-                            onNoteUpdate={handleNoteUpdateWithErrorHandling}
-                            onNoteDelete={handleNoteDeleteWithErrorHandling}
-                          />
-                        </MaybeSwipeable>
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.4 }}
-                    className={`text-center py-12 ${colors.textSecondary}`}
-                  >
-                    <StickyNote className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-lg font-medium mb-1">No notes yet</p>
-                    <p className="text-sm">
-                      Create notes to capture your ideas
-                    </p>
-                  </motion.div>
-                )}
-              </motion.div>
-            )}
+                          <MaybeSwipeable
+                            leading={noteSwipePin(
+                              note.id,
+                              Boolean(note.is_pinned),
+                            )}
+                            trailing={noteSwipeDelete(note.id)}
+                          >
+                            <NoteCard
+                              id={note.id}
+                              title={note.title}
+                              description={note.description}
+                              created_at={note.created_at}
+                              is_deleted={note.is_deleted}
+                              bg_color_hex={note.bg_color_hex}
+                              is_pinned={note.is_pinned}
+                              collection_id={note.collection_id}
+                              list_id={note.list_id}
+                              user_id={note.user_id}
+                              onPinChange={handleNotePinWithErrorHandling}
+                              onColorChange={
+                                handleNoteColorChangeWithErrorHandling
+                              }
+                              onNoteUpdate={handleNoteUpdateWithErrorHandling}
+                              onNoteDelete={handleNoteDeleteWithErrorHandling}
+                            />
+                          </MaybeSwipeable>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className={`
+                        flex
+                        min-h-[150px]
+                        flex-col
+                        items-center
+                        justify-center
+                        px-6
+                        py-8
+                        text-center
+                        ${colors.textMuted}
+                      `}
+                    >
+                      <div
+                        className={`
+                          mb-3
+                          flex
+                          h-9
+                          w-9
+                          items-center
+                          justify-center
+                          rounded-xl
+                          ${isDark ? "bg-white/[0.035]" : "bg-slate-100/70"}
+                        `}
+                      >
+                        <StickyNote className="h-4 w-4" />
+                      </div>
+
+                      <p
+                        className={`
+                          text-[13px]
+                          font-medium
+                          ${colors.textSecondary}
+                        `}
+                      >
+                        No notes yet
+                      </p>
+
+                      <p className="mt-1 text-[11px]">
+                        Notes added to this collection will appear here.
+                      </p>
+                    </motion.div>
+                  )}
+                </motion.div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </motion.section>
   );
 };
 

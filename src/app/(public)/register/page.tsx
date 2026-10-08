@@ -114,7 +114,7 @@ const Signup = () => {
       const { success, error, emailVerificationSent } = await signup(
         email.trim(),
         password,
-        fullName
+        fullName,
       );
 
       if (!success) {
@@ -125,7 +125,7 @@ const Signup = () => {
         // Email confirmation required
         setVerificationSent(true);
         setSuccess(
-          "Signup successful! Please check your email to confirm your account."
+          "Signup successful! Please check your email to confirm your account.",
         );
       } else {
         // User was auto-confirmed (rare case)
@@ -191,20 +191,22 @@ const Signup = () => {
       // exactly the 3rem it had; on the device it grows to clear the status bar
       // and the gesture pill while the gradient behind still runs edge to edge.
       style={{
-        paddingTop: "max(3rem, env(safe-area-inset-top, 0px))",
-        paddingBottom: "max(3rem, env(safe-area-inset-bottom, 0px))",
+        paddingTop: "max(3rem, var(--safe-top))",
+        paddingBottom: "max(3rem, var(--safe-bottom))",
       }}
     >
       {/* Background.
-          On native the app's own launch field replaces the gradient, so the
-          splash and intro hand over to this screen with no visible change of
-          surface. The gradients and blur blobs below are web-only. */}
+          On native the app's own launch field replaces it, so the splash and
+          intro hand over to this screen with no visible change of surface.
+          Web gets the product's own flat field rather than the gradient this
+          used to carry, so the site and the app do not look like two products.
+          Both blur blobs below are web-only. */}
       {isNative ? (
         <div className={`absolute inset-0 -z-10 size-full ${AUTH_FIELD}`} />
       ) : isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0b0a10_20%,#151419_40%,#0e0d12_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(88,28,135,0.14)_0%,transparent_62%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(124,58,237,0.08)_0%,transparent_52%)] before:content-[''] after:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full bg-[#0B1222]" />
       ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#faf5ff_0%,#f3e8ff_25%,#e9d5ff_50%,#f3e8ff_75%,#fefbff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(139,92,246,0.14)_0%,transparent_52%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(196,181,253,0.09)_0%,transparent_42%)] before:content-[''] after:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full bg-[#F6F8FC]" />
       )}
 
       {/* Floating elements. Two infinitely animating blurs belonging to the
@@ -213,30 +215,30 @@ const Signup = () => {
           battery spent on decoration. */}
       {!isNative && (
         <>
-      <motion.div
-        animate={{
-          y: [0, -20, 0],
-          opacity: [0.1, 0.2, 0.1],
-        }}
-        transition={{
-          duration: 6,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="absolute top-1/4 left-1/4 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl"
-      />
-      <motion.div
-        animate={{
-          y: [0, 20, 0],
-          opacity: [0.1, 0.15, 0.1],
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"
-      />
+          <motion.div
+            animate={{
+              y: [0, -20, 0],
+              opacity: [0.1, 0.2, 0.1],
+            }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute top-1/4 left-1/4 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{
+              y: [0, 20, 0],
+              opacity: [0.1, 0.15, 0.1],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"
+          />
         </>
       )}
 

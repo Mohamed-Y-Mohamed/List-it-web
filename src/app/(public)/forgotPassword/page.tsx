@@ -166,15 +166,17 @@ const ForgotPasswordPage: React.FC = () => {
   return (
     <div className="min-h-screen w-full relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       {/* Background.
-          On native the app's own launch field replaces the gradient, so the
-          splash and intro hand over to this screen with no visible change of
-          surface. The gradients and blur blobs below are web-only. */}
+          On native the app's own launch field replaces it, so the splash and
+          intro hand over to this screen with no visible change of surface.
+          Web gets the product's own flat field rather than the gradient this
+          used to carry, so the site and the app do not look like two products.
+          Both blur blobs below are web-only. */}
       {isNative ? (
         <div className={`absolute inset-0 -z-10 size-full ${AUTH_FIELD}`} />
       ) : isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#121212_0%,#1a1a1a_30%,#232323_70%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.15)_0%,transparent_50%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full bg-[#0B1222]" />
       ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#ffffff_0%,#fefefe_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.08)_0%,transparent_70%)] before:content-['']" />
+        <div className="absolute inset-0 -z-10 size-full bg-[#F6F8FC]" />
       )}
 
       {/* Floating elements. Two infinitely animating blurs belonging to the
@@ -183,30 +185,30 @@ const ForgotPasswordPage: React.FC = () => {
           battery spent on decoration. */}
       {!isNative && (
         <>
-      <motion.div
-        animate={{
-          y: [0, -20, 0],
-          opacity: [0.1, 0.2, 0.1],
-        }}
-        transition={{
-          duration: 6,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"
-      />
-      <motion.div
-        animate={{
-          y: [0, 20, 0],
-          opacity: [0.1, 0.15, 0.1],
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-        className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"
-      />
+          <motion.div
+            animate={{
+              y: [0, -20, 0],
+              opacity: [0.1, 0.2, 0.1],
+            }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{
+              y: [0, 20, 0],
+              opacity: [0.1, 0.15, 0.1],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"
+          />
         </>
       )}
 

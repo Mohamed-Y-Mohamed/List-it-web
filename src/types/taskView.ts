@@ -23,6 +23,11 @@ export interface TaskRow {
   collection_id: string | null;
   list_id: string | null;
   user_id: string;
+  /** See the matching fields on `Task` in schema.ts; same columns, raw. */
+  due_has_time?: boolean | null;
+  repeat_rule?: unknown;
+  reminders?: unknown;
+  my_day_date?: string | null;
   /** Joined from `collection`, for the chip on the task card. */
   collection_name?: string;
   /** Joined from `list` via the collection, for the chip beside it. */

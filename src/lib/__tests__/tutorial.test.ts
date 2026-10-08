@@ -75,7 +75,7 @@ describe("markTutorialSeen", () => {
       expect.objectContaining({
         method: "PATCH",
         body: JSON.stringify({ tutorial: true }),
-      })
+      }),
     );
   });
 
