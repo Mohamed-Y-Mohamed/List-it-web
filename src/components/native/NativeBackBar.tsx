@@ -10,12 +10,13 @@
 // destinations reached from the bar at the bottom, so there is nothing above them
 // to go back to.
 
-import React from "react";
+import React, { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Info } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { isTabRoot, normalisePath } from "./navTabs";
 import { useScreenTitle } from "./ScreenTitleContext";
+import TaskStatusInfo from "@/components/ui/TaskStatusInfo";
 
 // Titles for the built-in screens, so the bar reads like the iOS one rather than
 // showing a bare chevron. The tab roots are absent deliberately: they draw their
@@ -36,6 +37,7 @@ export default function NativeBackBar() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const reportedTitle = useScreenTitle();
+  const [statusInfoOpen, setStatusInfoOpen] = useState(false);
 
   // Previously only /dashboard qualified. Now Progress and Settings are peers of
   // it rather than screens pushed from it, and a chevron on either would
@@ -57,7 +59,7 @@ export default function NativeBackBar() {
             // darker and left the bar reading as a separate band across the top of
             // every pushed screen. Same value as AppSurface, so what separates the
             // bar from the page is the hairline under it and nothing else.
-            "bg-[#111827]/85 text-white shadow-[inset_0_-1px_0_rgba(255,255,255,0.08)]"
+            "bg-[var(--surface-field)]/85 text-white shadow-[inset_0_-1px_0_rgba(255,255,255,0.08)]"
           : "bg-white/85 text-gray-900 shadow-[inset_0_-1px_0_rgba(16,24,40,0.07)]"
       }`}
     >
@@ -80,7 +82,31 @@ export default function NativeBackBar() {
             {title}
           </span>
         )}
+
+        {/* What the task colours mean. It sits here rather than in the list body
+            because the legend it replaces was repeated inside every collection;
+            one button beside the screen's name is read once and then ignored,
+            which is what a legend should be. `ml-auto` pushes it right without a
+            spacer, and the title's `px-14` already keeps clear of both ends. */}
+        <button
+          type="button"
+          onClick={() => setStatusInfoOpen(true)}
+          aria-label="What the task colours mean"
+          className={`touch-target ml-auto flex items-center justify-center rounded-full transition-colors ${
+            isDark
+              ? "text-gray-400 active:bg-white/10"
+              : "text-gray-500 active:bg-black/5"
+          }`}
+        >
+          <Info size={20} strokeWidth={2} />
+        </button>
       </div>
+
+      <TaskStatusInfo
+        isOpen={statusInfoOpen}
+        onClose={() => setStatusInfoOpen(false)}
+        isDark={isDark}
+      />
     </div>
   );
 }

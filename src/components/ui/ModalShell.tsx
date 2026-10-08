@@ -28,6 +28,7 @@ import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { IS_NATIVE_BUILD } from "@/lib/platform";
+import { pushOverlay } from "@/lib/overlayStack";
 import { CARD } from "./tokens";
 
 export default function ModalShell({
@@ -62,6 +63,18 @@ export default function ModalShell({
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
+  }, [isOpen, canClose, onClose]);
+
+  // Android's back button is Escape's counterpart, and it had no idea this was
+  // open: it popped the route, closing the dialog and the screen behind it in one
+  // press. The guard is inside the registered function rather than around the
+  // registration so that back during an in-flight write is swallowed instead of
+  // falling through to navigation.
+  useEffect(() => {
+    if (!isOpen) return;
+    return pushOverlay(() => {
+      if (canClose) onClose();
+    });
   }, [isOpen, canClose, onClose]);
 
   if (!mounted || !isOpen) return null;
@@ -118,7 +131,16 @@ export default function ModalShell({
           <div
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4"
             style={{
-              paddingBottom: "calc(var(--keyboard-offset, 0px) + 0.5rem)",
+              // Without a footer the body is the last thing in the sheet, so the
+              // floor that clears the navigation bar has to live here instead —
+              // the same `max()` the footer uses, and for the same reason: Android
+              // reports `--safe-bottom` as 0 on a device with no cutout even while
+              // the three-button bar is drawn over the page. Every dialog but the
+              // status explainer passes a footer, so this branch is what the
+              // footerless ones get and nothing else changes.
+              paddingBottom: footer
+                ? "calc(var(--keyboard-offset, 0px) + 0.5rem)"
+                : "max(1rem, calc(var(--safe-bottom) + 0.75rem + var(--keyboard-offset, 0px)))",
             }}
           >
             {children}

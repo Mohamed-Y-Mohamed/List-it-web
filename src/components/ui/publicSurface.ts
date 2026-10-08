@@ -19,7 +19,22 @@
 // redirects to /landingpage only when `isPWAStandalone()` is false. Nothing here
 // is imported by a shared layout, so none of it reaches the native bundle.
 
-import { CARD, DEEP, FIELD, PRIMARY, RAISED, SELECTED } from "./tokens";
+import { PRIMARY } from "./tokens";
+
+// The marketing pages hold their own copies of the Stage 1 surfaces rather than
+// importing them from `ui/tokens`.
+//
+// Those tokens became `var(--surface-*)` when the in-app background turned into a
+// preference, and the public pages must not follow it: a signed-out visitor has no
+// preference, the variables are not set until the app paints, and a landing page
+// that changed colour depending on who last used the browser is not a landing
+// page. These are the values the app shipped with, which is the look the App Store
+// screenshots show.
+const APP_FIELD = "#0B1222";
+const APP_DEEP = "#05080F";
+const APP_RAISED = "#121829";
+const APP_CARD = "#131A2B";
+const APP_SELECTED = "#1B2440";
 
 export interface PublicSurface {
   /** The page ground. */
@@ -40,10 +55,10 @@ export interface PublicSurface {
 }
 
 export const PUBLIC_DARK: PublicSurface = {
-  field: FIELD,
-  band: DEEP,
-  card: CARD,
-  raised: RAISED,
+  field: APP_FIELD,
+  band: APP_DEEP,
+  card: APP_CARD,
+  raised: APP_RAISED,
   border: "rgba(255,255,255,0.08)",
   divider: "rgba(255,255,255,0.06)",
   text: "#F1F5F9",
@@ -85,6 +100,6 @@ export function publicVars(s: PublicSurface): React.CSSProperties {
     "--ps-body": s.body,
     "--ps-muted": s.muted,
     "--ps-primary": PRIMARY,
-    "--ps-selected": SELECTED,
+    "--ps-selected": APP_SELECTED,
   } as React.CSSProperties;
 }

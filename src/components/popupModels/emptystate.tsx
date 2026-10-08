@@ -44,7 +44,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
     <div
       className={`rounded-2xl border px-5 py-8 text-center ${
         isDark
-          ? "border-white/[0.08] bg-[#131A2B]"
+          ? "border-white/[0.08] bg-[var(--surface-card)]"
           : "border-black/[0.06] bg-white"
       }`}
     >

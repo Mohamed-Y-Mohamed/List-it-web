@@ -25,6 +25,8 @@ import { useSetScreenTitle } from "@/components/native/ScreenTitleContext";
 import { useOptionalAppData } from "@/components/native/AppDataProvider";
 
 import AppSurface from "@/components/AppSurface";
+import TaskStatusInfo from "@/components/ui/TaskStatusInfo";
+import { Info } from "lucide-react";
 
 /* =========================================================
    TYPES
@@ -179,6 +181,8 @@ export default function ListDetailView({ listId }: { listId: string }) {
      MODALS
      ======================================================= */
 
+  // Web only: native opens the same sheet from the back bar's info button.
+  const [statusInfoOpen, setStatusInfoOpen] = useState(false);
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -2176,20 +2180,37 @@ export default function ListDetailView({ listId }: { listId: string }) {
                 `}
               >
                 {!IS_NATIVE_BUILD && (
-                  <h1
-                    className={`
-                      mr-2
-                      truncate
-                      text-2xl
-                      font-bold
-                      ${isDark ? "text-gray-100" : "text-gray-800"}
-                    `}
-                    style={{
-                      color: listData.bg_color_hex ?? "#ffffff",
-                    }}
-                  >
-                    {listData.list_name}
-                  </h1>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <h1
+                      className={`
+                        truncate
+                        text-2xl
+                        font-bold
+                        ${isDark ? "text-gray-100" : "text-gray-800"}
+                      `}
+                      style={{
+                        color: listData.bg_color_hex ?? "#ffffff",
+                      }}
+                    >
+                      {listData.list_name}
+                    </h1>
+
+                    {/* The same explainer the native back bar carries. Both
+                        platforms lost the per-collection legend, so both need
+                        somewhere to put it. */}
+                    <button
+                      type="button"
+                      onClick={() => setStatusInfoOpen(true)}
+                      aria-label="What the task colours mean"
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors ${
+                        isDark
+                          ? "text-gray-400 hover:bg-white/10"
+                          : "text-gray-500 hover:bg-black/5"
+                      }`}
+                    >
+                      <Info className="h-[18px] w-[18px]" />
+                    </button>
+                  </div>
                 )}
 
                 {/* Web keeps the quiet icon button beside the title. On native
@@ -2367,6 +2388,14 @@ export default function ListDetailView({ listId }: { listId: string }) {
           </div>,
           document.body,
         )}
+
+      {!IS_NATIVE_BUILD && (
+        <TaskStatusInfo
+          isOpen={statusInfoOpen}
+          onClose={() => setStatusInfoOpen(false)}
+          isDark={isDark}
+        />
+      )}
     </main>
   );
 }

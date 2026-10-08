@@ -19,25 +19,31 @@ import TaskCard from "@/components/Tasks/index";
 import NoteCard from "@/components/Notes/noteCard";
 import { Collection, Note, OperationResult, Task } from "@/types/schema";
 import { useTheme } from "@/context/ThemeContext";
-import { STATUS_META } from "@/components/ui/tokens";
 import { IS_NATIVE_BUILD } from "@/lib/platform";
 import SwipeableRow, {
   type SwipeAction,
 } from "@/components/native/SwipeableRow";
 
 /**
- * The four task states, in the order the legend reads them.
+ * Native only: an expanded collection shows about three cards and scrolls for the
+ * rest, instead of growing to fit everything it holds.
  *
- * `normal` carries no label on a card, so its name is written here rather than
- * taken from `STATUS_META`; the colours come from the shared map so the legend
- * cannot describe one thing and the cards draw another.
+ * A collection with a dozen tasks used to push the next one entirely off screen,
+ * so opening two meant scrolling the page between them and never seeing both at
+ * once. Capping the panel keeps several collections reachable in one viewport and
+ * turns a long page scroll into a short one inside the card.
+ *
+ * The height is three cards' worth, measured on device: a task card with a date
+ * row is ~70px and `space-y-2.5` puts 10px between them, so 3*70 + 2*10. It is a
+ * ceiling, not a height — a collection holding one task is still one task tall.
+ *
+ * No `overscroll-contain` on purpose. Containment would stop the flick at the end
+ * of the inner list and make the user lift and swipe again to carry on down the
+ * page; letting it chain is both the platform default and the smoother of the two.
  */
-const LEGEND = [
-  { label: "Normal", colour: STATUS_META.normal.colour },
-  { label: STATUS_META.pinned.label, colour: STATUS_META.pinned.colour },
-  { label: STATUS_META.overdue.label, colour: STATUS_META.overdue.colour },
-  { label: STATUS_META.flagged.label, colour: STATUS_META.flagged.colour },
-] as const;
+const NATIVE_PANEL_SCROLL = IS_NATIVE_BUILD
+  ? "max-h-[232px] overflow-y-auto"
+  : "";
 
 const STAGGER_STEP = 0.055;
 const MAX_STAGGERED_ITEMS = 6;
@@ -988,70 +994,11 @@ const EnhancedCollectionComponent = ({
                     TASK STATUS LEGEND
                    ========================================= */}
 
-                <AnimatePresence initial={false}>
-                  {activeTab === "tasks" && (
-                    <motion.div
-                      initial={{
-                        opacity: 0,
-                        y: -3,
-                      }}
-                      animate={{
-                        opacity: 1,
-                        y: 0,
-                      }}
-                      exit={{
-                        opacity: 0,
-                        y: -3,
-                      }}
-                      transition={{
-                        duration: 0.15,
-                      }}
-                      aria-label="Task status legend"
-                      className="
-                        flex
-                        flex-wrap
-                        items-center
-                        gap-x-4
-                        gap-y-1.5
-                        py-3
-                      "
-                    >
-                      {/* The legend names the four states, so it has to read
-                          its colours from the same place the cards do. This was
-                          a third hand-written copy of the palette. */}
-                      {LEGEND.map((entry) => (
-                        <span
-                          key={entry.label}
-                          className={`
-                            inline-flex
-                            items-center
-                            gap-1.5
-                            whitespace-nowrap
-                            text-[10px]
-                            font-medium
-                            ${colors.textMuted}
-                          `}
-                        >
-                          <span
-                            className="
-                              h-[7px]
-                              w-[7px]
-                              shrink-0
-                              rounded-full
-                            "
-                            style={{
-                              backgroundColor: entry.colour,
-                              boxShadow: `0 0 0 2px ${entry.colour}12`,
-                            }}
-                            aria-hidden="true"
-                          />
-
-                          {entry.label}
-                        </span>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* The status legend used to sit here, under the tab switch. It
+                    is now the info button beside the screen's name: with two
+                    collections open it was drawn twice, and it is a thing you
+                    read once rather than permanent chrome on every list. See
+                    components/ui/TaskStatusInfo. */}
               </div>
             </motion.div>
           )}
@@ -1111,7 +1058,7 @@ const EnhancedCollectionComponent = ({
                   transition={{ duration: 0.18 }}
                 >
                   {priorityTasks.length > 0 || regularTasks.length > 0 ? (
-                    <div className="space-y-2.5">
+                    <div className={`space-y-2.5 ${NATIVE_PANEL_SCROLL}`}>
                       {priorityTasks.map((task, index) => (
                         <motion.div
                           key={task.id}
@@ -1256,14 +1203,15 @@ const EnhancedCollectionComponent = ({
                 >
                   {sortedNotes.length > 0 ? (
                     <div
-                      className="
+                      className={`
                         grid
                         grid-cols-1
                         gap-3
                         sm:grid-cols-2
                         lg:grid-cols-3
                         xl:grid-cols-4
-                      "
+                        ${NATIVE_PANEL_SCROLL}
+                      `}
                     >
                       {sortedNotes.map((note, index) => (
                         <motion.div

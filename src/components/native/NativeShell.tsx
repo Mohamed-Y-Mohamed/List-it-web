@@ -17,6 +17,7 @@ import { LocalNotifications } from "@capacitor/local-notifications";
 import { useTheme } from "@/context/ThemeContext";
 import { useIsNative } from "@/hooks/useIsNative";
 import { appPath, listHref } from "@/lib/routes";
+import { dismissTopOverlay } from "@/lib/overlayStack";
 import { HOME_TAB_PATH, isTabRoot } from "./navTabs";
 
 export default function NativeShell() {
@@ -87,6 +88,11 @@ export default function NativeShell() {
 
     const listener = CapacitorApp.addListener("backButton", ({ canGoBack }) => {
       const path = pathnameRef.current;
+
+      // An open dialog or sheet is what back means first. Before this, back went
+      // straight to the router, so dismissing a task's detail sheet also popped
+      // the list behind it — one press, two screens gone.
+      if (dismissTopOverlay()) return;
 
       if (isTabRoot(path)) {
         if (path.replace(/\/+$/, "") === HOME_TAB_PATH) {

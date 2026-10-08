@@ -34,16 +34,13 @@
 // Positioned absolutely at -z-10, so it needs a `relative` parent.
 
 import React from "react";
-import { useTheme } from "@/context/ThemeContext";
 
 export default function AppSurface() {
-  const { theme } = useTheme();
-
+  // No longer branches on the theme. `--surface-field` already carries the field
+  // for the current theme *and* the background chosen in Settings, and the inline
+  // script in layout.tsx sets it before the first paint — so reading the variable
+  // is both simpler and earlier than reading the context was.
   return (
-    <div
-      className={`absolute inset-0 -z-10 size-full ${
-        theme === "dark" ? "bg-[#111827]" : "bg-white"
-      }`}
-    />
+    <div className="absolute inset-0 -z-10 size-full bg-[var(--surface-field)]" />
   );
 }

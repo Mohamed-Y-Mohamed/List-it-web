@@ -70,10 +70,30 @@
 
      The values match @color/splashBackground and its values-night counterpart, so
      the native splash and the web splash that replaces it are the same field and
-     the hand-off is invisible. */
+     the hand-off is invisible.
+
+     These follow the *default* background, not the chosen one. The native launch
+     theme is compiled into the APK and cannot read a preference, so only the
+     default can hand over seamlessly; someone who picks Navy or Charcoal sees the
+     default for the moment before the app paints. That is the cost of a runtime
+     colour and there is no way around it from inside the WebView. */
   --splash-bg: #ffffff;
   --splash-fg: #111827;
   --splash-muted: #6b7280;
+
+  /* The surface ramp. These are the `mono` values from lib/surfaceTheme, written
+     here as well so the first paint has a field before ThemeContext has run — the
+     inline script in layout.tsx overwrites them with the stored choice, and the
+     provider keeps them in step after that.
+
+     Everything that paints an app surface reads these rather than a hex, which is
+     what lets the background be chosen at all. */
+  --surface-field: #ffffff;
+  --surface-deep: #f4f4f5;
+  --surface-raised: #f4f4f5;
+  --surface-card: #ffffff;
+  --surface-selected: #eeeef0;
+  --surface-border: rgba(15, 23, 42, 0.12);
 
   /* Motion curves. The browser's built-in easings are too weak to read as
      deliberate, so these are the stronger equivalents used throughout. */
@@ -87,9 +107,19 @@
    reads the same thing and the two fields are identical. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --splash-bg: #111827;
+    --splash-bg: #000000;
     --splash-fg: #ffffff;
     --splash-muted: #9ca3af;
+
+    /* `mono` dark. Same reasoning as above: a field has to exist before any
+       JavaScript runs, and the system preference is the only thing available
+       that early. */
+    --surface-field: #000000;
+    --surface-deep: #000000;
+    --surface-raised: #1c1c1e;
+    --surface-card: #121212;
+    --surface-selected: #26262a;
+    --surface-border: rgba(255, 255, 255, 0.1);
   }
 }
 
@@ -177,12 +207,14 @@ html.capacitor-native {
   /* Android 15 and above force every app edge-to-edge and ignore the status bar
      colour an app asks for, so the WebView really does start behind the status
      bar and the gesture pill. This colour fills the inset bands left by the body
-     padding below, giving the same opaque bar iOS draws. */
-  background-color: #ffffff;
-}
+     padding below, giving the same opaque bar iOS draws.
 
-html.capacitor-native.dark {
-  background-color: #111827;
+     It reads the surface variable rather than a hex of its own, so the band behind
+     the status bar is the same ground as the page. It was a fixed light/dark pair,
+     which left a navy strip across the top of a black app the moment the ground
+     became a preference. One declaration now covers both themes and all three
+     backgrounds, because the variable already carries them. */
+  background-color: var(--surface-field);
 }
 
 /* An opaque band behind the status bar, pinned to the viewport.

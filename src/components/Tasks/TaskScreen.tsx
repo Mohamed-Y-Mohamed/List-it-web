@@ -145,7 +145,7 @@ export default function TaskScreen({
               disabled={isRefreshing}
               className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-colors ${
                 isDark
-                  ? "border-white/[0.08] bg-[#131A2B] text-gray-300 active:bg-white/10"
+                  ? "border-white/[0.08] bg-[var(--surface-card)] text-gray-300 active:bg-white/10"
                   : "border-black/[0.06] bg-white text-gray-700 active:bg-black/5"
               }`}
               aria-label="Refresh tasks"

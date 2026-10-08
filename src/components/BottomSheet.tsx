@@ -11,6 +11,7 @@ import {
   useTransform,
   type PanInfo,
 } from "framer-motion";
+import { pushOverlay } from "@/lib/overlayStack";
 
 /**
  * MOBILE
@@ -170,6 +171,15 @@ export default function BottomSheet({
       window.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
     };
+  }, [isOpen, canClose, onClose]);
+
+  // Android back is Escape's counterpart here too. Without it, back on an open
+  // task sheet closed the sheet and popped the list out from behind it.
+  useEffect(() => {
+    if (!isOpen) return;
+    return pushOverlay(() => {
+      if (canClose) onClose();
+    });
   }, [isOpen, canClose, onClose]);
 
   // ------------------------------------------------------------
@@ -379,7 +389,7 @@ export default function BottomSheet({
                 absolute
                 inset-0
 
-                ${!surfaceColor ? (isDark ? "bg-[#111827]" : "bg-white") : ""}
+                ${!surfaceColor ? (isDark ? "bg-[var(--surface-field)]" : "bg-white") : ""}
               `}
                 style={
                   surfaceColor
@@ -492,7 +502,7 @@ export default function BottomSheet({
                 absolute
                 inset-0
 
-                ${!surfaceColor ? (isDark ? "bg-[#111827]" : "bg-white") : ""}
+                ${!surfaceColor ? (isDark ? "bg-[var(--surface-field)]" : "bg-white") : ""}
               `}
                 style={{
                   opacity: surfaceOpacity,

@@ -36,7 +36,7 @@ export function SkeletonTaskCard({ isDark }: { isDark: boolean }) {
     <div
       className={`rounded-xl border p-2.5 pl-3.5 ${
         isDark
-          ? "border-white/[0.08] bg-[#131A2B]/80"
+          ? "border-white/[0.08] bg-[var(--surface-card)]/80"
           : "border-black/[0.06] bg-white/85"
       }`}
       style={{
@@ -83,7 +83,7 @@ export function SkeletonStatTile({ isDark }: { isDark: boolean }) {
     <div
       className={`rounded-2xl border p-4 ${
         isDark
-          ? "border-white/[0.08] bg-[#131A2B]"
+          ? "border-white/[0.08] bg-[var(--surface-card)]"
           : "border-black/[0.06] bg-white"
       }`}
       aria-hidden="true"
@@ -100,7 +100,7 @@ export function SkeletonNoteCard({ isDark }: { isDark: boolean }) {
     <div
       className={`rounded-xl border p-2.5 pl-3.5 ${
         isDark
-          ? "border-white/[0.08] bg-[#131A2B]/80"
+          ? "border-white/[0.08] bg-[var(--surface-card)]/80"
           : "border-black/[0.06] bg-white/85"
       }`}
       style={{
@@ -130,7 +130,7 @@ export function SkeletonListCard({
     <div
       className={`rounded-2xl border ${
         variant === "grid" ? "min-h-[84px] p-3.5" : "min-h-[64px] px-4 py-3"
-      } ${isDark ? "border-white/[0.08] bg-[#131A2B]" : "border-black/[0.06] bg-white"}`}
+      } ${isDark ? "border-white/[0.08] bg-[var(--surface-card)]" : "border-black/[0.06] bg-white"}`}
       aria-hidden="true"
     >
       <Bar className="h-3.5 w-3/5" isDark={isDark} />
