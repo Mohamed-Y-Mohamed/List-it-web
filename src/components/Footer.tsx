@@ -35,7 +35,7 @@ const Footer = () => {
           <div className="text-center">
             <div
               className={`text-3xl font-bold ${
-                isDark ? "text-orange-400" : "text-sky-500"
+                isDark ? "text-indigo-400" : "text-indigo-500"
               }`}
             >
               LIST IT
@@ -55,9 +55,9 @@ const Footer = () => {
                 href="https://apps.apple.com/gb/app/list-it-simple-to-do-list/id6746731233"
                 className={`flex items-center justify-center px-4 py-2 rounded-lg transition-all ${
                   isDark
-                    ? "bg-blue-800 hover:bg-blue-700"
-                    : "bg-blue-600 hover:bg-blue-700"
-                } text-white`}
+                    ? "border border-white/15 text-gray-200 hover:bg-white/5"
+                    : "border border-black/10 text-gray-800 hover:bg-black/[0.03]"
+                }`}
               >
                 <FaApple className="mr-2 text-white" size={18} />
                 <span className="font-medium">App Store</span>
@@ -93,8 +93,8 @@ const Footer = () => {
           onClick={scrollToTop}
           className={`fixed bottom-6 right-6 z-50 md:w-10 md:h-10  flex h-12 w-12 items-center justify-center rounded-full ${
             isDark
-              ? "bg-orange-600 hover:bg-orange-700"
-              : "bg-sky-500 hover:bg-sky-600"
+              ? "bg-indigo-600 hover:bg-indigo-700"
+              : "bg-indigo-500 hover:bg-indigo-600"
           } text-white shadow-lg transition-colors`}
           aria-label="Scroll to top"
         >

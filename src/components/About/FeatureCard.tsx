@@ -36,8 +36,8 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
       <motion.div
         className={`w-16 h-16 mx-auto mb-4 rounded-xl flex items-center justify-center ${
           isDark
-            ? "bg-orange-900/30 text-orange-400"
-            : "bg-orange-100 text-orange-600"
+            ? "bg-indigo-900/30 text-indigo-400"
+            : "bg-indigo-100 text-indigo-600"
         }`}
         whileHover={{ scale: 1.1, rotate: 5 }}
         transition={{ duration: 0.2 }}

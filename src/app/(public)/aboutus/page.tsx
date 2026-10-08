@@ -1,10 +1,12 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Briefcase, Code, Heart, Target, Users, Lightbulb } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "@/context/ThemeContext";
+import { publicSurface, publicVars } from "@/components/ui/publicSurface";
 import TeamMemberCard from "@/components/About/TeamMemberCard";
 import FeatureCard from "@/components/About/FeatureCard";
 
@@ -31,15 +33,14 @@ const AboutUs = () => {
   ];
 
   return (
-    <div className="min-h-screen w-full transition-colors duration-300">
+    <div
+      className="min-h-screen w-full bg-[var(--ps-field)] text-[var(--ps-text)] transition-colors duration-300"
+      style={publicVars(publicSurface(isDark))}
+    >
       {/* Hero Section */}
       <section className="relative pt-20 sm:pt-28 pb-16 sm:pb-20">
         {/*  background */}
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a0f12_0%,#2d1b20_50%,#1a0f12_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f8f6f7_0%,#ffffff_50%,#f8f6f7_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
-        )}
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-field)]" />
 
         <div className="mx-auto max-w-7xl px-4 py-8 sm:py-16 sm:px-6 lg:px-8">
           <motion.div
@@ -54,8 +55,8 @@ const AboutUs = () => {
               transition={{ duration: 0.6, delay: 0.2 }}
               className={`mb-4 sm:mb-6 inline-block rounded-full backdrop-blur-sm ${
                 isDark
-                  ? "bg-orange-900/30 text-orange-400 border border-orange-500/30"
-                  : "bg-orange-100 text-orange-600 border border-orange-200"
+                  ? "bg-indigo-900/30 text-indigo-400 border border-indigo-500/30"
+                  : "bg-indigo-100 text-indigo-600 border border-indigo-200"
               } px-4 sm:px-6 py-2 text-sm sm:text-base font-medium`}
             >
               About Our Team
@@ -71,11 +72,11 @@ const AboutUs = () => {
             >
               About{" "}
               <span
-                className={`${isDark ? "text-orange-400" : "text-orange-500"} relative`}
+                className={`${isDark ? "text-indigo-400" : "text-indigo-500"} relative`}
               >
                 LIST
                 <motion.div
-                  className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full"
+                  className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: "100%" }}
                   transition={{ duration: 1, delay: 1.2 }}
@@ -102,7 +103,7 @@ const AboutUs = () => {
               initial={{ opacity: 0, scale: 0 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.8 }}
-              className="mx-auto h-1 w-16 sm:w-24 rounded-full bg-gradient-to-r from-orange-500 to-orange-600"
+              className="mx-auto h-1 w-16 sm:w-24 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-600"
             />
           </motion.div>
         </div>
@@ -111,11 +112,7 @@ const AboutUs = () => {
       {/* Mission Section */}
       <section className="py-12 sm:py-16 lg:py-20 relative">
         {/*  background */}
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a1a1a_0%,#232323_50%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f0f9ff_0%,#ffffff_50%,#f8fafc_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
-        )}
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-band)]" />
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
@@ -126,7 +123,7 @@ const AboutUs = () => {
               className="lg:w-2/3"
             >
               <div
-                className={`rounded-xl border-l-4 border-orange-500 backdrop-blur-sm ${
+                className={`rounded-xl border-l-4 border-indigo-500 backdrop-blur-sm ${
                   isDark ? "bg-gray-800/50" : "bg-white/50"
                 } p-6 sm:p-8 shadow-xl border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
               >
@@ -140,11 +137,11 @@ const AboutUs = () => {
                 >
                   Our{" "}
                   <span
-                    className={`${isDark ? "text-orange-400" : "text-orange-500"} relative`}
+                    className={`${isDark ? "text-indigo-400" : "text-indigo-500"} relative`}
                   >
                     Mission
                     <motion.div
-                      className="absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full"
+                      className="absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
                       initial={{ width: 0 }}
                       whileInView={{ width: "100%" }}
                       transition={{ duration: 0.8, delay: 0.3 }}
@@ -205,7 +202,7 @@ const AboutUs = () => {
                 transition={{ duration: 0.3 }}
                 className="relative"
               >
-                <div className="rounded-full bg-gradient-to-br from-orange-500 to-blue-500 p-3 shadow-2xl w-48 h-48 sm:w-64 sm:h-64 flex items-center justify-center backdrop-blur-sm">
+                <div className="rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 p-3 shadow-2xl w-48 h-48 sm:w-64 sm:h-64 flex items-center justify-center backdrop-blur-sm">
                   <Image
                     src="/apple-touch-icon.png"
                     alt="LIST IT Logo"
@@ -218,7 +215,7 @@ const AboutUs = () => {
 
                 {/* Animated rings */}
                 <motion.div
-                  className="absolute inset-0 rounded-full border-2 border-orange-500/30"
+                  className="absolute inset-0 rounded-full border-2 border-indigo-500/30"
                   animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.1, 0.3] }}
                   transition={{ duration: 3, repeat: Infinity }}
                 />
@@ -236,11 +233,7 @@ const AboutUs = () => {
       {/* Features Section */}
       <section className="py-12 sm:py-16 lg:py-20 relative">
         {/*  background */}
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#000000_0%,#0f0a0c_20%,#1a1416_40%,#140f11_70%,#000000_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(236,72,153,0.1)_0%,transparent_63%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(251,113,133,0.06)_0%,transparent_53%)] before:content-[''] after:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(45deg,#fcfafc_0%,#f6f3f6_25%,#ece5ec_50%,#f5f2f5_75%,#ffffff_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_left,rgba(236,72,153,0.07)_0%,transparent_63%)] after:absolute after:inset-0 after:[background:radial-gradient(ellipse_at_top_right,rgba(251,113,133,0.05)_0%,transparent_53%)] before:content-[''] after:content-['']" />
-        )}
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-field)]" />
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -256,11 +249,11 @@ const AboutUs = () => {
             >
               Why Choose{" "}
               <span
-                className={`${isDark ? "text-orange-400" : "text-orange-500"} relative`}
+                className={`${isDark ? "text-indigo-400" : "text-indigo-500"} relative`}
               >
                 LIST IT
                 <motion.div
-                  className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full"
+                  className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
                   initial={{ width: 0 }}
                   whileInView={{ width: "100%" }}
                   transition={{ duration: 0.8, delay: 0.3 }}
@@ -287,11 +280,7 @@ const AboutUs = () => {
       {/* Team Section */}
       <section className="py-12 sm:py-16 lg:py-20 relative">
         {/*  background */}
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a1a1a_0%,#232323_50%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_center,rgba(251,146,60,0.1)_0%,transparent_50%)] before:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#fff7ed_0%,#ffffff_50%,#f9fafb_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_bottom_center,rgba(251,146,60,0.05)_0%,transparent_70%)] before:content-['']" />
-        )}
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-band)]" />
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -307,11 +296,11 @@ const AboutUs = () => {
             >
               Meet Our{" "}
               <span
-                className={`${isDark ? "text-orange-400" : "text-orange-500"} relative`}
+                className={`${isDark ? "text-indigo-400" : "text-indigo-500"} relative`}
               >
                 Team
                 <motion.div
-                  className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full"
+                  className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
                   initial={{ width: 0 }}
                   whileInView={{ width: "100%" }}
                   transition={{ duration: 0.8, delay: 0.3 }}
@@ -333,8 +322,8 @@ const AboutUs = () => {
               role="Full-stack Developer"
               description="Passionate about creating intuitive user experiences across all platforms. Contributed to both web and all mobile versions of LIST IT with a focus on responsive design and seamless functionality."
               icon={Code}
-              gradientFrom="from-orange-400"
-              gradientTo="to-orange-600"
+              gradientFrom="from-indigo-400"
+              gradientTo="to-indigo-600"
               isDark={isDark}
               delay={0}
               portfolioUrl="https://domainexpansion.co.uk"
@@ -357,11 +346,7 @@ const AboutUs = () => {
       {/* Vision Section */}
       <section className="py-12 sm:py-16 lg:py-20 relative">
         {/*  background */}
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a0f12_0%,#2d1b20_50%,#1a0f12_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f8f6f7_0%,#ffffff_50%,#f8f6f7_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
-        )}
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-field)]" />
 
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -377,8 +362,8 @@ const AboutUs = () => {
             <motion.div
               className={`w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-6 rounded-xl flex items-center justify-center ${
                 isDark
-                  ? "bg-orange-900/30 text-orange-400"
-                  : "bg-orange-100 text-orange-600"
+                  ? "bg-indigo-900/30 text-indigo-400"
+                  : "bg-indigo-100 text-indigo-600"
               }`}
               whileHover={{ scale: 1.1, rotate: 5 }}
               transition={{ duration: 0.2 }}
@@ -406,6 +391,40 @@ const AboutUs = () => {
               needs of our growing community.
             </p>
           </motion.div>
+        </div>
+      </section>
+
+      {/* Somewhere to go next.
+
+          This page had no link and no button anywhere on it: a visitor who read
+          to the bottom and wanted the app had to find their own way back. Both
+          of these go to routes that exist. */}
+      <section className="relative py-12 sm:py-16 lg:py-20">
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-band)]" />
+
+        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+          <h2 className="mb-4 text-2xl font-bold tracking-tight text-[var(--ps-text)] sm:text-3xl">
+            That is us. The app is free.
+          </h2>
+          <p className="mx-auto mb-8 max-w-xl text-[15px] leading-relaxed text-[var(--ps-body)]">
+            No trial, no card, no per-seat pricing. Make an account and your
+            lists sync between the web and your phone.
+          </p>
+
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              href="/register"
+              className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-[var(--ps-primary)] px-8 text-[15px] font-medium text-white transition-opacity hover:opacity-90"
+            >
+              Create an account
+            </Link>
+            <Link
+              href="/landingpage"
+              className="inline-flex min-h-[48px] items-center justify-center rounded-xl border border-[var(--ps-border)] px-8 text-[15px] font-medium text-[var(--ps-text)] transition-colors hover:bg-[var(--ps-raised)]"
+            >
+              See what it does
+            </Link>
+          </div>
         </div>
       </section>
     </div>

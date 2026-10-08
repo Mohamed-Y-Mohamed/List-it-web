@@ -40,7 +40,7 @@ const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
       }`}
     >
       {/* Glow effect */}
-      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 bg-gradient-to-br from-orange-500/20 to-transparent" />
+      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 bg-gradient-to-br from-indigo-500/20 to-transparent" />
 
       {/* Icon */}
       <motion.div
@@ -64,8 +64,8 @@ const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
         <div
           className={`inline-block px-3 py-1 rounded-full text-sm font-medium mb-4 ${
             isDark
-              ? "bg-orange-900/30 text-orange-300 border border-orange-500/30"
-              : "bg-orange-100 text-orange-600 border border-orange-200"
+              ? "bg-indigo-900/30 text-indigo-300 border border-indigo-500/30"
+              : "bg-indigo-100 text-indigo-600 border border-indigo-200"
           }`}
         >
           {role}
@@ -87,8 +87,8 @@ const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
           whileTap={{ scale: 0.95 }}
           className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium transition-all duration-300 border relative overflow-hidden group/btn ${
             isDark
-              ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white border-orange-400/30 hover:shadow-lg hover:shadow-orange-500/30"
-              : "bg-gradient-to-r from-orange-500 to-orange-600 text-white border-orange-400/50 hover:shadow-lg hover:shadow-orange-500/20"
+              ? "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white border-indigo-400/30 hover:shadow-lg hover:shadow-indigo-500/30"
+              : "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white border-indigo-400/50 hover:shadow-lg hover:shadow-indigo-500/20"
           }`}
         >
           <span className="relative z-10">Go to Portfolio</span>
@@ -111,7 +111,7 @@ const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
       {/* Hover indicator */}
       <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
         <svg
-          className={`w-5 h-5 ${isDark ? "text-orange-400" : "text-orange-500"}`}
+          className={`w-5 h-5 ${isDark ? "text-indigo-400" : "text-indigo-500"}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

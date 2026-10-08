@@ -21,6 +21,8 @@ import {
   Rocket,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { publicSurface, publicVars } from "@/components/ui/publicSurface";
+import { PRIMARY, STATUS_META } from "@/components/ui/tokens";
 
 // Type definitions
 interface Task {
@@ -264,8 +266,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   transition={{ duration: 0.2 }}
                   className={`inline-flex items-center text-xs px-2 py-1 rounded-full font-medium mt-1 ${
                     isDark
-                      ? "bg-orange-900/30 text-orange-300 border border-orange-500/30"
-                      : "bg-orange-100 text-orange-600 border border-orange-200"
+                      ? "bg-indigo-900/30 text-indigo-300 border border-indigo-500/30"
+                      : "bg-indigo-100 text-indigo-600 border border-indigo-200"
                   }`}
                 >
                   <Star className="h-3 w-3 mr-1 fill-current" />
@@ -283,11 +285,11 @@ const TaskCard: React.FC<TaskCardProps> = ({
           className={`flex-shrink-0 transition-all duration-200 p-2 rounded-lg ${
             isDark
               ? isPinned
-                ? "text-orange-400 bg-orange-900/30"
-                : "text-gray-500 hover:text-orange-400 hover:bg-gray-700/50"
+                ? "text-indigo-400 bg-indigo-900/30"
+                : "text-gray-500 hover:text-indigo-400 hover:bg-gray-700/50"
               : isPinned
-                ? "text-orange-500 bg-orange-100"
-                : "text-gray-400 hover:text-orange-500 hover:bg-orange-50"
+                ? "text-indigo-500 bg-indigo-100"
+                : "text-gray-400 hover:text-indigo-500 hover:bg-indigo-50"
           }`}
           aria-label={isPinned ? "Unpin task" : "Pin task"}
         >
@@ -418,7 +420,7 @@ const NoteCard: React.FC<NoteCardProps> = ({
       >
         <Pin
           className={`h-4 w-4 transition-all duration-200 ${
-            isPinned ? "fill-current text-orange-400" : textColor
+            isPinned ? "fill-current text-indigo-400" : textColor
           }`}
         />
       </motion.button>
@@ -432,8 +434,8 @@ const NoteCard: React.FC<NoteCardProps> = ({
             transition={{ duration: 0.2 }}
             className={`absolute top-3 left-3 px-2 py-1 rounded-full text-xs font-medium flex items-center backdrop-blur-sm ${
               isDark
-                ? "bg-orange-900/40 text-orange-300 border border-orange-500/30"
-                : "bg-orange-100/60 text-orange-700 border border-orange-300/50"
+                ? "bg-indigo-900/40 text-indigo-300 border border-indigo-500/30"
+                : "bg-indigo-100/60 text-indigo-700 border border-indigo-300/50"
             }`}
           >
             <Star className="h-3 w-3 mr-1 fill-current" />
@@ -559,8 +561,8 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
                     animate={{ scale: 1 }}
                     className={`px-2 py-1 rounded-full text-xs font-medium ${
                       isDark
-                        ? "bg-orange-900/30 text-orange-300"
-                        : "bg-orange-100 text-orange-600"
+                        ? "bg-indigo-900/30 text-indigo-300"
+                        : "bg-indigo-100 text-indigo-600"
                     }`}
                   >
                     {taskCount} task{taskCount !== 1 ? "s" : ""}
@@ -859,11 +861,7 @@ const Hero: React.FC = () => {
 
   return (
     <section className="relative min-h-screen flex items-center">
-      {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a0f12_0%,#2d1b20_50%,#1a0f12_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
-      ) : (
-        <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f8f6f7_0%,#ffffff_50%,#f8f6f7_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
-      )}
+      <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-field)]" />
 
       <div className="mx-auto max-w-7xl px-4 mb-24 py-16 sm:px-6 lg:px-8 pt-28">
         <div className="flex flex-col items-center justify-between lg:flex-row">
@@ -883,11 +881,11 @@ const Hero: React.FC = () => {
             >
               Organize Your Tasks & Notes with{" "}
               <span
-                className={`${isDark ? "text-orange-400" : "text-orange-500"} relative`}
+                className={`${isDark ? "text-indigo-400" : "text-indigo-500"} relative`}
               >
                 LIST IT
                 <motion.div
-                  className="absolute -bottom-2 left-0 h-1 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full"
+                  className="absolute -bottom-2 left-0 h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: "100%" }}
                   transition={{ duration: 1, delay: 1 }}
@@ -903,9 +901,10 @@ const Hero: React.FC = () => {
                 isDark ? "text-gray-300" : "text-gray-600"
               }`}
             >
-              A simple yet powerful task management tool to help you organize
-              collections, track tasks, and keep important notes all in one
-              place.
+              Lists hold collections, collections hold your tasks and notes. Set
+              a due date and up to five reminders, pin what matters, and let the
+              colour down the side of each card tell you what needs doing first.
+              Free, on the web and on your phone.
             </motion.p>
 
             <motion.div
@@ -922,8 +921,8 @@ const Hero: React.FC = () => {
                   href="/register"
                   className={`inline-flex items-center justify-center rounded-xl ${
                     isDark
-                      ? "bg-orange-600 hover:bg-orange-700 text-white"
-                      : "bg-orange-500 hover:bg-orange-600 text-white"
+                      ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                      : "bg-indigo-500 hover:bg-indigo-600 text-white"
                   } px-8 py-4 text-base font-medium transition-all duration-200 shadow-lg hover:shadow-xl backdrop-blur-sm`}
                 >
                   Get Started Free
@@ -989,9 +988,7 @@ const Hero: React.FC = () => {
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 1.2 }}
-        className={`absolute bottom-0  w-full ${
-          isDark ? "bg-orange-500/90" : "bg-orange-500/90"
-        } py-6 sm:py-8 text-center text-white backdrop-blur-sm`}
+        className={`absolute bottom-0  w-full bg-[var(--ps-primary)] py-6 sm:py-8 text-center text-white backdrop-blur-sm`}
       >
         <div className="mx-auto max-w-3xl px-4">
           <h2 className="mb-2 sm:mb-4 text-xl sm:text-2xl md:text-3xl font-bold">
@@ -1083,29 +1080,29 @@ const HowItWorksCard: React.FC<HowItWorksCardProps> = ({
       whileHover={{ y: -5 }}
       className={`rounded-xl p-4 sm:p-6 border-2 transition-all duration-300 backdrop-blur-sm group relative overflow-hidden ${
         isDark
-          ? "bg-gray-800/50 border-gray-700/50 hover:border-orange-500/50"
-          : "bg-white/50 border-gray-300/50 hover:border-orange-500/50"
+          ? "bg-gray-800/50 border-gray-700/50 hover:border-indigo-500/50"
+          : "bg-white/50 border-gray-300/50 hover:border-indigo-500/50"
       }`}
     >
       {/* Step number */}
       <div
         className={`absolute top-3 sm:top-4 right-3 sm:right-4 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold ${
           isDark
-            ? "bg-orange-900/50 text-orange-300"
-            : "bg-orange-100 text-orange-600"
+            ? "bg-indigo-900/50 text-indigo-300"
+            : "bg-indigo-100 text-indigo-600"
         }`}
       >
         {step}
       </div>
 
       {/* Subtle glow effect */}
-      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 bg-gradient-to-br from-orange-500/20 to-transparent" />
+      <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 bg-gradient-to-br from-indigo-500/20 to-transparent" />
 
       <motion.div
         className={`inline-flex rounded-xl p-2 sm:p-3 mb-3 sm:mb-4 relative z-10 ${
           isDark
-            ? "bg-orange-900/30 text-orange-400"
-            : "bg-orange-100 text-orange-600"
+            ? "bg-indigo-900/30 text-indigo-400"
+            : "bg-indigo-100 text-indigo-600"
         }`}
         whileHover={{ scale: 1.1, rotate: 5 }}
         transition={{ duration: 0.2 }}
@@ -1162,8 +1159,8 @@ const BenefitCard: React.FC<BenefitCardProps> = ({
       <motion.div
         className={`flex-shrink-0 p-2 sm:p-3 mr-3 sm:mr-4 rounded-xl ${
           isDark
-            ? "bg-orange-900/40 text-orange-400"
-            : "bg-orange-100 text-orange-600"
+            ? "bg-indigo-900/40 text-indigo-400"
+            : "bg-indigo-100 text-indigo-600"
         }`}
         whileHover={{ scale: 1.1, rotate: 5 }}
         transition={{ duration: 0.2 }}
@@ -1215,11 +1212,11 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
       >
         {title}{" "}
         <span
-          className={`${isDark ? "text-orange-400" : "text-orange-500"} relative`}
+          className={`${isDark ? "text-indigo-400" : "text-indigo-500"} relative`}
         >
           {highlight}
           <motion.div
-            className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full"
+            className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
             initial={{ width: 0 }}
             whileInView={{ width: "100%" }}
             transition={{ duration: 0.8, delay: 0.3 }}
@@ -1235,6 +1232,72 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
   );
 };
 
+/**
+ * The three levels the app is built from.
+ *
+ * Written out here because the marketing copy described the product entirely in
+ * adjectives — "powerful", "intelligent", "seamless" — and never once said what
+ * a list or a collection actually is. Every line below is something the app
+ * really does today; nothing here is aspirational.
+ */
+const STRUCTURE = [
+  {
+    name: "Lists",
+    what: "The top level. One per area of your life, each with its own colour so you can tell them apart at a glance.",
+    holds: [
+      "Pin the ones you open daily to the top",
+      "Rename, recolour or delete at any time",
+      "A running count of what is inside",
+    ],
+  },
+  {
+    name: "Collections",
+    what: "Groups inside a list. They start closed, so a long list opens quiet and you expand only what you need.",
+    holds: [
+      "Tasks and notes side by side, on their own tabs",
+      "Its own colour, carried through to the cards",
+      "Collapse the lot in one go from the list menu",
+    ],
+  },
+  {
+    name: "Tasks & notes",
+    what: "The actual work. A task can carry a due date, a time and up to five reminders; a note is free text with a colour.",
+    holds: [
+      "Reminders fire on the phone, not just in the app",
+      "Pin anything that matters more than the rest",
+      "Tick it off and it leaves the list, not your history",
+    ],
+  },
+] as const;
+
+/**
+ * The four task states, with the colours straight out of `ui/tokens` — the same
+ * values the stripe on a real task card uses, so this legend cannot drift away
+ * from the product it is describing.
+ */
+const TASK_STATES = [
+  {
+    label: "Normal",
+    colour: STATUS_META.normal.colour,
+    meaning: "Nothing pressing. No date, or one still comfortably ahead.",
+  },
+  {
+    label: "Pinned",
+    colour: STATUS_META.pinned.colour,
+    meaning: "You marked it important. It sorts above everything else.",
+  },
+  {
+    label: "Flagged",
+    colour: STATUS_META.flagged.colour,
+    meaning: "Pinned and scheduled. It matters and it is coming due.",
+  },
+  {
+    label: "Overdue",
+    colour: STATUS_META.overdue.colour,
+    meaning: "The date has passed. This one outranks the other three.",
+  },
+] as const;
+
 //  Landing Page Component
 const LandingPage: React.FC = () => {
   const { theme } = useTheme();
@@ -1244,7 +1307,7 @@ const LandingPage: React.FC = () => {
     {
       icon: (
         <Folder
-          className={`h-12 w-12 ${isDark ? "text-orange-400" : "text-orange-500"}`}
+          className={`h-12 w-12 ${isDark ? "text-indigo-400" : "text-indigo-500"}`}
         />
       ),
       title: "Smart Collections",
@@ -1305,23 +1368,22 @@ const LandingPage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen w-full">
+    <div
+      className="min-h-screen w-full bg-[var(--ps-field)] text-[var(--ps-text)]"
+      style={publicVars(publicSurface(isDark))}
+    >
       {/* Hero Section */}
       <Hero />
 
       {/* How It Works Section */}
       <section className="py-12 sm:py-16 lg:py-20 relative">
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a1a1a_0%,#232323_50%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(251,146,60,0.05)_0%,transparent_70%)] before:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f9fafb_0%,#ffffff_50%,#f3f4f6_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(251,146,60,0.03)_0%,transparent_70%)] before:content-['']" />
-        )}
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-band)]" />
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="How"
             highlight="LIST IT Works"
-            description="A structured approach to task & note management with hierarchical organization in ONE platform"
+            description="Three steps, once. After that it is just opening the app and getting on with it."
           />
 
           <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -1352,17 +1414,13 @@ const LandingPage: React.FC = () => {
 
       {/* Features Section */}
       <section className="py-12 sm:py-16 lg:py-20 relative">
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a0f12_0%,#2d1b20_50%,#1a0f12_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f8f6f7_0%,#ffffff_50%,#f8f6f7_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
-        )}
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-field)]" />
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="Everything You Need to"
             highlight="Stay Organized"
-            description="Powerful features designed to boost your productivity and streamline your workflow"
+            description="The things you will actually use, rather than a list of everything that was technically possible to build."
           />
 
           <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-4">
@@ -1375,17 +1433,13 @@ const LandingPage: React.FC = () => {
 
       {/* Interactive Demo Section */}
       <section className="py-12 sm:py-16 lg:py-20 relative">
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a1a1a_0%,#232323_50%,#2a1810_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f0f9ff_0%,#ffffff_50%,#f8fafc_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
-        )}
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-band)]" />
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="See LIST IT in"
             highlight="Action"
-            description="Experience our interactive demo to see how LIST IT can transform your productivity"
+            description="This is the real component the app renders, not a screenshot. Expand a collection, switch to notes, tick something off."
           />
 
           <motion.div
@@ -1421,19 +1475,111 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
+      {/* What you actually get.
+
+          The page described the product in adjectives and never in nouns: a
+          visitor could read the whole thing and still not know what a list,
+          a collection or a status colour was. This is the detail. Everything
+          named here is something the app really does, and the four status
+          dots are the exact colours `ui/tokens` ships, so the legend on this
+          page and the stripe on a task card cannot drift apart. */}
+      <section className="relative py-12 sm:py-16 lg:py-20">
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-band)]" />
+
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <SectionTitle
+            title="How it is"
+            highlight="Put Together"
+            description="Three levels, and nothing you have to learn twice. Here is exactly what each one holds."
+          />
+
+          <div className="grid gap-4 sm:gap-5 lg:grid-cols-3">
+            {STRUCTURE.map((level, index) => (
+              <motion.div
+                key={level.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                className="rounded-2xl border border-[var(--ps-border)] bg-[var(--ps-card)] p-6"
+              >
+                <div className="mb-3 flex items-center gap-3">
+                  <span
+                    aria-hidden="true"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[13px] font-semibold text-white"
+                    style={{ backgroundColor: PRIMARY }}
+                  >
+                    {index + 1}
+                  </span>
+                  <h3 className="text-[17px] font-semibold text-[var(--ps-text)]">
+                    {level.name}
+                  </h3>
+                </div>
+
+                <p className="mb-4 text-[14px] leading-relaxed text-[var(--ps-body)]">
+                  {level.what}
+                </p>
+
+                <ul className="space-y-1.5">
+                  {level.holds.map((item) => (
+                    <li
+                      key={item}
+                      className="flex gap-2 text-[13px] text-[var(--ps-muted)]"
+                    >
+                      <span aria-hidden="true">·</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* The status colours, named. A user meets these on their first task
+              and nothing in the app explains them, so they are explained here. */}
+          <div className="mt-10 rounded-2xl border border-[var(--ps-border)] bg-[var(--ps-card)] p-6 sm:p-8">
+            <h3 className="mb-2 text-[17px] font-semibold text-[var(--ps-text)]">
+              A task tells you where it stands
+            </h3>
+            <p className="mb-6 max-w-2xl text-[14px] leading-relaxed text-[var(--ps-body)]">
+              Every task carries a colour down its left edge. You never set it —
+              it follows the due date and the pin, so a glance down the list is
+              enough. Overdue always wins, because a pinned task you have missed
+              is still missed.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {TASK_STATES.map((state) => (
+                <div key={state.label} className="flex gap-3">
+                  <span
+                    aria-hidden="true"
+                    className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: state.colour }}
+                  />
+                  <div>
+                    <div className="text-[14px] font-medium text-[var(--ps-text)]">
+                      {state.label}
+                    </div>
+                    <div className="text-[13px] leading-relaxed text-[var(--ps-muted)]">
+                      {state.meaning}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Benefits Section */}
       <section className="py-12 sm:py-16 lg:py-20 relative">
-        {isDark ? (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#1a0f12_0%,#2d1b20_50%,#1a0f12_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.05)_0%,transparent_70%)] before:content-['']" />
-        ) : (
-          <div className="absolute inset-0 -z-10 size-full [background:linear-gradient(135deg,#f8f6f7_0%,#ffffff_50%,#f8f6f7_100%)] before:absolute before:inset-0 before:[background:radial-gradient(ellipse_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)] before:content-['']" />
-        )}
+        <div className="absolute inset-0 -z-10 size-full bg-[var(--ps-field)]" />
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionTitle
             title="Work Smarter"
             highlight="Not Harder"
-            description="Discover how LIST IT can transform your productivity and simplify your workflow"
+            description="What changes once everything lives in one place and the app stops asking you to decide where things go."
           />
 
           <div className="grid gap-6 sm:gap-8 lg:grid-cols-3">
@@ -1449,9 +1595,7 @@ const LandingPage: React.FC = () => {
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
-        className={`py-12 sm:py-16 lg:py-20 text-white relative overflow-hidden ${
-          isDark ? "bg-orange-500/90" : "bg-orange-500/90"
-        } backdrop-blur-sm`}
+        className={`py-12 sm:py-16 lg:py-20 text-white relative overflow-hidden bg-[var(--ps-primary)] backdrop-blur-sm`}
       >
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden">
@@ -1510,19 +1654,14 @@ const LandingPage: React.FC = () => {
                   href="/register"
                   className={`inline-flex items-center justify-center rounded-xl ${
                     isDark
-                      ? "bg-gray-800 text-orange-400 hover:bg-gray-700"
-                      : "bg-white text-orange-500 hover:bg-gray-100"
+                      ? "bg-gray-800 text-indigo-400 hover:bg-gray-700"
+                      : "bg-white text-indigo-500 hover:bg-gray-100"
                   } px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl backdrop-blur-sm w-full sm:w-auto`}
                 >
                   Get Started - It&apos;s Free!
                   <Users className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                 </Link>
               </motion.div>
-
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              ></motion.div>
             </motion.div>
 
             {/* Trust indicators */}
