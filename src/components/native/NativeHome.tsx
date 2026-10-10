@@ -540,7 +540,11 @@ export default function NativeHome() {
       </div>
 
       {pinnedLists.length > 0 && (
-        <section className="px-4 pb-4">
+        /* `pb-2`, down from `pb-4`. The sort row below is a 44px touch target
+           with a 20px icon in it, so most of the gap between the rail and My
+           Lists was that row's own minimum height rather than padding. Trimming
+           here is the part that can come down without shrinking a tap target. */
+        <section className="px-4 pb-2">
           {/* Same divider as the two groups below it. Left as a 24px bold heading
               it would have been the one section on the screen shouting. */}
           <SectionDivider
@@ -567,21 +571,14 @@ export default function NativeHome() {
 
       {/* The screen's own controls, and nothing that names a group of lists — the
           section rules below do that now. Only earns its space once there is
-          something to sort; on a first run the create prompt stands alone. */}
+          something to sort; on a first run the create prompt stands alone.
+
+          The tips button used to share this row, which is why it was a
+          `justify-between` pair. It sits under the lists now — see the end of
+          the section below — so this is the sort alone, pushed to the trailing
+          edge where it already was. */}
       {!isFirstRun && (
-        <section className="flex items-center gap-2 px-4">
-          {/* Keeps the lightbulb and the small grey type it has always had — it
-              reads as a tip rather than as a control, which is what it is. What
-              changed is that it is now a button, and says there is something new
-              behind it rather than naming one gesture. */}
-          <button
-            type="button"
-            onClick={() => setIsHelpOpen(true)}
-            className="touch-target -ml-1 flex items-center px-1 text-[12px] text-gray-500 active:opacity-60"
-          >
-            💡 New features and tips
-          </button>
-          <span className="flex-1" />
+        <section className="flex items-center justify-end px-4">
           {/* Sort is an icon menu rather than a row of chips. Four options are not
               worth the vertical space a permanent control costs on a screen whose
               job is showing lists, and the sort is set once and rarely changed. */}
@@ -601,7 +598,7 @@ export default function NativeHome() {
       )}
 
       <section
-        className="px-4 pt-1"
+        className="px-4"
         // Clears the floating Add button, which is fixed and therefore takes no
         // space in the document. Without this the last row scrolls to rest
         // underneath it. 3.5rem button + the gap below it + breathing room.
@@ -717,6 +714,32 @@ export default function NativeHome() {
                 )}
               </>
             )}
+
+            {/* New features and tips.
+
+                It used to sit above the lists, sharing a row with the sort
+                control. A tip is the last thing on the screen worth reading and
+                it was the first thing on it, taking a line of width off the row
+                whose only real job is the sort.
+
+                Inside this branch rather than beside the sort, so it follows
+                the lists and appears only when there are some — there is
+                nothing to annotate on a first run or a search miss, and the
+                section's own bottom padding keeps it clear of the Add button.
+
+                Keeps the lightbulb and the small grey type it has always had:
+                it reads as a tip rather than a control, which is what it is. */}
+            <button
+              type="button"
+              onClick={() => setIsHelpOpen(true)}
+              /* `inline-flex`, not `flex`. It was a flex item in the sort row
+                 and so sized to its own text; as a block-level flex container
+                 it would stretch the full width of the section and make the
+                 whole line a tap target that opens help. */
+              className="touch-target -ml-1 mt-5 inline-flex items-center px-1 text-[12px] text-gray-500 active:opacity-60"
+            >
+              💡 New features and tips
+            </button>
           </>
         )}
       </section>
