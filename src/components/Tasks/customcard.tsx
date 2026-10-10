@@ -1,9 +1,20 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { CalendarDays, Folder, ListTodo, Pin } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import {
+  CalendarDays,
+  CheckCircle2,
+  Folder,
+  ListTodo,
+  Pin,
+  Trash2,
+} from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
+import { useLongPress } from "@/hooks/useLongPress";
+import NativeContextMenu, {
+  type ContextMenuItem,
+} from "@/components/native/NativeContextMenu";
 import TaskSidebar from "@/components/popupModels/TasksDetails";
 import { Collection, OperationResult } from "@/types/schema";
 import {
@@ -69,8 +80,6 @@ interface TodayTaskCardProps {
 // Status labels, colours and precedence live in `ui/tokens`. This file and
 // `Tasks/index.tsx` each used to carry their own copy and had already drifted.
 
-const LONG_PRESS_MS = 520;
-
 export default function TodayTaskCard({
   id,
   text,
@@ -105,11 +114,11 @@ export default function TodayTaskCard({
   const [taskDueDate, setTaskDueDate] = useState(due_date);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  /** Press position for the hold menu, or null when it is shut. */
+  const [menuOrigin, setMenuOrigin] = useState<{ x: number; y: number } | null>(
+    null,
+  );
   const [updating, setUpdating] = useState(false);
-
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressTriggered = useRef(false);
 
   useEffect(() => {
     setCompleted(!!is_completed);
@@ -118,14 +127,6 @@ export default function TodayTaskCard({
     setTaskDescription(description);
     setTaskDueDate(due_date);
   }, [is_completed, is_pinned, text, description, due_date]);
-
-  useEffect(() => {
-    return () => {
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-      }
-    };
-  }, []);
 
   const createdDate = toDateObject(created_at);
   const dueDate = toDateObject(taskDueDate);
@@ -165,41 +166,11 @@ export default function TodayTaskCard({
 
   const statusInfo = STATUS_META[status];
 
-  const cancelLongPress = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  };
-
-  const startLongPress = () => {
-    cancelLongPress();
-
-    longPressTriggered.current = false;
-
-    longPressTimer.current = setTimeout(() => {
-      longPressTriggered.current = true;
-      setMenuOpen(true);
-
-      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-        navigator.vibrate?.(30);
-      }
-    }, LONG_PRESS_MS);
-  };
-
-  const handleCardClick = () => {
-    if (longPressTriggered.current) {
-      longPressTriggered.current = false;
-      return;
-    }
-
-    if (menuOpen) {
-      setMenuOpen(false);
-      return;
-    }
-
-    setSidebarOpen(true);
-  };
+  /** Tap opens the details, hold opens the menu. Shared hook — see Tasks/index.tsx. */
+  const gestureHandlers = useLongPress({
+    onLongPress: (position) => setMenuOrigin(position),
+    onTap: () => setSidebarOpen(true),
+  });
 
   const togglePin = async () => {
     if (updating) return;
@@ -208,7 +179,7 @@ export default function TodayTaskCard({
     const next = !previous;
 
     setPinned(next);
-    setMenuOpen(false);
+    setMenuOrigin(null);
     setUpdating(true);
 
     try {
@@ -223,6 +194,75 @@ export default function TodayTaskCard({
       setUpdating(false);
     }
   };
+
+  /**
+   * Mark done, and delete, from the hold menu. Same reasoning as the identical
+   * pair in Tasks/index.tsx: they were the swipe's two panels, and the swipe is
+   * gone. `result &&` guards the same way togglePin does here — this card's
+   * `onComplete` is typed to allow a void return.
+   */
+  const markDone = async () => {
+    if (updating || completed) return;
+
+    setCompleted(true);
+    setMenuOrigin(null);
+    setUpdating(true);
+
+    try {
+      const result = await onComplete(id, true);
+      if (result && !result.success) setCompleted(false);
+    } catch {
+      setCompleted(false);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const deleteTask = async () => {
+    if (updating || !onTaskDelete) return;
+
+    setMenuOrigin(null);
+    setUpdating(true);
+
+    try {
+      await onTaskDelete(id);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  /** The same four rows as Tasks/index.tsx, in the same order. */
+  const menuItems: ContextMenuItem[] = [
+    {
+      label: pinned ? "Unpin task" : "Pin task",
+      icon: <Pin size={18} className={pinned ? "fill-current" : ""} />,
+      onSelect: () => void togglePin(),
+    },
+    {
+      label: "View details",
+      icon: <ListTodo size={18} />,
+      onSelect: () => setSidebarOpen(true),
+    },
+    ...(completed
+      ? []
+      : [
+          {
+            label: "Mark done",
+            icon: <CheckCircle2 size={18} />,
+            onSelect: () => void markDone(),
+          },
+        ]),
+    ...(onTaskDelete
+      ? [
+          {
+            label: "Delete task",
+            icon: <Trash2 size={18} />,
+            destructive: true,
+            onSelect: () => void deleteTask(),
+          },
+        ]
+      : []),
+  ];
 
   const handleTaskUpdate = async (
     taskId: string,
@@ -292,34 +332,26 @@ export default function TodayTaskCard({
         exit={{ opacity: 0, y: -8 }}
         transition={{ duration: 0.2 }}
         whileHover={{ y: -1 }}
-        onClick={handleCardClick}
-        onTouchStart={startLongPress}
-        onTouchEnd={cancelLongPress}
-        onTouchMove={cancelLongPress}
-        onTouchCancel={cancelLongPress}
-        onMouseDown={startLongPress}
-        onMouseUp={cancelLongPress}
-        onMouseLeave={cancelLongPress}
-        onContextMenu={(event) => {
-          event.preventDefault();
-          setMenuOpen(true);
-        }}
+        // No separate onContextMenu. useLongPress already supplies one that
+        // suppresses the browser's own menu, and a handler written after the
+        // spread would have overridden the hook's. Holding is the gesture.
+        {...gestureHandlers}
         className={`
           group relative cursor-pointer select-none overflow-hidden
           rounded-2xl border transition-all duration-200
           ${className}
+          ${/* Field colour, matching the card in a collection. See Tasks/index.tsx. */ ""}
+          border-[var(--surface-border)]
+          bg-[var(--surface-field)]
+          hover:bg-[var(--surface-selected)]
+
           ${
             isDark
               ? `
-                border-white/[0.07]
-                bg-[#131a28]
                 hover:border-white/[0.12]
-                hover:bg-[#161e2e]
                 hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)]
               `
               : `
-                border-slate-200/80
-                bg-white
                 hover:border-slate-300
                 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]
               `
@@ -327,15 +359,29 @@ export default function TodayTaskCard({
           ${completed ? "opacity-60" : ""}
         `}
       >
-        {/* Only meaningful states get a side colour in Today/general. */}
-        {status !== "normal" && (
-          <div
-            className="absolute inset-y-0 left-0 w-[4px]"
-            style={{
-              backgroundColor: statusInfo.colour,
-            }}
-          />
-        )}
+        {/* STATUS SIDE ACCENT
+            Normal = blue
+            Pinned = yellow
+            Overdue = red
+            Flagged = orange
+
+            Every task gets one. It used to be drawn only for the three
+            "meaningful" states, which left an ordinary task as the single card
+            type on the screen with no colour at all — so the stripe read as a
+            badge that some tasks had rather than as the status every task is in.
+            `normal` carries a real colour in STATUS_META precisely so this does
+            not have to decide by painting nothing, and Tasks/index.tsx has always
+            drawn it unconditionally. The two cards disagreed; they no longer do.
+
+            The label beside the title is still hidden for `normal` — there is
+            nothing useful to say, and STATUS_META.normal.label is "". */}
+        <div
+          className="absolute inset-y-0 left-0 w-[4px]"
+          style={{
+            backgroundColor: statusInfo.colour,
+          }}
+          aria-hidden="true"
+        />
 
         <div className="px-4 py-3.5 sm:px-[18px]">
           {/* TITLE + STATUS */}
@@ -463,97 +509,15 @@ export default function TodayTaskCard({
           )}
         </div>
 
-        {/* HOLD / RIGHT-CLICK MENU */}
-        <AnimatePresence>
-          {menuOpen && (
-            <>
-              <button
-                type="button"
-                aria-label="Close task menu"
-                className="fixed inset-0 z-40 cursor-default"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setMenuOpen(false);
-                }}
-              />
-
-              <motion.div
-                initial={{
-                  opacity: 0,
-                  scale: 0.96,
-                  y: -4,
-                }}
-                animate={{
-                  opacity: 1,
-                  scale: 1,
-                  y: 0,
-                }}
-                exit={{
-                  opacity: 0,
-                  scale: 0.96,
-                  y: -4,
-                }}
-                transition={{ duration: 0.12 }}
-                onClick={(event) => event.stopPropagation()}
-                className={`
-                  absolute right-3 top-3 z-50 w-[150px]
-                  rounded-xl border p-1.5 shadow-xl
-                  ${
-                    isDark
-                      ? "border-white/10 bg-[#1b2333]"
-                      : "border-slate-200 bg-white"
-                  }
-                `}
-              >
-                <button
-                  type="button"
-                  disabled={updating}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void togglePin();
-                  }}
-                  className={`
-                    flex min-h-[40px] w-full items-center gap-2
-                    rounded-lg px-3 text-left text-[12px] font-medium
-                    transition-colors disabled:opacity-50
-                    ${
-                      isDark
-                        ? "text-slate-200 hover:bg-white/[0.06]"
-                        : "text-slate-700 hover:bg-slate-100"
-                    }
-                  `}
-                >
-                  <Pin
-                    className={`h-3.5 w-3.5 ${pinned ? "fill-current" : ""}`}
-                  />
-                  {pinned ? "Unpin task" : "Pin task"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setMenuOpen(false);
-                    setSidebarOpen(true);
-                  }}
-                  className={`
-                    flex min-h-[40px] w-full items-center
-                    rounded-lg px-3 text-left text-[12px] font-medium
-                    transition-colors
-                    ${
-                      isDark
-                        ? "text-slate-200 hover:bg-white/[0.06]"
-                        : "text-slate-700 hover:bg-slate-100"
-                    }
-                  `}
-                >
-                  View details
-                </button>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+        {/* The hold menu is NativeContextMenu now, rendered below this card —
+            portalled, so no overflow ancestor can crop it. See Tasks/index.tsx. */}
       </motion.article>
+
+      <NativeContextMenu
+        origin={menuOrigin}
+        items={menuItems}
+        onClose={() => setMenuOrigin(null)}
+      />
 
       <AnimatePresence>
         {sidebarOpen && createdDate && (

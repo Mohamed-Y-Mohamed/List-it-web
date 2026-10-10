@@ -218,13 +218,23 @@ const Notification: React.FC<{
  * the Dark mode toggle directly above, which was always inline.
  */
 /**
- * The background picker: three grounds for the theme you are currently in.
+ * The background picker: four grounds for the theme you are currently in.
  *
- * Only the current theme's three are offered. A dark background says nothing about
- * how the app should look in daylight, and showing six at once asks the user to
- * imagine five of them. The sets are paired — Black with White, Navy with Cool
- * grey, Charcoal with Warm paper — and stored separately, so switching theme keeps
- * whichever ground was chosen for it.
+ * Only the current theme's four are offered. A dark background says nothing about
+ * how the app should look in daylight, and showing eight at once asks the user to
+ * imagine seven of them. The sets share keys — Black with White, Midnight with
+ * Cream, Navy with Ice blue, Midnight Velvet with Warm paper — but are stored
+ * separately, so switching theme keeps whichever ground was chosen for it.
+ *
+ * Four across at every width, which is the reason the swatch is h-11 and the label
+ * 11px rather than the h-14/13px three of them could afford: at 360px the cells are
+ * about 76px, and "Warm paper" truncates to "Warm p…" at the larger size.
+ *
+ * The label wraps rather than truncating. "Midnight Velvet" is about 78px at 11px
+ * against roughly 60px of usable cell, so truncation would render it "Midnight V…"
+ * — indistinguishable from the Midnight sitting two swatches to its left. Over two
+ * lines it reads in full, and the grid rows share a height anyway so the taller
+ * cell costs nothing.
  *
  * Each swatch previews the ramp rather than one colour: the field with a card
  * drawn on it at the real radius and hairline. That is the thing worth showing,
@@ -247,7 +257,7 @@ const SurfaceSetting: React.FC<{
     <div
       role="radiogroup"
       aria-labelledby="background-label"
-      className="grid grid-cols-3 gap-2.5"
+      className="grid grid-cols-4 gap-2"
     >
       {SURFACE_ORDER.map((choice) => {
         const ramp = surfaceRamp(theme, choice);
@@ -272,12 +282,12 @@ const SurfaceSetting: React.FC<{
             }`}
           >
             <span
-              className="flex h-14 items-end rounded-lg p-1.5"
+              className="flex h-11 items-end rounded-lg p-1.5"
               style={{ backgroundColor: ramp.field }}
               aria-hidden="true"
             >
               <span
-                className="h-6 w-full rounded-md border"
+                className="h-5 w-full rounded-md border"
                 style={{
                   backgroundColor: ramp.card,
                   borderColor: ramp.border,
@@ -285,9 +295,9 @@ const SurfaceSetting: React.FC<{
               />
             </span>
 
-            <span className="flex items-center justify-between gap-1">
+            <span className="flex items-start justify-between gap-1">
               <span
-                className={`truncate text-[13px] font-medium ${
+                className={`min-w-0 text-[11px] font-medium leading-tight ${
                   isDark ? "text-white" : "text-gray-900"
                 }`}
               >
@@ -329,7 +339,10 @@ const LAYOUT_OPTIONS: {
   {
     value: "list",
     label: "List",
-    hint: "One row each, swipe for actions",
+    // No longer "swipe for actions": the row swipe is gone and holding a card is
+    // what opens its actions, in either layout. The hint describes what the
+    // layout is, which is the only thing that differs between the two now.
+    hint: "One full-width row each",
     Icon: Rows3,
   },
 ];

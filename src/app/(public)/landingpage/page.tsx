@@ -251,18 +251,22 @@ const TaskCard: React.FC<TaskCardProps> = ({
       className={`
         group relative cursor-pointer select-none overflow-hidden
         rounded-2xl border transition-all duration-200
+        ${/* The field, not the card, mirroring the real task card: a task sits
+             inside a collection, so it drops back to the page colour to stand
+             off it. Expressed in this page's own `--ps-*` palette rather than
+             `--surface-field`, because the marketing page has a fixed look and
+             must not repaint itself from a signed-in visitor's stored
+             background choice. */ ""}
+        border-[var(--ps-border)]
+        bg-[var(--ps-field)]
+
         ${
           isDark
             ? `
-              border-white/[0.07]
-              bg-[#131a28]
               hover:border-white/[0.12]
-              hover:bg-[#161e2e]
               hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)]
             `
             : `
-              border-slate-200/80
-              bg-white
               hover:border-slate-300
               hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]
             `
@@ -270,13 +274,15 @@ const TaskCard: React.FC<TaskCardProps> = ({
         ${completed ? "opacity-60" : ""}
       `}
     >
-      {/* Only meaningful states get a side colour. */}
-      {status !== "normal" && (
-        <div
-          className="absolute inset-y-0 left-0 w-[4px]"
-          style={{ backgroundColor: statusInfo.colour }}
-        />
-      )}
+      {/* Every task gets a side colour, normal included — matching both real task
+          cards. The gate that used to be here showed an ordinary task with no
+          stripe at all, which made the colour look like a badge some tasks earn
+          rather than the status every task is in. */}
+      <div
+        className="absolute inset-y-0 left-0 w-[4px]"
+        style={{ backgroundColor: statusInfo.colour }}
+        aria-hidden="true"
+      />
 
       <div className="px-4 py-3.5 sm:px-[18px]">
         {/* TITLE + STATUS */}
@@ -423,20 +429,20 @@ const NoteCard: React.FC<NoteCardProps> = ({
   const displayTitle = title || "Untitled Note";
   const safeColor = bg_color_hex || null;
 
+  // Matching Notes/noteCard: one colour at 65%, the same in both themes, with the
+  // border at full strength. The old 13% wash is what the real card stopped doing,
+  // and a demo that advertises the pale version is advertising the wrong app.
   const cardStyle: React.CSSProperties = safeColor
     ? {
-        backgroundColor: `${safeColor}22`,
-        borderColor: `${safeColor}45`,
+        backgroundColor: `${safeColor}A6`,
+        borderColor: safeColor,
       }
-    : isDark
-      ? {
-          backgroundColor: "rgba(255,255,255,0.025)",
-          borderColor: "rgba(255,255,255,0.07)",
-        }
-      : {
-          backgroundColor: "rgba(255,255,255,0.65)",
-          borderColor: "rgba(15,23,42,0.10)",
-        };
+    : {
+        // The public palette's field, which is this page's stand-in for the
+        // `--surface-field` the real uncoloured note takes.
+        backgroundColor: "var(--ps-field)",
+        borderColor: "var(--ps-border)",
+      };
 
   const customColorIsLight = safeColor && isLightHex(safeColor);
 
@@ -590,20 +596,29 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
+  // The collection is the card and the tasks inside it drop back to the field,
+  // mirroring the real Collection. Both surfaces used to be translucent whites,
+  // which over a pale field left the container invisible. `--ps-*` rather than
+  // `--surface-*` for the same reason as the task card above.
+  const SURFACE = {
+    outer: "border-[var(--ps-border)] bg-[var(--ps-card)]",
+    header: "bg-transparent",
+  } as const;
+
   const colors = isDark
     ? {
         textPrimary: "text-slate-100",
         textMuted: "text-slate-500",
-        outer: "border-white/[0.055] bg-white/[0.018]",
-        header: "bg-white/[0.012]",
+        outer: SURFACE.outer,
+        header: SURFACE.header,
         count: "text-slate-500",
         buttonHover: "hover:bg-white/[0.055]",
       }
     : {
         textPrimary: "text-slate-900",
         textMuted: "text-slate-400",
-        outer: "border-slate-200/70 bg-white/35",
-        header: "bg-white/25",
+        outer: SURFACE.outer,
+        header: SURFACE.header,
         count: "text-slate-400",
         buttonHover: "hover:bg-slate-100/70",
       };

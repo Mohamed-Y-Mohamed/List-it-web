@@ -86,9 +86,9 @@ export const RECENT_TOPICS: readonly HelpTopic[] = [
     body: "Settings has an Appearance section with a List layout setting. Cards keeps the grid you are used to. List gives each of your lists its own full-width row, with the built-in views in two columns above them.",
   },
   {
-    id: "swipe-actions",
-    title: "Swipe a row for quick actions",
-    body: "In the List layout, drag one of your own lists from right to left to uncover pin, rename and delete. Tap one, or let the row go to put it back. Pressing and holding still opens the same menu, in either layout.",
+    id: "hold-actions",
+    title: "Hold anything for its actions",
+    body: "Press and hold a task for pin, details, mark done and delete. Hold a note for pin and delete, and a list for pin, rename and delete. Tap instead to open it. This replaces the swipe the rows used to have, so one sideways drag can mean one thing.",
   },
   {
     id: "reminders",
@@ -96,9 +96,9 @@ export const RECENT_TOPICS: readonly HelpTopic[] = [
     body: "Turn on Reminders in a task and add as many as you need: an hour before, a day before, or a time you pick yourself. Give the task a time as well as a date and the offsets count back from it. You can switch all reminders off in Settings without losing them.",
   },
   {
-    id: "swipe-tasks",
-    title: "Swipe tasks and notes too",
-    body: "Drag a task from right to left for done, edit and delete. Notes get edit and delete. Drag either from left to right instead and you can move it to another collection in the same list.",
+    id: "switch-tabs",
+    title: "Swipe between Tasks and Notes",
+    body: "Inside a collection, swipe the tasks sideways to bring in its notes, and back the other way to return. The Tasks and Notes buttons still do the same thing if you would rather tap.",
   },
   {
     id: "scheduled",

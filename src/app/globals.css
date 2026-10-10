@@ -74,8 +74,8 @@
 
      These follow the *default* background, not the chosen one. The native launch
      theme is compiled into the APK and cannot read a preference, so only the
-     default can hand over seamlessly; someone who picks Navy or Charcoal sees the
-     default for the moment before the app paints. That is the cost of a runtime
+     default can hand over seamlessly; someone who picks Midnight, Navy or Midnight
+     Velvet sees the default for the moment before the app paints. That is the cost of a runtime
      colour and there is no way around it from inside the WebView. */
   --splash-bg: #ffffff;
   --splash-fg: #111827;
@@ -89,9 +89,9 @@
      Everything that paints an app surface reads these rather than a hex, which is
      what lets the background be chosen at all. */
   --surface-field: #ffffff;
-  --surface-deep: #f4f4f5;
-  --surface-raised: #f4f4f5;
-  --surface-card: #ffffff;
+  --surface-deep: #ebebed;
+  --surface-raised: #ebebed;
+  --surface-card: #f4f4f5;
   --surface-selected: #eeeef0;
   --surface-border: rgba(15, 23, 42, 0.12);
 

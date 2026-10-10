@@ -71,7 +71,8 @@ const STEPS: readonly Step[] = [
 ] as const;
 
 // How far a swipe has to travel, or how fast it has to flick, to change step.
-// Matched to SwipeableRow so the two gestures feel like the same hand.
+// The same 56px the Tasks/Notes panel uses to change tab, so every sideways
+// gesture in the app asks for the same amount of movement.
 const SWIPE_DISTANCE = 56;
 const SWIPE_VELOCITY = 400;
 

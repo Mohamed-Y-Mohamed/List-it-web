@@ -1,10 +1,14 @@
 "use client";
 
 import React, { memo, useEffect, useState } from "react";
-import { AlertCircle, CalendarDays, Pin } from "lucide-react";
+import { AlertCircle, CalendarDays, Pin, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { useTheme } from "@/context/ThemeContext";
+import { useLongPress } from "@/hooks/useLongPress";
+import NativeContextMenu, {
+  type ContextMenuItem,
+} from "@/components/native/NativeContextMenu";
 import NoteSidebar from "@/components/popupModels/notedetail";
 import { Note, OperationResult } from "@/types/schema";
 import { formatDisplayDate } from "@/utils/dateUtils";
@@ -58,6 +62,10 @@ const NoteCard = ({
   const isDark = theme === "dark";
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  /** Press position for the hold menu, or null when it is shut. */
+  const [menuOrigin, setMenuOrigin] = useState<{ x: number; y: number } | null>(
+    null,
+  );
   const [noteTitle, setNoteTitle] = useState(title || "");
   const [noteDescription, setNoteDescription] = useState(description || "");
   const [noteBackgroundColor, setNoteBackgroundColor] = useState(
@@ -80,20 +88,37 @@ const NoteCard = ({
      CARD COLOUR
      ------------------------------------------------------- */
 
+  /**
+   * One colour, the same in both themes.
+   *
+   * It used to be the note's colour at `22` (13%) over whatever was behind it,
+   * with the border at `45` (27%). Two problems. A 13% wash is barely visible at
+   * all — which is the whole complaint — and because it is a wash, the same stored
+   * hex came out as two different colours depending on the ground under it, so a
+   * note that was clearly green in dark mode was a pale mint in light. A colour
+   * the user picked should be the colour they see.
+   *
+   * `A6` is 65%: unmistakably the chosen colour, while a grid of notes still reads
+   * as cards rather than as a sheet of swatches. The border takes the same hex at
+   * full strength, so the edge is the colour rather than a lighter shade of it.
+   *
+   * Neither value branches on the theme. The text does — `isLightColor` already
+   * decides dark or white type from the fill, and that is the only thing here that
+   * has to care which colour was picked.
+   */
   const cardStyle: React.CSSProperties = safeColor
     ? {
-        backgroundColor: `${safeColor}22`,
-        borderColor: `${safeColor}45`,
+        backgroundColor: `${safeColor}A6`,
+        borderColor: safeColor,
       }
-    : isDark
-      ? {
-          backgroundColor: "rgba(255,255,255,0.025)",
-          borderColor: "rgba(255,255,255,0.07)",
-        }
-      : {
-          backgroundColor: "rgba(255,255,255,0.65)",
-          borderColor: "rgba(15,23,42,0.10)",
-        };
+    : {
+        // No colour chosen: the same field the task cards take, so an uncoloured
+        // note sits in the collection exactly as a task does. These were
+        // translucent whites, which is why an uncoloured note was invisible on a
+        // white background.
+        backgroundColor: "var(--surface-field)",
+        borderColor: "var(--surface-border)",
+      };
 
   const customColorIsLight = safeColor && isLightColor(safeColor);
 
@@ -129,9 +154,14 @@ const NoteCard = ({
      PIN
      ------------------------------------------------------- */
 
-  const handlePinClick = async (event: React.MouseEvent) => {
-    event.stopPropagation();
-
+  /**
+   * The pin toggle, with no event to stop.
+   *
+   * Split out of `handlePinClick` so the hold menu can call it too — a menu item
+   * has no DOM event of its own to propagate, and the button on the card face
+   * still needs to swallow one.
+   */
+  const togglePin = async () => {
     if (!onPinChange || isProcessing) return;
 
     setIsProcessing(true);
@@ -150,6 +180,11 @@ const NoteCard = ({
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handlePinClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    void togglePin();
   };
 
   /* -------------------------------------------------------
@@ -288,6 +323,62 @@ const NoteCard = ({
   };
 
   /* -------------------------------------------------------
+     HOLD MENU
+
+     Tap opens the note. Hold opens pin and delete.
+
+     These two were a swipe: drag the card aside and tap a revealed panel. That
+     gesture is gone, because the Tasks/Notes panel now takes a horizontal swipe
+     to switch between the two — a card that also answered to a horizontal drag
+     would be competing with the container it sits in for the same movement, and
+     the card would win, since it is what the finger is actually on.
+
+     Hold is the gesture that was already here for everything else: both task
+     cards carry their own, the list cards use the shared useLongPress, and the
+     walkthrough has told users to hold a list since the first release. This is
+     the same hook the list cards use, so the timing and the haptic match rather
+     than being a third implementation with its own feel.
+     ------------------------------------------------------- */
+
+  const gestureHandlers = useLongPress({
+    onLongPress: (position) => {
+      if (!isProcessing) setMenuOrigin(position);
+    },
+    onTap: () => {
+      if (!isProcessing) setIsSidebarOpen(true);
+    },
+  });
+
+  /**
+   * Only the actions this card was actually given.
+   *
+   * Both props are optional, and a menu row that silently does nothing is worse
+   * than a shorter menu — so an absent handler means an absent row rather than a
+   * disabled one. With neither, nothing is rendered and the hold does nothing.
+   */
+  const menuItems: ContextMenuItem[] = [
+    ...(onPinChange
+      ? [
+          {
+            label: is_pinned ? "Unpin Note" : "Pin Note",
+            icon: <Pin size={18} />,
+            onSelect: () => void togglePin(),
+          },
+        ]
+      : []),
+    ...(onNoteDelete
+      ? [
+          {
+            label: "Delete Note",
+            icon: <Trash2 size={18} />,
+            destructive: true,
+            onSelect: () => void deleteNote(id),
+          },
+        ]
+      : []),
+  ];
+
+  /* -------------------------------------------------------
      SIDEBAR DATA
      ------------------------------------------------------- */
 
@@ -316,11 +407,7 @@ const NoteCard = ({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.18 }}
-        onClick={() => {
-          if (!isProcessing) {
-            setIsSidebarOpen(true);
-          }
-        }}
+        {...gestureHandlers}
         style={cardStyle}
         className={`
           group
@@ -432,6 +519,11 @@ const NoteCard = ({
           <button
             type="button"
             onClick={handlePinClick}
+            // Keeps the card's hold from arming when the press lands on this
+            // button. `onClick`'s stopPropagation is too late: the parent's
+            // pointerdown has already fired by then, so the release would count
+            // as a tap on the card and open the note behind the pin.
+            onPointerDown={(event) => event.stopPropagation()}
             disabled={isProcessing}
             aria-label={is_pinned ? "Unpin note" : "Pin note"}
             className={`
@@ -513,6 +605,16 @@ const NoteCard = ({
           </div>
         )}
       </motion.article>
+
+      {/* Hold menu. Rendered outside the card so its backdrop covers the screen
+          rather than the card it was opened from. */}
+      {menuItems.length > 0 && (
+        <NativeContextMenu
+          origin={menuOrigin}
+          items={menuItems}
+          onClose={() => setMenuOrigin(null)}
+        />
+      )}
 
       {/* Note details */}
       <AnimatePresence>

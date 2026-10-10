@@ -94,8 +94,10 @@ export function useLongPress({ onLongPress, onTap }: LongPressHandlers) {
     // A tap is a press that started here, stayed put, and did not become a menu.
     //
     // `startPoint` being null means the press was cancelled rather than completed —
-    // the pointer left the card, or something upstream took pointer capture, which
-    // is what a parent SwipeableRow does the moment a drag begins.
+    // the pointer left the card, or something upstream took pointer capture. The
+    // row swipe that used to do the latter is gone, but the Tasks/Notes panel a
+    // card sits inside is draggable, so a press that turns into that drag still
+    // has to come out as neither a tap nor a hold.
     const wasPress = startPoint.current !== null;
     if (wasPress && !didMove.current && !didLongPress.current) onTap?.();
 

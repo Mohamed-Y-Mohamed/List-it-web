@@ -39,7 +39,6 @@ import NativeContextMenu, { type ContextMenuItem } from "./NativeContextMenu";
 import NativeHelpSheet from "./NativeHelpSheet";
 import NativeListCard from "./NativeListCard";
 import { ListIcon } from "./listVisuals";
-import SwipeableRow, { type SwipeAction } from "./SwipeableRow";
 import { useAppData } from "./AppDataProvider";
 import { CountBadge } from "./listVisuals";
 import { homeState } from "./homeState";
@@ -322,37 +321,9 @@ export default function NativeHome() {
   // nowhere for a panel to come from. Long press still opens the menu either way,
   // so this adds a faster route and no new capability.
   //
-  // Ordered pin, rename, delete so the destructive one ends up against the outer
-  // edge, furthest from where a leftward thumb first lands. Nothing fires on
-  // reveal — a panel still has to be tapped — which is what lets delete sit here
-  // without a confirmation of its own beyond the dialog it already opens.
-  const rowActions = useCallback(
-    (list: List): SwipeAction[] => [
-      // Held a little off full strength so three saturated tiles do not shout
-      // louder than the lists they belong to. 80% is as far as it goes: the icons
-      // on them are white, and thinning the fill any further over the dark field
-      // starts eating the contrast that keeps them legible.
-      {
-        label: list.is_pinned ? "Unpin List" : "Pin List",
-        icon: list.is_pinned ? PinOff : Pin,
-        background: "bg-amber-500/80",
-        onAction: () => togglePin(list),
-      },
-      {
-        label: "Update List",
-        icon: Pencil,
-        background: "bg-blue-500/80",
-        onAction: () => setListToEdit(list),
-      },
-      {
-        label: "Delete List",
-        icon: Trash2,
-        background: "bg-red-500/80",
-        onAction: () => setListToDelete(list),
-      },
-    ],
-    [togglePin],
-  );
+  // The swipe panels that used to live here are gone. `showContextMenu` below is
+  // the one place a list's actions are defined now, and it already carried the
+  // same three — pin, rename, delete — for the hold gesture on either layout.
 
   // Sorting is instant and reversible, so the chip commits on tap with no confirm
   // step. The haptic is the receipt — on a grid of small cards the reorder is not
@@ -703,26 +674,24 @@ export default function NativeHome() {
                 />
                 {isListLayout ? (
                   <div className="flex flex-col gap-2">
+                    {/* No swipe wrapper. The hold menu already offers pin,
+                        rename and delete — the swipe was a second route to the
+                        same three — and a card that answers to a horizontal drag
+                        competes with the Tasks/Notes panel inside a list, which
+                        now uses that gesture to switch between the two. One
+                        meaning per gesture. */}
                     {sortedLists.map((list) => (
-                      <SwipeableRow
+                      <NativeListCard
                         key={`${list.id}-${list.list_name}-${list.bg_color_hex}`}
-                        trailing={rowActions(list)}
-                        showLabels={false}
-                        // Matches the row's own corners, so they do not square
-                        // off the moment a swipe starts.
-                        radiusClass="rounded-2xl"
-                      >
-                        <NativeListCard
-                          list={list}
-                          tasks={tasks}
-                          notes={notes}
-                          variant="row"
-                          onOpen={() => openList(list)}
-                          onLongPress={(position) =>
-                            showContextMenu(list, position)
-                          }
-                        />
-                      </SwipeableRow>
+                        list={list}
+                        tasks={tasks}
+                        notes={notes}
+                        variant="row"
+                        onOpen={() => openList(list)}
+                        onLongPress={(position) =>
+                          showContextMenu(list, position)
+                        }
+                      />
                     ))}
                   </div>
                 ) : (

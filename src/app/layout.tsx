@@ -102,7 +102,7 @@ var t=localStorage.getItem('theme');
 if(t!=='dark'&&t!=='light'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
 document.documentElement.classList.toggle('dark',t==='dark');
 var c=localStorage.getItem('listit.surface.'+t);
-if(c!=='mono'&&c!=='cool'&&c!=='warm'){c='mono';}
+if(c!=='mono'&&c!=='soft'&&c!=='cool'&&c!=='warm'){c='mono';}
 var r=RAMPS[t][c],s=document.documentElement.style;
 s.setProperty('--surface-field',r.field);
 s.setProperty('--surface-deep',r.deep);

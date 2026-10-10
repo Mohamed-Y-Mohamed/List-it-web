@@ -7,6 +7,7 @@
 // `role: .destructive` styling in the iOS app.
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
@@ -64,6 +65,14 @@ export default function NativeContextMenu({
   const [position, setPosition] = useState({ top: 0, left: 0 });
   /** Which row is expanded, by label. One at a time. */
   const [expanded, setExpanded] = useState<string | null>(null);
+  /**
+   * Portals need `document`, which does not exist during the server render or
+   * the static export's prerender, so the first client render has to match the
+   * server's empty one and the portal goes up on the second.
+   */
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   // A fresh press starts collapsed, otherwise the menu reopens mid-submenu.
   useEffect(() => {
@@ -101,7 +110,20 @@ export default function NativeContextMenu({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [origin, onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  // Portalled to the body, and that is not optional.
+  //
+  // The menu is `position: fixed`, which an overflow-hidden ancestor still clips
+  // and a transformed ancestor still re-anchors. On the Lists tab there was
+  // neither, so rendering in place worked and this went unnoticed. A note or task
+  // card does not have that luxury: it sits inside the collection's
+  // `overflow-hidden` expand wrapper *and* the panel's `overflow-y-auto` scroller,
+  // and inside NativeTransition's transform on top of that. Rendered in place the
+  // menu was clipped to nothing — the press landed, the haptic fired, and no menu
+  // appeared. Same trap the List layout menu hit, and the same fix the floating
+  // Add button and the detail sheets already use.
+  return createPortal(
     <AnimatePresence>
       {origin && (
         <>
@@ -251,6 +273,7 @@ export default function NativeContextMenu({
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

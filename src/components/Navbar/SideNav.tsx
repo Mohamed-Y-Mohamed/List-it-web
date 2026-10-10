@@ -25,6 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { PRIMARY, SELECTED, DANGER } from "@/components/ui/tokens";
+import ListWave from "@/components/ui/ListWave";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
@@ -461,7 +462,15 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
       setLists((prevLists) => [createdList, ...prevLists]);
       await fetchLists();
       setIsCreateListModalOpen(false);
-      navigateTo(listHref(createdList.id, isNative));
+
+      // Deliberately does not open the new list.
+      //
+      // It used to push straight into it, which is the wrong guess twice over: a
+      // list is empty at the moment it is made, so there is nothing to see, and
+      // anyone setting up several had to navigate back out between each one. The
+      // sidebar above has already been refreshed, so the new list is simply
+      // there to click when they want it. Native made this same change on
+      // 2026-10-07; this is the web catching up.
       return { success: true };
     } catch (err) {
       console.error("Error handling list creation:", err);
@@ -685,16 +694,38 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                   return (
                     <div
                       key={list.id}
-                      className={`group relative flex h-9 items-center rounded-lg transition-colors ${
+                      // h-12 and a 17px radius, both to carry the card design.
+                      // At the old h-9 the three bands resolved to a few pixels
+                      // each and the 28px leading bar did not fit; 48px is also
+                      // the comfortable touch target, so the row reads as the
+                      // same object as the Android card rather than a squashed
+                      // copy of it.
+                      //
+                      // `overflow-hidden` clips the wave to the corners,
+                      // standing in for the cards' clipShape.
+                      className={`group relative flex h-12 items-center overflow-hidden rounded-[17px] transition-colors ${
                         active
                           ? "bg-[var(--sb-selected)]"
                           : "hover:bg-[var(--sb-hover)]"
                       }`}
                     >
+                      {/* The full three-band treatment, identical to the Lists
+                          cards on Android — same depths, same curvature, same
+                          opacities. The design is the design on both platforms.
+
+                          I had this as a single quieter band first, on the
+                          grounds that three curves across a 36px row resolve to
+                          a few pixels each. Overruled, and the rows are taller
+                          now to carry it properly. */}
+                      <ListWave
+                        color={list.bg_color_hex || "var(--sb-muted)"}
+                        isDark={isDark}
+                      />
+
                       {active && (
                         <span
                           aria-hidden="true"
-                          className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-[var(--sb-primary)]"
+                          className="absolute left-0 top-1/2 z-10 h-4 w-[2px] -translate-y-1/2 rounded-full bg-[var(--sb-primary)]"
                         />
                       )}
 
@@ -704,12 +735,15 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                       <button
                         type="button"
                         onClick={() => handleListClick(list.id)}
-                        className="flex h-full min-w-0 flex-1 items-center gap-2.5 rounded-lg px-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sb-primary)]"
+                        className="relative z-10 flex h-full min-w-0 flex-1 items-center gap-3 rounded-[17px] px-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sb-primary)]"
                         title={list.list_name ?? undefined}
                       >
+                        {/* The line, not a dot — the same 4x28 marker the Lists
+                            cards carry on both layouts, so a list looks like the
+                            same list on either platform. */}
                         <span
                           aria-hidden="true"
-                          className="h-2 w-2 shrink-0 rounded-full"
+                          className="h-7 w-1 shrink-0 rounded-full"
                           style={{
                             backgroundColor:
                               list.bg_color_hex || "var(--sb-muted)",

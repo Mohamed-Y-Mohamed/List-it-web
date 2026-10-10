@@ -18,12 +18,18 @@
 //   selected   a card that is active or selected
 //   border     the hairline that separates a card from its field
 //
-// Options are paired across themes rather than listed per theme, so "the warm one"
-// stays the warm one when the user switches to light. Only the current theme's
-// three are ever offered, because a dark background has nothing to say about how
-// the app should look in daylight.
+// Options are keyed across themes rather than listed per theme, so each key holds a
+// dark half and a light half and the file stays one table instead of two. Only the
+// current theme's four are ever offered, because a dark background has nothing to say
+// about how the app should look in daylight — and the choice is stored per theme, so
+// the pairing inside a key is organisational, not something the user ever feels.
+//
+// `soft` is the fourth, added after the first three shipped. It is the only key whose
+// two halves are not obviously the same idea — Midnight is a lifted black, Cream a
+// warmed white — which is what the name is doing: the softened version of `mono`,
+// in whichever direction the theme runs.
 
-export type SurfaceChoice = "mono" | "cool" | "warm";
+export type SurfaceChoice = "mono" | "soft" | "cool" | "warm";
 export type SurfaceTheme = "light" | "dark";
 
 export interface SurfaceRamp {
@@ -38,11 +44,19 @@ export interface SurfaceRamp {
 /**
  * `mono` is the default in both themes.
  *
- * Its light half is the one combination here where the card and the field are the
- * same colour, so the border does all the work of separating them. That is not an
- * oversight — it is what the app already shipped in light mode and what the
- * screenshots show reading correctly — but it is why `border` is a published part
- * of the ramp rather than a constant, and why mono light carries the strongest one.
+ * Its light half used to be the one combination here with no tonal separation at
+ * all: a white card on a white field, with the border doing all the work. On a
+ * screen of cards that read as one flat sheet with hairlines ruled across it, so
+ * the card is a light grey now and the field keeps the white.
+ *
+ * `raised` and `deep` moved down a step with it, because they were the #F4F4F5 the
+ * card has taken — and a raised surface the same colour as the cards sitting on it
+ * is not raised. Every ramp in both themes now separates card from field by tone,
+ * which is what `surfaceTheme.test.ts` holds them to.
+ *
+ * mono light keeps the strongest border of the four regardless. Grey on white is
+ * a quiet step, and the hairline is what keeps the edge crisp where two cards sit
+ * side by side in the grid.
  */
 export const SURFACE_RAMPS: Record<
   SurfaceTheme,
@@ -60,6 +74,23 @@ export const SURFACE_RAMPS: Record<
       selected: "#26262A",
       border: "rgba(255,255,255,0.10)",
     },
+    // A lifted neutral black. The faint +4 of blue in the field is the only chroma
+    // in it, which is what keeps it from reading as the same colour as Velvet at a
+    // different brightness.
+    //
+    // Its steps are +10 per channel rather than the +6 that looked right on paper:
+    // #242428 as the card measured 0.0031 luminance off this field, under the 0.004
+    // the suite holds every ramp to, and a card you cannot find is the one failure
+    // mode a chosen background actually has. #2A2A2F measures 0.0058, which is where
+    // Velvet already sits.
+    soft: {
+      field: "#202024",
+      deep: "#16161A",
+      raised: "#35353B",
+      card: "#2A2A2F",
+      selected: "#3C3C43",
+      border: "rgba(255,255,255,0.09)",
+    },
     // The palette the app shipped with, kept intact so choosing it is a true
     // return rather than an approximation of what used to be here.
     cool: {
@@ -70,36 +101,61 @@ export const SURFACE_RAMPS: Record<
       selected: "#1B2440",
       border: "rgba(255,255,255,0.08)",
     },
-    // Warm neutral charcoal: no blue in it, low chroma, so it reads matte rather
-    // than as a glossy black.
+    // Deep plum. The one ground in either theme that is a colour rather than a
+    // temperature, and it replaced a warm neutral charcoal (#16181D).
+    //
+    // Every step holds the field's hue instead of drifting toward neutral grey,
+    // which is the whole difficulty with a saturated dark ground: a #2A2A2F-ish
+    // card on this field does not read as "lifted", it reads as dirty. So the
+    // steps carry the plum up with them — roughly +10 red, +7 green, +14 blue
+    // per level, which keeps the ratio between channels near the field's own.
     warm: {
-      field: "#16181D",
-      deep: "#0E1013",
-      raised: "#22262D",
-      card: "#1E2127",
-      selected: "#2B3038",
-      border: "rgba(255,255,255,0.07)",
+      field: "#240B36",
+      deep: "#190726",
+      raised: "#381852",
+      card: "#2E1244",
+      selected: "#421E60",
+      border: "rgba(255,255,255,0.08)",
     },
   },
   light: {
+    // A grey card on a white field, not white on white. See the note above.
     mono: {
       field: "#FFFFFF",
-      deep: "#F4F4F5",
-      raised: "#F4F4F5",
-      card: "#FFFFFF",
+      deep: "#EBEBED",
+      raised: "#EBEBED",
+      card: "#F4F4F5",
       selected: "#EEEEF0",
       border: "rgba(15,23,42,0.12)",
     },
-    cool: {
-      field: "#F6F8FC",
-      deep: "#EEF2F8",
-      raised: "#EEF2F8",
+    // Parchment. The one light field with enough chroma to be a colour rather than a
+    // temperature, so the card stays pure white and the hairline is tinted a warm
+    // olive — a slate border on this field reads as a grey line drawn on yellow.
+    //
+    // `deep` drops a long way for the same reason the field is bold: a 2% step on a
+    // saturated field is invisible, where on white it is plenty.
+    soft: {
+      field: "#FDFBD4",
+      deep: "#EFEAAF",
+      raised: "#F8F4C4",
       card: "#FFFFFF",
-      selected: "#E6EDF7",
-      border: "rgba(15,23,42,0.09)",
+      selected: "#F6F1C2",
+      border: "rgba(60,54,16,0.11)",
+    },
+    // Ice blue, which replaced a near-white cool grey (#F6F8FC). The grey was a
+    // temperature rather than a choice — next to White in a four-up row it read as
+    // the same swatch twice, and the option it was meant to be the daylight half of
+    // is Navy.
+    cool: {
+      field: "#EDF4FF",
+      deep: "#DAE6FA",
+      raised: "#E2ECFD",
+      card: "#FFFFFF",
+      selected: "#D7E5FC",
+      border: "rgba(15,23,42,0.10)",
     },
     warm: {
-      field: "#F4F3F0",
+      field: "#e9e7e1",
       deep: "#EDEBE6",
       raised: "#EDEBE6",
       card: "#FFFFFF",
@@ -116,20 +172,39 @@ export const SURFACE_LABELS: Record<
 > = {
   dark: {
     mono: { label: "Black", hint: "True black, easiest on an OLED screen" },
+    soft: {
+      label: "Midnight",
+      hint: "A lifted near-black, softer than true black",
+    },
     cool: { label: "Navy", hint: "The deep blue the app has always used" },
-    warm: { label: "Charcoal", hint: "A soft, matte near-black" },
+    warm: {
+      label: "Midnight Velvet",
+      hint: "A deep plum, the one ground with real colour in it",
+    },
   },
   light: {
     mono: { label: "White", hint: "Plain white, the most contrast" },
-    cool: { label: "Cool grey", hint: "A faint blue cast, pairs with Navy" },
-    warm: { label: "Warm paper", hint: "A soft off-white, pairs with Charcoal" },
+    soft: { label: "Cream", hint: "A warm parchment, pairs with Midnight" },
+    cool: { label: "Ice blue", hint: "A cool blue cast, pairs with Navy" },
+    warm: {
+      label: "Warm paper",
+      hint: "A soft off-white, pairs with Midnight Velvet",
+    },
   },
 };
 
 export const DEFAULT_SURFACE: SurfaceChoice = "mono";
 
-/** The order the options are offered in, mirroring how far each is from plain. */
-export const SURFACE_ORDER: SurfaceChoice[] = ["mono", "cool", "warm"];
+/**
+ * The order the options are offered in.
+ *
+ * Set deliberately rather than derived: it used to mirror how far each option was
+ * from plain, which stopped being a rule the moment there were four and the dark set
+ * was asked for as Black, Midnight, Navy, Midnight Velvet. By luminance that order
+ * is 0, 0.0147, 0.0062, 0.0088 — not a ramp, and it does not need to be one. The light
+ * set follows the same slots: White, Cream, Ice blue, Warm paper.
+ */
+export const SURFACE_ORDER: SurfaceChoice[] = ["mono", "soft", "cool", "warm"];
 
 const STORAGE_KEY_PREFIX = "listit.surface.";
 
@@ -144,7 +219,10 @@ const storageKey = (theme: SurfaceTheme) => `${STORAGE_KEY_PREFIX}${theme}`;
  * `undefined.field`.
  */
 export function parseSurfaceChoice(value: unknown): SurfaceChoice {
-  return value === "mono" || value === "cool" || value === "warm"
+  return value === "mono" ||
+    value === "soft" ||
+    value === "cool" ||
+    value === "warm"
     ? value
     : DEFAULT_SURFACE;
 }

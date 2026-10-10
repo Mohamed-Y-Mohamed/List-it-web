@@ -59,7 +59,10 @@ const Footer = () => {
                     : "border border-black/10 text-gray-800 hover:bg-black/[0.03]"
                 }`}
               >
-                <FaApple className="mr-2 text-white" size={18} />
+                <FaApple
+                  className="mr-2 text-black dark:text-white"
+                  size={18}
+                />
                 <span className="font-medium">App Store</span>
               </a>
               {/* <a

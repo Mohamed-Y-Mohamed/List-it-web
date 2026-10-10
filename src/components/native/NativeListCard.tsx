@@ -21,6 +21,7 @@ import React from "react";
 import { ChevronRight, Pin } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useLongPress } from "@/hooks/useLongPress";
+import ListWave from "@/components/ui/ListWave";
 import type { List, Note, Task } from "@/types/schema";
 import { listColor } from "./listVisuals";
 
@@ -73,12 +74,47 @@ export default function NativeListCard({
     ? gestureHandlers
     : { onClick: onOpen, onContextMenu: gestureHandlers.onContextMenu };
 
-  const surface = isDark ? "bg-[var(--surface-card)]" : "bg-white";
+  // The ramp in both themes. The light arm used to be a literal `bg-white`, which
+  // is why choosing the White background left white cards on a white field: the
+  // card never read the ramp at all in light mode, so changing the ramp could not
+  // reach it.
+  const surface = "bg-[var(--surface-card)]";
   const edge = isDark ? "border-white/[0.08]" : "border-black/[0.06]";
   const nameText = isDark ? "text-white" : "text-gray-900";
   const metaText = isDark ? "text-gray-400" : "text-gray-500";
 
   const base = `relative flex touch-manipulation select-none overflow-hidden rounded-2xl border ${surface} ${edge} transition-transform duration-100 active:scale-[0.98]`;
+
+  /**
+   * The wave card, for the two layouts on the Lists screen.
+   *
+   * 17px corners and a 0.8px border in the list's own colour, both straight from
+   * the iOS ListRowView, where the radius is `.continuous` and the border is
+   * `strokeBorder(list.bgColor.opacity(...), lineWidth: 0.8)`. The neutral `edge`
+   * is dropped here — the colour is the edge.
+   *
+   * `overflow-hidden` is already on `base` and is what stands in for the Swift
+   * `clipShape`, so the bands stop at the corners.
+   */
+  const waveBase = `relative flex touch-manipulation select-none overflow-hidden rounded-[17px] border ${surface} transition-transform duration-100 active:scale-[0.98]`;
+
+  const waveStyle: React.CSSProperties = {
+    borderWidth: 0.8,
+    borderColor: `${color}${isDark ? "40" : "29"}`,
+    boxShadow: isDark
+      ? "0 3px 8px rgba(0,0,0,0.12)"
+      : "0 3px 8px rgba(0,0,0,0.06)",
+  };
+
+  /* The leading colour bar is gone from both wave layouts.
+   *
+   * It was an `h-7 w-1` pill next to the name, from before the card carried the
+   * colour at all. Now that ListWave paints the list's colour across the whole
+   * card, the bar was a second, louder statement of the same fact sitting on top
+   * of the bands — it read as a line drawn over the design rather than part of
+   * it. The background is the colour marker. Same reasoning retired the dot on
+   * the pinned rail below.
+   */
 
   // A built-in view: a fixed destination with a name. No counts — those come
   // from the screen's own filter, not from a list_id, and a wrong number is
@@ -104,28 +140,37 @@ export default function NativeListCard({
 
   // The pinned rail. Deliberately smaller than a normal card — it is a shortcut
   // to something already in the list below, not a second copy of it.
+  //
+  // On the wave now, like the two full-size layouts. It was the one variant
+  // still marking its colour with a dot, which left the rail looking like a
+  // different product from the cards directly beneath it. With the bands behind
+  // the name the dot was the thing throwing the card off, so it went and the
+  // name reclaimed the `pl-4` the dot used to need.
   if (variant === "pinned") {
     return (
       <button
         type="button"
         {...pressHandlers}
         aria-label={`Open list ${list.list_name || "Untitled"}`}
-        className={`${base} h-[58px] w-[160px] shrink-0 flex-col items-start justify-center gap-0.5 px-3.5`}
+        className={`${waveBase} h-[58px] w-[160px] shrink-0 flex-col items-start justify-center`}
+        style={waveStyle}
       >
-        <span className="flex w-full items-center gap-2">
-          <span
-            className="h-2 w-2 shrink-0 rounded-full"
-            style={{ backgroundColor: color }}
-            aria-hidden="true"
-          />
+        <ListWave color={color} isDark={isDark} />
+
+        {/* `relative` for the same reason as the row below: the wave is
+            absolutely positioned and would otherwise paint over this text.
+
+            `text-left` is load-bearing. A button centres its text, and the name
+            used to sit in a row as a content-sized flex item, so the centring
+            had nothing to centre within and never showed. In a column it
+            stretches the full width and the name drifts to the middle. */}
+        <span className="relative flex w-full flex-col gap-0.5 px-3.5 text-left">
           <span className={`truncate text-[14px] font-medium ${nameText}`}>
             {list.list_name || "Untitled"}
           </span>
-        </span>
-        <span
-          className={`w-full truncate pl-4 text-left text-[11px] ${metaText}`}
-        >
-          {countsLabel(list, tasks, notes)}
+          <span className={`w-full truncate text-left text-[11px] ${metaText}`}>
+            {countsLabel(list, tasks, notes)}
+          </span>
         </span>
       </button>
     );
@@ -139,32 +184,36 @@ export default function NativeListCard({
         type="button"
         {...pressHandlers}
         aria-label={`Open list ${list.list_name || "Untitled"}`}
-        className={`${base} min-h-[64px] w-full items-center gap-3 px-4 py-3`}
+        className={`${waveBase} min-h-[64px] w-full items-center`}
+        style={waveStyle}
       >
-        <span
-          className="h-7 w-1 shrink-0 rounded-full"
-          style={{ backgroundColor: color }}
-          aria-hidden="true"
-        />
-        {/* min-w-0 is what lets the name truncate instead of pushing the
-            chevron off the end of the row. */}
-        <span className="min-w-0 flex-1 text-left">
-          <span
-            className={`flex items-center gap-1.5 truncate text-[15px] font-medium ${nameText}`}
-          >
-            {list.list_name || "Untitled"}
-            {list.is_pinned && (
-              <Pin className="h-3 w-3 shrink-0 fill-current text-orange-400" />
-            )}
+        <ListWave color={color} isDark={isDark} />
+
+        {/* The content is `relative` deliberately. The wave is absolutely
+            positioned, and a positioned element paints above in-flow siblings
+            whatever the DOM order — so without a position of its own the row's
+            own text would render underneath the bands. */}
+        <span className="relative flex w-full items-center gap-3 px-4 py-3">
+          {/* min-w-0 is what lets the name truncate instead of pushing the
+              chevron off the end of the row. */}
+          <span className="min-w-0 flex-1 text-left">
+            <span
+              className={`flex items-center gap-1.5 truncate text-[15px] font-medium ${nameText}`}
+            >
+              {list.list_name || "Untitled"}
+              {list.is_pinned && (
+                <Pin className="h-3 w-3 shrink-0 fill-current text-orange-400" />
+              )}
+            </span>
+            <span className={`block truncate text-[12px] ${metaText}`}>
+              {countsLabel(list, tasks, notes)}
+            </span>
           </span>
-          <span className={`block truncate text-[12px] ${metaText}`}>
-            {countsLabel(list, tasks, notes)}
-          </span>
+          <ChevronRight
+            size={18}
+            className="shrink-0 text-gray-400 dark:text-gray-500"
+          />
         </span>
-        <ChevronRight
-          size={18}
-          className="shrink-0 text-gray-400 dark:text-gray-500"
-        />
       </button>
     );
   }
@@ -175,25 +224,26 @@ export default function NativeListCard({
       type="button"
       {...pressHandlers}
       aria-label={`Open list ${list.list_name || "Untitled"}`}
-      className={`${base} min-h-[84px] w-full flex-col items-start justify-between gap-2 p-3.5 text-left`}
+      className={`${waveBase} min-h-[84px] w-full flex-col items-start`}
+      style={waveStyle}
     >
-      <span className="flex w-full items-start gap-2">
-        <span
-          className="mt-[5px] h-2 w-2 shrink-0 rounded-full"
-          style={{ backgroundColor: color }}
-          aria-hidden="true"
-        />
-        <span
-          className={`line-clamp-2 flex-1 text-[14px] font-medium leading-snug ${nameText}`}
-        >
-          {list.list_name || "Untitled"}
+      <ListWave color={color} isDark={isDark} />
+
+      {/* `relative` for the same reason as the row. */}
+      <span className="relative flex w-full flex-1 flex-col items-start justify-between gap-2 p-3.5 text-left">
+        <span className="flex w-full items-start gap-2.5">
+          <span
+            className={`line-clamp-2 flex-1 text-[14px] font-medium leading-snug ${nameText}`}
+          >
+            {list.list_name || "Untitled"}
+          </span>
+          {list.is_pinned && (
+            <Pin className="mt-[3px] h-3 w-3 shrink-0 fill-current text-orange-400" />
+          )}
         </span>
-        {list.is_pinned && (
-          <Pin className="mt-[3px] h-3 w-3 shrink-0 fill-current text-orange-400" />
-        )}
-      </span>
-      <span className={`truncate text-[11px] ${metaText}`}>
-        {countsLabel(list, tasks, notes)}
+        <span className={`truncate text-[11px] ${metaText}`}>
+          {countsLabel(list, tasks, notes)}
+        </span>
       </span>
     </button>
   );

@@ -24,7 +24,6 @@ import {
   Bell,
   Calendar,
   CheckCircle,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Clipboard,
@@ -1026,78 +1025,6 @@ export function MockListLayout({ isDark }: MockProps) {
   );
 }
 
-/**
- * A row held open on its three actions.
- *
- * The row is drawn already slid left by the width of the panels, which is what the
- * real SwipeableRow animates to, so the step shows the end of the gesture rather
- * than asking the reader to imagine it. 3 × 56 = 168, from ICON_ACTION_WIDTH.
- */
-export function MockSwipeActions({ isDark }: MockProps) {
-  const PANEL = 56;
-  const GAP = 6;
-  const actions = [
-    { Icon: Pin, background: "#f59e0b" },
-    { Icon: Edit3, background: "#3b82f6" },
-    { Icon: Trash2, background: "#ef4444" },
-  ];
-
-  return (
-    <Screen isDark={isDark} height={210}>
-      <div className="px-4 pt-5">
-        <SectionRule isDark={isDark} label="Your lists" count={3} />
-
-        <div className="flex flex-col gap-2">
-          {/* The swiped row. The panel strip sits behind it against the trailing
-              edge; the card is translated by the strip's width to uncover it. */}
-          <div className="relative overflow-hidden rounded-2xl">
-            {/* Spaced and rounded, matching SwipeableRow. This mock drew them
-                flush and square, which is the shape the component produced before
-                the panels were separated — a drawing of a screen the app no
-                longer renders is worse than no drawing. */}
-            <div
-              className="absolute inset-y-0 right-0 flex items-stretch"
-              style={{ gap: GAP, paddingLeft: GAP }}
-            >
-              {actions.map(({ Icon, background }) => (
-                <span
-                  key={background}
-                  className="flex h-full flex-col items-center justify-center rounded-[14px] text-white"
-                  style={{ width: PANEL, background }}
-                >
-                  <Icon size={20} />
-                </span>
-              ))}
-            </div>
-            <div
-              className="relative"
-              style={{
-                transform: `translateX(-${(PANEL + GAP) * actions.length}px)`,
-              }}
-            >
-              <RowCard
-                isDark={isDark}
-                color="#007AFF"
-                name="Work"
-                counts="4 tasks · 2 notes"
-              />
-            </div>
-          </div>
-
-          <RowCard
-            isDark={isDark}
-            color="#34C759"
-            name="Home"
-            counts="2 tasks · 1 note"
-          />
-        </div>
-      </div>
-      {/* The uncovered panels, not the row, since they are what the step is about. */}
-      <Pointer x={276} y={105} from="bottom-left" radius={30} />
-    </Screen>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Reminders — copied from ToggleSection and
 // RemindersPicker
@@ -1194,6 +1121,7 @@ const pillClass = (isDark: boolean, active = false) =>
         ? "bg-gray-700/60 text-gray-300"
         : "bg-gray-100 text-gray-700"
   }`;
+
 
 /** Reminders, switched on, with one set and the offsets still on offer. */
 export function MockReminders({ isDark }: MockProps) {
@@ -1373,78 +1301,3 @@ export function MockScheduled({ isDark }: MockProps) {
   );
 }
 
-/**
- * A task row held open on Done, Edit and Delete.
- *
- * Same construction as MockSwipeActions, and for the same reason: the end of the
- * gesture is the only part of it a still picture can show. What differs is lifted
- * from what a task row actually passes SwipeableRow — the card's own `rounded-xl`
- * clip, and icon-only panels with the 6px of air between them that stops three
- * tiles reading as one striped block. 3 × (56 + 6) = 186, from ICON_ACTION_WIDTH
- * and ACTION_GAP.
- */
-export function MockSwipeTasks({ isDark }: MockProps) {
-  const PANEL = 56;
-  const GAP = 6;
-  const actions = [
-    { Icon: CheckCircle2, background: "#10b981" },
-    { Icon: Edit3, background: "#3b82f6" },
-    { Icon: Trash2, background: "#ef4444" },
-  ];
-  const strip = actions.length * (PANEL + GAP);
-
-  return (
-    <Screen
-      isDark={isDark}
-      height={308}
-      background={isDark ? DETAIL_BG_DARK : DETAIL_BG_LIGHT}
-    >
-      <div className="space-y-4 px-4 pt-6">
-        <div className="relative overflow-hidden rounded-xl">
-          <div
-            className="absolute inset-y-0 right-0 flex items-stretch"
-            style={{ width: strip, gap: GAP, paddingLeft: GAP }}
-          >
-            {actions.map(({ Icon, background }) => (
-              <span
-                key={background}
-                className="flex h-full flex-col items-center justify-center rounded-[14px] text-white"
-                style={{ width: PANEL, background }}
-              >
-                <Icon className="h-5 w-5" />
-              </span>
-            ))}
-          </div>
-          <div
-            className="relative"
-            style={{ transform: `translateX(-${strip}px)` }}
-          >
-            <TaskCard
-              isDark={isDark}
-              title="Collect the parcel"
-              collection="General"
-              due="Today at 19:00"
-              priority={false}
-            />
-          </div>
-        </div>
-
-        {/* A row at rest underneath, because an open one has carried its own title
-            off the left edge — which is what the gesture does, and why it takes two
-            rows to show both states. */}
-        <TaskCard
-          isDark={isDark}
-          title="Book the MOT"
-          collection="General"
-          due="Tomorrow at 09:30"
-          priority={false}
-        />
-      </div>
-      {/* The middle panel. The strip is 186 wide against the edge at 344 with 6px of
-          lead-in, so the three sit at 164, 226 and 288; the panels take the card's
-          height, 122 from 24, so they centre at 85. The arrow drops in from the top
-          padding, the one place it does not cross either card. */}
-      <Pointer x={254} y={85} from="top-left" radius={30} />
-    </Screen>
-  );
-}
