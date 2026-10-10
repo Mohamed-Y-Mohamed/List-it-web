@@ -18,6 +18,7 @@ import { Collection, Note, OperationResult, Task } from "@/types/schema";
 import { useTheme } from "@/context/ThemeContext";
 import { IS_NATIVE_BUILD, isNativeApp } from "@/lib/platform";
 import { tabForSwipe } from "@/lib/panelSwipe";
+import { withAlpha } from "@/lib/colors";
 
 /**
  * Native only: an expanded collection shows about three cards and scrolls for the
@@ -72,27 +73,22 @@ const entranceDelay = (index: number): number =>
  * to a row a collection holding a dozen notes is six rows tall and pushes the
  * next collection off the screen entirely.
  *
- * 220px is two cards and the gap between them. A note card is 104px:
+ * 192px is two cards and the gap between them: NOTE_HEIGHT (90, straight from
+ * the iOS `.frame(height: 90)`) twice, plus `gap-3`.
  *
- *   1   border-top
- *   12  pt-3
- *   28  header row — the h-7 pin button, not the 20px title, sets this
- *   8   mt-2 above the body
- *   30  the body preview, NOTE_DESC_HEIGHT in Notes/noteCard
- *   24  pb-6, clearing the 20px folded corner
- *   1   border-bottom
- *
- * so 104 * 2 + 12 (`gap-3`). This only holds because every note card is the
- * same height regardless of its text — see the note on NOTE_DESC_HEIGHT. Change
- * the card's padding or type and this number has to move with it.
+ * Simple arithmetic now only because the card's height is declared rather than
+ * derived. It was a sum of seven paddings and type metrics when the card grew
+ * to fit its text, which is the kind of number that is wrong the moment anyone
+ * touches the card. Change NOTE_HEIGHT in Notes/noteCard and this moves with
+ * it; nothing else can shift it.
  *
  * `touch-pan-y` for the same reason as NATIVE_PANEL_SCROLL: this scroller sits
  * inside the draggable Tasks/Notes panel, and without it the WebView claims any
  * horizontal gesture starting on a card and the tab swipe dies.
  */
 const NOTES_ROWS_MAX_H = IS_NATIVE_BUILD
-  ? "max-h-[220px] touch-pan-y overflow-y-auto"
-  : "max-h-[220px] overflow-y-auto";
+  ? "max-h-[192px] touch-pan-y overflow-y-auto"
+  : "max-h-[192px] overflow-y-auto";
 
 /* =======================================================
    DIAGONAL SLICE — settings
@@ -120,45 +116,34 @@ const SLICE_SHUT_WIDTH = 30;
 const SLICE_SKEW = 24;
 /** Leading and trailing gradient stops, as alpha on the collection colour. */
 const SLICE_ALPHA = {
-  dark: { from: 0.38, to: 0.22 },
+  dark: { from: 0.4, to: 0.2 },
   light: { from: 0.28, to: 0.14 },
 } as const;
 
 /**
- * How far the edge lock is squeezed while the collection is shut.
+ * The shut card's tilt, straight from the Swift:
  *
- * 0.74 is the Swift's 10px of air at each end of a shut header, as a fraction
- * of this one's 76px: (76 - 20) / 76. A scale rather than an inset because an
- * inset is a layout change and a scale is not — see the note in `EdgeLock`.
- */
-const EDGE_SHUT_SCALE = 0.74;
-
-/**
- * `color` at `alpha`, as an rgba() string.
+ *   .rotation3DEffect(.degrees(-6), axis: (x: 1.0, y: -0.4, z: 0.0),
+ *                     anchor: .center, perspective: 0.35)
+ *   .offset(x: 6, y: -4)
  *
- * Collection colours arrive from the database as 3- or 6-digit hex. The list
- * cards get away with appending a two-digit alpha to the string, which fails
- * silently on a 3-digit value — `#f90` + `61` is not a colour — so this parses
- * instead. Anything it cannot read comes back untouched rather than throwing: a
- * header with a flat slab is survivable, a collection that will not render is
- * not.
+ * A shut collection leans back and sits slightly up and to the right, so a
+ * column of them reads as a deck rather than a list of bars; opening one brings
+ * it square and flat to the screen.
+ *
+ * SwiftUI's `perspective` is a ratio of the view's own size, where CSS takes a
+ * distance — 0.35 against a card of about 350px is roughly 1000px, which is
+ * what this uses. The whole transform is one string because framer owns this
+ * element's `transform` for the entrance animation and would overwrite a second
+ * one; keeping every term present in both states, with only the numbers
+ * differing, is what lets the two interpolate rather than snap.
  */
-function withAlpha(color: string, alpha: number): string {
-  const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
-  if (!match) return color;
-
-  const hex =
-    match[1].length === 3
-      ? match[1]
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : match[1];
-
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
-
-  return `rgba(${r},${g},${b},${alpha})`;
-}
+const cardTransform = (isExpanded: boolean, lift: number): string =>
+  [
+    "perspective(1000px)",
+    `rotate3d(1, -0.4, 0, ${isExpanded ? 0 : -6}deg)`,
+    `translate3d(${isExpanded ? 0 : 6}px, ${(isExpanded ? 0 : -4) + lift}px, 0px)`,
+  ].join(" ");
 
 /* =======================================================
    DIAGONAL SLICE — the shape
@@ -215,40 +200,13 @@ function DiagonalSlice({
   );
 }
 
-/**
- * The leading edge lock.
+/* The leading edge lock has been removed.
  *
- * Faint and inset while the collection is shut; solid and the full height of
- * the card once it is open, so the line runs down the side of the expanded
- * content rather than stopping where the header does. It is the one part of the
- * card that states open or shut without anyone reading a word.
- *
- * It sits on the card root rather than inside the header for exactly that
- * reason, and `inset-y-0` is what makes "the full height" follow the content as
- * it grows. The shut inset is a `scaleY` rather than real insets so the only
- * animated properties here are transform and opacity.
+ * It was a 4px bar down the leading edge, faint and inset while shut and solid
+ * and full-height once open. It is not in the iOS `CollectionHeader` any more —
+ * the tilt and offset above state open-versus-shut instead, and with both the
+ * bar was two answers to the same question on one card.
  */
-function EdgeLock({
-  color,
-  isDark,
-  isExpanded,
-}: {
-  color: string;
-  isDark: boolean;
-  isExpanded: boolean;
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-y-0 left-0 z-20 w-1 origin-center transition-[transform,opacity] duration-[280ms] ease-[var(--ease-out)] motion-reduce:transition-[opacity]"
-      style={{
-        backgroundColor: color,
-        opacity: isExpanded ? 1 : isDark ? 0.16 : 0.14,
-        transform: isExpanded ? "scaleY(1)" : `scaleY(${EDGE_SHUT_SCALE})`,
-      }}
-    />
-  );
-}
 
 interface CollectionComponentProps {
   id: string;
@@ -810,26 +768,36 @@ const EnhancedCollectionComponent = ({
 
   return (
     <motion.section
+      /* The entrance rides the same `transform` as the tilt rather than using
+         framer's `y`, which would write a second transform and clobber it. The
+         `lift` argument is the entrance offset, so a card still arrives from
+         10px below and leaves 8px above — tilted if it is shut, square if it
+         is open. */
       initial={{
         opacity: 0,
-        y: 10,
+        transform: cardTransform(isExpanded, 10),
       }}
       animate={{
         opacity: 1,
-        y: 0,
+        transform: cardTransform(isExpanded, 0),
       }}
       exit={{
         opacity: 0,
-        y: -8,
+        transform: cardTransform(isExpanded, -8),
       }}
+      /* 280ms on the codebase's own strong ease-out. The Swift is
+         `.snappy(duration: 0.32, extraBounce: 0.04)`; 0.04 of bounce does not
+         survive into a cubic-bezier and is imperceptible at that amplitude
+         anyway, and 280ms keeps the open under the 300ms a UI transition wants. */
       transition={{
-        duration: 0.25,
+        duration: 0.28,
+        ease: [0.23, 1, 0.32, 1],
       }}
       data-collection-id={id}
       className={`
         ${className}
         overflow-hidden
-        rounded-[18px]
+        rounded-[17px]
         border
         backdrop-blur-[14px]
         transition-colors
@@ -845,15 +813,6 @@ const EnhancedCollectionComponent = ({
         borderColor: withAlpha(getEffectiveColor(), isDark ? 0.25 : 0.16),
       }}
     >
-      {/* The edge lock spans header *and* expanded content, so it lives here
-          rather than in the header below. `overflow-hidden` above is what
-          clips it to the card's corners. */}
-      <EdgeLock
-        color={getEffectiveColor()}
-        isDark={isDark}
-        isExpanded={isExpanded}
-      />
-
       {/* ===================================================
           HEADER
          =================================================== */}
@@ -878,9 +837,10 @@ const EnhancedCollectionComponent = ({
             isExpanded={isExpanded}
           />
 
-          {/* pl-4 is the Swift's 12px of leading air plus the 4px the edge lock
-              occupies. The right side keeps its own padding for the buttons. */}
-          <div className="relative z-10 flex min-h-[76px] items-center gap-3 py-3.5 pl-4 pr-4 sm:pr-5">
+          {/* `py-3.5` and `pl-3` are the Swift's `.padding(.vertical, 14)` and
+              `.padding(.leading, 12)`. The right side keeps its own padding
+              because the buttons live there and iOS has none. */}
+          <div className="relative z-10 flex min-h-[68px] items-center gap-3 py-3.5 pl-3 pr-4 sm:pr-5">
             <button
               type="button"
               onClick={() => setIsExpanded((previous) => !previous)}
@@ -1141,7 +1101,16 @@ const EnhancedCollectionComponent = ({
             transition={{
               duration: 0.2,
             }}
-            className="overflow-hidden"
+            /* The content well, from the Swift: a faint ground under the
+               expanded half so it reads as a recess the header sits on rather
+               than more of the same card. `black/[0.12]` in dark is the Swift
+               value as written; in light, `--surface-deep` at 30% is this app's
+               stand-in for `systemGroupedBackground.opacity(0.3)`, and reading
+               the ramp means it follows the chosen background instead of being
+               a grey that only suits White. */
+            className={`overflow-hidden ${
+              isDark ? "bg-black/[0.12]" : "bg-[var(--surface-deep)]/30"
+            }`}
           >
             <motion.div
               role="tabpanel"
