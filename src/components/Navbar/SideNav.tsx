@@ -24,7 +24,7 @@ import {
   Edit3,
   type LucideIcon,
 } from "lucide-react";
-import { PRIMARY, SELECTED, DANGER } from "@/components/ui/tokens";
+import { PRIMARY, DANGER } from "@/components/ui/tokens";
 import ListWave from "@/components/ui/ListWave";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -39,27 +39,46 @@ import { useIsNative } from "@/hooks/useIsNative";
 /**
  * Surfaces for the sidebar, in both themes.
  *
- * The dark values are the Stage 1 palette the native app already ships
- * (`ui/tokens`); the light ones are its counterparts. Held as one object so a
- * row, a list entry and the footer cannot each invent their own grey.
+ * Held as one object so a row, a list entry and the footer cannot each invent
+ * their own grey.
+ *
+ * The four surface values read the page's ramp rather than naming a colour.
+ * They were a hardcoded `#0B1222` navy and `#FFFFFF`, which is why the sidebar
+ * stayed navy-on-dark and white-on-light whatever was picked in Settings →
+ * Appearance: choosing Cream or Midnight Velvet recoloured the page and left
+ * the sidebar beside it looking like a different application. They are
+ * identical in both arms now, because the ramp already carries the right value
+ * for the theme *and* the chosen background — a branch here could only disagree
+ * with it. Same reasoning as the `SURFACE` object in Collection/index.tsx.
+ *
+ * The sidebar and the page are the same colour by design now, so `border-r`
+ * carries the whole separation between them.
+ *
+ * `hover` and `selected` have to track the field or a hover band ends up navy
+ * on a plum sidebar. `raised` steps away from the field in the right direction
+ * in both themes — darker under a light ground, lighter under a dark one — and
+ * both it and `selected` are opaque in every ramp, which the row actions need:
+ * they sit on top of the list name and have to hide it, which a see-through
+ * surface cannot do.
+ *
+ * `text`, `muted` and `divider` stay per-theme. The ramp carries surfaces, not
+ * type colours, and the dividers are translucent so they work over any ground.
  */
 const SURFACE = {
   dark: {
-    field: "#0B1222",
-    // Opaque, not a translucent white. The row actions sit on top of the list
-    // name and have to hide it, which a see-through surface cannot do.
-    hover: "#141C2E",
-    selected: SELECTED,
-    border: "rgba(255,255,255,0.08)",
+    field: "var(--surface-field)",
+    hover: "var(--surface-raised)",
+    selected: "var(--surface-selected)",
+    border: "var(--surface-border)",
     divider: "rgba(255,255,255,0.06)",
     text: "#E2E8F0",
     muted: "#7C89A4",
   },
   light: {
-    field: "#FFFFFF",
-    hover: "#F1F5F9",
-    selected: "#EEF2FF",
-    border: "rgba(15,23,42,0.08)",
+    field: "var(--surface-field)",
+    hover: "var(--surface-raised)",
+    selected: "var(--surface-selected)",
+    border: "var(--surface-border)",
     divider: "rgba(15,23,42,0.06)",
     text: "#1E293B",
     muted: "#64748B",
@@ -741,14 +760,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                         {/* The line, not a dot — the same 4x28 marker the Lists
                             cards carry on both layouts, so a list looks like the
                             same list on either platform. */}
-                        <span
-                          aria-hidden="true"
-                          className="h-7 w-1 shrink-0 rounded-full"
-                          style={{
-                            backgroundColor:
-                              list.bg_color_hex || "var(--sb-muted)",
-                          }}
-                        />
+
                         <span className="truncate text-[13px] font-medium text-[var(--sb-text)]">
                           {list.list_name}
                         </span>

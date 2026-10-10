@@ -65,6 +65,35 @@ const PANEL_DRAG_LOCK = { left: 0, right: 0 } as const;
 const entranceDelay = (index: number): number =>
   Math.min(index, MAX_STAGGERED_ITEMS) * STAGGER_STEP;
 
+/**
+ * The notes panel shows two rows — four cards — and scrolls for the rest.
+ *
+ * Unlike the task panel's cap this applies on the web too, because at two cards
+ * to a row a collection holding a dozen notes is six rows tall and pushes the
+ * next collection off the screen entirely.
+ *
+ * 220px is two cards and the gap between them. A note card is 104px:
+ *
+ *   1   border-top
+ *   12  pt-3
+ *   28  header row — the h-7 pin button, not the 20px title, sets this
+ *   8   mt-2 above the body
+ *   30  the body preview, NOTE_DESC_HEIGHT in Notes/noteCard
+ *   24  pb-6, clearing the 20px folded corner
+ *   1   border-bottom
+ *
+ * so 104 * 2 + 12 (`gap-3`). This only holds because every note card is the
+ * same height regardless of its text — see the note on NOTE_DESC_HEIGHT. Change
+ * the card's padding or type and this number has to move with it.
+ *
+ * `touch-pan-y` for the same reason as NATIVE_PANEL_SCROLL: this scroller sits
+ * inside the draggable Tasks/Notes panel, and without it the WebView claims any
+ * horizontal gesture starting on a card and the tab swipe dies.
+ */
+const NOTES_ROWS_MAX_H = IS_NATIVE_BUILD
+  ? "max-h-[220px] touch-pan-y overflow-y-auto"
+  : "max-h-[220px] overflow-y-auto";
+
 /* =======================================================
    DIAGONAL SLICE — settings
 
@@ -851,9 +880,7 @@ const EnhancedCollectionComponent = ({
 
           {/* pl-4 is the Swift's 12px of leading air plus the 4px the edge lock
               occupies. The right side keeps its own padding for the buttons. */}
-          <div
-            className="relative z-10 flex min-h-[76px] items-center gap-3 py-3.5 pl-4 pr-4 sm:pr-5"
-          >
+          <div className="relative z-10 flex min-h-[76px] items-center gap-3 py-3.5 pl-4 pr-4 sm:pr-5">
             <button
               type="button"
               onClick={() => setIsExpanded((previous) => !previous)}
@@ -893,10 +920,10 @@ const EnhancedCollectionComponent = ({
                   }}
                   aria-label="Edit collection"
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
-                  isDark
-                    ? "bg-white/10 text-white hover:bg-white/20"
-                    : "bg-black/[0.06] text-gray-900 hover:bg-black/[0.1]"
-                }`}
+                    isDark
+                      ? "bg-white/10 text-white hover:bg-white/20"
+                      : "bg-black/[0.06] text-gray-900 hover:bg-black/[0.1]"
+                  }`}
                 >
                   <Edit3 className="h-4 w-4" strokeWidth={1.75} />
                 </button>
@@ -1292,20 +1319,28 @@ const EnhancedCollectionComponent = ({
                   }}
                 >
                   {sortedNotes.length > 0 ? (
+                    /* Two across at every width, rather than a 1/2/3/4 ladder.
+                       A note is a title and a few lines of its body, so at four
+                       to a row on a wide screen the body clamped to almost
+                       nothing and the grid read as a row of chips. Two keeps
+                       each card wide enough for the preview to be worth showing.
+
+                       `items-stretch` with `h-full` on the cards is what stops
+                       the pair in a row from being different heights, which is
+                       the thing that makes a two-column grid look unfinished. */
                     <div
                       className={`
                         grid
-                        grid-cols-1
+                        grid-cols-2
+                        items-stretch
                         gap-3
-                        sm:grid-cols-2
-                        lg:grid-cols-3
-                        xl:grid-cols-4
-                        ${NATIVE_PANEL_SCROLL}
+                        ${NOTES_ROWS_MAX_H}
                       `}
                     >
                       {sortedNotes.map((note, index) => (
                         <motion.div
                           key={note.id}
+                          className="h-full"
                           initial={{
                             opacity: 0,
                             y: 6,

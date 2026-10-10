@@ -1,7 +1,7 @@
 "use client";
 
 import React, { memo, useEffect, useState } from "react";
-import { AlertCircle, CalendarDays, Pin, Trash2 } from "lucide-react";
+import { AlertCircle, Pin, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { useTheme } from "@/context/ThemeContext";
@@ -11,8 +11,67 @@ import NativeContextMenu, {
 } from "@/components/native/NativeContextMenu";
 import NoteSidebar from "@/components/popupModels/notedetail";
 import { Note, OperationResult } from "@/types/schema";
-import { formatDisplayDate } from "@/utils/dateUtils";
 import { isLightColor, normaliseHex } from "@/lib/colors";
+
+/**
+ * The size of the folded corner, in px — the leg of the triangle, not its
+ * hypotenuse.
+ *
+ * The card's own `clip-path` cuts this corner away and `NoteFold` draws the flap
+ * that sits against the cut. Both read this, so the two can never disagree and
+ * leave a hairline of card showing past the fold.
+ *
+ * The card carries `pb-6` (24px) against this 20px so the last line of a
+ * clamped description clears the flap instead of running under it.
+ */
+const NOTE_FOLD = 20;
+
+/**
+ * The height of the body preview, in px: a line and a half at `leading-5`.
+ *
+ * Deliberately not a `line-clamp`. A clamp ends on a whole line with an
+ * ellipsis, which says "there is more" but makes the card as tall as however
+ * many lines you allowed. Half a line, faded out, says the same thing in 30px —
+ * and because it is a fixed height rather than a content-driven one, every card
+ * is the same height whatever it holds.
+ *
+ * That uniformity is load-bearing: `NOTES_ROWS_MAX_H` in Collection/index.tsx
+ * caps the panel at exactly two rows, and the arithmetic only holds if a card's
+ * height does not depend on its text. It is also why the box is rendered for a
+ * note with no description at all rather than being conditional.
+ */
+const NOTE_DESC_HEIGHT = 30;
+
+/**
+ * The folded-up corner of the sticky note.
+ *
+ * A 20x20 box pinned to the bottom-right, clipped to the triangle whose
+ * hypotenuse is exactly the diagonal the card's own clip-path cuts — top-left,
+ * top-right, bottom-left. It therefore sits flush against the cut edge with no
+ * seam, which a triangle positioned by eye does not.
+ *
+ * The wash is translucent rather than a colour, because the card behind it is
+ * whatever the user picked for the note. A fold shows the *back* of the paper,
+ * so it darkens in light mode; in dark mode the sheet is already near-black and
+ * darkening reads as a hole, so it lifts instead. The 135deg runs the gradient
+ * down the fold rather than across it, which is the direction the light would.
+ */
+function NoteFold({ isDark }: { isDark: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute bottom-0 right-0"
+      style={{
+        width: NOTE_FOLD,
+        height: NOTE_FOLD,
+        clipPath: "polygon(0 0, 100% 0, 0 100%)",
+        backgroundImage: isDark
+          ? "linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.05))"
+          : "linear-gradient(135deg, rgba(15,23,42,0.18), rgba(15,23,42,0.05))",
+      }}
+    />
+  );
+}
 
 interface NoteCardProps {
   id: string;
@@ -408,19 +467,40 @@ const NoteCard = ({
         exit={{ opacity: 0 }}
         transition={{ duration: 0.18 }}
         {...gestureHandlers}
-        style={cardStyle}
+        /* The sticky-note shape. The polygon keeps three corners square to the
+           box — `rounded-xl` still rounds them, since border-radius paints the
+           background and clip-path then cuts it — and takes the bottom-right
+           off at 45 degrees. `NoteFold` fills the cut edge.
+
+           `h-full` + `flex-col`: the card is a stretched grid item in the
+           two-column notes grid, so it fills whatever height its row takes and
+           a pair in a row never ends up ragged.
+
+           The transition names its three properties rather than being
+           `transition-all`, which it was. A stretched grid item has layout
+           properties set on it by the grid, and `all` would animate those too —
+           a row re-measuring would visibly settle instead of just being the
+           right size. */
+        style={{
+          ...cardStyle,
+          clipPath: `polygon(0 0, 100% 0, 100% calc(100% - ${NOTE_FOLD}px), calc(100% - ${NOTE_FOLD}px) 100%, 0 100%)`,
+        }}
         className={`
           group
           relative
+          flex
+          h-full
           w-full
           cursor-pointer
+          flex-col
           overflow-hidden
           rounded-xl
           border
-          px-4
-          py-3.5
-          transition-all
+          px-3.5
+          pb-6
+          pt-3
           duration-200
+          transition-[background-color,border-color,box-shadow]
 
           ${
             isDark
@@ -498,21 +578,10 @@ const NoteCard = ({
               {displayTitle}
             </h4>
 
-            {/* Date directly under title */}
-            <div
-              className={`
-                mt-1
-                flex
-                items-center
-                gap-1.5
-                text-[11px]
-                ${secondaryColour}
-              `}
-            >
-              <CalendarDays className="h-3 w-3 shrink-0" />
-
-              <span>{formatDisplayDate(created_at)}</span>
-            </div>
+            {/* The created date used to sit here, under the title. A note's own
+                first line says more about it than the day it was made, and at
+                two cards to a row there is only room for one of the two. The
+                date is still in the detail sidebar. */}
           </div>
 
           {/* Pin */}
@@ -553,44 +622,45 @@ const NoteCard = ({
           </button>
         </div>
 
-        {/* Description */}
-        {noteDescription && (
-          <p
-            title={noteDescription}
-            className={`
-              mt-2.5
-              w-3/4
-              truncate
-              text-[12px]
-              leading-5
-              ${secondaryColour}
-            `}
-          >
-            {noteDescription}
-          </p>
-        )}
+        {/* Description — the body preview, and the only thing under the title
+            now the date is gone.
 
-        {/* Pinned label */}
-        {is_pinned && (
-          <div
-            className="
-              mt-2
-              flex
-              items-center
-              gap-1
-              text-[10px]
-              font-medium
-              text-amber-400
-            "
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-            Pinned
-          </div>
-        )}
+            A line and a half, masked to fade out across the second half-line
+            rather than truncated. Truncating showed a few words and an
+            ellipsis, which told you a note had a body but nothing about what
+            was in it; a half-line of real text trailing off reads as a page
+            continuing. The mask is opaque for the whole first line and clear by
+            the bottom, so the cut never lands mid-glyph looking accidental.
 
-        {/* Processing */}
+            Always rendered, even with nothing in it — see NOTE_DESC_HEIGHT. */}
+        <p
+          title={noteDescription || undefined}
+          style={{
+            height: NOTE_DESC_HEIGHT,
+            maskImage: `linear-gradient(to bottom, #000 0 20px, transparent ${NOTE_DESC_HEIGHT}px)`,
+            WebkitMaskImage: `linear-gradient(to bottom, #000 0 20px, transparent ${NOTE_DESC_HEIGHT}px)`,
+          }}
+          className={`
+            mt-2
+            overflow-hidden
+            text-[12px]
+            leading-5
+            ${secondaryColour}
+          `}
+        >
+          {noteDescription}
+        </p>
+
+        {/* The "Pinned" label used to sit here. The pin button in the header
+            already turns amber and fills when a note is pinned, so this was the
+            same fact stated twice — and at two cards to a row it cost a whole
+            row of height to repeat it. */}
+
+        {/* Processing. Bottom-*left*: the fold occupies the bottom-right now,
+            and the card's clip-path would cut a spinner there clean out of the
+            card rather than just overlapping it. */}
         {isProcessing && (
-          <div className="absolute bottom-2 right-3">
+          <div className="absolute bottom-2 left-3">
             <div
               className="
                 h-3.5
@@ -604,6 +674,9 @@ const NoteCard = ({
             />
           </div>
         )}
+
+        {/* Last, so the flap paints over anything that reaches the corner. */}
+        <NoteFold isDark={isDark} />
       </motion.article>
 
       {/* Hold menu. Rendered outside the card so its backdrop covers the screen
