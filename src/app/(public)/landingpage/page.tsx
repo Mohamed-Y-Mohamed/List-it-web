@@ -226,7 +226,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
   const isDark = theme === "dark";
 
   const scheduled = Boolean(due_date);
-  const overdue = Boolean(due_date && due_date.getTime() < Date.now() && !completed);
+  const overdue = Boolean(
+    due_date && due_date.getTime() < Date.now() && !completed,
+  );
   const status = taskStatus(overdue, !!is_pinned, scheduled);
   const statusInfo = STATUS_META[status];
   const formattedDate = formatDemoDate(due_date);
@@ -251,12 +253,14 @@ const TaskCard: React.FC<TaskCardProps> = ({
       className={`
         group relative cursor-pointer select-none overflow-hidden
         rounded-2xl border transition-all duration-200
-        ${/* The field, not the card, mirroring the real task card: a task sits
+        ${
+          /* The field, not the card, mirroring the real task card: a task sits
              inside a collection, so it drops back to the page colour to stand
              off it. Expressed in this page's own `--ps-*` palette rather than
              `--surface-field`, because the marketing page has a fixed look and
              must not repaint itself from a signed-in visitor's stored
-             background choice. */ ""}
+             background choice. */ ""
+        }
         border-[var(--ps-border)]
         bg-[var(--ps-field)]
 
@@ -425,9 +429,7 @@ const NOTE_FOLD_ALPHA = { dark: 0.55, light: 0.45 } as const;
 const demoAlpha = (hex: string, alpha: number): string => {
   const value = hex.replace("#", "");
   if (value.length !== 6) return hex;
-  const [r, g, b] = [0, 2, 4].map((i) =>
-    parseInt(value.slice(i, i + 2), 16),
-  );
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(value.slice(i, i + 2), 16));
   return `rgba(${r},${g},${b},${alpha})`;
 };
 
@@ -643,82 +645,94 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
     >
       {/* HEADER */}
       <div className={`relative ${colors.header}`}>
-        {/* The diagonal slice, tracking Collection/index.tsx: a translucent slab
-            of the collection colour, a narrow block while shut and the full
-            width of the row once open, with the trailing corner skewed back
-            24px until it squares off. One `clip-path` carries the sweep and the
-            slant; `background-size` keeps the gradient sized to the slab rather
-            than the row. Both paint-only, and both emitted in the same
-            `calc(<percentage> - <length>)` shape so the two states interpolate.
+        {/* The slice backs the title row and nothing else, which is the one
+            thing this had wrong when it first went in: hung on the header
+            wrapper with `inset-0` it covered the tabs and the status legend as
+            well, turning a slab behind a line of text into a coloured block
+            most of the card deep. The real Collection wraps its title row in
+            its own `relative` for exactly this reason, so this one does too.
+
+            Tracking Collection/index.tsx otherwise: a translucent slab of the
+            collection colour, a narrow block while shut and the full width of
+            the row once open, with the trailing corner skewed back 24px until
+            it squares off. One `clip-path` carries the sweep and the slant;
+            `background-size` keeps the gradient sized to the slab rather than
+            the row. Both paint-only. The calc() form is for readability only —
+            Chromium normalises `calc(100% - 0px)` back to `100%` and blends it
+            with the shut state's calc regardless. See Collection/index.tsx.
 
             This replaced a 2.5px colour dot beside the name. The colour is the
-            header's background now, so the dot said it twice. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 transition-[clip-path,background-size] duration-[280ms] ease-[var(--ease-out)] motion-reduce:transition-none"
-          style={{
-            backgroundImage: `linear-gradient(to right, ${demoAlpha(
-              colour,
-              isDark ? 0.4 : 0.28,
-            )}, ${demoAlpha(colour, isDark ? 0.2 : 0.14)})`,
-            backgroundSize: `${isExpanded ? 100 : 30}% 100%`,
-            backgroundRepeat: "no-repeat",
-            clipPath: `polygon(0 0, ${isExpanded ? 100 : 30}% 0, calc(${
-              isExpanded ? 100 : 30
-            }% - ${isExpanded ? 0 : 24}px) 100%, 0 100%)`,
-          }}
-        />
+            row's background now, so the dot said it twice. */}
+        <div className="relative">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 transition-[clip-path,background-size] duration-[280ms] ease-[var(--ease-out)] motion-reduce:transition-none"
+            style={{
+              backgroundImage: `linear-gradient(to right, ${demoAlpha(
+                colour,
+                isDark ? 0.4 : 0.28,
+              )}, ${demoAlpha(colour, isDark ? 0.2 : 0.14)})`,
+              backgroundSize: `${isExpanded ? 100 : 30}% 100%`,
+              backgroundRepeat: "no-repeat",
+              clipPath: `polygon(0 0, ${isExpanded ? 100 : 30}% 0, calc(${
+                isExpanded ? 100 : 30
+              }% - ${isExpanded ? 0 : 24}px) 100%, 0 100%)`,
+            }}
+          />
 
-        <div className="relative z-10 py-3.5 pl-3 pr-4 sm:pr-5">
-          <div className="flex items-center gap-3">
-            {/* Title + counts */}
-            <button
-              type="button"
-              onClick={() => setIsExpanded((previous) => !previous)}
-              aria-expanded={isExpanded}
-              className="min-w-0 flex-1 text-left"
-            >
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-                <h3
-                  className={`
+          <div className="relative z-10 py-3.5 pl-3 pr-4 sm:pr-5">
+            <div className="flex items-center gap-3">
+              {/* Title + counts */}
+              <button
+                type="button"
+                onClick={() => setIsExpanded((previous) => !previous)}
+                aria-expanded={isExpanded}
+                className="min-w-0 flex-1 text-left"
+              >
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                  <h3
+                    className={`
                     max-w-full truncate
                     text-[16px] font-semibold leading-6 tracking-[-0.015em]
                     sm:text-[17px]
                     ${colors.textPrimary}
                   `}
-                >
-                  {collection_name || "Unnamed Collection"}
-                </h3>
+                  >
+                    {collection_name || "Unnamed Collection"}
+                  </h3>
 
-                <span
-                  className={`whitespace-nowrap text-[11px] font-medium leading-5 ${colors.count}`}
-                >
-                  {taskCount} {taskCount === 1 ? "Task" : "Tasks"}
-                  <span className="mx-1.5 opacity-50">·</span>
-                  {noteCount} {noteCount === 1 ? "Note" : "Notes"}
-                </span>
-              </div>
-            </button>
+                  <span
+                    className={`whitespace-nowrap text-[11px] font-medium leading-5 ${colors.count}`}
+                  >
+                    {taskCount} {taskCount === 1 ? "Task" : "Tasks"}
+                    <span className="mx-1.5 opacity-50">·</span>
+                    {noteCount} {noteCount === 1 ? "Note" : "Notes"}
+                  </span>
+                </div>
+              </button>
 
-            {/* Expand */}
-            <button
-              type="button"
-              onClick={() => setIsExpanded((previous) => !previous)}
-              aria-label={isExpanded ? "Collapse collection" : "Expand collection"}
-              className={`
+              {/* Expand */}
+              <button
+                type="button"
+                onClick={() => setIsExpanded((previous) => !previous)}
+                aria-label={
+                  isExpanded ? "Collapse collection" : "Expand collection"
+                }
+                className={`
                 -mr-1 flex h-9 w-9 shrink-0 items-center justify-center
                 rounded-lg transition-colors
                 ${colors.textMuted} ${colors.buttonHover}
               `}
-            >
-              <motion.span
-                animate={{ rotate: isExpanded ? 0 : -90 }}
-                transition={{ duration: 0.2 }}
-                className="flex"
               >
-                <ChevronDown className="h-4 w-4" strokeWidth={2} />
-              </motion.span>
-            </button>
+                <motion.span
+                  animate={{ rotate: isExpanded ? 0 : -90 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex"
+                >
+                  <ChevronDown className="h-4 w-4" strokeWidth={2} />
+                </motion.span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -862,9 +876,7 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
             className="overflow-hidden"
             role="tabpanel"
             id={
-              activeTab === "tasks"
-                ? `tasks-panel-${id}`
-                : `notes-panel-${id}`
+              activeTab === "tasks" ? `tasks-panel-${id}` : `notes-panel-${id}`
             }
             aria-labelledby={
               activeTab === "tasks" ? `tasks-tab-${id}` : `notes-tab-${id}`

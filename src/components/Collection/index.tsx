@@ -166,9 +166,14 @@ const cardTransform = (isExpanded: boolean, lift: number): string =>
  * screenful in the Android WebView. Clipping a layer that is already full width
  * costs nothing to lay out.
  *
- * Both clip paths are emitted in the same `calc(<percentage> - <length>)` shape
- * even when the length is 0, because matching structure is what lets the two
- * interpolate rather than snap.
+ * Both clip paths are emitted as `calc(<percentage> - <length>)` even when the
+ * length is 0. That is for readability, not for the animation: Chromium
+ * normalises `calc(100% - 0px)` straight back to `100%`, so the two computed
+ * values are not the matching pair the source makes them look like. It
+ * interpolates anyway — measured open-to-shut, the trailing edge runs
+ * 100% -> 55.8% -> 34.6% -> 30% while the skew runs 0 -> 15.2px -> 24px — because
+ * Chromium will blend a bare percentage with a calc() without help. Writing both
+ * in one shape only keeps the two states legible side by side.
  */
 function DiagonalSlice({
   color,

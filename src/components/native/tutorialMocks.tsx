@@ -19,6 +19,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import { withAlpha } from "@/lib/colors";
 import {
   AlertTriangle,
   Bell,
@@ -32,7 +33,6 @@ import {
   Edit3,
   Folder,
   ListChecks,
-  ListTodo,
   Pin,
   Plus,
   PlusCircle,
@@ -575,124 +575,112 @@ function CollectionCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl border shadow-lg ${
-        isDark
-          ? "border-gray-700 bg-gray-800/50"
-          : "border-gray-200 bg-white/60"
-      }`}
+      className="relative overflow-hidden rounded-[17px] border"
+      style={{
+        backgroundColor: "var(--surface-card)",
+        borderWidth: 0.8,
+        borderColor: withAlpha(color, isDark ? 0.25 : 0.16),
+      }}
     >
-      {/* The accent bar across the top, in the collection's colour. */}
-      <div
-        className="absolute left-0 right-0 top-0 h-1 opacity-80"
-        style={{ backgroundColor: color }}
-      />
+      {/* The diagonal slice behind the title row, at full width because this
+          mock is always the open state. It replaced an accent bar across the
+          top, a 40px colour square beside the name and two pill count badges —
+          three separate statements of the collection's colour, none of which
+          the card makes any more. */}
+      <div className="relative">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: `linear-gradient(to right, ${withAlpha(
+              color,
+              isDark ? 0.4 : 0.28,
+            )}, ${withAlpha(color, isDark ? 0.2 : 0.14)})`,
+          }}
+        />
 
-      <div className="flex items-center p-5">
-        <div className="relative mr-4">
-          <div
-            className="h-10 w-10 rounded-xl"
-            style={{
-              backgroundColor: color,
-              boxShadow: `0 4px 20px ${color}30`,
-            }}
-          />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center space-x-3">
+        <div className="relative z-10 flex items-center gap-3 py-3.5 pl-3 pr-4">
+          <div className="min-w-0 flex-1">
             <h3
-              className={`truncate text-lg font-semibold ${
-                isDark ? "text-gray-100" : "text-gray-800"
+              className={`truncate text-[17px] font-semibold leading-6 tracking-[-0.015em] ${
+                isDark ? "text-white" : "text-gray-900"
               }`}
             >
               General
             </h3>
-            <div className="flex items-center space-x-2">
-              <span
-                className={`rounded-full px-2 py-1 text-xs font-medium ${
-                  isDark
-                    ? "bg-orange-900/30 text-orange-400"
-                    : "bg-orange-100/50 text-orange-600"
-                }`}
-              >
-                2 tasks
-              </span>
-              <span
-                className={`rounded-full px-2 py-1 text-xs font-medium ${
-                  isDark
-                    ? "bg-blue-900/30 text-blue-400"
-                    : "bg-blue-100/50 text-blue-600"
-                }`}
-              >
-                1 note
-              </span>
-            </div>
+            <span
+              className={`mt-0.5 block text-[12px] font-medium leading-4 tabular-nums ${
+                isDark ? "text-white/70" : "text-gray-600"
+              }`}
+            >
+              2 tasks<span className="mx-1.5 opacity-60">·</span>1 note
+            </span>
           </div>
-          <p
-            className={`mt-1 text-sm ${
-              isDark ? "text-gray-400" : "text-gray-500"
+
+          <span
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+              isDark
+                ? "bg-white/10 text-white"
+                : "bg-black/[0.06] text-gray-900"
             }`}
           >
-            3 total items
-          </p>
-        </div>
-
-        <div className="ml-4 flex items-center space-x-2">
-          <span className={`p-2 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-            <Edit3 className="h-4 w-4" />
+            <Edit3 className="h-4 w-4" strokeWidth={1.75} />
           </span>
-          <span className={`p-2 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-            <ChevronDown className="h-4 w-4" />
+          <span
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+              isDark
+                ? "bg-white/10 text-white"
+                : "bg-black/[0.06] text-gray-900"
+            }`}
+          >
+            <ChevronDown className="h-4 w-4" strokeWidth={2} />
           </span>
         </div>
       </div>
 
-      <div
-        className={`flex border-t ${
-          isDark ? "border-gray-700" : "border-gray-200"
-        }`}
-      >
-        {(["tasks", "notes"] as const).map((tab) => {
-          const active = tab === activeTab;
-          return (
-            <div
-              key={tab}
-              className={`relative flex-1 px-4 py-3 text-sm font-medium ${
-                active
-                  ? isDark
-                    ? "text-gray-100"
-                    : "text-gray-800"
-                  : "text-gray-500"
-              }`}
-            >
-              <div className="flex items-center justify-center space-x-2">
-                {tab === "tasks" ? (
-                  <ListTodo className="h-4 w-4" />
-                ) : (
-                  <StickyNote className="h-4 w-4" />
-                )}
+      {/* Plain tabs on a rule with an underline, not the icon-and-badge row
+          this had. The pill the real card used to draw is gone too — it was
+          filled with the collection colour and competed with the slice. */}
+      <div className="px-4 pb-1 pt-3">
+        <div
+          className={`flex border-b ${
+            isDark ? "border-white/[0.06]" : "border-slate-200/70"
+          }`}
+        >
+          {(["tasks", "notes"] as const).map((tab) => {
+            const active = tab === activeTab;
+            return (
+              <div
+                key={tab}
+                className={`relative flex h-10 flex-1 items-center justify-center gap-1.5 text-[13px] font-medium ${
+                  active
+                    ? isDark
+                      ? "text-white"
+                      : "text-gray-900"
+                    : "text-gray-500"
+                }`}
+              >
                 <span className="capitalize">{tab}</span>
-                <span
-                  className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
-                    active ? "bg-white/20" : "bg-gray-500/20 text-gray-500"
-                  }`}
-                >
+                <span className="text-[11px] tabular-nums opacity-70">
                   {tab === "tasks" ? 2 : 1}
                 </span>
-              </div>
-              {active && (
-                <div
-                  className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full"
-                  style={{ backgroundColor: color }}
+                <span
+                  className="absolute inset-x-0 -bottom-px h-0.5 rounded-full"
+                  style={{
+                    backgroundColor: color,
+                    opacity: active ? 1 : 0,
+                  }}
                 />
-              )}
-            </div>
-          );
-        })}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {children && (
-        <div className={`p-5 ${isDark ? "bg-gray-800/40" : "bg-white/50"}`}>
+        <div
+          className={`p-4 ${isDark ? "bg-black/[0.12]" : "bg-[var(--surface-deep)]/30"}`}
+        >
           {children}
         </div>
       )}
@@ -848,39 +836,90 @@ export function MockTask({ isDark }: MockProps) {
 // Note — copied from Notes/noteCard.tsx
 // ---------------------------------------------------------------------------
 
-/** A note tile. Colour fills the card and the text sits along the bottom. */
+/**
+ * A note tile, tracking Notes/noteCard — the folded sticky note.
+ *
+ * It was a 160px tile filled solid with the note's colour, the text pinned
+ * along the bottom, a 5px pin button and a created date on a rule. None of that
+ * survives: the card is 90px, the colour is a wash over the field rather than
+ * the fill, the date is gone, and the bottom-right corner is cut away with the
+ * flap drawn against the cut.
+ */
 function NoteTile({
   color,
   title,
   body,
+  isDark,
+  pinned = false,
 }: {
   color: string;
   title: string;
   body: string;
+  isDark: boolean;
+  pinned?: boolean;
 }) {
+  const wash = isDark ? { from: 0.5, to: 0.28 } : { from: 0.4, to: 0.2 };
+  const foldAlpha = isDark ? 0.55 : 0.45;
+
   return (
     <div
-      className="relative h-40 w-full overflow-hidden rounded-xl border border-black/5 p-5 shadow-sm"
-      style={{ backgroundColor: color }}
+      className="relative w-full overflow-hidden rounded-lg border p-2.5"
+      style={{
+        height: 90,
+        backgroundColor: "var(--surface-field)",
+        backgroundImage: `linear-gradient(to bottom right, ${withAlpha(
+          color,
+          wash.from,
+        )}, ${withAlpha(color, wash.to)})`,
+        borderWidth: 0.8,
+        borderColor: withAlpha(color, 0.35),
+        clipPath:
+          "polygon(0 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%)",
+        filter: `drop-shadow(0 2px 3px rgba(0,0,0,${isDark ? 0.35 : 0.12}))`,
+      }}
     >
-      <span className="absolute right-3 top-3 rounded-lg bg-white/20 p-2 text-gray-900/80">
-        <Pin className="h-5 w-5" />
-      </span>
-
-      <div className="absolute bottom-0 left-0 right-0 p-4">
-        <h4 className="mb-2 truncate text-lg font-semibold text-gray-900">
+      <div className="flex flex-col gap-1.5">
+        <h4
+          className={`line-clamp-2 text-[12px] font-semibold leading-[15px] ${
+            pinned ? "pr-3" : ""
+          } ${isDark ? "text-white" : "text-gray-900"}`}
+        >
           {title}
         </h4>
-        <p className="line-clamp-2 text-sm leading-relaxed text-gray-900 opacity-80">
+        <p
+          className={`line-clamp-2 text-[10px] leading-[13px] ${
+            isDark ? "text-gray-300" : "text-gray-600"
+          }`}
+        >
           {body}
         </p>
-        <div className="mt-3 flex items-center justify-between border-t border-gray-600/20 pt-2">
-          <span className="flex items-center text-xs text-gray-900 opacity-70">
-            <Calendar className="mr-1 h-3 w-3" />
-            12 Mar
-          </span>
-        </div>
       </div>
+
+      {pinned && (
+        <span
+          className={`absolute right-0 top-0 p-2 ${
+            isDark ? "text-gray-300" : "text-gray-600"
+          }`}
+        >
+          <Pin className="h-2.5 w-2.5 fill-current" />
+        </span>
+      )}
+
+      {/* The flap, against the cut. */}
+      <span
+        className="pointer-events-none absolute bottom-0 right-0"
+        style={{
+          width: 16,
+          height: 16,
+          clipPath: "polygon(0 0, 100% 0, 0 100%)",
+          backgroundColor: "var(--surface-field)",
+          backgroundImage: `linear-gradient(${withAlpha(
+            color,
+            foldAlpha,
+          )}, ${withAlpha(color, foldAlpha)})`,
+          filter: "drop-shadow(-1px -1px 1.5px rgba(0,0,0,0.2))",
+        }}
+      />
     </div>
   );
 }
@@ -893,13 +932,18 @@ export function MockNote({ isDark }: MockProps) {
       height={230}
       background={isDark ? DETAIL_BG_DARK : DETAIL_BG_LIGHT}
     >
-      <div className="grid grid-cols-2 gap-4 p-4 pt-8">
+      {/* `gap-3`, matching the real notes grid rather than the `gap-4` the
+          taller tiles used. */}
+      <div className="grid grid-cols-2 gap-3 p-4 pt-8">
         <NoteTile
+          isDark={isDark}
+          pinned
           color="#FFD60A"
           title="Supplier numbers"
           body="Ring the warehouse before ten, they close the desk at noon."
         />
         <NoteTile
+          isDark={isDark}
           color="#00C7BE"
           title="Wi-Fi code"
           body="In the drawer under the router."
@@ -1122,7 +1166,6 @@ const pillClass = (isDark: boolean, active = false) =>
         : "bg-gray-100 text-gray-700"
   }`;
 
-
 /** Reminders, switched on, with one set and the offsets still on offer. */
 export function MockReminders({ isDark }: MockProps) {
   return (
@@ -1300,4 +1343,3 @@ export function MockScheduled({ isDark }: MockProps) {
     </Screen>
   );
 }
-
