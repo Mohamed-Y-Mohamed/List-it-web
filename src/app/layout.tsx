@@ -79,7 +79,24 @@ export default function RootLayout({
       : null;
 
   return (
-    <html lang="en" className="w-full h-full">
+    /* `suppressHydrationWarning` belongs on this element specifically.
+     *
+     * The script below is render-blocking and writes the six `--surface-*`
+     * custom properties onto `document.documentElement.style` before React
+     * hydrates — that is the entire point of it. React then finds a `style`
+     * attribute on <html> that was not in the server HTML and logs a hydration
+     * mismatch on every single page load, ending "This won't be patched up".
+     *
+     * Nothing was broken by it: React does not own that attribute, so the
+     * values survive and the page is correct. But a permanent console error
+     * trains everyone to ignore the console, which is where the next real one
+     * will appear.
+     *
+     * This is the documented escape hatch for an element knowingly mutated
+     * before hydration, and it is deliberately not on <body>: it only applies
+     * one level deep, so a genuine mismatch anywhere inside the app still
+     * reports. */
+    <html lang="en" className="w-full h-full" suppressHydrationWarning>
       <head>
         {/* Paints the stored theme and background before the first frame.
             Render-blocking on purpose, and kept to a few hundred bytes for it.
