@@ -49,7 +49,10 @@ interface ListRow {
 
 interface Bucket {
   label: string;
+  /** Finished in this bucket, by `date_completed`. */
   completed: number;
+  /** Started in this bucket by `created_at` and still open. */
+  inProgress: number;
 }
 
 export default function ProgressView({
@@ -123,60 +126,81 @@ export default function ProgressView({
    * The activity series for the chosen range, bucketed so a year does not try to
    * draw 365 columns on a phone.
    *
-   * Counted from `date_completed`, which is the only date that says a task was
-   * finished. A task with no completion date contributes nothing — it has not
-   * happened yet, and guessing from `created_at` would draw work that was never
-   * done.
+   * Two counts per bucket, not one.
+   *
+   * `completed` comes from `date_completed`, the only date that says a task was
+   * finished. That was the whole series, which is why the chart was blank for
+   * anyone who had not finished anything: with no completions in range `peak`
+   * was 0, every bar collapsed to its 2px baseline sliver, and a screen full of
+   * open work reported no activity at all. The data was never wrong — nothing
+   * was asking about work in progress.
+   *
+   * `inProgress` is counted from `created_at` and only for tasks still open, so
+   * the two series can never double-count the same task: a finished task is in
+   * `completed` for the bucket it was finished in and nowhere else. Starting
+   * something is activity, and it is the half the reader can still act on.
+   *
+   * The boundaries are built once and both counts read them, rather than each
+   * range repeating its own filter. The day boundaries go through `startOfDay`
+   * on both ends instead of adding 86400000 to the start, which was an hour out
+   * on the two days a year the clocks change.
    */
   const activity = useMemo<Bucket[]>(() => {
     const now = new Date();
 
-    if (range === "7d") {
-      return Array.from({ length: 7 }, (_, index) => {
-        const day = startOfDay(subDays(now, 6 - index));
-        const next = new Date(day.getTime() + 86400000);
-        return {
-          label: format(day, "EEEEE"),
-          completed: tasks.filter((task) => {
-            if (!task.date_completed) return false;
-            const at = new Date(task.date_completed);
-            return at >= day && at < next;
-          }).length,
-        };
-      });
-    }
+    const spans: { label: string; start: Date; end: Date }[] =
+      range === "7d"
+        ? Array.from({ length: 7 }, (_, index) => {
+            const start = startOfDay(subDays(now, 6 - index));
+            return {
+              label: format(start, "EEEEE"),
+              start,
+              end: startOfDay(subDays(now, 5 - index)),
+            };
+          })
+        : range === "1m"
+          ? // Four weeks, because thirty bars on a 360px screen is a smear.
+            Array.from({ length: 4 }, (_, index) => {
+              const end = subDays(now, (3 - index) * 7);
+              return { label: format(end, "d MMM"), start: subDays(end, 7), end };
+            })
+          : Array.from({ length: 12 }, (_, index) => {
+              const end = subMonths(now, 11 - index);
+              return { label: format(end, "LLLLL"), start: subMonths(end, 1), end };
+            });
 
-    if (range === "1m") {
-      // Four weeks, because thirty bars on a 360px screen is a smear.
-      return Array.from({ length: 4 }, (_, index) => {
-        const end = subDays(now, (3 - index) * 7);
-        const start = subDays(end, 7);
-        return {
-          label: format(end, "d MMM"),
-          completed: tasks.filter((task) => {
-            if (!task.date_completed) return false;
-            const at = new Date(task.date_completed);
-            return at >= start && at < end;
-          }).length,
-        };
-      });
-    }
+    const inSpan = (
+      value: string | null | undefined,
+      start: Date,
+      end: Date,
+    ): boolean => {
+      if (!value) return false;
+      const at = new Date(value);
+      return at >= start && at < end;
+    };
 
-    return Array.from({ length: 12 }, (_, index) => {
-      const end = subMonths(now, 11 - index);
-      const start = subMonths(end, 1);
-      return {
-        label: format(end, "LLLLL"),
-        completed: tasks.filter((task) => {
-          if (!task.date_completed) return false;
-          const at = new Date(task.date_completed);
-          return at >= start && at < end;
-        }).length,
-      };
-    });
+    return spans.map(({ label, start, end }) => ({
+      label,
+      completed: tasks.filter((task) =>
+        inSpan(task.date_completed, start, end),
+      ).length,
+      inProgress: tasks.filter(
+        (task) =>
+          !task.is_completed && inSpan(task.created_at, start, end),
+      ).length,
+    }));
   }, [tasks, range]);
 
-  const peak = Math.max(...activity.map((bucket) => bucket.completed), 0);
+  /**
+   * The tallest column, so the stack scales to the busiest bucket.
+   *
+   * The sum of both series rather than `completed` alone — scaling a stacked
+   * column to one of its two parts lets the other overflow the chart.
+   */
+  const peak = Math.max(
+    ...activity.map((bucket) => bucket.completed + bucket.inProgress),
+    0,
+  );
   const oldest = useMemo(() => {
     const dates = tasks.map((task) => new Date(task.created_at).getTime());
     return dates.length ? new Date(Math.min(...dates)) : null;
@@ -326,30 +350,55 @@ export default function ProgressView({
                     a sentence where the chart should be is a refusal. The
                     caveats go underneath as a caption instead, so the shape is
                     there and the reader is still told what they are looking at. */}
+                {/* A stacked column per bucket: completed on the bottom in
+                    solid indigo, still-open on top of it at a third of the
+                    opacity. Stacked rather than side by side because the two
+                    together are "what happened in this period" and the column's
+                    full height says that at a glance; two thin bars per bucket
+                    at twelve buckets on a phone is four pixels each.
+
+                    Order matters — `justify-end` and completed last puts the
+                    solid part at the base, so the columns share a floor and the
+                    in-progress caps line up as the variable part. */}
                 <div className="flex h-28 items-end gap-1.5">
-                  {activity.map((bucket, index) => (
-                    <div
-                      key={index}
-                      className="flex min-w-0 flex-1 flex-col items-center gap-1.5"
-                    >
-                      <motion.div
-                        className="w-full rounded-t-[3px] bg-[#6366F1]"
-                        initial={{ height: 0 }}
-                        animate={{
-                          // An empty bucket keeps a baseline sliver so the axis
-                          // reads as a row of periods rather than a gap, and a
-                          // completed-but-tiny bar stays visible against a busy
-                          // one next to it.
-                          height:
-                            peak === 0 || bucket.completed === 0
-                              ? 2
-                              : `${Math.max((bucket.completed / peak) * 100, 6)}%`,
-                        }}
-                        transition={{ duration: 0.35, delay: index * 0.02 }}
-                        style={{ opacity: bucket.completed === 0 ? 0.25 : 1 }}
-                      />
-                    </div>
-                  ))}
+                  {activity.map((bucket, index) => {
+                    const total = bucket.completed + bucket.inProgress;
+                    const share = (value: number) =>
+                      peak === 0 || value === 0
+                        ? 0
+                        : Math.max((value / peak) * 100, 4);
+
+                    return (
+                      <div
+                        key={index}
+                        className="flex h-full min-w-0 flex-1 flex-col justify-end"
+                      >
+                        {/* Still open, on top. */}
+                        <motion.div
+                          className="w-full rounded-t-[3px] bg-[#6366F1]"
+                          initial={{ height: 0 }}
+                          animate={{ height: `${share(bucket.inProgress)}%` }}
+                          transition={{ duration: 0.35, delay: index * 0.02 }}
+                          style={{ opacity: 0.35 }}
+                        />
+                        {/* Completed, at the base. Carries the rounded top only
+                            when nothing is stacked above it. */}
+                        <motion.div
+                          className={`w-full bg-[#6366F1] ${
+                            bucket.inProgress === 0 ? "rounded-t-[3px]" : ""
+                          }`}
+                          initial={{ height: 0 }}
+                          animate={{ height: `${share(bucket.completed)}%` }}
+                          transition={{ duration: 0.35, delay: index * 0.02 }}
+                        />
+                        {/* An empty bucket keeps a baseline sliver so the axis
+                            reads as a row of periods rather than a gap. */}
+                        {total === 0 && (
+                          <span className="h-[2px] w-full rounded-full bg-[#6366F1] opacity-25" />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="flex gap-1.5 pt-2">
                   {activity.map((bucket, index) => (
@@ -361,10 +410,30 @@ export default function ProgressView({
                     </span>
                   ))}
                 </div>
+                {/* Two colours need saying which is which. */}
+                <div
+                  className={`flex items-center justify-center gap-4 pt-3 text-[11px] ${muted}`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-sm bg-[#6366F1]" />
+                    Completed
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-sm bg-[#6366F1] opacity-35" />
+                    In progress
+                  </span>
+                </div>
+
+                {/* The caveat only fires when the chart really has nothing in
+                    it. It used to read "Nothing completed in this period yet"
+                    whenever `peak` was 0, which was the message a reader got
+                    while looking at a screen full of open tasks — the chart was
+                    not counting them. `peak` is both series now, so 0 means the
+                    period is genuinely empty. */}
                 {(peak === 0 || thinHistory) && (
-                  <p className={`pt-3 text-center text-[11px] ${muted}`}>
+                  <p className={`pt-2 text-center text-[11px] ${muted}`}>
                     {peak === 0
-                      ? "Nothing completed in this period yet."
+                      ? "Nothing started or completed in this period yet."
                       : "Your account does not cover this whole range yet."}
                   </p>
                 )}

@@ -100,24 +100,40 @@ function SectionDivider({
   count,
   isDark,
   className = "",
+  trailing,
+  subtext,
 }: {
   label: string;
   /** Omitted where a count would be noise, as on a fixed set of built-in views. */
   count?: number;
   isDark: boolean;
   className?: string;
+  /**
+   * A control to sit at the trailing end of the heading row, after the rule.
+   *
+   * The sort menu lives here rather than in a row of its own. A 44px touch
+   * target on its own line cost more vertical space than the heading it sat
+   * above, on a screen whose whole job is showing lists.
+   */
+  trailing?: React.ReactNode;
+  /** A line under the heading. Small and grey — a caption, not a second label. */
+  subtext?: React.ReactNode;
 }) {
   return (
-    <div className={`flex items-center gap-2.5 pb-3 ${className}`}>
-      <h2 className="shrink-0 text-[13px] font-semibold uppercase tracking-[0.06em] text-gray-500 dark:text-gray-400">
-        {label}
-      </h2>
-      {count !== undefined && <CountBadge count={count} />}
-      {/* Takes the rest of the row, so the rule starts where the label ends
-          however long the label is. */}
-      <span
-        className={`h-px flex-1 ${isDark ? "bg-white/10" : "bg-black/10"}`}
-      />
+    <div className={`pb-3 ${className}`}>
+      <div className="flex items-center gap-2.5">
+        <h2 className="shrink-0 text-[13px] font-semibold uppercase tracking-[0.06em] text-gray-500 dark:text-gray-400">
+          {label}
+        </h2>
+        {count !== undefined && <CountBadge count={count} />}
+        {/* Takes the rest of the row, so the rule starts where the label ends
+            however long the label is. */}
+        <span
+          className={`h-px flex-1 ${isDark ? "bg-white/10" : "bg-black/10"}`}
+        />
+        {trailing}
+      </div>
+      {subtext}
     </div>
   );
 }
@@ -569,33 +585,15 @@ export default function NativeHome() {
         </section>
       )}
 
-      {/* The screen's own controls, and nothing that names a group of lists — the
-          section rules below do that now. Only earns its space once there is
-          something to sort; on a first run the create prompt stands alone.
-
-          The tips button used to share this row, which is why it was a
-          `justify-between` pair. It sits under the lists now — see the end of
-          the section below — so this is the sort alone, pushed to the trailing
-          edge where it already was. */}
-      {!isFirstRun && (
-        <section className="flex items-center justify-end px-4">
-          {/* Sort is an icon menu rather than a row of chips. Four options are not
-              worth the vertical space a permanent control costs on a screen whose
-              job is showing lists, and the sort is set once and rarely changed. */}
-          <button
-            type="button"
-            onClick={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect();
-              setMenuItems(overflowMenuItems());
-              setMenuOrigin({ x: rect.right - 40, y: rect.bottom });
-            }}
-            aria-label="Sort and views"
-            className="touch-target flex items-center justify-center text-gray-400 active:opacity-60 dark:text-gray-500"
-          >
-            <MoreVertical size={20} />
-          </button>
-        </section>
-      )}
+      {/* The controls row that used to sit here is gone.
+       *
+       * It held the tips button and the sort menu on a line of their own, above
+       * the lists. A 44px touch target is taller than the section heading it sat
+       * above, and it named nothing — so on a screen whose job is showing lists
+       * it was the most expensive row on it. Both moved onto and under the My
+       * Lists heading instead; see the `trailing` and `subtext` passed to its
+       * SectionDivider below.
+       */}
 
       <section
         className="px-4"
@@ -668,6 +666,42 @@ export default function NativeHome() {
                   count={userLists.length}
                   isDark={isDark}
                   className={visibleDefaultLists.length > 0 ? "pt-6" : ""}
+                  /* Sort on the heading row, tips as its caption. Both used to
+                     be a separate 44px row above this one; folded in here they
+                     cost the heading nothing and a single line of 12px type. */
+                  trailing={
+                    !isFirstRun && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          const rect =
+                            event.currentTarget.getBoundingClientRect();
+                          setMenuItems(overflowMenuItems());
+                          setMenuOrigin({ x: rect.right - 40, y: rect.bottom });
+                        }}
+                        aria-label="Sort and views"
+                        /* `-mr-2.5` pulls the 44px target's padding back over
+                           the section's own `px-4`, so the glyph sits on the
+                           margin rather than indented from it while the target
+                           itself stays full size. */
+                        className="touch-target -mr-2.5 flex shrink-0 items-center justify-center text-gray-400 active:opacity-60 dark:text-gray-500"
+                      >
+                        <MoreVertical size={20} />
+                      </button>
+                    )
+                  }
+                  subtext={
+                    <button
+                      type="button"
+                      onClick={() => setIsHelpOpen(true)}
+                      /* `inline-flex`, not `flex`: as a block-level flex
+                         container it would span the section and make the whole
+                         line a tap target that opens help. */
+                      className="touch-target -ml-1 inline-flex items-center px-1 text-[12px] text-gray-500 active:opacity-60"
+                    >
+                      💡 New features and tips
+                    </button>
+                  }
                 />
                 {isListLayout ? (
                   <div className="flex flex-col gap-2">
@@ -715,31 +749,6 @@ export default function NativeHome() {
               </>
             )}
 
-            {/* New features and tips.
-
-                It used to sit above the lists, sharing a row with the sort
-                control. A tip is the last thing on the screen worth reading and
-                it was the first thing on it, taking a line of width off the row
-                whose only real job is the sort.
-
-                Inside this branch rather than beside the sort, so it follows
-                the lists and appears only when there are some — there is
-                nothing to annotate on a first run or a search miss, and the
-                section's own bottom padding keeps it clear of the Add button.
-
-                Keeps the lightbulb and the small grey type it has always had:
-                it reads as a tip rather than a control, which is what it is. */}
-            <button
-              type="button"
-              onClick={() => setIsHelpOpen(true)}
-              /* `inline-flex`, not `flex`. It was a flex item in the sort row
-                 and so sized to its own text; as a block-level flex container
-                 it would stretch the full width of the section and make the
-                 whole line a tap target that opens help. */
-              className="touch-target -ml-1 mt-5 inline-flex items-center px-1 text-[12px] text-gray-500 active:opacity-60"
-            >
-              💡 New features and tips
-            </button>
           </>
         )}
       </section>

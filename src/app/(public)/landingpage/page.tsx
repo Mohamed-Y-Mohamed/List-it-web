@@ -405,21 +405,36 @@ interface NoteCardProps {
   is_pinned: boolean;
 }
 
-/** The real card's rule: a light custom colour takes dark text. */
-const isLightHex = (hex: string): boolean => {
+/* The sticky note, tracking Notes/noteCard, which is itself the iOS `NoteView`.
+   The numbers are that file's: 90px tall, 8px radius, a 16px folded corner,
+   10px padding, title 12/semibold and body 10/secondary, both two lines.
+
+   What this demo used to draw: a 14px title, the created date under it, a
+   single truncated line of body, a 3px colour bar down the leading edge, a
+   duplicate "Pinned" caption, and the colour at 65% opaque with the type picked
+   by luminance. None of that is the card any more. */
+const NOTE_FOLD = 16;
+const NOTE_HEIGHT = 90;
+const NOTE_WASH = {
+  dark: { from: 0.5, to: 0.28 },
+  light: { from: 0.4, to: 0.2 },
+} as const;
+const NOTE_FOLD_ALPHA = { dark: 0.55, light: 0.45 } as const;
+
+/** `#RRGGBB` at an alpha, as the real card's `withAlpha` does. */
+const demoAlpha = (hex: string, alpha: number): string => {
   const value = hex.replace("#", "");
-  if (value.length !== 6) return false;
-  const r = parseInt(value.slice(0, 2), 16);
-  const g = parseInt(value.slice(2, 4), 16);
-  const b = parseInt(value.slice(4, 6), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 > 155;
+  if (value.length !== 6) return hex;
+  const [r, g, b] = [0, 2, 4].map((i) =>
+    parseInt(value.slice(i, i + 2), 16),
+  );
+  return `rgba(${r},${g},${b},${alpha})`;
 };
 
 const NoteCard: React.FC<NoteCardProps> = ({
   id,
   title,
   description,
-  created_at,
   bg_color_hex,
   is_pinned,
 }) => {
@@ -428,125 +443,102 @@ const NoteCard: React.FC<NoteCardProps> = ({
 
   const displayTitle = title || "Untitled Note";
   const safeColor = bg_color_hex || null;
+  const wash = NOTE_WASH[isDark ? "dark" : "light"];
+  const foldAlpha = NOTE_FOLD_ALPHA[isDark ? "dark" : "light"];
 
-  // Matching Notes/noteCard: one colour at 65%, the same in both themes, with the
-  // border at full strength. The old 13% wash is what the real card stopped doing,
-  // and a demo that advertises the pale version is advertising the wrong app.
-  const cardStyle: React.CSSProperties = safeColor
-    ? {
-        backgroundColor: `${safeColor}A6`,
-        borderColor: safeColor,
-      }
-    : {
-        // The public palette's field, which is this page's stand-in for the
-        // `--surface-field` the real uncoloured note takes.
-        backgroundColor: "var(--ps-field)",
-        borderColor: "var(--ps-border)",
-      };
-
-  const customColorIsLight = safeColor && isLightHex(safeColor);
-
-  const titleColour = safeColor
-    ? customColorIsLight
-      ? "text-slate-900"
-      : "text-white"
-    : isDark
-      ? "text-slate-100"
-      : "text-slate-900";
-
-  const secondaryColour = safeColor
-    ? customColorIsLight
-      ? "text-slate-700"
-      : "text-white/70"
-    : isDark
-      ? "text-slate-400"
-      : "text-slate-500";
+  // An opaque base with the colour washed over it, not the colour itself. At 40%
+  // the result stays close enough to the ground that the theme's own foreground
+  // reads on it, which is why there is no luminance rule here any more.
+  const titleColour = isDark ? "text-white" : "text-gray-900";
+  const secondaryColour = isDark ? "text-gray-300" : "text-gray-600";
 
   return (
     <motion.article
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18 }}
-      style={cardStyle}
+      style={{
+        // `--ps-field` is this page's stand-in for `--surface-field`.
+        backgroundColor: "var(--ps-field)",
+        backgroundImage: safeColor
+          ? `linear-gradient(to bottom right, ${demoAlpha(
+              safeColor,
+              wash.from,
+            )}, ${demoAlpha(safeColor, wash.to)})`
+          : undefined,
+        borderWidth: 0.8,
+        borderColor: safeColor
+          ? demoAlpha(safeColor, 0.35)
+          : "var(--ps-border)",
+        height: NOTE_HEIGHT,
+        // The bottom-right corner cut off at 45 degrees. A drop-shadow filter
+        // rather than box-shadow, because clip-path clips box-shadow too.
+        clipPath: `polygon(0 0, 100% 0, 100% calc(100% - ${NOTE_FOLD}px), calc(100% - ${NOTE_FOLD}px) 100%, 0 100%)`,
+        filter: `drop-shadow(0 2px 3px rgba(0,0,0,${isDark ? 0.35 : 0.12}))`,
+      }}
       data-id={id}
-      className={`
-        group
-        relative
-        w-full
-        cursor-pointer
-        overflow-hidden
-        rounded-xl
-        border
-        px-4
-        py-3.5
-        transition-all
-        duration-200
-        ${
-          isDark
-            ? "hover:border-white/15 hover:bg-white/[0.045]"
-            : "hover:border-slate-300 hover:shadow-sm"
-        }
-      `}
+      className="group relative w-full cursor-pointer overflow-hidden rounded-lg border p-2.5"
       role="button"
       tabIndex={0}
-      aria-label={`Open note: ${displayTitle}`}
+      aria-label={`Open note: ${displayTitle}${is_pinned ? " (pinned)" : ""}`}
     >
-      {/* Note colour indicator */}
-      <div
-        className="absolute inset-y-3 left-0 w-[3px] rounded-r-full"
-        style={{
-          backgroundColor: safeColor || (isDark ? "#64748b" : "#94a3b8"),
-        }}
-      />
-
-      {/* Header */}
-      <div className="flex min-w-0 items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <h4
-            className={`truncate text-[14px] font-semibold leading-5 ${titleColour}`}
-            title={displayTitle}
-          >
-            {displayTitle}
-          </h4>
-
-          {/* Date directly under title */}
-          <div
-            className={`mt-1 flex items-center gap-1.5 text-[11px] ${secondaryColour}`}
-          >
-            <CalendarDays className="h-3 w-3 shrink-0" />
-            <span>{formatDemoDate(created_at)}</span>
-          </div>
-        </div>
-
-        {/* Pin */}
-        <span
-          className={`
-            flex h-7 w-7 shrink-0 items-center justify-center rounded-md
-            ${is_pinned ? "text-amber-400" : `${secondaryColour} opacity-60`}
-          `}
-          aria-hidden="true"
+      <div className="flex flex-col gap-1.5">
+        <h4
+          className={`line-clamp-2 text-[12px] font-semibold leading-[15px] ${
+            is_pinned ? "pr-3" : ""
+          } ${titleColour}`}
+          title={displayTitle}
         >
-          <Pin className={`h-3.5 w-3.5 ${is_pinned ? "fill-current" : ""}`} />
-        </span>
+          {displayTitle}
+        </h4>
+
+        {description && (
+          <p
+            title={description}
+            className={`line-clamp-2 text-[10px] leading-[13px] ${secondaryColour}`}
+          >
+            {description}
+          </p>
+        )}
       </div>
 
-      {/* Description */}
-      {description && (
-        <p
-          title={description}
-          className={`mt-2.5 w-3/4 truncate text-[12px] leading-5 ${secondaryColour}`}
+      {/* State, not a control — the real card keeps the pin action in its hold
+          menu, and this page has no menus at all. */}
+      {is_pinned && (
+        <span
+          aria-hidden="true"
+          className={`absolute right-0 top-0 p-2 ${secondaryColour}`}
         >
-          {description}
-        </p>
+          <Pin className="h-2.5 w-2.5 fill-current" />
+        </span>
       )}
 
-      {/* Pinned label */}
-      {is_pinned && (
-        <div className="mt-2 flex items-center gap-1 text-[10px] font-medium text-amber-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-          Pinned
-        </div>
-      )}
+      {/* The folded flap: the triangle whose hypotenuse is the cut above. Two
+          layers, so it is never see-through to the page behind the card. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 right-0"
+        style={{
+          width: NOTE_FOLD,
+          height: NOTE_FOLD,
+          clipPath: "polygon(0 0, 100% 0, 0 100%)",
+          backgroundColor: "var(--ps-field)",
+          backgroundImage: `linear-gradient(${
+            safeColor
+              ? demoAlpha(safeColor, foldAlpha)
+              : isDark
+                ? "rgba(255,255,255,0.14)"
+                : "rgba(15,23,42,0.12)"
+          }, ${
+            safeColor
+              ? demoAlpha(safeColor, foldAlpha)
+              : isDark
+                ? "rgba(255,255,255,0.14)"
+                : "rgba(15,23,42,0.12)"
+          })`,
+          filter: "drop-shadow(-1px -1px 1.5px rgba(0,0,0,0.2))",
+        }}
+      />
     </motion.article>
   );
 };
@@ -633,9 +625,16 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
       // The real collection carries `backdrop-blur-[14px]` here. It is dropped
       // on this page on purpose: over a flat field it is visually a no-op, and
       // measured on the landing page the in-flow blurs cost ~20fps of scroll.
+      //
+      // The containment stroke is the real one: 0.8px of the collection's own
+      // colour at 0.25 dark / 0.16 light, in place of the neutral hairline.
+      style={{
+        borderWidth: 0.8,
+        borderColor: demoAlpha(colour, isDark ? 0.25 : 0.16),
+      }}
       className={`
         overflow-hidden
-        rounded-[18px]
+        rounded-[17px]
         border
         transition-colors
         duration-200
@@ -644,18 +643,34 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
     >
       {/* HEADER */}
       <div className={`relative ${colors.header}`}>
-        <div className="px-4 py-4 sm:px-5 sm:py-5">
-          <div className="flex items-center gap-3">
-            {/* Collection colour */}
-            <div
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{
-                backgroundColor: colour,
-                boxShadow: `0 0 0 3px ${colour}14`,
-              }}
-              aria-hidden="true"
-            />
+        {/* The diagonal slice, tracking Collection/index.tsx: a translucent slab
+            of the collection colour, a narrow block while shut and the full
+            width of the row once open, with the trailing corner skewed back
+            24px until it squares off. One `clip-path` carries the sweep and the
+            slant; `background-size` keeps the gradient sized to the slab rather
+            than the row. Both paint-only, and both emitted in the same
+            `calc(<percentage> - <length>)` shape so the two states interpolate.
 
+            This replaced a 2.5px colour dot beside the name. The colour is the
+            header's background now, so the dot said it twice. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 transition-[clip-path,background-size] duration-[280ms] ease-[var(--ease-out)] motion-reduce:transition-none"
+          style={{
+            backgroundImage: `linear-gradient(to right, ${demoAlpha(
+              colour,
+              isDark ? 0.4 : 0.28,
+            )}, ${demoAlpha(colour, isDark ? 0.2 : 0.14)})`,
+            backgroundSize: `${isExpanded ? 100 : 30}% 100%`,
+            backgroundRepeat: "no-repeat",
+            clipPath: `polygon(0 0, ${isExpanded ? 100 : 30}% 0, calc(${
+              isExpanded ? 100 : 30
+            }% - ${isExpanded ? 0 : 24}px) 100%, 0 100%)`,
+          }}
+        />
+
+        <div className="relative z-10 py-3.5 pl-3 pr-4 sm:pr-5">
+          <div className="flex items-center gap-3">
             {/* Title + counts */}
             <button
               type="button"

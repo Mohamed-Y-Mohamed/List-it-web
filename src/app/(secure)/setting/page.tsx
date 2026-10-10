@@ -444,7 +444,17 @@ const LoadingSpinner: React.FC<{ isDark: boolean }> = ({ isDark }) => (
 );
 
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<string | null>("profile");
+  /**
+   * Which section is open, or `null` for none — which is now also the state the
+   * screen opens in.
+   *
+   * It opened on "profile", so arriving at Settings meant arriving at the
+   * profile form rather than at a list of what Settings holds. Only one section
+   * is ever open, so that one choice also pushed the other three below the fold
+   * on a phone. Opening shut means the four headings are the first thing read
+   * and every expand after that is the user's.
+   */
+  const [activeSection, setActiveSection] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -1369,11 +1379,19 @@ export default function SettingsPage() {
             return (
               <div
                 key={section.id}
-                className={`overflow-hidden rounded-2xl border ${
-                  isDark
-                    ? "border-white/[0.08] bg-[var(--surface-card)]"
-                    : "border-black/[0.06] bg-white"
-                }`}
+                /* Both arms read the ramp. The light one was a literal
+                   `bg-white` with a `black/[0.06]` hairline, so on the White
+                   background the section was #FFFFFF on a #FFFFFF field and the
+                   only thing drawing it — collapsed or expanded — was a 6%
+                   border. Same defect the mono light ramp was fixed for, and
+                   for the same reason: the card never read the ramp in light
+                   mode, so changing the background could not reach it.
+                   `--surface-card` is #F4F4F5 against White's field, and tracks
+                   Cream, Ice blue and Warm paper too.
+
+                   The expanded body inherits this background — it only adds a
+                   `border-t` — so this one value covers both states. */
+                className="overflow-hidden rounded-2xl border border-[var(--surface-border)] bg-[var(--surface-card)]"
               >
                 <button
                   type="button"
