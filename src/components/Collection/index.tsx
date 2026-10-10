@@ -3,26 +3,22 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
-  CheckCircle2,
-  ChevronDown,
   ChevronRight,
   Edit3,
   ListTodo,
-  Pin,
   StickyNote,
-  Trash2,
   X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type PanInfo } from "framer-motion";
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
 
 import TaskCard from "@/components/Tasks/index";
 import NoteCard from "@/components/Notes/noteCard";
 import { Collection, Note, OperationResult, Task } from "@/types/schema";
 import { useTheme } from "@/context/ThemeContext";
-import { IS_NATIVE_BUILD } from "@/lib/platform";
-import SwipeableRow, {
-  type SwipeAction,
-} from "@/components/native/SwipeableRow";
+import { IS_NATIVE_BUILD, isNativeApp } from "@/lib/platform";
+import { tabForSwipe } from "@/lib/panelSwipe";
+import { withAlpha } from "@/lib/colors";
 
 /**
  * Native only: an expanded collection shows about three cards and scrolls for the
@@ -40,33 +36,182 @@ import SwipeableRow, {
  * No `overscroll-contain` on purpose. Containment would stop the flick at the end
  * of the inner list and make the user lift and swipe again to carry on down the
  * page; letting it chain is both the platform default and the smoother of the two.
+ *
+ * `touch-pan-y` is load-bearing, not decoration. This scroller sits inside the
+ * draggable Tasks/Notes panel, and a scroll container defaults to
+ * `touch-action: auto` — which lets the WebView claim a horizontal gesture that
+ * starts on it, fire `pointercancel`, and leave framer having never seen a drag.
+ * The panel's own `pan-y` does not cover it, because touch-action is resolved from
+ * the element the finger actually landed on. Without this the tab swipe does
+ * nothing anywhere a card is, which is most of the panel.
  */
 const NATIVE_PANEL_SCROLL = IS_NATIVE_BUILD
-  ? "max-h-[232px] overflow-y-auto"
+  ? "max-h-[232px] touch-pan-y overflow-y-auto"
   : "";
 
 const STAGGER_STEP = 0.055;
 const MAX_STAGGERED_ITEMS = 6;
 
+/**
+ * The Tasks/Notes panel is draggable but goes nowhere: it springs back to centre
+ * and the tab changes instead. Pinning both edges to 0 with a little `dragElastic`
+ * is what gives the drag a bit of give without the panel ever coming to rest off
+ * to one side.
+ *
+ * A module constant rather than an inline object so framer sees the same
+ * constraints every render instead of a new pair on each one.
+ */
+const PANEL_DRAG_LOCK = { left: 0, right: 0 } as const;
+
 const entranceDelay = (index: number): number =>
   Math.min(index, MAX_STAGGERED_ITEMS) * STAGGER_STEP;
 
-const MaybeSwipeable = ({
-  leading,
-  trailing,
-  children,
+/**
+ * The notes panel shows two rows — four cards — and scrolls for the rest.
+ *
+ * Unlike the task panel's cap this applies on the web too, because at two cards
+ * to a row a collection holding a dozen notes is six rows tall and pushes the
+ * next collection off the screen entirely.
+ *
+ * 192px is two cards and the gap between them: NOTE_HEIGHT (90, straight from
+ * the iOS `.frame(height: 90)`) twice, plus `gap-3`.
+ *
+ * Simple arithmetic now only because the card's height is declared rather than
+ * derived. It was a sum of seven paddings and type metrics when the card grew
+ * to fit its text, which is the kind of number that is wrong the moment anyone
+ * touches the card. Change NOTE_HEIGHT in Notes/noteCard and this moves with
+ * it; nothing else can shift it.
+ *
+ * `touch-pan-y` for the same reason as NATIVE_PANEL_SCROLL: this scroller sits
+ * inside the draggable Tasks/Notes panel, and without it the WebView claims any
+ * horizontal gesture starting on a card and the tab swipe dies.
+ */
+const NOTES_ROWS_MAX_H = IS_NATIVE_BUILD
+  ? "max-h-[192px] touch-pan-y overflow-y-auto"
+  : "max-h-[192px] overflow-y-auto";
+
+/* =======================================================
+   DIAGONAL SLICE — settings
+
+   The collection colour as one thick diagonal slab behind the header row,
+   swept from a narrow block on the leading edge out to the full width of the
+   row when the collection opens. Ported from the SwiftUI `DiagonalSliceShape`
+   so the web, the Android WebView and iOS draw the same header.
+
+   This replaced a wave cut into the lower edge of a solid colour block. That
+   block was opaque, so the header had to compute its own ink colour from the
+   collection's luminance to stay readable — white on a navy collection,
+   near-black on a pale yellow one. The slab is translucent over the card
+   instead, so the header is part of the card and the text is simply the
+   theme's foreground: white in dark, near-black in light. That is why `inkOn`
+   and `ON_COLOR` are gone rather than merely unused.
+   ======================================================= */
+
+/** How much of the header row the slab covers while the collection is shut. */
+const SLICE_SHUT_WIDTH = 30;
+/**
+ * How far the slab's bottom-trailing corner is pulled back, in px, while shut.
+ * 0 when open, which is what squares the slab off as it reaches full width.
+ */
+const SLICE_SKEW = 24;
+/** Leading and trailing gradient stops, as alpha on the collection colour. */
+const SLICE_ALPHA = {
+  dark: { from: 0.4, to: 0.2 },
+  light: { from: 0.28, to: 0.14 },
+} as const;
+
+/**
+ * The shut card's tilt, straight from the Swift:
+ *
+ *   .rotation3DEffect(.degrees(-6), axis: (x: 1.0, y: -0.4, z: 0.0),
+ *                     anchor: .center, perspective: 0.35)
+ *   .offset(x: 6, y: -4)
+ *
+ * A shut collection leans back and sits slightly up and to the right, so a
+ * column of them reads as a deck rather than a list of bars; opening one brings
+ * it square and flat to the screen.
+ *
+ * SwiftUI's `perspective` is a ratio of the view's own size, where CSS takes a
+ * distance — 0.35 against a card of about 350px is roughly 1000px, which is
+ * what this uses. The whole transform is one string because framer owns this
+ * element's `transform` for the entrance animation and would overwrite a second
+ * one; keeping every term present in both states, with only the numbers
+ * differing, is what lets the two interpolate rather than snap.
+ */
+const cardTransform = (isExpanded: boolean, lift: number): string =>
+  [
+    "perspective(1000px)",
+    `rotate3d(1, -0.4, 0, ${isExpanded ? 0 : -6}deg)`,
+    `translate3d(${isExpanded ? 0 : 6}px, ${(isExpanded ? 0 : -4) + lift}px, 0px)`,
+  ].join(" ");
+
+/* =======================================================
+   DIAGONAL SLICE — the shape
+
+   The colour is the collection's own `bg_color_hex`, passed in from the
+   component: nothing here is made up or hard-coded per collection.
+   ======================================================= */
+
+/**
+ * The slab.
+ *
+ * Two animated properties, both paint-only. `clip-path` carries the sweep and
+ * the slant together — one property for what SwiftUI does with an animated
+ * `.frame(width:)` plus an `animatableData` skew — and `background-size` keeps
+ * the gradient sized to the slab rather than to the row, so the shut state
+ * shows the whole gradient compressed into 30% instead of the first 30% of it.
+ *
+ * Animating the width, as the Swift does, would mean a layout pass per frame
+ * for every open collection. That is cheap on one card and visibly not on a
+ * screenful in the Android WebView. Clipping a layer that is already full width
+ * costs nothing to lay out.
+ *
+ * Both clip paths are emitted as `calc(<percentage> - <length>)` even when the
+ * length is 0. That is for readability, not for the animation: Chromium
+ * normalises `calc(100% - 0px)` straight back to `100%`, so the two computed
+ * values are not the matching pair the source makes them look like. It
+ * interpolates anyway — measured open-to-shut, the trailing edge runs
+ * 100% -> 55.8% -> 34.6% -> 30% while the skew runs 0 -> 15.2px -> 24px — because
+ * Chromium will blend a bare percentage with a calc() without help. Writing both
+ * in one shape only keeps the two states legible side by side.
+ */
+function DiagonalSlice({
+  color,
+  isDark,
+  isExpanded,
 }: {
-  leading?: SwipeAction;
-  trailing?: SwipeAction;
-  children: React.ReactNode;
-}) =>
-  IS_NATIVE_BUILD ? (
-    <SwipeableRow leading={leading} trailing={trailing}>
-      {children}
-    </SwipeableRow>
-  ) : (
-    <>{children}</>
+  color: string;
+  isDark: boolean;
+  isExpanded: boolean;
+}) {
+  const { from, to } = SLICE_ALPHA[isDark ? "dark" : "light"];
+  const width = isExpanded ? 100 : SLICE_SHUT_WIDTH;
+  const skew = isExpanded ? 0 : SLICE_SKEW;
+
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 transition-[clip-path,background-size] duration-[280ms] ease-[var(--ease-out)] motion-reduce:transition-none"
+      style={{
+        backgroundImage: `linear-gradient(to right, ${withAlpha(
+          color,
+          from,
+        )}, ${withAlpha(color, to)})`,
+        backgroundSize: `${width}% 100%`,
+        backgroundRepeat: "no-repeat",
+        clipPath: `polygon(0 0, ${width}% 0, calc(${width}% - ${skew}px) 100%, 0 100%)`,
+      }}
+    />
   );
+}
+
+/* The leading edge lock has been removed.
+ *
+ * It was a 4px bar down the leading edge, faint and inset while shut and solid
+ * and full-height once open. It is not in the iOS `CollectionHeader` any more —
+ * the tilt and offset above state open-versus-shut instead, and with both the
+ * bar was two answers to the same question on one card.
+ */
 
 interface CollectionComponentProps {
   id: string;
@@ -167,6 +312,8 @@ const EnhancedCollectionComponent = ({
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
+  /* Text and button tones for anything drawn on the collection colour. */
+
   /* All collections begin collapsed. */
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -195,6 +342,33 @@ const EnhancedCollectionComponent = ({
   }, [autoExpand]);
   const [activeTab, setActiveTab] = useState<Tab>("tasks");
 
+  /**
+   * Whether the Tasks/Notes panel answers to a horizontal drag.
+   *
+   * Touch only, decided in JS rather than CSS. A mouse drag across a panel full
+   * of task titles is how text gets selected, and framer's pointer capture would
+   * take that away from anyone using the web app with a trackpad — for a gesture
+   * they have no reason to try, since the tabs are right there.
+   *
+   * `(pointer: coarse)` rather than IS_NATIVE_BUILD on purpose: a phone browser
+   * on the web app deserves the gesture just as much as the Android shell does,
+   * and that is what "both platforms" means here. It starts false so the server
+   * render and the first client render agree, and the listener keeps it honest on
+   * a device that has both, like a touchscreen laptop.
+   */
+  const [canSwipe, setCanSwipe] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+
+    const query = window.matchMedia("(pointer: coarse)");
+    setCanSwipe(query.matches);
+
+    const onChange = (event: MediaQueryListEvent) => setCanSwipe(event.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
   const [priorityTasks, setPriorityTasks] = useState<Task[]>([]);
   const [regularTasks, setRegularTasks] = useState<Task[]>([]);
   const [sortedNotes, setSortedNotes] = useState<Note[]>([]);
@@ -210,13 +384,29 @@ const EnhancedCollectionComponent = ({
     [bg_color_hex],
   );
 
+  // Three levels, each a step from the one behind it: the page is the field, a
+  // collection is a card on it, and the task and note cards inside drop back to
+  // the field colour. That alternation is what makes a collection visible as a
+  // container — both surfaces used to be translucent whites, which over a white
+  // field left the whole screen one flat sheet.
+  //
+  // `outer` and `header` are the same in both themes now, because the ramp already
+  // carries the right value for the theme *and* the chosen background. A branch
+  // here could only disagree with it.
+  const SURFACE = {
+    outer: "border-[var(--surface-border)] bg-[var(--surface-card)]",
+    // Transparent rather than a tint. The card underneath is opaque now, so a
+    // translucent wash over it just drew a band across the top of the collection.
+    header: "bg-transparent",
+  } as const;
+
   const colors = isDark
     ? {
         textPrimary: "text-slate-100",
         textSecondary: "text-slate-400",
         textMuted: "text-slate-500",
-        outer: "border-white/[0.055] bg-white/[0.018]",
-        header: "bg-white/[0.012]",
+        outer: SURFACE.outer,
+        header: SURFACE.header,
         content: "bg-transparent",
         border: "border-white/[0.06]",
         buttonHover: "hover:bg-white/[0.055]",
@@ -230,8 +420,8 @@ const EnhancedCollectionComponent = ({
         textPrimary: "text-slate-900",
         textSecondary: "text-slate-600",
         textMuted: "text-slate-400",
-        outer: "border-slate-200/70 bg-white/35",
-        header: "bg-white/25",
+        outer: SURFACE.outer,
+        header: SURFACE.header,
         content: "bg-transparent",
         border: "border-slate-200/70",
         buttonHover: "hover:bg-slate-100/70",
@@ -541,65 +731,92 @@ const EnhancedCollectionComponent = ({
   };
 
   /* =======================================================
-     NATIVE SWIPE ACTIONS
+     TASKS / NOTES SWIPE
+
+     A second way into the same two tabs, for a thumb rather than a tap. The
+     tablist above is unchanged and still the primary control: this adds a route,
+     it does not replace one.
      ======================================================= */
 
-  const taskSwipeComplete = (taskId: string): SwipeAction => ({
-    label: "Done",
-    icon: CheckCircle2,
-    background: "bg-emerald-600",
-    onAction: () => void handleTaskCompleteWithErrorHandling(taskId, true),
-  });
+  const handlePanelSwipe = useCallback(
+    (_event: unknown, info: PanInfo) => {
+      // The direction and the thresholds live in lib/panelSwipe, which is tested.
+      // Which way a negative offset points is the one part of a drag gesture that
+      // can be wrong while still looking like it works.
+      const next = tabForSwipe(info.offset.x, info.velocity.x, activeTab);
+      if (!next) return;
 
-  const taskSwipeDelete = (taskId: string): SwipeAction => ({
-    label: "Delete",
-    icon: Trash2,
-    background: "bg-red-600",
-    onAction: () => void handleTaskDeleteWithErrorHandling(taskId),
-  });
+      setActiveTab(next);
 
-  const noteSwipePin = (noteId: string, isPinned: boolean): SwipeAction => ({
-    label: isPinned ? "Unpin" : "Pin",
-    icon: Pin,
-    background: "bg-orange-500",
-    onAction: () => void handleNotePinWithErrorHandling(noteId, !isPinned),
-  });
+      // The panel springs back to centre whatever happens, so a gesture with no
+      // tap in it needs something that confirms it landed. Same weight the hold
+      // menus use.
+      if (isNativeApp()) {
+        Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+      }
+    },
+    [activeTab],
+  );
 
-  const noteSwipeDelete = (noteId: string): SwipeAction => ({
-    label: "Delete",
-    icon: Trash2,
-    background: "bg-red-600",
-    onAction: () => void handleNoteDeleteWithErrorHandling(noteId),
-  });
+  /* =======================================================
+     CARD ACTIONS
+
+     There are no swipe actions here any more. The cards carry their own hold
+     menus — both task cards have had one since before swipe existed, and the
+     note card now uses the same shared useLongPress the list cards do — and the
+     horizontal drag belongs to the Tasks/Notes panel below, which uses it to
+     switch between the two.
+
+     The handlers the swipe panels called are unchanged and still passed to the
+     cards; only the second route to them is gone.
+     ======================================================= */
 
   return (
     <motion.section
+      /* The entrance rides the same `transform` as the tilt rather than using
+         framer's `y`, which would write a second transform and clobber it. The
+         `lift` argument is the entrance offset, so a card still arrives from
+         10px below and leaves 8px above — tilted if it is shut, square if it
+         is open. */
       initial={{
         opacity: 0,
-        y: 10,
+        transform: cardTransform(isExpanded, 10),
       }}
       animate={{
         opacity: 1,
-        y: 0,
+        transform: cardTransform(isExpanded, 0),
       }}
       exit={{
         opacity: 0,
-        y: -8,
+        transform: cardTransform(isExpanded, -8),
       }}
+      /* 280ms on the codebase's own strong ease-out. The Swift is
+         `.snappy(duration: 0.32, extraBounce: 0.04)`; 0.04 of bounce does not
+         survive into a cubic-bezier and is imperceptible at that amplitude
+         anyway, and 280ms keeps the open under the 300ms a UI transition wants. */
       transition={{
-        duration: 0.25,
+        duration: 0.28,
+        ease: [0.23, 1, 0.32, 1],
       }}
       data-collection-id={id}
       className={`
         ${className}
         overflow-hidden
-        rounded-[18px]
+        rounded-[17px]
         border
         backdrop-blur-[14px]
         transition-colors
         duration-200
         ${colors.outer}
       `}
+      /* The containment stroke, from the Swift: 0.8px of the collection's own
+         colour instead of the neutral hairline. Same convention and the same
+         two opacities as the list cards in native/NativeListCard, where it is
+         `${color}40` / `${color}29` — 0.25 and 0.16 as hex alpha. */
+      style={{
+        borderWidth: 0.8,
+        borderColor: withAlpha(getEffectiveColor(), isDark ? 0.25 : 0.16),
+      }}
     >
       {/* ===================================================
           HEADER
@@ -611,92 +828,54 @@ const EnhancedCollectionComponent = ({
           ${colors.header}
         `}
       >
-        {/* Equal top/bottom padding keeps chevron centred */}
-        <div
-          className="
-            px-4
-            py-4
-            sm:px-5
-            sm:py-5
-          "
-        >
-          <div className="flex items-center gap-3">
-            {/* Collection colour */}
-            <div
-              className="
-                h-2.5
-                w-2.5
-                shrink-0
-                rounded-full
-              "
-              style={{
-                backgroundColor: getEffectiveColor(),
-                boxShadow: `0 0 0 3px ${getEffectiveColor()}14`,
-              }}
-              aria-hidden="true"
-            />
+        {/* DIAGONAL SLICE — title block.
 
-            {/* Title + counts */}
+            A translucent diagonal slab of the collection colour over the card,
+            narrow while shut and the full width of the row once open. The
+            colour is the background and the edge, which is why there is no dot
+            or bar beside the name. */}
+        <div className="relative">
+          {/* DIAGONAL SLICE — drawn here. Geometry: top of file. */}
+          <DiagonalSlice
+            color={getEffectiveColor()}
+            isDark={isDark}
+            isExpanded={isExpanded}
+          />
+
+          {/* `py-3.5` and `pl-3` are the Swift's `.padding(.vertical, 14)` and
+              `.padding(.leading, 12)`. The right side keeps its own padding
+              because the buttons live there and iOS has none. */}
+          <div className="relative z-10 flex min-h-[68px] items-center gap-3 py-3.5 pl-3 pr-4 sm:pr-5">
             <button
               type="button"
               onClick={() => setIsExpanded((previous) => !previous)}
               aria-expanded={isExpanded}
-              className="
-                min-w-0
-                flex-1
-                text-left
-              "
+              className="min-w-0 flex-1 text-left"
             >
-              <div
-                className="
-                  flex
-                  flex-wrap
-                  items-baseline
-                  gap-x-3
-                  gap-y-0.5
-                "
+              <h3
+                className={`truncate text-[17px] font-semibold leading-6 tracking-[-0.015em] ${
+                  isDark ? "text-white" : "text-gray-900"
+                }`}
               >
-                <h3
-                  className={`
-                    max-w-full
-                    truncate
-                    text-[16px]
-                    font-semibold
-                    leading-6
-                    tracking-[-0.015em]
-                    sm:text-[17px]
-                    ${colors.textPrimary}
-                  `}
-                >
-                  {collection_name || "Unnamed Collection"}
-                </h3>
+                {collection_name || "Unnamed Collection"}
+              </h3>
 
-                <span
-                  className={`
-                    whitespace-nowrap
-                    text-[11px]
-                    font-medium
-                    leading-5
-                    ${colors.count}
-                  `}
-                >
-                  {taskCount} {taskCount === 1 ? "Task" : "Tasks"}
-                  <span className="mx-1.5 opacity-50">·</span>
-                  {noteCount} {noteCount === 1 ? "Note" : "Notes"}
-                </span>
-              </div>
+              {/* The counts stay a step down from the title. "White everywhere"
+                  is the title's job; a sub-line at full white has no hierarchy
+                  left to give. */}
+              <span
+                className={`mt-0.5 block text-[12px] font-medium leading-4 tabular-nums ${
+                  isDark ? "text-white/70" : "text-gray-600"
+                }`}
+              >
+                {taskCount} {taskCount === 1 ? "task" : "tasks"}
+                <span className="mx-1.5 opacity-60">·</span>
+                {noteCount} {noteCount === 1 ? "note" : "notes"}
+              </span>
             </button>
 
-            {/* Header actions */}
-            <div
-              className="
-                -mr-1
-                flex
-                shrink-0
-                items-center
-                gap-0.5
-              "
-            >
+            {/* Actions: round, translucent, 36px */}
+            <div className="flex shrink-0 items-center gap-1.5">
               {!isGeneralCollection() && onCollectionEdit && (
                 <button
                   type="button"
@@ -705,21 +884,13 @@ const EnhancedCollectionComponent = ({
                     void handleCollectionEdit();
                   }}
                   aria-label="Edit collection"
-                  className={`
-                    flex
-                    h-8
-                    w-8
-                    shrink-0
-                    items-center
-                    justify-center
-                    rounded-lg
-                    p-0
-                    transition-colors
-                    ${colors.textMuted}
-                    ${colors.buttonHover}
-                  `}
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
+                    isDark
+                      ? "bg-white/10 text-white hover:bg-white/20"
+                      : "bg-black/[0.06] text-gray-900 hover:bg-black/[0.1]"
+                  }`}
                 >
-                  <Edit3 className="h-[15px] w-[15px]" />
+                  <Edit3 className="h-4 w-4" strokeWidth={1.75} />
                 </button>
               )}
 
@@ -730,57 +901,20 @@ const EnhancedCollectionComponent = ({
                   isExpanded ? "Collapse collection" : "Expand collection"
                 }
                 aria-expanded={isExpanded}
-                className={`
-                  flex
-                  h-8
-                  w-8
-                  shrink-0
-                  items-center
-                  justify-center
-                  rounded-lg
-                  p-0
-                  transition-colors
-                  ${colors.textMuted}
-                  ${colors.buttonHover}
-                `}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
+                  isDark
+                    ? "bg-white/10 text-white hover:bg-white/20"
+                    : "bg-black/[0.06] text-gray-900 hover:bg-black/[0.1]"
+                }`}
               >
-                <AnimatePresence mode="wait" initial={false}>
-                  {isExpanded ? (
-                    <motion.span
-                      key="expanded"
-                      initial={{ opacity: 0, scale: 0.85 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.85 }}
-                      transition={{ duration: 0.1 }}
-                      className="
-                        flex
-                        h-5
-                        w-5
-                        items-center
-                        justify-center
-                      "
-                    >
-                      <ChevronDown className="h-4 w-4" strokeWidth={2} />
-                    </motion.span>
-                  ) : (
-                    <motion.span
-                      key="collapsed"
-                      initial={{ opacity: 0, scale: 0.85 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.85 }}
-                      transition={{ duration: 0.1 }}
-                      className="
-                        flex
-                        h-5
-                        w-5
-                        items-center
-                        justify-center
-                      "
-                    >
-                      <ChevronRight className="h-4 w-4" strokeWidth={2} />
-                    </motion.span>
-                  )}
-                </AnimatePresence>
+                <motion.span
+                  initial={false}
+                  animate={{ rotate: isExpanded ? 90 : 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="flex h-5 w-5 items-center justify-center"
+                >
+                  <ChevronRight className="h-4 w-4" strokeWidth={2} />
+                </motion.span>
               </button>
             </div>
           </div>
@@ -800,6 +934,7 @@ const EnhancedCollectionComponent = ({
                 className={`
                   mx-4
                   mb-3
+                  mt-3
                   flex
                   items-center
                   justify-between
@@ -865,55 +1000,34 @@ const EnhancedCollectionComponent = ({
                 className="
                   px-4
                   pb-1
+                  pt-3
                   sm:px-5
                 "
               >
-                {/* =========================================
-                    TASKS / NOTES SEGMENTED SWITCH
+                {/* Tasks / Notes.
 
-                    Outer box makes it obvious that these
-                    controls switch the collection view.
+                    Two plain tabs on a rule, the active one marked by a 2px
+                    underline in the collection colour. It was a pill with the
+                    selected half filled in that colour and a spring sliding the
+                    fill between the two; with the header now a slab of the same
+                    colour, two things on one card were competing to be the
+                    coloured element. The underline states which tab is live and
+                    nothing else.
 
-                    Active tab gets:
-                    - stronger surface
-                    - inner border
-                    - collection-colour indicator
-                   ========================================= */}
-
+                    Full width on a phone so each half is a thumb-sized target,
+                    shrinking to fit from `sm` up so it does not stretch across a
+                    wide card. */}
                 <div
                   role="tablist"
                   aria-label="Collection content"
-                  className={`
-                    inline-flex
-                    items-center
-                    gap-1
-                    rounded-lg
-                    border
-                    p-1
-                    ${
-                      isDark
-                        ? "border-white/[0.07] bg-white/[0.025]"
-                        : "border-slate-200/80 bg-slate-100/50"
-                    }
-                  `}
+                  className={`flex border-b ${colors.border}`}
                 >
                   {(
                     [
-                      {
-                        key: "tasks",
-                        label: "Tasks",
-                        icon: ListTodo,
-                        count: taskCount,
-                      },
-                      {
-                        key: "notes",
-                        label: "Notes",
-                        icon: StickyNote,
-                        count: noteCount,
-                      },
+                      { key: "tasks", label: "Tasks", count: taskCount },
+                      { key: "notes", label: "Notes", count: noteCount },
                     ] as const
                   ).map((tab) => {
-                    const Icon = tab.icon;
                     const active = activeTab === tab.key;
 
                     return (
@@ -925,66 +1039,31 @@ const EnhancedCollectionComponent = ({
                         aria-controls={`${tab.key}-panel`}
                         id={`${tab.key}-tab`}
                         onClick={() => setActiveTab(tab.key)}
-                        className={`
-                          relative
-                          flex
-                          h-8
-                          items-center
-                          gap-1.5
-                          rounded-md
-                          border
-                          px-3
-                          text-[12px]
-                          font-medium
-                          transition-all
-                          duration-150
-
-                          ${
-                            active
-                              ? isDark
-                                ? "border-white/[0.09] bg-white/[0.08] text-slate-100 shadow-sm"
-                                : "border-slate-200 bg-white text-slate-900 shadow-sm"
-                              : isDark
-                                ? "border-transparent text-slate-500 hover:bg-white/[0.035] hover:text-slate-300"
-                                : "border-transparent text-slate-500 hover:bg-white/60 hover:text-slate-700"
-                          }
-                        `}
+                        className={`relative flex h-10 flex-1 items-center justify-center gap-1.5 text-[13px] font-medium transition-colors duration-150 sm:flex-none sm:px-7 ${
+                          active
+                            ? isDark
+                              ? "text-white"
+                              : "text-gray-900"
+                            : colors.inactiveTab
+                        }`}
                       >
-                        <Icon className="h-3.5 w-3.5 shrink-0" />
-
                         <span>{tab.label}</span>
 
-                        <span
-                          className={`
-                            text-[10px]
-                            font-medium
-                            ${active ? "opacity-70" : "opacity-50"}
-                          `}
-                        >
+                        <span className="text-[11px] tabular-nums opacity-70">
                           {tab.count}
                         </span>
 
-                        {active && (
-                          <motion.span
-                            layoutId={`collection-active-tab-${id}`}
-                            className="
-                              absolute
-                              bottom-[3px]
-                              left-3
-                              right-3
-                              h-[2px]
-                              rounded-full
-                            "
-                            style={{
-                              backgroundColor: getEffectiveColor(),
-                            }}
-                            transition={{
-                              type: "spring",
-                              stiffness: 450,
-                              damping: 36,
-                            }}
-                          />
-                        )}
+                        {/* Always rendered, faded rather than mounted: an
+                            opacity transition retargets mid-flight if the tabs
+                            are tapped twice quickly, where a mount cannot. */}
+                        <span
+                          aria-hidden="true"
+                          className="absolute inset-x-0 -bottom-px h-0.5 rounded-full transition-opacity duration-150 ease-[var(--ease-out)]"
+                          style={{
+                            backgroundColor: getEffectiveColor(),
+                            opacity: active ? 1 : 0,
+                          }}
+                        />
                       </button>
                     );
                   })}
@@ -1027,14 +1106,36 @@ const EnhancedCollectionComponent = ({
             transition={{
               duration: 0.2,
             }}
-            className="overflow-hidden"
+            /* The content well, from the Swift: a faint ground under the
+               expanded half so it reads as a recess the header sits on rather
+               than more of the same card. `black/[0.12]` in dark is the Swift
+               value as written; in light, `--surface-deep` at 30% is this app's
+               stand-in for `systemGroupedBackground.opacity(0.3)`, and reading
+               the ramp means it follows the chosen background instead of being
+               a grey that only suits White. */
+            className={`overflow-hidden ${
+              isDark ? "bg-black/[0.12]" : "bg-[var(--surface-deep)]/30"
+            }`}
           >
-            <div
+            <motion.div
               role="tabpanel"
               id={activeTab === "tasks" ? "tasks-panel" : "notes-panel"}
               aria-labelledby={
                 activeTab === "tasks" ? "tasks-tab" : "notes-tab"
               }
+              // Swipe sideways to change tab, as well as tapping one. Touch only
+              // — see `canSwipe`. The panel springs back to centre either way;
+              // what moves is which tab is selected, and the content's own
+              // entrance animation is what shows the change.
+              drag={canSwipe ? "x" : false}
+              dragConstraints={PANEL_DRAG_LOCK}
+              dragElastic={0.18}
+              dragMomentum={false}
+              onDragEnd={handlePanelSwipe}
+              // pan-y leaves vertical scrolling to the browser. Without it a drag
+              // on a tall panel captures the pointer and the page stops
+              // scrolling, which is the same trap the old row swipe had.
+              style={{ touchAction: "pan-y" }}
               className={`
                 px-3
                 pb-4
@@ -1075,22 +1176,17 @@ const EnhancedCollectionComponent = ({
                             delay: entranceDelay(index),
                           }}
                         >
-                          <MaybeSwipeable
-                            leading={taskSwipeComplete(task.id)}
-                            trailing={taskSwipeDelete(task.id)}
-                          >
-                            <TaskCard
-                              {...task}
-                              onComplete={handleTaskCompleteWithErrorHandling}
-                              onPriorityChange={
-                                handleTaskPriorityWithErrorHandling
-                              }
-                              onTaskUpdate={handleTaskUpdateWithErrorHandling}
-                              onTaskDelete={handleTaskDeleteWithErrorHandling}
-                              onCollectionChange={onCollectionChange}
-                              collections={collections}
-                            />
-                          </MaybeSwipeable>
+                          <TaskCard
+                            {...task}
+                            onComplete={handleTaskCompleteWithErrorHandling}
+                            onPriorityChange={
+                              handleTaskPriorityWithErrorHandling
+                            }
+                            onTaskUpdate={handleTaskUpdateWithErrorHandling}
+                            onTaskDelete={handleTaskDeleteWithErrorHandling}
+                            onCollectionChange={onCollectionChange}
+                            collections={collections}
+                          />
                         </motion.div>
                       ))}
 
@@ -1110,22 +1206,17 @@ const EnhancedCollectionComponent = ({
                             delay: entranceDelay(priorityTasks.length + index),
                           }}
                         >
-                          <MaybeSwipeable
-                            leading={taskSwipeComplete(task.id)}
-                            trailing={taskSwipeDelete(task.id)}
-                          >
-                            <TaskCard
-                              {...task}
-                              onComplete={handleTaskCompleteWithErrorHandling}
-                              onPriorityChange={
-                                handleTaskPriorityWithErrorHandling
-                              }
-                              onTaskUpdate={handleTaskUpdateWithErrorHandling}
-                              onTaskDelete={handleTaskDeleteWithErrorHandling}
-                              onCollectionChange={onCollectionChange}
-                              collections={collections}
-                            />
-                          </MaybeSwipeable>
+                          <TaskCard
+                            {...task}
+                            onComplete={handleTaskCompleteWithErrorHandling}
+                            onPriorityChange={
+                              handleTaskPriorityWithErrorHandling
+                            }
+                            onTaskUpdate={handleTaskUpdateWithErrorHandling}
+                            onTaskDelete={handleTaskDeleteWithErrorHandling}
+                            onCollectionChange={onCollectionChange}
+                            collections={collections}
+                          />
                         </motion.div>
                       ))}
                     </div>
@@ -1202,20 +1293,28 @@ const EnhancedCollectionComponent = ({
                   }}
                 >
                   {sortedNotes.length > 0 ? (
+                    /* Two across at every width, rather than a 1/2/3/4 ladder.
+                       A note is a title and a few lines of its body, so at four
+                       to a row on a wide screen the body clamped to almost
+                       nothing and the grid read as a row of chips. Two keeps
+                       each card wide enough for the preview to be worth showing.
+
+                       `items-stretch` with `h-full` on the cards is what stops
+                       the pair in a row from being different heights, which is
+                       the thing that makes a two-column grid look unfinished. */
                     <div
                       className={`
                         grid
-                        grid-cols-1
+                        grid-cols-2
+                        items-stretch
                         gap-3
-                        sm:grid-cols-2
-                        lg:grid-cols-3
-                        xl:grid-cols-4
-                        ${NATIVE_PANEL_SCROLL}
+                        ${NOTES_ROWS_MAX_H}
                       `}
                     >
                       {sortedNotes.map((note, index) => (
                         <motion.div
                           key={note.id}
+                          className="h-full"
                           initial={{
                             opacity: 0,
                             y: 6,
@@ -1229,32 +1328,24 @@ const EnhancedCollectionComponent = ({
                             delay: entranceDelay(index),
                           }}
                         >
-                          <MaybeSwipeable
-                            leading={noteSwipePin(
-                              note.id,
-                              Boolean(note.is_pinned),
-                            )}
-                            trailing={noteSwipeDelete(note.id)}
-                          >
-                            <NoteCard
-                              id={note.id}
-                              title={note.title}
-                              description={note.description}
-                              created_at={note.created_at}
-                              is_deleted={note.is_deleted}
-                              bg_color_hex={note.bg_color_hex}
-                              is_pinned={note.is_pinned}
-                              collection_id={note.collection_id}
-                              list_id={note.list_id}
-                              user_id={note.user_id}
-                              onPinChange={handleNotePinWithErrorHandling}
-                              onColorChange={
-                                handleNoteColorChangeWithErrorHandling
-                              }
-                              onNoteUpdate={handleNoteUpdateWithErrorHandling}
-                              onNoteDelete={handleNoteDeleteWithErrorHandling}
-                            />
-                          </MaybeSwipeable>
+                          <NoteCard
+                            id={note.id}
+                            title={note.title}
+                            description={note.description}
+                            created_at={note.created_at}
+                            is_deleted={note.is_deleted}
+                            bg_color_hex={note.bg_color_hex}
+                            is_pinned={note.is_pinned}
+                            collection_id={note.collection_id}
+                            list_id={note.list_id}
+                            user_id={note.user_id}
+                            onPinChange={handleNotePinWithErrorHandling}
+                            onColorChange={
+                              handleNoteColorChangeWithErrorHandling
+                            }
+                            onNoteUpdate={handleNoteUpdateWithErrorHandling}
+                            onNoteDelete={handleNoteDeleteWithErrorHandling}
+                          />
                         </motion.div>
                       ))}
                     </div>
@@ -1306,7 +1397,7 @@ const EnhancedCollectionComponent = ({
                   )}
                 </motion.div>
               )}
-            </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

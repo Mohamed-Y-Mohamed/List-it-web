@@ -226,7 +226,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
   const isDark = theme === "dark";
 
   const scheduled = Boolean(due_date);
-  const overdue = Boolean(due_date && due_date.getTime() < Date.now() && !completed);
+  const overdue = Boolean(
+    due_date && due_date.getTime() < Date.now() && !completed,
+  );
   const status = taskStatus(overdue, !!is_pinned, scheduled);
   const statusInfo = STATUS_META[status];
   const formattedDate = formatDemoDate(due_date);
@@ -252,17 +254,23 @@ const TaskCard: React.FC<TaskCardProps> = ({
         group relative cursor-pointer select-none overflow-hidden
         rounded-2xl border transition-all duration-200
         ${
+          /* The field, not the card, mirroring the real task card: a task sits
+             inside a collection, so it drops back to the page colour to stand
+             off it. Expressed in this page's own `--ps-*` palette rather than
+             `--surface-field`, because the marketing page has a fixed look and
+             must not repaint itself from a signed-in visitor's stored
+             background choice. */ ""
+        }
+        border-[var(--ps-border)]
+        bg-[var(--ps-field)]
+
+        ${
           isDark
             ? `
-              border-white/[0.07]
-              bg-[#131a28]
               hover:border-white/[0.12]
-              hover:bg-[#161e2e]
               hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)]
             `
             : `
-              border-slate-200/80
-              bg-white
               hover:border-slate-300
               hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]
             `
@@ -270,13 +278,15 @@ const TaskCard: React.FC<TaskCardProps> = ({
         ${completed ? "opacity-60" : ""}
       `}
     >
-      {/* Only meaningful states get a side colour. */}
-      {status !== "normal" && (
-        <div
-          className="absolute inset-y-0 left-0 w-[4px]"
-          style={{ backgroundColor: statusInfo.colour }}
-        />
-      )}
+      {/* Every task gets a side colour, normal included — matching both real task
+          cards. The gate that used to be here showed an ordinary task with no
+          stripe at all, which made the colour look like a badge some tasks earn
+          rather than the status every task is in. */}
+      <div
+        className="absolute inset-y-0 left-0 w-[4px]"
+        style={{ backgroundColor: statusInfo.colour }}
+        aria-hidden="true"
+      />
 
       <div className="px-4 py-3.5 sm:px-[18px]">
         {/* TITLE + STATUS */}
@@ -399,21 +409,34 @@ interface NoteCardProps {
   is_pinned: boolean;
 }
 
-/** The real card's rule: a light custom colour takes dark text. */
-const isLightHex = (hex: string): boolean => {
+/* The sticky note, tracking Notes/noteCard, which is itself the iOS `NoteView`.
+   The numbers are that file's: 90px tall, 8px radius, a 16px folded corner,
+   10px padding, title 12/semibold and body 10/secondary, both two lines.
+
+   What this demo used to draw: a 14px title, the created date under it, a
+   single truncated line of body, a 3px colour bar down the leading edge, a
+   duplicate "Pinned" caption, and the colour at 65% opaque with the type picked
+   by luminance. None of that is the card any more. */
+const NOTE_FOLD = 16;
+const NOTE_HEIGHT = 90;
+const NOTE_WASH = {
+  dark: { from: 0.5, to: 0.28 },
+  light: { from: 0.4, to: 0.2 },
+} as const;
+const NOTE_FOLD_ALPHA = { dark: 0.55, light: 0.45 } as const;
+
+/** `#RRGGBB` at an alpha, as the real card's `withAlpha` does. */
+const demoAlpha = (hex: string, alpha: number): string => {
   const value = hex.replace("#", "");
-  if (value.length !== 6) return false;
-  const r = parseInt(value.slice(0, 2), 16);
-  const g = parseInt(value.slice(2, 4), 16);
-  const b = parseInt(value.slice(4, 6), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 > 155;
+  if (value.length !== 6) return hex;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(value.slice(i, i + 2), 16));
+  return `rgba(${r},${g},${b},${alpha})`;
 };
 
 const NoteCard: React.FC<NoteCardProps> = ({
   id,
   title,
   description,
-  created_at,
   bg_color_hex,
   is_pinned,
 }) => {
@@ -422,125 +445,102 @@ const NoteCard: React.FC<NoteCardProps> = ({
 
   const displayTitle = title || "Untitled Note";
   const safeColor = bg_color_hex || null;
+  const wash = NOTE_WASH[isDark ? "dark" : "light"];
+  const foldAlpha = NOTE_FOLD_ALPHA[isDark ? "dark" : "light"];
 
-  const cardStyle: React.CSSProperties = safeColor
-    ? {
-        backgroundColor: `${safeColor}22`,
-        borderColor: `${safeColor}45`,
-      }
-    : isDark
-      ? {
-          backgroundColor: "rgba(255,255,255,0.025)",
-          borderColor: "rgba(255,255,255,0.07)",
-        }
-      : {
-          backgroundColor: "rgba(255,255,255,0.65)",
-          borderColor: "rgba(15,23,42,0.10)",
-        };
-
-  const customColorIsLight = safeColor && isLightHex(safeColor);
-
-  const titleColour = safeColor
-    ? customColorIsLight
-      ? "text-slate-900"
-      : "text-white"
-    : isDark
-      ? "text-slate-100"
-      : "text-slate-900";
-
-  const secondaryColour = safeColor
-    ? customColorIsLight
-      ? "text-slate-700"
-      : "text-white/70"
-    : isDark
-      ? "text-slate-400"
-      : "text-slate-500";
+  // An opaque base with the colour washed over it, not the colour itself. At 40%
+  // the result stays close enough to the ground that the theme's own foreground
+  // reads on it, which is why there is no luminance rule here any more.
+  const titleColour = isDark ? "text-white" : "text-gray-900";
+  const secondaryColour = isDark ? "text-gray-300" : "text-gray-600";
 
   return (
     <motion.article
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18 }}
-      style={cardStyle}
+      style={{
+        // `--ps-field` is this page's stand-in for `--surface-field`.
+        backgroundColor: "var(--ps-field)",
+        backgroundImage: safeColor
+          ? `linear-gradient(to bottom right, ${demoAlpha(
+              safeColor,
+              wash.from,
+            )}, ${demoAlpha(safeColor, wash.to)})`
+          : undefined,
+        borderWidth: 0.8,
+        borderColor: safeColor
+          ? demoAlpha(safeColor, 0.35)
+          : "var(--ps-border)",
+        height: NOTE_HEIGHT,
+        // The bottom-right corner cut off at 45 degrees. A drop-shadow filter
+        // rather than box-shadow, because clip-path clips box-shadow too.
+        clipPath: `polygon(0 0, 100% 0, 100% calc(100% - ${NOTE_FOLD}px), calc(100% - ${NOTE_FOLD}px) 100%, 0 100%)`,
+        filter: `drop-shadow(0 2px 3px rgba(0,0,0,${isDark ? 0.35 : 0.12}))`,
+      }}
       data-id={id}
-      className={`
-        group
-        relative
-        w-full
-        cursor-pointer
-        overflow-hidden
-        rounded-xl
-        border
-        px-4
-        py-3.5
-        transition-all
-        duration-200
-        ${
-          isDark
-            ? "hover:border-white/15 hover:bg-white/[0.045]"
-            : "hover:border-slate-300 hover:shadow-sm"
-        }
-      `}
+      className="group relative w-full cursor-pointer overflow-hidden rounded-lg border p-2.5"
       role="button"
       tabIndex={0}
-      aria-label={`Open note: ${displayTitle}`}
+      aria-label={`Open note: ${displayTitle}${is_pinned ? " (pinned)" : ""}`}
     >
-      {/* Note colour indicator */}
-      <div
-        className="absolute inset-y-3 left-0 w-[3px] rounded-r-full"
-        style={{
-          backgroundColor: safeColor || (isDark ? "#64748b" : "#94a3b8"),
-        }}
-      />
-
-      {/* Header */}
-      <div className="flex min-w-0 items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <h4
-            className={`truncate text-[14px] font-semibold leading-5 ${titleColour}`}
-            title={displayTitle}
-          >
-            {displayTitle}
-          </h4>
-
-          {/* Date directly under title */}
-          <div
-            className={`mt-1 flex items-center gap-1.5 text-[11px] ${secondaryColour}`}
-          >
-            <CalendarDays className="h-3 w-3 shrink-0" />
-            <span>{formatDemoDate(created_at)}</span>
-          </div>
-        </div>
-
-        {/* Pin */}
-        <span
-          className={`
-            flex h-7 w-7 shrink-0 items-center justify-center rounded-md
-            ${is_pinned ? "text-amber-400" : `${secondaryColour} opacity-60`}
-          `}
-          aria-hidden="true"
+      <div className="flex flex-col gap-1.5">
+        <h4
+          className={`line-clamp-2 text-[12px] font-semibold leading-[15px] ${
+            is_pinned ? "pr-3" : ""
+          } ${titleColour}`}
+          title={displayTitle}
         >
-          <Pin className={`h-3.5 w-3.5 ${is_pinned ? "fill-current" : ""}`} />
-        </span>
+          {displayTitle}
+        </h4>
+
+        {description && (
+          <p
+            title={description}
+            className={`line-clamp-2 text-[10px] leading-[13px] ${secondaryColour}`}
+          >
+            {description}
+          </p>
+        )}
       </div>
 
-      {/* Description */}
-      {description && (
-        <p
-          title={description}
-          className={`mt-2.5 w-3/4 truncate text-[12px] leading-5 ${secondaryColour}`}
+      {/* State, not a control — the real card keeps the pin action in its hold
+          menu, and this page has no menus at all. */}
+      {is_pinned && (
+        <span
+          aria-hidden="true"
+          className={`absolute right-0 top-0 p-2 ${secondaryColour}`}
         >
-          {description}
-        </p>
+          <Pin className="h-2.5 w-2.5 fill-current" />
+        </span>
       )}
 
-      {/* Pinned label */}
-      {is_pinned && (
-        <div className="mt-2 flex items-center gap-1 text-[10px] font-medium text-amber-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-          Pinned
-        </div>
-      )}
+      {/* The folded flap: the triangle whose hypotenuse is the cut above. Two
+          layers, so it is never see-through to the page behind the card. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 right-0"
+        style={{
+          width: NOTE_FOLD,
+          height: NOTE_FOLD,
+          clipPath: "polygon(0 0, 100% 0, 0 100%)",
+          backgroundColor: "var(--ps-field)",
+          backgroundImage: `linear-gradient(${
+            safeColor
+              ? demoAlpha(safeColor, foldAlpha)
+              : isDark
+                ? "rgba(255,255,255,0.14)"
+                : "rgba(15,23,42,0.12)"
+          }, ${
+            safeColor
+              ? demoAlpha(safeColor, foldAlpha)
+              : isDark
+                ? "rgba(255,255,255,0.14)"
+                : "rgba(15,23,42,0.12)"
+          })`,
+          filter: "drop-shadow(-1px -1px 1.5px rgba(0,0,0,0.2))",
+        }}
+      />
     </motion.article>
   );
 };
@@ -590,20 +590,29 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
+  // The collection is the card and the tasks inside it drop back to the field,
+  // mirroring the real Collection. Both surfaces used to be translucent whites,
+  // which over a pale field left the container invisible. `--ps-*` rather than
+  // `--surface-*` for the same reason as the task card above.
+  const SURFACE = {
+    outer: "border-[var(--ps-border)] bg-[var(--ps-card)]",
+    header: "bg-transparent",
+  } as const;
+
   const colors = isDark
     ? {
         textPrimary: "text-slate-100",
         textMuted: "text-slate-500",
-        outer: "border-white/[0.055] bg-white/[0.018]",
-        header: "bg-white/[0.012]",
+        outer: SURFACE.outer,
+        header: SURFACE.header,
         count: "text-slate-500",
         buttonHover: "hover:bg-white/[0.055]",
       }
     : {
         textPrimary: "text-slate-900",
         textMuted: "text-slate-400",
-        outer: "border-slate-200/70 bg-white/35",
-        header: "bg-white/25",
+        outer: SURFACE.outer,
+        header: SURFACE.header,
         count: "text-slate-400",
         buttonHover: "hover:bg-slate-100/70",
       };
@@ -618,9 +627,16 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
       // The real collection carries `backdrop-blur-[14px]` here. It is dropped
       // on this page on purpose: over a flat field it is visually a no-op, and
       // measured on the landing page the in-flow blurs cost ~20fps of scroll.
+      //
+      // The containment stroke is the real one: 0.8px of the collection's own
+      // colour at 0.25 dark / 0.16 light, in place of the neutral hairline.
+      style={{
+        borderWidth: 0.8,
+        borderColor: demoAlpha(colour, isDark ? 0.25 : 0.16),
+      }}
       className={`
         overflow-hidden
-        rounded-[18px]
+        rounded-[17px]
         border
         transition-colors
         duration-200
@@ -629,66 +645,94 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
     >
       {/* HEADER */}
       <div className={`relative ${colors.header}`}>
-        <div className="px-4 py-4 sm:px-5 sm:py-5">
-          <div className="flex items-center gap-3">
-            {/* Collection colour */}
-            <div
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{
-                backgroundColor: colour,
-                boxShadow: `0 0 0 3px ${colour}14`,
-              }}
-              aria-hidden="true"
-            />
+        {/* The slice backs the title row and nothing else, which is the one
+            thing this had wrong when it first went in: hung on the header
+            wrapper with `inset-0` it covered the tabs and the status legend as
+            well, turning a slab behind a line of text into a coloured block
+            most of the card deep. The real Collection wraps its title row in
+            its own `relative` for exactly this reason, so this one does too.
 
-            {/* Title + counts */}
-            <button
-              type="button"
-              onClick={() => setIsExpanded((previous) => !previous)}
-              aria-expanded={isExpanded}
-              className="min-w-0 flex-1 text-left"
-            >
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-                <h3
-                  className={`
+            Tracking Collection/index.tsx otherwise: a translucent slab of the
+            collection colour, a narrow block while shut and the full width of
+            the row once open, with the trailing corner skewed back 24px until
+            it squares off. One `clip-path` carries the sweep and the slant;
+            `background-size` keeps the gradient sized to the slab rather than
+            the row. Both paint-only. The calc() form is for readability only —
+            Chromium normalises `calc(100% - 0px)` back to `100%` and blends it
+            with the shut state's calc regardless. See Collection/index.tsx.
+
+            This replaced a 2.5px colour dot beside the name. The colour is the
+            row's background now, so the dot said it twice. */}
+        <div className="relative">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 transition-[clip-path,background-size] duration-[280ms] ease-[var(--ease-out)] motion-reduce:transition-none"
+            style={{
+              backgroundImage: `linear-gradient(to right, ${demoAlpha(
+                colour,
+                isDark ? 0.4 : 0.28,
+              )}, ${demoAlpha(colour, isDark ? 0.2 : 0.14)})`,
+              backgroundSize: `${isExpanded ? 100 : 30}% 100%`,
+              backgroundRepeat: "no-repeat",
+              clipPath: `polygon(0 0, ${isExpanded ? 100 : 30}% 0, calc(${
+                isExpanded ? 100 : 30
+              }% - ${isExpanded ? 0 : 24}px) 100%, 0 100%)`,
+            }}
+          />
+
+          <div className="relative z-10 py-3.5 pl-3 pr-4 sm:pr-5">
+            <div className="flex items-center gap-3">
+              {/* Title + counts */}
+              <button
+                type="button"
+                onClick={() => setIsExpanded((previous) => !previous)}
+                aria-expanded={isExpanded}
+                className="min-w-0 flex-1 text-left"
+              >
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                  <h3
+                    className={`
                     max-w-full truncate
                     text-[16px] font-semibold leading-6 tracking-[-0.015em]
                     sm:text-[17px]
                     ${colors.textPrimary}
                   `}
-                >
-                  {collection_name || "Unnamed Collection"}
-                </h3>
+                  >
+                    {collection_name || "Unnamed Collection"}
+                  </h3>
 
-                <span
-                  className={`whitespace-nowrap text-[11px] font-medium leading-5 ${colors.count}`}
-                >
-                  {taskCount} {taskCount === 1 ? "Task" : "Tasks"}
-                  <span className="mx-1.5 opacity-50">·</span>
-                  {noteCount} {noteCount === 1 ? "Note" : "Notes"}
-                </span>
-              </div>
-            </button>
+                  <span
+                    className={`whitespace-nowrap text-[11px] font-medium leading-5 ${colors.count}`}
+                  >
+                    {taskCount} {taskCount === 1 ? "Task" : "Tasks"}
+                    <span className="mx-1.5 opacity-50">·</span>
+                    {noteCount} {noteCount === 1 ? "Note" : "Notes"}
+                  </span>
+                </div>
+              </button>
 
-            {/* Expand */}
-            <button
-              type="button"
-              onClick={() => setIsExpanded((previous) => !previous)}
-              aria-label={isExpanded ? "Collapse collection" : "Expand collection"}
-              className={`
+              {/* Expand */}
+              <button
+                type="button"
+                onClick={() => setIsExpanded((previous) => !previous)}
+                aria-label={
+                  isExpanded ? "Collapse collection" : "Expand collection"
+                }
+                className={`
                 -mr-1 flex h-9 w-9 shrink-0 items-center justify-center
                 rounded-lg transition-colors
                 ${colors.textMuted} ${colors.buttonHover}
               `}
-            >
-              <motion.span
-                animate={{ rotate: isExpanded ? 0 : -90 }}
-                transition={{ duration: 0.2 }}
-                className="flex"
               >
-                <ChevronDown className="h-4 w-4" strokeWidth={2} />
-              </motion.span>
-            </button>
+                <motion.span
+                  animate={{ rotate: isExpanded ? 0 : -90 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex"
+                >
+                  <ChevronDown className="h-4 w-4" strokeWidth={2} />
+                </motion.span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -832,9 +876,7 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
             className="overflow-hidden"
             role="tabpanel"
             id={
-              activeTab === "tasks"
-                ? `tasks-panel-${id}`
-                : `notes-panel-${id}`
+              activeTab === "tasks" ? `tasks-panel-${id}` : `notes-panel-${id}`
             }
             aria-labelledby={
               activeTab === "tasks" ? `tasks-tab-${id}` : `notes-tab-${id}`

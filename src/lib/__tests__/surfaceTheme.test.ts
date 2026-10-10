@@ -61,14 +61,50 @@ describe("surfaceTheme", () => {
       }
     });
 
-    // Mono light is the one ramp where card and field are the same colour, so its
-    // border is the only thing drawing the card. It has to be the strongest.
-    it("gives the strongest border to the ramp with no tonal separation", () => {
-      const mono = SURFACE_RAMPS.light.mono;
-      expect(mono.card).toBe(mono.field);
-      expect(Number(mono.border.match(/,\s*([\d.]+)\s*\)$/)![1])).toBeGreaterThan(
-        Number(SURFACE_RAMPS.light.cool.border.match(/,\s*([\d.]+)\s*\)$/)![1]),
-      );
+    // Mono light used to be a white card on a white field, which left the border
+    // as the only thing drawing the card at all. It is a grey card now, so every
+    // ramp in both themes separates the two by tone and none of them depends on
+    // its border to exist. This is the assertion that would have caught the white
+    // card going back in.
+    it("separates card from field by tone in every option", () => {
+      for (const theme of THEMES) {
+        for (const choice of SURFACE_ORDER) {
+          const ramp = surfaceRamp(theme, choice);
+          expect(ramp.card).not.toBe(ramp.field);
+          expect(
+            Math.abs(luminance(ramp.card) - luminance(ramp.field)),
+          ).toBeGreaterThan(0.004);
+        }
+      }
+    });
+
+    // A raised surface the same colour as the cards sitting on it is not raised.
+    // mono light hit this the moment the card took #F4F4F5, which raised and deep
+    // both already were.
+    it("keeps a raised surface distinct from the cards on it", () => {
+      for (const theme of THEMES) {
+        for (const choice of SURFACE_ORDER) {
+          const ramp = surfaceRamp(theme, choice);
+          expect(ramp.raised).not.toBe(ramp.card);
+        }
+      }
+    });
+
+    // Grey on white is a quieter step than any of the dark ramps make, so mono
+    // light still carries the strongest hairline of the four light options.
+    //
+    // Written against every other key rather than naming cool and warm, which is
+    // what it used to do: a fourth option was added and the assertion would not have
+    // noticed it, which is exactly the gap a hand-listed test leaves behind.
+    it("gives mono light the strongest border of the light ramps", () => {
+      const alpha = (ramp: { border: string }) =>
+        Number(ramp.border.match(/,\s*([\d.]+)\s*\)$/)![1]);
+
+      for (const choice of SURFACE_ORDER.filter((c) => c !== "mono")) {
+        expect(alpha(SURFACE_RAMPS.light.mono)).toBeGreaterThan(
+          alpha(SURFACE_RAMPS.light[choice]),
+        );
+      }
     });
   });
 

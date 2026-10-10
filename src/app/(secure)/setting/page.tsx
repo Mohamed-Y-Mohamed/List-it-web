@@ -218,13 +218,23 @@ const Notification: React.FC<{
  * the Dark mode toggle directly above, which was always inline.
  */
 /**
- * The background picker: three grounds for the theme you are currently in.
+ * The background picker: four grounds for the theme you are currently in.
  *
- * Only the current theme's three are offered. A dark background says nothing about
- * how the app should look in daylight, and showing six at once asks the user to
- * imagine five of them. The sets are paired — Black with White, Navy with Cool
- * grey, Charcoal with Warm paper — and stored separately, so switching theme keeps
- * whichever ground was chosen for it.
+ * Only the current theme's four are offered. A dark background says nothing about
+ * how the app should look in daylight, and showing eight at once asks the user to
+ * imagine seven of them. The sets share keys — Black with White, Midnight with
+ * Cream, Navy with Ice blue, Midnight Velvet with Warm paper — but are stored
+ * separately, so switching theme keeps whichever ground was chosen for it.
+ *
+ * Four across at every width, which is the reason the swatch is h-11 and the label
+ * 11px rather than the h-14/13px three of them could afford: at 360px the cells are
+ * about 76px, and "Warm paper" truncates to "Warm p…" at the larger size.
+ *
+ * The label wraps rather than truncating. "Midnight Velvet" is about 78px at 11px
+ * against roughly 60px of usable cell, so truncation would render it "Midnight V…"
+ * — indistinguishable from the Midnight sitting two swatches to its left. Over two
+ * lines it reads in full, and the grid rows share a height anyway so the taller
+ * cell costs nothing.
  *
  * Each swatch previews the ramp rather than one colour: the field with a card
  * drawn on it at the real radius and hairline. That is the thing worth showing,
@@ -247,7 +257,7 @@ const SurfaceSetting: React.FC<{
     <div
       role="radiogroup"
       aria-labelledby="background-label"
-      className="grid grid-cols-3 gap-2.5"
+      className="grid grid-cols-4 gap-2"
     >
       {SURFACE_ORDER.map((choice) => {
         const ramp = surfaceRamp(theme, choice);
@@ -272,12 +282,12 @@ const SurfaceSetting: React.FC<{
             }`}
           >
             <span
-              className="flex h-14 items-end rounded-lg p-1.5"
+              className="flex h-11 items-end rounded-lg p-1.5"
               style={{ backgroundColor: ramp.field }}
               aria-hidden="true"
             >
               <span
-                className="h-6 w-full rounded-md border"
+                className="h-5 w-full rounded-md border"
                 style={{
                   backgroundColor: ramp.card,
                   borderColor: ramp.border,
@@ -285,9 +295,9 @@ const SurfaceSetting: React.FC<{
               />
             </span>
 
-            <span className="flex items-center justify-between gap-1">
+            <span className="flex items-start justify-between gap-1">
               <span
-                className={`truncate text-[13px] font-medium ${
+                className={`min-w-0 text-[11px] font-medium leading-tight ${
                   isDark ? "text-white" : "text-gray-900"
                 }`}
               >
@@ -329,7 +339,10 @@ const LAYOUT_OPTIONS: {
   {
     value: "list",
     label: "List",
-    hint: "One row each, swipe for actions",
+    // No longer "swipe for actions": the row swipe is gone and holding a card is
+    // what opens its actions, in either layout. The hint describes what the
+    // layout is, which is the only thing that differs between the two now.
+    hint: "One full-width row each",
     Icon: Rows3,
   },
 ];
@@ -431,7 +444,17 @@ const LoadingSpinner: React.FC<{ isDark: boolean }> = ({ isDark }) => (
 );
 
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<string | null>("profile");
+  /**
+   * Which section is open, or `null` for none — which is now also the state the
+   * screen opens in.
+   *
+   * It opened on "profile", so arriving at Settings meant arriving at the
+   * profile form rather than at a list of what Settings holds. Only one section
+   * is ever open, so that one choice also pushed the other three below the fold
+   * on a phone. Opening shut means the four headings are the first thing read
+   * and every expand after that is the user's.
+   */
+  const [activeSection, setActiveSection] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -1356,11 +1379,19 @@ export default function SettingsPage() {
             return (
               <div
                 key={section.id}
-                className={`overflow-hidden rounded-2xl border ${
-                  isDark
-                    ? "border-white/[0.08] bg-[var(--surface-card)]"
-                    : "border-black/[0.06] bg-white"
-                }`}
+                /* Both arms read the ramp. The light one was a literal
+                   `bg-white` with a `black/[0.06]` hairline, so on the White
+                   background the section was #FFFFFF on a #FFFFFF field and the
+                   only thing drawing it — collapsed or expanded — was a 6%
+                   border. Same defect the mono light ramp was fixed for, and
+                   for the same reason: the card never read the ramp in light
+                   mode, so changing the background could not reach it.
+                   `--surface-card` is #F4F4F5 against White's field, and tracks
+                   Cream, Ice blue and Warm paper too.
+
+                   The expanded body inherits this background — it only adds a
+                   `border-t` — so this one value covers both states. */
+                className="overflow-hidden rounded-2xl border border-[var(--surface-border)] bg-[var(--surface-card)]"
               >
                 <button
                   type="button"

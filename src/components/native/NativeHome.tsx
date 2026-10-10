@@ -39,7 +39,6 @@ import NativeContextMenu, { type ContextMenuItem } from "./NativeContextMenu";
 import NativeHelpSheet from "./NativeHelpSheet";
 import NativeListCard from "./NativeListCard";
 import { ListIcon } from "./listVisuals";
-import SwipeableRow, { type SwipeAction } from "./SwipeableRow";
 import { useAppData } from "./AppDataProvider";
 import { CountBadge } from "./listVisuals";
 import { homeState } from "./homeState";
@@ -101,24 +100,40 @@ function SectionDivider({
   count,
   isDark,
   className = "",
+  trailing,
+  subtext,
 }: {
   label: string;
   /** Omitted where a count would be noise, as on a fixed set of built-in views. */
   count?: number;
   isDark: boolean;
   className?: string;
+  /**
+   * A control to sit at the trailing end of the heading row, after the rule.
+   *
+   * The sort menu lives here rather than in a row of its own. A 44px touch
+   * target on its own line cost more vertical space than the heading it sat
+   * above, on a screen whose whole job is showing lists.
+   */
+  trailing?: React.ReactNode;
+  /** A line under the heading. Small and grey — a caption, not a second label. */
+  subtext?: React.ReactNode;
 }) {
   return (
-    <div className={`flex items-center gap-2.5 pb-3 ${className}`}>
-      <h2 className="shrink-0 text-[13px] font-semibold uppercase tracking-[0.06em] text-gray-500 dark:text-gray-400">
-        {label}
-      </h2>
-      {count !== undefined && <CountBadge count={count} />}
-      {/* Takes the rest of the row, so the rule starts where the label ends
-          however long the label is. */}
-      <span
-        className={`h-px flex-1 ${isDark ? "bg-white/10" : "bg-black/10"}`}
-      />
+    <div className={`pb-3 ${className}`}>
+      <div className="flex items-center gap-2.5">
+        <h2 className="shrink-0 text-[13px] font-semibold uppercase tracking-[0.06em] text-gray-500 dark:text-gray-400">
+          {label}
+        </h2>
+        {count !== undefined && <CountBadge count={count} />}
+        {/* Takes the rest of the row, so the rule starts where the label ends
+            however long the label is. */}
+        <span
+          className={`h-px flex-1 ${isDark ? "bg-white/10" : "bg-black/10"}`}
+        />
+        {trailing}
+      </div>
+      {subtext}
     </div>
   );
 }
@@ -322,37 +337,9 @@ export default function NativeHome() {
   // nowhere for a panel to come from. Long press still opens the menu either way,
   // so this adds a faster route and no new capability.
   //
-  // Ordered pin, rename, delete so the destructive one ends up against the outer
-  // edge, furthest from where a leftward thumb first lands. Nothing fires on
-  // reveal — a panel still has to be tapped — which is what lets delete sit here
-  // without a confirmation of its own beyond the dialog it already opens.
-  const rowActions = useCallback(
-    (list: List): SwipeAction[] => [
-      // Held a little off full strength so three saturated tiles do not shout
-      // louder than the lists they belong to. 80% is as far as it goes: the icons
-      // on them are white, and thinning the fill any further over the dark field
-      // starts eating the contrast that keeps them legible.
-      {
-        label: list.is_pinned ? "Unpin List" : "Pin List",
-        icon: list.is_pinned ? PinOff : Pin,
-        background: "bg-amber-500/80",
-        onAction: () => togglePin(list),
-      },
-      {
-        label: "Update List",
-        icon: Pencil,
-        background: "bg-blue-500/80",
-        onAction: () => setListToEdit(list),
-      },
-      {
-        label: "Delete List",
-        icon: Trash2,
-        background: "bg-red-500/80",
-        onAction: () => setListToDelete(list),
-      },
-    ],
-    [togglePin],
-  );
+  // The swipe panels that used to live here are gone. `showContextMenu` below is
+  // the one place a list's actions are defined now, and it already carried the
+  // same three — pin, rename, delete — for the hold gesture on either layout.
 
   // Sorting is instant and reversible, so the chip commits on tap with no confirm
   // step. The haptic is the receipt — on a grid of small cards the reorder is not
@@ -569,7 +556,11 @@ export default function NativeHome() {
       </div>
 
       {pinnedLists.length > 0 && (
-        <section className="px-4 pb-4">
+        /* `pb-2`, down from `pb-4`. The sort row below is a 44px touch target
+           with a 20px icon in it, so most of the gap between the rail and My
+           Lists was that row's own minimum height rather than padding. Trimming
+           here is the part that can come down without shrinking a tap target. */
+        <section className="px-4 pb-2">
           {/* Same divider as the two groups below it. Left as a 24px bold heading
               it would have been the one section on the screen shouting. */}
           <SectionDivider
@@ -594,43 +585,18 @@ export default function NativeHome() {
         </section>
       )}
 
-      {/* The screen's own controls, and nothing that names a group of lists — the
-          section rules below do that now. Only earns its space once there is
-          something to sort; on a first run the create prompt stands alone. */}
-      {!isFirstRun && (
-        <section className="flex items-center gap-2 px-4">
-          {/* Keeps the lightbulb and the small grey type it has always had — it
-              reads as a tip rather than as a control, which is what it is. What
-              changed is that it is now a button, and says there is something new
-              behind it rather than naming one gesture. */}
-          <button
-            type="button"
-            onClick={() => setIsHelpOpen(true)}
-            className="touch-target -ml-1 flex items-center px-1 text-[12px] text-gray-500 active:opacity-60"
-          >
-            💡 New features and tips
-          </button>
-          <span className="flex-1" />
-          {/* Sort is an icon menu rather than a row of chips. Four options are not
-              worth the vertical space a permanent control costs on a screen whose
-              job is showing lists, and the sort is set once and rarely changed. */}
-          <button
-            type="button"
-            onClick={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect();
-              setMenuItems(overflowMenuItems());
-              setMenuOrigin({ x: rect.right - 40, y: rect.bottom });
-            }}
-            aria-label="Sort and views"
-            className="touch-target flex items-center justify-center text-gray-400 active:opacity-60 dark:text-gray-500"
-          >
-            <MoreVertical size={20} />
-          </button>
-        </section>
-      )}
+      {/* The controls row that used to sit here is gone.
+       *
+       * It held the tips button and the sort menu on a line of their own, above
+       * the lists. A 44px touch target is taller than the section heading it sat
+       * above, and it named nothing — so on a screen whose job is showing lists
+       * it was the most expensive row on it. Both moved onto and under the My
+       * Lists heading instead; see the `trailing` and `subtext` passed to its
+       * SectionDivider below.
+       */}
 
       <section
-        className="px-4 pt-1"
+        className="px-4"
         // Clears the floating Add button, which is fixed and therefore takes no
         // space in the document. Without this the last row scrolls to rest
         // underneath it. 3.5rem button + the gap below it + breathing room.
@@ -700,29 +666,63 @@ export default function NativeHome() {
                   count={userLists.length}
                   isDark={isDark}
                   className={visibleDefaultLists.length > 0 ? "pt-6" : ""}
+                  /* Sort on the heading row, tips as its caption. Both used to
+                     be a separate 44px row above this one; folded in here they
+                     cost the heading nothing and a single line of 12px type. */
+                  trailing={
+                    !isFirstRun && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          const rect =
+                            event.currentTarget.getBoundingClientRect();
+                          setMenuItems(overflowMenuItems());
+                          setMenuOrigin({ x: rect.right - 40, y: rect.bottom });
+                        }}
+                        aria-label="Sort and views"
+                        /* `-mr-2.5` pulls the 44px target's padding back over
+                           the section's own `px-4`, so the glyph sits on the
+                           margin rather than indented from it while the target
+                           itself stays full size. */
+                        className="touch-target -mr-2.5 flex shrink-0 items-center justify-center text-gray-400 active:opacity-60 dark:text-gray-500"
+                      >
+                        <MoreVertical size={20} />
+                      </button>
+                    )
+                  }
+                  subtext={
+                    <button
+                      type="button"
+                      onClick={() => setIsHelpOpen(true)}
+                      /* `inline-flex`, not `flex`: as a block-level flex
+                         container it would span the section and make the whole
+                         line a tap target that opens help. */
+                      className="touch-target -ml-1 inline-flex items-center px-1 text-[12px] text-gray-500 active:opacity-60"
+                    >
+                      💡 New features and tips
+                    </button>
+                  }
                 />
                 {isListLayout ? (
                   <div className="flex flex-col gap-2">
+                    {/* No swipe wrapper. The hold menu already offers pin,
+                        rename and delete — the swipe was a second route to the
+                        same three — and a card that answers to a horizontal drag
+                        competes with the Tasks/Notes panel inside a list, which
+                        now uses that gesture to switch between the two. One
+                        meaning per gesture. */}
                     {sortedLists.map((list) => (
-                      <SwipeableRow
+                      <NativeListCard
                         key={`${list.id}-${list.list_name}-${list.bg_color_hex}`}
-                        trailing={rowActions(list)}
-                        showLabels={false}
-                        // Matches the row's own corners, so they do not square
-                        // off the moment a swipe starts.
-                        radiusClass="rounded-2xl"
-                      >
-                        <NativeListCard
-                          list={list}
-                          tasks={tasks}
-                          notes={notes}
-                          variant="row"
-                          onOpen={() => openList(list)}
-                          onLongPress={(position) =>
-                            showContextMenu(list, position)
-                          }
-                        />
-                      </SwipeableRow>
+                        list={list}
+                        tasks={tasks}
+                        notes={notes}
+                        variant="row"
+                        onOpen={() => openList(list)}
+                        onLongPress={(position) =>
+                          showContextMenu(list, position)
+                        }
+                      />
                     ))}
                   </div>
                 ) : (
@@ -748,6 +748,7 @@ export default function NativeHome() {
                 )}
               </>
             )}
+
           </>
         )}
       </section>

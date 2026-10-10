@@ -10,6 +10,7 @@ import NativeTransition from "@/components/native/NativeTransition";
 import AppDataProvider from "@/components/native/AppDataProvider";
 import NativeBackBar from "@/components/native/NativeBackBar";
 import NativeLoading from "@/components/native/NativeLoading";
+import PullToRefresh from "@/components/native/PullToRefresh";
 import AppSurface from "@/components/AppSurface";
 import NativeTabBar from "@/components/native/NativeTabBar";
 import NativeTutorial from "@/components/native/NativeTutorial";
@@ -105,7 +106,24 @@ export default function SecureLayout({
   }
 
   return (
-    <>
+    /* AppDataProvider wraps both platforms now.
+     *
+     * It used to be mounted only inside the native arm, so the web app still
+     * fetched per screen: open a list and wait, go back, open it again and wait
+     * again. Nothing about the launch fetch is native-specific — it is three API
+     * calls behind the same session — so the web gets the same deal, and by the
+     * time a list is clicked its tasks and notes are already in memory.
+     *
+     * The parts inside it that genuinely are native-only already guard
+     * themselves: `useTaskReminders` returns immediately off-native and the
+     * Capacitor resume listener is behind `isNativeApp()`, so there is nothing
+     * here for the web to opt out of.
+     *
+     * It also still sits outside NativeTransition, which is what it was always
+     * here for. The transition re-keys on the pathname, unmounting everything
+     * below it on every navigation, so anything holding fetched data has to live
+     * above it or lose that data on each tab switch. */
+    <AppDataProvider>
       {/* The iOS app has no drawer — it reaches settings, list creation and the
           default views through a toolbar menu, which NativeHome provides. So the
           sidebar is web-only.
@@ -120,15 +138,9 @@ export default function SecureLayout({
         </Suspense>
       )}
       {isNative ? (
-        /* AppDataProvider sits outside NativeTransition on purpose. The transition
-           re-keys on the pathname, which unmounts and remounts everything below it
-           on every navigation — so anything holding fetched data had to live above
-           it or lose that data on each tab switch. From here it is fetched once at
-           launch and every screen reads it. */
-        <AppDataProvider>
-          <ScreenTitleProvider>
-            <NativeBackBar />
-            {/* `min-h-screen` lives here rather than on each page.
+        <ScreenTitleProvider>
+          <NativeBackBar />
+          {/* `min-h-screen` lives here rather than on each page.
                 Tailwind's border-box sizing keeps this div's own `pt-safe-top` and
                 `pb-tab-bar` padding *inside* the 100vh, so the document is exactly
                 one viewport tall when a screen has little content. It used to be
@@ -140,28 +152,34 @@ export default function SecureLayout({
 
                 AppSurface goes behind everything, including that padding, so
                 there is no strip left for the html background to show through. */}
-            <div
-              className={[
-                "relative min-h-screen",
-                // Every native screen, not only the three roots. The tab bar now
-                // stays visible across a push, so without this a pushed screen's
-                // last card sits underneath it.
-                "pb-tab-bar",
-                needsTopInset ? "pt-safe-top" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              <AppSurface />
+          <div
+            className={[
+              "relative min-h-screen",
+              // Every native screen, not only the three roots. The tab bar now
+              // stays visible across a push, so without this a pushed screen's
+              // last card sits underneath it.
+              "pb-tab-bar",
+              needsTopInset ? "pt-safe-top" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            <AppSurface />
+            {/* Pull down from the top to refetch. Native only — PullToRefresh
+                is a pass-through off-native, and the web has the browser's own
+                reload for the same job. It sits outside NativeTransition so the
+                gesture survives navigation rather than being re-keyed with the
+                screen. */}
+            <PullToRefresh>
               <NativeTransition>{children}</NativeTransition>
-            </div>
-            <NativeTabBar />
-            {tutorialVisible && <NativeTutorial onDone={dismissTutorial} />}
-          </ScreenTitleProvider>
-        </AppDataProvider>
+            </PullToRefresh>
+          </div>
+          <NativeTabBar />
+          {tutorialVisible && <NativeTutorial onDone={dismissTutorial} />}
+        </ScreenTitleProvider>
       ) : (
         children
       )}
-    </>
+    </AppDataProvider>
   );
 }

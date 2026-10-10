@@ -34,8 +34,6 @@ import {
   MockOpenList,
   MockReminders,
   MockScheduled,
-  MockSwipeActions,
-  MockSwipeTasks,
   MockTask,
 } from "./tutorialMocks";
 
@@ -58,10 +56,13 @@ const ART: Record<string, React.ComponentType<{ isDark: boolean }>> = {
   notes: MockNote,
   "default-views": MockDefaultViews,
   "list-layout": MockListLayout,
-  "swipe-actions": MockSwipeActions,
   reminders: MockReminders,
-  "swipe-tasks": MockSwipeTasks,
   scheduled: MockScheduled,
+  // `hold-actions` and `switch-tabs` have no drawing yet. They replaced the two
+  // swipe topics, whose illustrations showed a row slid aside revealing panels —
+  // a gesture that no longer exists, so keeping them would have been worse than
+  // showing nothing. Both topics appear in the help sheet; the walkthrough skips
+  // them until someone draws them. That is what the note above describes.
 };
 
 const STEPS = TUTORIAL_TOPICS.filter((topic) => ART[topic.id]).map((topic) => ({

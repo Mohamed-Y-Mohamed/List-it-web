@@ -1,9 +1,20 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Folder, ListTodo, Pin } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  CalendarDays,
+  CheckCircle2,
+  Folder,
+  ListTodo,
+  Pin,
+  Trash2,
+} from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
+import { useLongPress } from "@/hooks/useLongPress";
+import NativeContextMenu, {
+  type ContextMenuItem,
+} from "@/components/native/NativeContextMenu";
 import TaskSidebar from "@/components/popupModels/TasksDetails";
 import { Collection, OperationResult } from "@/types/schema";
 import {
@@ -64,8 +75,9 @@ interface TaskCardProps {
 // Status labels, colours and precedence live in `ui/tokens`. This file and
 // `Tasks/customcard.tsx` each used to carry their own copy and had already
 // drifted on `normal`.
-
-const LONG_PRESS_MS = 520;
+//
+// The long-press delay is no longer here either: `useLongPress` owns it, so the
+// task cards, the note card and the list cards all hold for the same 500ms.
 
 const TaskCard = ({
   id,
@@ -104,12 +116,11 @@ const TaskCard = ({
   >(due_date);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  /** Press position for the hold menu, or null when it is shut. */
+  const [menuOrigin, setMenuOrigin] = useState<{ x: number; y: number } | null>(
+    null,
+  );
   const [updating, setUpdating] = useState(false);
-
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const longPressTriggered = useRef(false);
 
   useEffect(() => {
     setCompleted(!!is_completed);
@@ -119,13 +130,8 @@ const TaskCard = ({
     setTaskDueDate(due_date);
   }, [is_completed, is_pinned, text, description, due_date]);
 
-  useEffect(() => {
-    return () => {
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-      }
-    };
-  }, []);
+  // The long-press timer is cleaned up by useLongPress now; this card no longer
+  // owns one.
 
   const createdDate = toDateObject(created_at);
   const dueDate = toDateObject(taskDueDate);
@@ -167,41 +173,20 @@ const TaskCard = ({
 
   const statusInfo = STATUS_META[status];
 
-  const cancelLongPress = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  };
-
-  const startLongPress = () => {
-    cancelLongPress();
-
-    longPressTriggered.current = false;
-
-    longPressTimer.current = setTimeout(() => {
-      longPressTriggered.current = true;
-      setMenuOpen(true);
-
-      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-        navigator.vibrate?.(30);
-      }
-    }, LONG_PRESS_MS);
-  };
-
-  const handleCardClick = () => {
-    if (longPressTriggered.current) {
-      longPressTriggered.current = false;
-      return;
-    }
-
-    if (menuOpen) {
-      setMenuOpen(false);
-      return;
-    }
-
-    setSidebarOpen(true);
-  };
+  /**
+   * Tap opens the details, hold opens the menu.
+   *
+   * This card used to run its own 520ms timer with its own touch and mouse
+   * handlers and its own `navigator.vibrate`, which made three long-press
+   * implementations in the app that agreed on nothing — not the delay, not the
+   * movement tolerance, not the feedback. `useLongPress` is the one the list
+   * cards and the note card use: 500ms, a 10px tolerance so a scroll is not a
+   * hold, and a Capacitor haptic on native.
+   */
+  const gestureHandlers = useLongPress({
+    onLongPress: (position) => setMenuOrigin(position),
+    onTap: () => setSidebarOpen(true),
+  });
 
   const togglePin = async () => {
     if (updating) {
@@ -212,7 +197,7 @@ const TaskCard = ({
     const next = !previous;
 
     setPinned(next);
-    setMenuOpen(false);
+    setMenuOrigin(null);
     setUpdating(true);
 
     try {
@@ -227,6 +212,92 @@ const TaskCard = ({
       setUpdating(false);
     }
   };
+
+  /**
+   * Mark done, and delete, from the hold menu.
+   *
+   * These two were the swipe's Done and Delete panels. The swipe is gone, and
+   * this card's face has no completion control of its own — `onComplete` only
+   * ever reached the detail sheet — so without them here, removing the swipe
+   * would have taken away the only one-gesture route to either. "Make all those
+   * functions hold" is exactly that: same handlers, same card, different gesture.
+   *
+   * `markDone` is optimistic and reverts on failure, matching `togglePin` above.
+   * Delete is not: the row disappears, and guessing that it will is how a card
+   * vanishes and comes back.
+   */
+  const markDone = async () => {
+    if (updating || completed) return;
+
+    setCompleted(true);
+    setMenuOrigin(null);
+    setUpdating(true);
+
+    try {
+      const result = await onComplete(id, true);
+      if (!result.success) setCompleted(false);
+    } catch {
+      setCompleted(false);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const deleteTask = async () => {
+    if (updating || !onTaskDelete) return;
+
+    setMenuOrigin(null);
+    setUpdating(true);
+
+    try {
+      await onTaskDelete(id);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  /**
+   * What the hold offers, in the order a thumb meets them.
+   *
+   * Pin and View details are what this menu always had. Mark done and Delete are
+   * the two the swipe used to carry. Delete is last and the only destructive one,
+   * so the row that cannot be undone is furthest from where the menu opens.
+   *
+   * Mark done drops off a task that is already done, and Delete is absent rather
+   * than disabled when the card was given no delete handler — a row that does
+   * nothing is worse than a shorter menu.
+   */
+  const menuItems: ContextMenuItem[] = [
+    {
+      label: pinned ? "Unpin task" : "Pin task",
+      icon: <Pin size={18} className={pinned ? "fill-current" : ""} />,
+      onSelect: () => void togglePin(),
+    },
+    {
+      label: "View details",
+      icon: <ListTodo size={18} />,
+      onSelect: () => setSidebarOpen(true),
+    },
+    ...(completed
+      ? []
+      : [
+          {
+            label: "Mark done",
+            icon: <CheckCircle2 size={18} />,
+            onSelect: () => void markDone(),
+          },
+        ]),
+    ...(onTaskDelete
+      ? [
+          {
+            label: "Delete task",
+            icon: <Trash2 size={18} />,
+            destructive: true,
+            onSelect: () => void deleteTask(),
+          },
+        ]
+      : []),
+  ];
 
   const handleTaskUpdate = async (
     taskId: string,
@@ -305,18 +376,7 @@ const TaskCard = ({
         whileHover={{
           y: -1,
         }}
-        onClick={handleCardClick}
-        onTouchStart={startLongPress}
-        onTouchEnd={cancelLongPress}
-        onTouchMove={cancelLongPress}
-        onTouchCancel={cancelLongPress}
-        onMouseDown={startLongPress}
-        onMouseUp={cancelLongPress}
-        onMouseLeave={cancelLongPress}
-        onContextMenu={(event) => {
-          event.preventDefault();
-          setMenuOpen(true);
-        }}
+        {...gestureHandlers}
         className={`
           group
           relative
@@ -333,19 +393,37 @@ const TaskCard = ({
           ${className}
 
           ${
+            /* The field colour, not the card colour.
+
+              A task sits inside a collection, and the collection is the card —
+              so the task drops back to the page's own colour to stand off it.
+              White task on a grey collection on a white page, and the same
+              alternation in every other ramp.
+
+              This used to be a hardcoded navy in dark and a hardcoded white in
+              light, which meant a task card stayed navy on the Black and
+              Charcoal backgrounds and stayed white on every light one. The ramp
+              already carries the right value for the theme and the chosen
+              background, so there is nothing left to branch on.
+
+              The old hex is deliberately not written out here. Tailwind 4 builds
+              its stylesheet by scanning source text and does not know a comment
+              from markup, so naming the class spelled out in full was enough to
+              put the dead utility back into the CSS — which is also why the
+              palette is passed through `style` and custom properties rather than
+              interpolated class names. */ ""
+          }
+          border-[var(--surface-border)]
+          bg-[var(--surface-field)]
+          hover:bg-[var(--surface-selected)]
+
+          ${
             isDark
               ? `
-                border-white/[0.07]
-                bg-[#131a28]
-
                 hover:border-white/[0.12]
-                hover:bg-[#161e2e]
                 hover:shadow-[0_8px_24px_rgba(0,0,0,0.16)]
               `
               : `
-                border-slate-200/80
-                bg-white
-
                 hover:border-slate-300
                 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)]
               `
@@ -629,174 +707,25 @@ const TaskCard = ({
           )}
         </div>
 
-        {/* ===============================================
-            LONG PRESS / RIGHT CLICK MENU
-           =============================================== */}
+        {/* The hold menu is NativeContextMenu now, rendered below this card.
 
-        <AnimatePresence>
-          {menuOpen && (
-            <>
-              <button
-                type="button"
-                aria-label="Close task menu"
-                className="
-                  fixed
-                  inset-0
-                  z-40
-                  cursor-default
-                "
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setMenuOpen(false);
-                }}
-              />
-
-              <motion.div
-                initial={{
-                  opacity: 0,
-                  scale: 0.96,
-                  y: -4,
-                }}
-                animate={{
-                  opacity: 1,
-                  scale: 1,
-                  y: 0,
-                }}
-                exit={{
-                  opacity: 0,
-                  scale: 0.96,
-                  y: -4,
-                }}
-                transition={{
-                  duration: 0.12,
-                }}
-                onClick={(event) => event.stopPropagation()}
-                className={`
-                  absolute
-                  right-3
-                  top-3
-                  z-50
-
-                  w-[150px]
-
-                  rounded-xl
-                  border
-                  p-1.5
-
-                  shadow-xl
-
-                  ${
-                    isDark
-                      ? `
-                        border-white/10
-                        bg-[#1b2333]
-                      `
-                      : `
-                        border-slate-200
-                        bg-white
-                      `
-                  }
-                `}
-              >
-                {/* PIN */}
-
-                <button
-                  type="button"
-                  disabled={updating}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void togglePin();
-                  }}
-                  className={`
-                    flex
-                    min-h-[40px]
-                    w-full
-                    items-center
-                    gap-2
-
-                    rounded-lg
-
-                    px-3
-
-                    text-left
-                    text-[12px]
-                    font-medium
-
-                    transition-colors
-
-                    disabled:opacity-50
-
-                    ${
-                      isDark
-                        ? `
-                          text-slate-200
-                          hover:bg-white/[0.06]
-                        `
-                        : `
-                          text-slate-700
-                          hover:bg-slate-100
-                        `
-                    }
-                  `}
-                >
-                  <Pin
-                    className={`
-                      h-3.5
-                      w-3.5
-
-                      ${pinned ? "fill-current" : ""}
-                    `}
-                  />
-
-                  {pinned ? "Unpin task" : "Pin task"}
-                </button>
-
-                {/* VIEW DETAILS */}
-
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-
-                    setMenuOpen(false);
-                    setSidebarOpen(true);
-                  }}
-                  className={`
-                    flex
-                    min-h-[40px]
-                    w-full
-                    items-center
-
-                    rounded-lg
-
-                    px-3
-
-                    text-left
-                    text-[12px]
-                    font-medium
-
-                    transition-colors
-
-                    ${
-                      isDark
-                        ? `
-                          text-slate-200
-                          hover:bg-white/[0.06]
-                        `
-                        : `
-                          text-slate-700
-                          hover:bg-slate-100
-                        `
-                    }
-                  `}
-                >
-                  View details
-                </button>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+            It used to be an `absolute` panel right here, which is why holding a
+            task showed a menu with its options cut off: the card sits inside the
+            collection's overflow-hidden expand wrapper and the panel's
+            overflow-y-auto scroller, and an absolutely positioned child is clipped
+            by both. The shared menu is portalled to the body, so nothing upstream
+            can crop it, and it keeps itself on screen by flipping above the finger
+            when there is no room below. */}
       </motion.article>
+
+      {/* The hold menu. Outside the card so its backdrop covers the screen, and
+          portalled to the body by NativeContextMenu so no overflow ancestor can
+          crop it. */}
+      <NativeContextMenu
+        origin={menuOrigin}
+        items={menuItems}
+        onClose={() => setMenuOrigin(null)}
+      />
 
       {/* ===============================================
           TASK DETAILS

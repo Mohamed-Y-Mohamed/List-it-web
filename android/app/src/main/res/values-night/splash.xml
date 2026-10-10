@@ -10,8 +10,8 @@
       Black, because that is what the default background became when the ground
       turned into a preference (Settings → Appearance). This file is compiled into
       the APK and cannot read a preference, so only the default can hand over to
-      the app invisibly — someone who picks Navy or Charcoal sees this field for
-      the moment before the WebView paints. Tracking the default is the best a
+      the app invisibly — someone who picks Midnight, Navy or Midnight Velvet sees
+      this field for the moment before the WebView paints. Tracking the default is the best a
       launch theme can do, and it is why `mono` is the default rather than the navy
       the app used to ship.
 

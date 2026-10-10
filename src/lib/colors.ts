@@ -76,6 +76,33 @@ export function resolveColor(
 }
 
 /**
+ * A stored colour as an `rgba()` string at the given alpha.
+ *
+ * Call sites used to append a two-digit hex alpha instead — `${color}A6`,
+ * `${color}40`, `${color}29` — which is the exact trap `normaliseHex` above
+ * exists to describe: appending to a `#abc` produces a token the browser cannot
+ * parse, and CSS then discards the whole declaration rather than the one bad
+ * value. Taking a number routes every one of them through that validation, and
+ * `0.25` reads as a quarter at the call site where `40` does not.
+ *
+ * Always returns a usable colour, resolving through `fallback` the same way
+ * `resolveColor` does, so a caller building a `linear-gradient()` cannot end up
+ * interpolating a null into it and losing the whole rule.
+ */
+export function withAlpha(
+  value: string | null | undefined,
+  alpha: number,
+  fallback: string = DEFAULT_COLOR_HEX,
+): string {
+  const hex =
+    normaliseHex(value) ?? normaliseHex(fallback) ?? DEFAULT_COLOR_HEX;
+
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+/**
  * Whether text on this background should be dark.
  *
  * Replaces a hand-maintained list of "light" hex values that could never match:

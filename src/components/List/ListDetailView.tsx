@@ -25,6 +25,7 @@ import { useSetScreenTitle } from "@/components/native/ScreenTitleContext";
 import { useOptionalAppData } from "@/components/native/AppDataProvider";
 
 import AppSurface from "@/components/AppSurface";
+import { SkeletonCollectionList } from "@/components/ui/Skeleton";
 import TaskStatusInfo from "@/components/ui/TaskStatusInfo";
 import { Info } from "lucide-react";
 
@@ -233,9 +234,8 @@ export default function ListDetailView({ listId }: { listId: string }) {
 
   const [error, setError] = useState<string | null>(null);
 
-  const [loadingMessage, setLoadingMessage] = useState(
-    "Loading collections...",
-  );
+  // The loading copy is gone: the first load shows a skeleton shaped like the
+  // collections that are coming, rather than a sentence describing them.
 
   /*
    * Used only for explicit quiet revalidation.
@@ -367,7 +367,14 @@ export default function ListDetailView({ listId }: { listId: string }) {
      ======================================================= */
 
   useEffect(() => {
-    if (!IS_NATIVE_BUILD || !appData || !listId) {
+    // Gated on the provider being there, not on the platform.
+    //
+    // This was `!IS_NATIVE_BUILD || !appData`, from when AppDataProvider was
+    // mounted only in the native shell. It is mounted on both now, so the web
+    // reads the launch fetch exactly as the app does and the per-screen fetch
+    // below is skipped. Whichever path runs is decided by whether a provider is
+    // above this component, which is the thing that actually matters.
+    if (!appData || !listId) {
       return;
     }
 
@@ -423,7 +430,7 @@ export default function ListDetailView({ listId }: { listId: string }) {
      ======================================================= */
 
   useEffect(() => {
-    if (!IS_NATIVE_BUILD || !appData) {
+    if (!appData) {
       return;
     }
 
@@ -532,7 +539,10 @@ export default function ListDetailView({ listId }: { listId: string }) {
      ======================================================= */
 
   useEffect(() => {
-    if (IS_NATIVE_BUILD) {
+    // The no-provider fallback. With AppDataProvider above this component — which
+    // is now both platforms — the cache effects above own the data and this does
+    // nothing. It stays as the path for rendering this view outside the provider.
+    if (appData) {
       return;
     }
 
@@ -568,7 +578,8 @@ export default function ListDetailView({ listId }: { listId: string }) {
      ======================================================= */
 
   useEffect(() => {
-    if (IS_NATIVE_BUILD) {
+    // Same fallback gate as above.
+    if (appData) {
       return;
     }
 
@@ -591,7 +602,6 @@ export default function ListDetailView({ listId }: { listId: string }) {
     if (!cached) {
       setIsLoading(true);
 
-      setLoadingMessage("Loading collections...");
     }
 
     const fetchWebListData = async () => {
@@ -642,7 +652,6 @@ export default function ListDetailView({ listId }: { listId: string }) {
         const rawCollections = (collectionsData ?? []) as Collection[];
 
         if (!cached) {
-          setLoadingMessage("Loading collection content...");
         }
 
         /*
@@ -778,9 +787,10 @@ export default function ListDetailView({ listId }: { listId: string }) {
   const revalidateData = useCallback(() => {
     setRevalidationTrigger((previous) => previous + 1);
 
-    if (IS_NATIVE_BUILD) {
-      void appData?.refresh();
-    }
+    // Refresh the shared cache too, on whichever platform it is mounted. The
+    // trigger above only re-runs this screen's own effects; without this the
+    // Lists tab and the default views would still be showing the old rows.
+    void appData?.refresh();
   }, [appData]);
 
   /* =======================================================
@@ -2117,25 +2127,14 @@ export default function ListDetailView({ listId }: { listId: string }) {
              =============================================== */}
 
           {isLoading && !listData ? (
-            <div
-              className={`
-                rounded-xl
-                border-l-4
-                border-orange-500
-                py-10
-                text-center
-                shadow-md
-                ${
-                  isDark
-                    ? "bg-gray-800 text-gray-300"
-                    : "bg-white/90 text-gray-500"
-                }
-              `}
-            >
-              <div className="animate-pulse">
-                <p className="text-lg">{loadingMessage}</p>
-              </div>
-            </div>
+            /* The first load, with nothing cached to show.
+             *
+             * This was a bordered box with the words "Loading collections…" in
+             * it, which told the user the app was busy and nothing about what
+             * was arriving — and it was a different shape from the screen that
+             * replaced it, so the layout jumped. The skeleton is the shape of
+             * the thing coming, which is the whole point of having one. */
+            <SkeletonCollectionList isDark={isDark} />
           ) : error && !listData ? (
             /* =============================================
                HARD ERROR
@@ -2228,7 +2227,19 @@ export default function ListDetailView({ listId }: { listId: string }) {
                   COLLECTIONS
                  =========================================== */}
 
-              {collections.length === 0 ? (
+              {collections.length === 0 && isLoading ? (
+                /* Loading, not empty.
+                 *
+                 * Every list is created with a General collection, so an empty
+                 * `collections` while a request is still in flight is almost
+                 * always wrong — and it was being reported with a "Create your
+                 * first collection" button, which reads as a settled answer
+                 * rather than a pending one. The skeleton says the same thing
+                 * honestly, and holds the layout so nothing jumps when the real
+                 * collections land. The empty state below is still shown, once
+                 * loading has finished and the list genuinely has none. */
+                <SkeletonCollectionList isDark={isDark} />
+              ) : collections.length === 0 ? (
                 <div
                   className={`
                     rounded-xl
