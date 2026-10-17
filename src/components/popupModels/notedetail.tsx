@@ -21,10 +21,10 @@ import {
   AlertCircle,
   Pin,
   Pencil,
-  ChevronLeft,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import BottomSheet from "@/components/BottomSheet";
+import { useOptionalAppData } from "@/components/native/AppDataProvider";
 import ConfirmDialog from "./ConfirmDialog";
 import { OperationResult } from "@/types/schema";
 import { useAuth } from "@/context/AuthContext";
@@ -88,10 +88,10 @@ const NoteDetails = ({
 }: NoteSidebarProps) => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const appData = useOptionalAppData();
   const isDark = theme === "dark";
 
   const mutedText = isDark ? "text-gray-400" : "text-gray-500";
-  const bodyText = isDark ? "text-gray-200" : "text-gray-700";
   const hairline = isDark ? "border-white/[0.08]" : "border-black/[0.06]";
   const fieldClass = isDark
     ? "border-white/[0.08] bg-white/[0.04] text-gray-100 placeholder:text-gray-600"
@@ -496,6 +496,20 @@ const NoteDetails = ({
     collections.find((c) => c.id === (verifiedNote.collection_id || ""))
       ?.collection_name ?? null;
 
+  /**
+   * The list this note sits in, by the same rule the task sheet uses.
+   *
+   * Only the sidebar passed `listName`, so a note opened from a card — which is
+   * every note on the phone — read "List: None". The id is on the note itself and
+   * `appData.lists` is the cache already behind the home screen, so this is a
+   * lookup rather than a prop each mount point has to remember to pass.
+   */
+  const resolvedListName =
+    listName ??
+    appData?.lists.find((l) => l.id === (verifiedNote.list_id || ""))
+      ?.list_name ??
+    null;
+
   const colorName =
     appColors.find((c) => c.color_hex === selectedColor)?.color_name ?? null;
 
@@ -560,8 +574,8 @@ const NoteDetails = ({
       // colour in the palette.
       //
       // No colour on the note falls back to the app's ground, as the task sheet
-      // does. BottomSheet ramps the opacity from 1 at the top stop to 0.72 at
-      // the half stop either way.
+      // does. BottomSheet ramps the opacity from 1 at the top stop to
+      // HALF_SURFACE_OPACITY at the half stop either way.
       surfaceColor={
         selectedColor
           ? `color-mix(in srgb, ${selectedColor} ${
@@ -606,18 +620,9 @@ const NoteDetails = ({
           isDark ? "text-gray-100" : "text-gray-900"
         }`}
       >
-        <div className="flex items-center justify-between py-1">
-          <button
-            onClick={handleClose}
-            disabled={isProcessing}
-            className={`-ml-2 flex min-h-[44px] items-center gap-1 rounded-full px-2 pr-3 text-[14px] font-medium ${bodyText} ${
-              isDark ? "active:bg-white/10" : "active:bg-black/5"
-            }`}
-            aria-label="Back"
-          >
-            <ChevronLeft className="h-5 w-5" />
-            Back
-          </button>
+        {/* The X alone. A labelled Back sat next to it calling the same
+            handleClose — two controls, one behaviour, side by side. */}
+        <div className="flex items-center justify-end py-1">
           <button
             onClick={handleClose}
             disabled={isProcessing}
@@ -733,7 +738,7 @@ const NoteDetails = ({
                 value={resolvedCollectionName}
                 isDark={isDark}
               />
-              <InfoRow label="List" value={listName} isDark={isDark} />
+              <InfoRow label="List" value={resolvedListName} isDark={isDark} />
               <div className="flex min-h-[32px] items-center justify-between gap-4">
                 <span className={`text-[13px] ${mutedText}`}>Colour</span>
                 <span className="flex items-center gap-2">

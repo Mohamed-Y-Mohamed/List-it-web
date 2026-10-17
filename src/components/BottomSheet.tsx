@@ -63,7 +63,13 @@ const SPRING = {
   damping: 40,
 };
 
-const HALF_SURFACE_OPACITY = 0.72;
+// How opaque the mobile surface is at the half stop, where every sheet rests when
+// it opens. Near-solid rather than the 0.72 it was: at 0.72 the screen underneath
+// read straight through the sheet, so task and note text landed on top of whatever
+// list was behind it and neither was legible. The ramp to 1 at the top stop stays,
+// because the sheet should still feel like it is lifting off the screen — it is
+// just no longer transparent enough to read through.
+const HALF_SURFACE_OPACITY = 0.95;
 
 interface BottomSheetProps {
   isOpen: boolean;

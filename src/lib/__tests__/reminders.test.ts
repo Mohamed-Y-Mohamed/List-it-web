@@ -12,6 +12,8 @@
 import {
   DEFAULT_DUE_HOUR,
   MAX_REMINDERS_PER_TASK,
+  OFFSET_PRESETS,
+  describeReminder,
   describeReminders,
   dueMoment,
   newReminderId,
@@ -185,5 +187,35 @@ describe("describeReminders", () => {
         { id: "b", kind: "offset", minutes: 120 },
       ]),
     ).toBe("2 reminders");
+  });
+});
+
+describe("retired offsets", () => {
+  const TWO_WEEKS = 60 * 24 * 14;
+  const ONE_MONTH = 60 * 24 * 30;
+
+  it("stops offering anything beyond a week", () => {
+    expect(OFFSET_PRESETS.map((p) => p.minutes)).not.toContain(TWO_WEEKS);
+    expect(OFFSET_PRESETS.map((p) => p.minutes)).not.toContain(ONE_MONTH);
+    expect(Math.max(...OFFSET_PRESETS.map((p) => p.minutes))).toBe(60 * 24 * 7);
+  });
+
+  // A task saved before they were retired still carries the offset, and the
+  // fallback renders a bare minute count — "20160 minutes before" — which is
+  // what this guards against.
+  it("still reads a saved one as words", () => {
+    expect(describeReminder({ id: "a", kind: "offset", minutes: TWO_WEEKS })).toBe(
+      "2 weeks before",
+    );
+    expect(describeReminder({ id: "b", kind: "offset", minutes: ONE_MONTH })).toBe(
+      "1 month before",
+    );
+  });
+
+  it("still fires a saved one at the right moment", () => {
+    const due = at(2026, 6, 15, 9, 0);
+    expect(
+      reminderFireAt({ id: "a", kind: "offset", minutes: TWO_WEEKS }, due),
+    ).toEqual(at(2026, 6, 1, 9, 0));
   });
 });

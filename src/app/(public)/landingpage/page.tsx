@@ -1023,9 +1023,9 @@ const Hero: React.FC = () => {
               }`}
             >
               Lists hold collections, collections hold your tasks and notes. Set
-              a due date and up to five reminders, pin what matters, and let the
-              colour down the side of each card tell you what needs doing first.
-              Free, on the web and on your phone.
+              a due date and a reminder, pin what matters, and let the colour
+              down the side of each card tell you what needs doing first. Free,
+              on the web and on your phone.
             </motion.p>
 
             <motion.div
@@ -1382,7 +1382,7 @@ const STRUCTURE = [
   },
   {
     name: "Tasks & notes",
-    what: "The actual work. A task can carry a due date, a time and up to five reminders; a note is free text with a colour.",
+    what: "The actual work. A task can carry a due date, a time and a reminder; a note is free text with a colour.",
     holds: [
       "Reminders fire on the phone, not just in the app",
       "Pin anything that matters more than the rest",

@@ -2,11 +2,14 @@
 
 // The REMINDER section: a chip per offset, None, and Custom.
 //
-// The chips are toggles, not a radio group. A task can hold up to five reminders
-// — that is the existing data model and the thing the old picker was built around
-// — and presenting them as single-select would have quietly deleted four of them
-// the first time someone tapped a chip. Tapping an on chip removes that reminder;
-// None removes the lot.
+// One reminder per task. The chips behave as a radio group — picking any of them
+// replaces what was set rather than adding to it, so only ever one is lit and
+// only ever one is saved. Tapping the lit chip clears it back to None.
+//
+// The data model still holds a list, and `parseReminders` still reads up to
+// MAX_REMINDERS_PER_TASK of them. That is deliberate: tasks saved by the older
+// multi-select picker keep all of their reminders firing instead of being
+// truncated on read, and collapse to one the next time this picker touches them.
 //
 // Offsets need something to count back from, so with no due date on the task only
 // Custom is offered. That is the honest shape rather than a row of disabled chips
@@ -16,7 +19,6 @@ import React, { useState } from "react";
 import { Check } from "lucide-react";
 import MiniCalendar, { toDateKey } from "./MiniCalendar";
 import {
-  MAX_REMINDERS_PER_TASK,
   OFFSET_PRESETS,
   describeReminder,
   newReminderId,
@@ -49,7 +51,6 @@ export default function ReminderChips({
   /** Set when the OS has refused notifications, so the UI can stop pretending. */
   const [permissionBlocked, setPermissionBlocked] = useState(false);
 
-  const full = reminders.length >= MAX_REMINDERS_PER_TASK;
   const usedOffsets = new Set(
     reminders.filter((r) => r.kind === "offset").map((r) => r.minutes),
   );
@@ -85,18 +86,23 @@ export default function ReminderChips({
     return fireAt !== null && fireAt <= now;
   };
 
+  /**
+   * A task carries one reminder, so picking an offset replaces whatever was
+   * there rather than adding to it — pick "1 hour before" then "1 day before"
+   * and only the day survives, lit on its own. Tapping the lit chip clears it
+   * back to None, which is the only way to end up with nothing from here.
+   *
+   * Replacing covers the custom case for free: a fixed day and time is the same
+   * single slot, so choosing an offset drops it and vice versa.
+   */
   const toggleOffset = (minutes: number) => {
     if (usedOffsets.has(minutes)) {
-      onChange(
-        reminders.filter(
-          (r) => !(r.kind === "offset" && r.minutes === minutes),
-        ),
-      );
+      onChange([]);
       return;
     }
-    if (full || offsetHasPassed(minutes)) return;
+    if (offsetHasPassed(minutes)) return;
     askPermission();
-    onChange([...reminders, { id: newReminderId(), kind: "offset", minutes }]);
+    onChange([{ id: newReminderId(), kind: "offset", minutes }]);
   };
 
   const removeReminder = (id: string) =>
@@ -125,14 +131,23 @@ export default function ReminderChips({
     }
 
     askPermission();
-    onChange([
-      ...reminders,
-      { id: newReminderId(), kind: "absolute", at: at.toISOString() },
-    ]);
+    // The one slot again: a fixed time replaces any offset that was set.
+    onChange([{ id: newReminderId(), kind: "absolute", at: at.toISOString() }]);
     setCustomOpen(false);
     setCustomDate(null);
     setCustomError(null);
   };
+
+  /**
+   * None is lit only while nothing is set *and* nothing is being composed.
+   *
+   * It used to key off `reminders.length === 0` alone, which is still true the
+   * moment Custom is tapped — the panel opens before a date exists to save. Both
+   * chips then read as active, in the same PRIMARY, so the row showed two
+   * mutually exclusive answers at once. Opening Custom is the intent to set one,
+   * so None gives up the highlight; closing it with nothing saved takes it back.
+   */
+  const noneActive = reminders.length === 0 && !customOpen;
 
   const chipBase =
     "min-h-[36px] rounded-full px-3.5 text-[13px] font-medium transition-colors disabled:opacity-35";
@@ -149,10 +164,9 @@ export default function ReminderChips({
             onChange([]);
             setCustomOpen(false);
           }}
-          className={`${chipBase} ${reminders.length === 0 ? "text-white" : chipIdle}`}
-          style={
-            reminders.length === 0 ? { backgroundColor: PRIMARY } : undefined
-          }
+          aria-pressed={noneActive}
+          className={`${chipBase} ${noneActive ? "text-white" : chipIdle}`}
+          style={noneActive ? { backgroundColor: PRIMARY } : undefined}
         >
           None
         </button>
@@ -165,7 +179,7 @@ export default function ReminderChips({
               <button
                 key={preset.minutes}
                 type="button"
-                disabled={!on && (full || passed)}
+                disabled={!on && passed}
                 title={passed ? "That moment has already passed" : undefined}
                 onClick={() => toggleOffset(preset.minutes)}
                 aria-pressed={on}
@@ -180,7 +194,6 @@ export default function ReminderChips({
 
         <button
           type="button"
-          disabled={full}
           onClick={() => {
             setCustomError(null);
             setCustomOpen((open) => !open);
@@ -310,14 +323,6 @@ export default function ReminderChips({
             </button>
           </div>
         </div>
-      )}
-
-      {full && (
-        <p
-          className={`text-[11px] ${isDark ? "text-gray-500" : "text-gray-400"}`}
-        >
-          {MAX_REMINDERS_PER_TASK} reminders is the limit for one task.
-        </p>
       )}
 
       {/* Stored and shown on the web, but nothing fires them there: a browser

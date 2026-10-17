@@ -27,7 +27,6 @@ import {
   Pin,
   Pencil,
   CalendarPlus,
-  ChevronLeft,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Collection, OperationResult } from "@/types/schema";
@@ -140,7 +139,6 @@ const TaskSidebar = ({
   const { user } = useAuth();
   const isDark = theme === "dark";
 
-  const bodyText = isDark ? "text-gray-200" : "text-gray-700";
   const mutedText = isDark ? "text-gray-400" : "text-gray-500";
   const fieldClass = isDark
     ? "border-white/[0.08] bg-white/[0.04] text-gray-100 placeholder:text-gray-600"
@@ -800,21 +798,10 @@ const TaskSidebar = ({
           isDark ? "text-gray-100" : "text-gray-900"
         }`}
       >
-        {/* A labelled Back on the left is the control Android users look for; the
-            X stays for anyone used to it. Neither saves — Save changes does, and
-            Cancel says so outright. */}
-        <div className="flex items-center justify-between py-1">
-          <button
-            onClick={handleClose}
-            disabled={isProcessing}
-            className={`-ml-2 flex min-h-[44px] items-center gap-1 rounded-full px-2 pr-3 text-[14px] font-medium ${bodyText} ${
-              isDark ? "active:bg-white/10" : "active:bg-black/5"
-            }`}
-            aria-label="Back"
-          >
-            <ChevronLeft className="h-5 w-5" />
-            Back
-          </button>
+        {/* The X alone. The labelled Back beside it called the same handleClose,
+            so the header carried two controls for one behaviour. Neither ever
+            saved — Save changes does, and Cancel says so outright. */}
+        <div className="flex items-center justify-end py-1">
           <button
             onClick={handleClose}
             disabled={isProcessing}
