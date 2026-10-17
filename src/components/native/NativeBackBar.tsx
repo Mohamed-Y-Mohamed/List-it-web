@@ -27,7 +27,8 @@ const SCREEN_TITLES: Record<string, string> = {
   "/priority": "Priority",
   "/completed": "Completed",
   "/notcomplete": "Not Completed",
-  "/overdue": "Scheduled",
+  "/scheduled": "Scheduled",
+  "/overdue": "Overdue",
   "/List": "List",
 };
 

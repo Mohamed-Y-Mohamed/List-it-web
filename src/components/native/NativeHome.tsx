@@ -113,7 +113,11 @@ const DEFAULT_LISTS: (List & { href: string })[] = [
   ["Priority", "star.fill", "#FF9500", "/priority"],
   ["Completed", "checkmark.circle", "#34C759", "/completed"],
   ["Not Completed", "circle", "#8E8E93", "/notcomplete"],
-  ["Scheduled", "calendar.badge.exclamationmark", "#5AC8FA", "/overdue"],
+  // Scheduled is the month calendar; Overdue is only what has already slipped.
+  // They were one screen that tried to be both and named itself after the half
+  // it did worse.
+  ["Scheduled", "calendar.day.timeline.left", "#FF9F0A", "/scheduled"],
+  ["Overdue", "calendar.badge.exclamationmark", "#FF3B30", "/overdue"],
 ].map(([name, icon, color, href]) => ({
   id: `default:${href}`,
   created_at: new Date(0),
@@ -172,7 +176,13 @@ function SectionDivider({
        heading block. Headings with nothing under them keep the original gap. */
     <div className={`shrink-0 ${subtext ? "pb-1" : "pb-3"} ${className}`}>
       <div className="flex items-center gap-2.5">
-        <h2 className="shrink-0 text-[13px] font-semibold uppercase tracking-[0.06em] text-gray-500 dark:text-gray-400">
+        {/* Title case, not `uppercase`.
+
+            The headings are written the way they read — "Pinned", "Your Lists" —
+            rather than being shouted in CSS. The tracking stays: it was there to
+            keep all-caps from running together, and at 13px semibold it still
+            does the same job for a capital Y next to a lowercase our. */}
+        <h2 className="shrink-0 text-[13px] font-semibold tracking-[0.04em] text-gray-500 dark:text-gray-400">
           {label}
         </h2>
         {count !== undefined && <CountBadge count={count} />}
@@ -200,7 +210,7 @@ export default function NativeHome() {
   const { user } = useAuth();
   const accountName =
     (user?.user_metadata?.full_name as string | undefined)?.trim() ||
-    "My Lists";
+    "Your Lists";
 
   // There is no document to portal into during the server render, and the first
   // client render has to match it.
@@ -795,7 +805,7 @@ export default function NativeHome() {
             {sortedLists.length > 0 && (
               <>
                 <SectionDivider
-                  label="My Lists"
+                  label="Your Lists"
                   count={userLists.length}
                   isDark={isDark}
                   /* No `pt-6` any more. It was keyed off

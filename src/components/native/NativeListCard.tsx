@@ -81,7 +81,16 @@ export default function NativeListCard({
   const surface = "bg-[var(--surface-card)]";
   const edge = isDark ? "border-white/[0.08]" : "border-black/[0.06]";
   const nameText = isDark ? "text-white" : "text-gray-900";
-  const metaText = isDark ? "text-gray-400" : "text-gray-500";
+  /**
+   * The counts line, now the same colour as the name rather than a grey under it.
+   *
+   * It was `gray-400`/`gray-500`, which on a card whose left third is a saturated
+   * wave had to compete with that colour and lost — the counts read as disabled
+   * rather than as secondary. Hierarchy still comes from size and weight: the
+   * name is 14-15px medium, this is 11-12px regular, which is enough separation
+   * without also dropping the contrast.
+   */
+  const metaText = isDark ? "text-white" : "text-gray-900";
 
   const base = `relative flex touch-manipulation select-none overflow-hidden rounded-2xl border ${surface} ${edge} transition-transform duration-100 active:scale-[0.98]`;
 

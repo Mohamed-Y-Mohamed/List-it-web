@@ -28,6 +28,7 @@ import { motion } from "framer-motion";
 import { ChevronLeft, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import EmptyState from "@/components/popupModels/emptystate";
+import { useIsNative } from "@/hooks/useIsNative";
 import { TaskStatsCard } from "./TaskStatsCard";
 import AppSurface from "@/components/AppSurface";
 import { SkeletonStatTile, SkeletonTaskList } from "@/components/ui/Skeleton";
@@ -80,6 +81,7 @@ export default function TaskScreen({
   children,
 }: TaskScreenProps) {
   const router = useRouter();
+  const isNative = useIsNative();
   const accentText = isDark ? accent.dark : accent.light;
 
   // The left padding is `pl-4 md:pl-20`, not a flat `pl-20`.
@@ -104,19 +106,25 @@ export default function TaskScreen({
           transition={{ duration: 0.25 }}
           className="mb-6"
         >
-          <button
-            type="button"
-            onClick={() => router.push(appPath("/List"))}
-            className={`-ml-2 mb-2 flex min-h-[44px] items-center gap-1 rounded-full px-2 pr-3 text-[14px] font-medium ${
-              isDark
-                ? "text-gray-300 active:bg-white/10"
-                : "text-gray-600 active:bg-black/5"
-            }`}
-            aria-label="Back to lists"
-          >
-            <ChevronLeft className="h-5 w-5" />
-            Lists
-          </button>
+          {/* Web only. NativeBackBar already draws a back bar above every one of
+              these screens in the app, so this was a second Back sitting directly
+              under the first on all six of them. On the web there is no such bar
+              and the sidebar is the only other way out, so it stays there. */}
+          {!isNative && (
+            <button
+              type="button"
+              onClick={() => router.push(appPath("/List"))}
+              className={`-ml-2 mb-2 flex min-h-[44px] items-center gap-1 rounded-full px-2 pr-3 text-[14px] font-medium ${
+                isDark
+                  ? "text-gray-300 active:bg-white/10"
+                  : "text-gray-600 active:bg-black/5"
+              }`}
+              aria-label="Back to lists"
+            >
+              <ChevronLeft className="h-5 w-5" />
+              Lists
+            </button>
+          )}
 
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">

@@ -2279,7 +2279,11 @@ export default function ListDetailView({ listId }: { listId: string }) {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-6">
+                /* `space-y-3`, down from `space-y-6`. Each collection is
+                   already a bordered card with its own internal padding, so
+                   24px between them read as a gap rather than as a list — on a
+                   phone it meant three collections filled the screen. */
+                <div className="space-y-3">
                   {sortedCollections.map((collection) => (
                     <CollectionComponent
                       key={collection.id}
