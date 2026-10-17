@@ -771,17 +771,25 @@ const TaskSidebar = ({
       label={isEditing ? "Edit task" : "Task details"}
       isDark={isDark}
       canClose={!isProcessing}
-      // The app's own ground, not a tint of the collection's colour.
+      // The collection's own colour, as a wash over the app's ground — the same
+      // rule the note sheet applies with the note's colour.
       //
-      // `--surface-field` is what AppSurface paints behind every screen, and it
-      // already carries both the theme and the background chosen in Settings —
-      // so the sheet is the same colour as the screen it slid up over, in all
-      // four backgrounds, rather than a panel in a colour of its own.
+      // A wash rather than the raw hex because every label, field and hint in
+      // here takes its colour from the theme. At full strength the type would
+      // have to be chosen by luminance for each one — dark on a yellow
+      // collection, white on a navy one — whereas kept close to the ground the
+      // theme's own foreground reads on all of them. The buttons are where the
+      // colour lands undiluted; see `actionColor`.
       //
-      // BottomSheet ramps this surface's opacity from 1 at the top stop to 0.72
-      // at the half stop, so it is see-through enough at half height to show
-      // the list behind it and solid once dragged to the top.
-      surfaceColor="var(--surface-field)"
+      // No collection, or an unusable hex, leaves the ground exactly as
+      // AppSurface painted it.
+      surfaceColor={
+        isUsableHex(taskCollection?.bg_color_hex)
+          ? `color-mix(in srgb, ${taskCollection?.bg_color_hex} ${
+              isDark ? 39 : 30
+            }%, var(--surface-field))`
+          : "var(--surface-field)"
+      }
       footer={
         <div className="mx-auto w-full max-w-md space-y-2">
           {!isEditing ? (

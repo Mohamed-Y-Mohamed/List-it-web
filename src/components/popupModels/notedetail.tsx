@@ -227,7 +227,13 @@ const NoteDetails = ({
           collection_id: data.collection_id,
           is_pinned: data.is_pinned,
           is_deleted: data.is_deleted,
-          list_id: data.list_id,
+          // Falls back to the row the card handed down rather than taking the
+          // payload's value flat. This field is not editable here, so the only
+          // thing an absent one can do is lose what the card already knew — and
+          // losing it is what makes the List row read "None". The task sheet
+          // never had the problem because it reads `task.list_id` off its prop
+          // and never replaces it.
+          list_id: data.list_id ?? note.list_id,
         });
       })
       .catch(() => {
@@ -574,8 +580,7 @@ const NoteDetails = ({
       // colour in the palette.
       //
       // No colour on the note falls back to the app's ground, as the task sheet
-      // does. BottomSheet ramps the opacity from 1 at the top stop to
-      // HALF_SURFACE_OPACITY at the half stop either way.
+      // does with no collection. Either way the surface is solid at every stop.
       surfaceColor={
         selectedColor
           ? `color-mix(in srgb, ${selectedColor} ${

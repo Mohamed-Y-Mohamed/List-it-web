@@ -8,7 +8,6 @@ import {
   motion,
   useDragControls,
   useMotionValue,
-  useTransform,
   type PanInfo,
 } from "framer-motion";
 import { pushOverlay } from "@/lib/overlayStack";
@@ -62,14 +61,6 @@ const SPRING = {
   stiffness: 420,
   damping: 40,
 };
-
-// How opaque the mobile surface is at the half stop, where every sheet rests when
-// it opens. Near-solid rather than the 0.72 it was: at 0.72 the screen underneath
-// read straight through the sheet, so task and note text landed on top of whatever
-// list was behind it and neither was legible. The ramp to 1 at the top stop stays,
-// because the sheet should still feel like it is lifting off the screen — it is
-// just no longer transparent enough to read through.
-const HALF_SURFACE_OPACITY = 0.95;
 
 interface BottomSheetProps {
   isOpen: boolean;
@@ -253,19 +244,6 @@ export default function BottomSheet({
      */
     animate(y, halfOffset, SPRING);
   }, [isOpen, halfOffset, y]);
-
-  // ------------------------------------------------------------
-  // Mobile surface transparency
-  // ------------------------------------------------------------
-
-  const surfaceOpacity = useTransform(
-    y,
-    [0, Math.max(halfOffset, 1)],
-    [1, HALF_SURFACE_OPACITY],
-    {
-      clamp: true,
-    },
-  );
 
   // ------------------------------------------------------------
   // Mobile dragging
@@ -501,23 +479,18 @@ export default function BottomSheet({
               dragMomentum={false}
               onDragEnd={handleDragEnd}
             >
-              {/* Mobile surface / collection colour */}
+              {/* Mobile surface / collection colour. Solid at every stop — it
+                  used to ramp its opacity with the drag, which meant the screen
+                  behind read through the sheet at the resting height. */}
 
-              <motion.div
+              <div
                 className={`
                 absolute
                 inset-0
 
                 ${!surfaceColor ? (isDark ? "bg-[var(--surface-field)]" : "bg-white") : ""}
               `}
-                style={{
-                  opacity: surfaceOpacity,
-                  ...(surfaceColor
-                    ? {
-                        backgroundColor: surfaceColor,
-                      }
-                    : {}),
-                }}
+                style={surfaceColor ? { backgroundColor: surfaceColor } : undefined}
                 aria-hidden="true"
               />
 
