@@ -276,6 +276,28 @@ html.capacitor-native.native-immersive body {
   padding-bottom: 0;
 }
 
+/* The app shell, where the inset below is already accounted for twice over.
+
+   `(secure)/layout.tsx` adds this class for as long as the tab-bar shell is
+   mounted. Inside it the inset band is covered by the tab bar, which is fixed
+   and pads itself with `pb-safe-bottom`, and the clearance for content is the
+   wrapper's `pb-tab-bar` — which is `56px + var(--safe-bottom)`, the inset
+   included. The body's own `padding-bottom` is a third copy of the same inset
+   and the only one that adds to the document's height.
+
+   That is the drift: with it, the document is `100vh + safe-bottom` on every
+   screen in the app, so the whole window can be dragged up by the height of
+   the gesture pill with nothing underneath it to see. Zeroing it here leaves
+   the document exactly one viewport tall.
+
+   Scoped to the shell rather than removed outright because the public screens
+   genuinely do rely on it: forgot-password, reset-password, verification and
+   the marketing pages are `min-h-screen` with no bottom inset of their own,
+   and they have no tab bar covering the band. */
+html.capacitor-native.native-tabbed body {
+  padding-bottom: 0;
+}
+
 html.capacitor-native body {
   /* Long-pressing a list item should open its context menu, not start a text
      selection. Inputs opt back in below. */

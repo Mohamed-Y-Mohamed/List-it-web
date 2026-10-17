@@ -1,9 +1,15 @@
 "use client";
 
 // The Android home screen — the Lists tab — matching AllListsView from the
-// published iOS app: a greeting, search, a horizontal row of pinned lists, then
-// the built-in views and the user's own lists as two three-column grids with a
-// rule between them. Long-pressing a card opens its context menu.
+// published iOS app: the date and the account name, search, a two-row rail of
+// pinned lists, then the user's own lists as a grid under a named rule.
+// Long-pressing a card opens its context menu.
+//
+// The screen is a single column as tall as the viewport less the tab bar, and
+// the document does not scroll. The header, the pinned heading and the My Lists
+// heading all hold their places; the pinned rail scrolls sideways and the cards
+// under My Lists scroll down, each inside its own region. See the note on the
+// root element for why that height is stated rather than inherited.
 //
 // Settings and Progress used to live in a toolbar menu here; they are tab bar
 // destinations now, so the menu is gone. The six default views it also held were
@@ -23,9 +29,11 @@ import {
   PinOff,
   MoreVertical,
   Plus,
+  RefreshCw,
   Search,
   Trash2,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { appPath, listHref } from "@/lib/routes";
@@ -56,6 +64,39 @@ const SORT_LABELS: Record<SortOption, string> = {
   az: "A-Z",
   za: "Z-A",
 };
+
+/**
+ * The scrolling part of a section whose heading stays put.
+ *
+ * `min-h-0 flex-1 overflow-y-auto overscroll-contain` is the shape NativeSheet
+ * and ModalShell already use for exactly this — a fixed header with a scrolling
+ * body — so it is reused here rather than re-derived.
+ *
+ * `touch-pan-y` is the addition that is easy to leave out and expensive to
+ * debug. A scroll container defaults to `touch-action: auto`, which lets the
+ * WebView claim a gesture that begins on it and fire `pointercancel` before
+ * anything in React has seen a drag. The same note is on the task panel in
+ * Collection, which lost the Tasks/Notes swipe to it.
+ *
+ * `overscroll-contain` keeps a flick that runs out of list from reaching the
+ * document. The document still has the body's `--safe-bottom` of slack in it,
+ * and chaining into that would drag the whole screen — tab bar included — up by
+ * the gesture inset.
+ */
+const SCROLL_AREA =
+  "min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain";
+
+/**
+ * Clearance for the floating Add button at the foot of a scroll region.
+ *
+ * The button is portalled to the body and positioned against the viewport just
+ * above the tab bar, so it overhangs the bottom of this region while taking no
+ * space in it. It was `calc(5.5rem + var(--safe-bottom))` while the section also
+ * had to clear the tab bar and the device inset; the column stops above both
+ * now, so the button is all that is left to clear — 3.5rem of it, plus the 4px
+ * it sits off the bar and room to read the card under it.
+ */
+const SCROLL_AREA_PAD = { paddingBottom: "4.5rem" } as const;
 
 /**
  * The built-in lists, always shown above the user's own and never reordered by
@@ -120,7 +161,16 @@ function SectionDivider({
   subtext?: React.ReactNode;
 }) {
   return (
-    <div className={`pb-3 ${className}`}>
+    /* `shrink-0` because both headings are now flex children of a column that is
+       exactly one screen tall. Without it the heading row is the first thing to
+       give when the cards under it want more room than there is.
+
+       The bottom gap closes up when a caption is sitting under the heading. The
+       tips line is 12px type inside a 44px touch target, so there was already
+       most of a finger's worth of air between it and the first card; `pb-3` on
+       top of that read as the gap between two sections rather than as one
+       heading block. Headings with nothing under them keep the original gap. */
+    <div className={`shrink-0 ${subtext ? "pb-1" : "pb-3"} ${className}`}>
       <div className="flex items-center gap-2.5">
         <h2 className="shrink-0 text-[13px] font-semibold uppercase tracking-[0.06em] text-gray-500 dark:text-gray-400">
           {label}
@@ -142,6 +192,15 @@ export default function NativeHome() {
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === "dark";
+
+  // Only for the screen title below. The secure layout holds the first paint on
+  // native until the stored session has been read, so by the time this renders
+  // there is a user — but the name is a field on it rather than a guarantee, and
+  // an account created before it was collected has none.
+  const { user } = useAuth();
+  const accountName =
+    (user?.user_metadata?.full_name as string | undefined)?.trim() ||
+    "My Lists";
 
   // There is no document to portal into during the server render, and the first
   // client render has to match it.
@@ -369,6 +428,22 @@ export default function NativeHome() {
         onSelect: () => selectSort(option),
       })),
     },
+    {
+      // What the pull-down gesture used to do, now that the gesture has gone.
+      // `refresh` is the same AppDataProvider refetch the mutation sites in
+      // this file already call, so this adds a way to ask for it rather than a
+      // second way of doing it.
+      //
+      // Its own group: Sort is a setting and the rows below are places to go,
+      // and this is neither.
+      label: "Update view",
+      icon: <RefreshCw size={16} />,
+      startsGroup: true,
+      onSelect: () => {
+        void Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+        void refreshData();
+      },
+    },
     ...visibleDefaultLists.map((list) => ({
       label: list.list_name || "",
       startsGroup: list.id === visibleDefaultLists[0]?.id,
@@ -481,14 +556,30 @@ export default function NativeHome() {
   const surface = isDark ? "text-white" : "text-gray-900";
 
   return (
-    // No background and no min-height of its own. Both come from the secure
-    // layout's wrapper now: it draws AppSurface behind every screen, and it is
-    // the element that is one viewport tall, so this page adding its own
-    // `min-h-screen` on top would make the document taller than the screen.
-    <div className={surface}>
-      {/* Navigation bar and search, pinned together. `pt-safe-top` clears the
-          status bar and content scrolling past goes behind this rather than into
-          the system UI.
+    // No background of its own — that still comes from the secure layout's
+    // wrapper, which draws AppSurface behind every screen.
+    //
+    // The height is this screen's own business now. It used to be an ordinary
+    // document scroll with a sticky header riding on top; it is a column exactly
+    // as tall as the space the layout leaves between the status bar and the tab
+    // bar, with the scrolling moved inside it. The header, both section headings
+    // and the tab bar therefore stay put, and only cards move.
+    //
+    // The height is stated rather than inherited because it has to be: there is
+    // no unbroken height chain from `html` down to here, and the two transform
+    // wrappers in between — PullToRefresh's pull and NativeTransition's push —
+    // are both auto-height. NativeSheet and BottomSheet bound themselves with an
+    // explicit height for the same reason. The 56px is the tab bar; keep it in
+    // step with TAB_BAR_HEIGHT_PX, as `pb-tab-bar` in globals.css also must.
+    <div
+      className={`flex flex-col overflow-hidden ${surface}`}
+      style={{ height: "calc(100vh - 56px - var(--safe-bottom))" }}
+    >
+      {/* Navigation bar and search. `pt-safe-top` still clears the status bar.
+          `sticky top-0` has gone with the document scroll: as the first row of a
+          fixed-height column there is nothing left for this to come unstuck
+          from, and `shrink-0` is what holds it at its own height while the lists
+          below it take the rest.
 
           No background colour of its own, deliberately. It was a flat fill, which
           was invisible while the page behind it was the same flat colour — but
@@ -496,9 +587,8 @@ export default function NativeHome() {
           of the screen. Any tint does that, including a translucent one. With none,
           what shows through the header *is* the page gradient, so it matches by
           construction rather than by a value someone has to keep in step.
-          `backdrop-blur-xl` is what keeps the greeting legible over cards scrolling
-          underneath. */}
-      <div className="sticky top-0 z-30 pt-safe-top backdrop-blur-xl">
+          `backdrop-blur-xl` softens that gradient behind the greeting. */}
+      <div className="relative z-30 shrink-0 pt-safe-top backdrop-blur-xl">
         {/* The greeting and the name are one block, not two rows. They were
             stacked as a 17px "Welcome Back" in the toolbar and a separate 20px
             name underneath, which spent two full rows saying one thing and left
@@ -509,9 +599,18 @@ export default function NativeHome() {
             beneath the clock. */}
         <div className="flex items-start justify-between gap-3 px-4 pt-3">
           <div className="min-w-0">
-            {/* The date, then the page. The greeting and the user's own name
-                were the two largest things on a screen whose job is showing
-                lists — and the name is already on the Settings tab. */}
+            {/* The date, then whose lists these are.
+
+                "My Lists" spent the largest type on the screen saying what the
+                Lists tab in the bar below already says, which made it the one
+                line here that carried no information. The account name is the
+                one thing on this screen that is not repeated somewhere else on
+                it.
+
+                `truncate` earns its keep now: a real name can run far longer
+                than a two-word title, and it has this row to itself. Accounts
+                created before a name was collected fall back to the old
+                heading rather than to an empty row. */}
             <p
               className={`text-[12px] font-medium uppercase tracking-wide ${
                 isDark ? "text-gray-500" : "text-gray-400"
@@ -524,7 +623,7 @@ export default function NativeHome() {
               })}
             </p>
             <h1 className="truncate text-[26px] font-bold leading-tight tracking-[-0.02em]">
-              My Lists
+              {accountName}
             </h1>
           </div>
         </div>
@@ -560,7 +659,7 @@ export default function NativeHome() {
            with a 20px icon in it, so most of the gap between the rail and My
            Lists was that row's own minimum height rather than padding. Trimming
            here is the part that can come down without shrinking a tap target. */
-        <section className="px-4 pb-2">
+        <section className="shrink-0 px-4 pb-2">
           {/* Same divider as the two groups below it. Left as a 24px bold heading
               it would have been the one section on the screen shouting. */}
           <SectionDivider
@@ -568,8 +667,29 @@ export default function NativeHome() {
             count={pinnedLists.length}
             isDark={isDark}
           />
-          {/* Horizontal rail, as in the iOS PinnedListView */}
-          <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* Two to a row, wrapping onto as many rows as there are pinned
+              lists. No scroll of its own in either direction: the section is
+              `shrink-0`, so it simply takes the height it needs and the My
+              Lists scroller below takes whatever is left.
+
+              It was a sideways-scrolling rail — one row, then two — which meant
+              the third pinned list onwards lived off the right edge with
+              nothing on screen saying so. Wrapping puts every pinned list in
+              view at the cost of the space it occupies, which is the trade
+              asked for.
+
+              `grid-cols-2` rather than a wrapping flex because the cards have
+              to come off their fixed 160px to do this. Two 160px cards and a
+              12px gap need 332px, and a 360dp phone leaves 328px inside the
+              section's `px-4` — so a flex wrap would drop to one card per row
+              on the most common screen there is. Equal fractions fit two at
+              any width instead.
+
+              `-mx-4 px-4` has gone with the scroll. It was there to let a
+              scrolling rail bleed to both screen edges; a static grid belongs
+              inside the section's own margin like everything else on the
+              screen. */}
+          <div className="grid grid-cols-2 gap-3 pb-1">
             {pinnedLists.map((list) => (
               <NativeListCard
                 key={`${list.id}-${list.list_name}-${list.bg_color_hex}`}
@@ -595,58 +715,71 @@ export default function NativeHome() {
        * SectionDivider below.
        */}
 
-      <section
-        className="px-4"
-        // Clears the floating Add button, which is fixed and therefore takes no
-        // space in the document. Without this the last row scrolls to rest
-        // underneath it. 3.5rem button + the gap below it + breathing room.
-        style={{ paddingBottom: "calc(5.5rem + var(--safe-bottom))" }}
-      >
+      {/* Takes whatever the header and the pinned rail leave, and divides it into
+          the My Lists heading, which stays, and the cards, which scroll.
+
+          `min-h-0` is the line that does the work. A flex child will not shrink
+          below its own content by default, so without it this section grows to
+          fit every card the user owns and pushes the bottom of the column off
+          the screen — rather than keeping its own height and handing the
+          overflow to the scroller inside it. */}
+      <section className="flex min-h-0 flex-1 flex-col px-4">
         {/* `layout === null` means the stored card-or-rows choice has not been read
             yet. Holding the skeleton for that frame is the alternative to painting
             the grid and flipping it to rows, which is what someone who chose rows
             would see on every visit to this tab. */}
         {state === "loading" || layout === null ? (
-          <div className="grid grid-cols-3 gap-2.5">
-            {Array.from({ length: 7 }).map((_, index) => (
-              <div
-                key={index}
-                className={`h-[100px] animate-pulse rounded-[10px] ${
-                  isDark ? "bg-gray-800" : "bg-gray-100"
-                }`}
-              />
-            ))}
+          <div className={SCROLL_AREA} style={SCROLL_AREA_PAD}>
+            <div className="grid grid-cols-3 gap-2.5">
+              {Array.from({ length: 7 }).map((_, index) => (
+                <div
+                  key={index}
+                  className={`h-[100px] animate-pulse rounded-[10px] ${
+                    isDark ? "bg-gray-800" : "bg-gray-100"
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         ) : state === "first-run" ? (
           // The whole screen for someone with nothing yet. Equivalent of
           // ContentUnavailableView on iOS, and the only thing to do here — the
           // built-in view cards are hidden for this case, because with no lists
           // there are no collections and so nothing any of them could hold.
-          <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-            <ListChecks size={48} className="text-gray-400" />
-            <p className="text-[17px] font-semibold">No Lists Yet</p>
-            <p className="max-w-[17rem] text-[14px] text-gray-500">
-              Everything in List It lives inside a list. Create your first one
-              to start adding tasks and notes.
-            </p>
-            <button
-              type="button"
-              onClick={() => setIsCreateOpen(true)}
-              className="mt-1 flex items-center gap-1.5 rounded-[10px] bg-blue-500 px-4 py-2.5 text-[15px] font-semibold text-white active:bg-blue-600"
-            >
-              <Plus size={18} />
-              Create List
-            </button>
+          //
+          // Scrollable like the others despite having nothing to scroll: in
+          // landscape, or with the display scaled up, the Create button is
+          // otherwise the thing that falls off the bottom of a column that can
+          // no longer grow.
+          <div className={SCROLL_AREA} style={SCROLL_AREA_PAD}>
+            <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+              <ListChecks size={48} className="text-gray-400" />
+              <p className="text-[17px] font-semibold">No Lists Yet</p>
+              <p className="max-w-[17rem] text-[14px] text-gray-500">
+                Everything in List It lives inside a list. Create your first one
+                to start adding tasks and notes.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsCreateOpen(true)}
+                className="mt-1 flex items-center gap-1.5 rounded-[10px] bg-blue-500 px-4 py-2.5 text-[15px] font-semibold text-white active:bg-blue-600"
+              >
+                <Plus size={18} />
+                Create List
+              </button>
+            </div>
           </div>
         ) : state === "search-miss" ? (
           // No create button here on purpose. Someone who has typed a query is
           // looking for something that exists, not asking to make a new one.
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <Search size={48} className="text-gray-400" />
-            <p className="text-[17px] font-semibold">No Results</p>
-            <p className="max-w-[17rem] text-[14px] text-gray-500">
-              Nothing matches “{search.trim()}”.
-            </p>
+          <div className={SCROLL_AREA} style={SCROLL_AREA_PAD}>
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <Search size={48} className="text-gray-400" />
+              <p className="text-[17px] font-semibold">No Results</p>
+              <p className="max-w-[17rem] text-[14px] text-gray-500">
+                Nothing matches “{search.trim()}”.
+              </p>
+            </div>
           </div>
         ) : (
           <>
@@ -665,7 +798,15 @@ export default function NativeHome() {
                   label="My Lists"
                   count={userLists.length}
                   isDark={isDark}
-                  className={visibleDefaultLists.length > 0 ? "pt-6" : ""}
+                  /* No `pt-6` any more. It was keyed off
+                     `visibleDefaultLists.length > 0` to separate this heading
+                     from the group of built-in view cards above it — but those
+                     cards moved into the ⋯ menu and stopped rendering, while
+                     `visibleDefaultLists` stayed non-empty for any blank
+                     search. So the padding was separating this heading from
+                     nothing, and that is the wide band of dead space under the
+                     pinned rail. The pinned section's own `pb-2` is the gap
+                     now. */
                   /* Sort on the heading row, tips as its caption. Both used to
                      be a separate 44px row above this one; folded in here they
                      cost the heading nothing and a single line of 12px type. */
@@ -696,59 +837,73 @@ export default function NativeHome() {
                       onClick={() => setIsHelpOpen(true)}
                       /* `inline-flex`, not `flex`: as a block-level flex
                          container it would span the section and make the whole
-                         line a tap target that opens help. */
-                      className="touch-target -ml-1 inline-flex items-center px-1 text-[12px] text-gray-500 active:opacity-60"
+                         line a tap target that opens help.
+
+                         `-my-1.5` pulls that 44px target back over the air
+                         around it, the same trick `-mr-2.5` plays on the sort
+                         button above. A 12px caption inside a 44px box was
+                         opening most of a finger's gap between this heading and
+                         the first card; the box stays 44px and tappable, only
+                         the space it was claiming closes up. */
+                      className="touch-target -ml-1 -my-1.5 inline-flex items-center px-1 text-[12px] text-gray-500 active:opacity-60"
                     >
                       💡 New features and tips
                     </button>
                   }
                 />
-                {isListLayout ? (
-                  <div className="flex flex-col gap-2">
-                    {/* No swipe wrapper. The hold menu already offers pin,
-                        rename and delete — the swipe was a second route to the
-                        same three — and a card that answers to a horizontal drag
-                        competes with the Tasks/Notes panel inside a list, which
-                        now uses that gesture to switch between the two. One
-                        meaning per gesture. */}
-                    {sortedLists.map((list) => (
-                      <NativeListCard
-                        key={`${list.id}-${list.list_name}-${list.bg_color_hex}`}
-                        list={list}
-                        tasks={tasks}
-                        notes={notes}
-                        variant="row"
-                        onOpen={() => openList(list)}
-                        onLongPress={(position) =>
-                          showContextMenu(list, position)
-                        }
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  // Two across on a narrow phone, three once there is room. The
-                  // user's own cards carry a name and a counts line where a
-                  // built-in view carries neither, so squeezing them to a third of
-                  // a 360px screen leaves a name that is all scroll and no read.
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {sortedLists.map((list) => (
-                      <NativeListCard
-                        key={`${list.id}-${list.list_name}-${list.bg_color_hex}`}
-                        list={list}
-                        tasks={tasks}
-                        notes={notes}
-                        variant="grid"
-                        onOpen={() => openList(list)}
-                        onLongPress={(position) =>
-                          showContextMenu(list, position)
-                        }
-                      />
-                    ))}
-                  </div>
-                )}
+                {/* The cards, and only the cards. Everything above this — the
+                    header, the search field, the pinned rail, this section's own
+                    heading and its tips line — holds its place; this is the one
+                    thing on the screen that moves, and it stops at the tab bar
+                    rather than running under it. */}
+                <div className={SCROLL_AREA} style={SCROLL_AREA_PAD}>
+                  {isListLayout ? (
+                    <div className="flex flex-col gap-2">
+                      {/* No swipe wrapper. The hold menu already offers pin,
+                          rename and delete — the swipe was a second route to the
+                          same three — and a card that answers to a horizontal
+                          drag competes with the Tasks/Notes panel inside a list,
+                          which now uses that gesture to switch between the two.
+                          One meaning per gesture. */}
+                      {sortedLists.map((list) => (
+                        <NativeListCard
+                          key={`${list.id}-${list.list_name}-${list.bg_color_hex}`}
+                          list={list}
+                          tasks={tasks}
+                          notes={notes}
+                          variant="row"
+                          onOpen={() => openList(list)}
+                          onLongPress={(position) =>
+                            showContextMenu(list, position)
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    // Two across on a narrow phone, three once there is room. The
+                    // user's own cards carry a name and a counts line where a
+                    // built-in view carries neither, so squeezing them to a third
+                    // of a 360px screen leaves a name that is all scroll and no
+                    // read.
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {sortedLists.map((list) => (
+                        <NativeListCard
+                          key={`${list.id}-${list.list_name}-${list.bg_color_hex}`}
+                          list={list}
+                          tasks={tasks}
+                          notes={notes}
+                          variant="grid"
+                          onOpen={() => openList(list)}
+                          onLongPress={(position) =>
+                            showContextMenu(list, position)
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             )}
-
           </>
         )}
       </section>

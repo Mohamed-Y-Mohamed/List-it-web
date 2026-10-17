@@ -58,7 +58,6 @@ import {
   PRIMARY,
   SUCCESS,
   WARNING,
-  collectionTint,
 } from "@/components/ui/tokens";
 
 interface TaskSidebarProps {
@@ -438,10 +437,20 @@ const TaskSidebar = ({
       ?.collection_name ??
     null;
 
-  /** The collection's stored colour, for the sheet's restrained tint. */
-  const collectionColor =
-    collections.find((c) => c.id === (task.collection_id || ""))
-      ?.bg_color_hex ?? null;
+  /**
+   * The list this task sits in, by the same falls-back-to-a-lookup rule as the
+   * collection row above it.
+   *
+   * Only SideNav was passing `listName`, so every sheet opened from a task card
+   * — which is every sheet on the phone — read "List: None". The id is on the
+   * task itself and `appData.lists` is already the cache the rest of this file
+   * refreshes, so the name is a lookup rather than a prop each of the three
+   * mount points would have to remember to pass.
+   */
+  const resolvedListName =
+    listName ??
+    appData?.lists.find((l) => l.id === (task.list_id || ""))?.list_name ??
+    null;
 
   const formattedCompletedDate = task.date_completed
     ? formatDetailDate(task.date_completed)
@@ -740,10 +749,17 @@ const TaskSidebar = ({
       label={isEditing ? "Edit task" : "Task details"}
       isDark={isDark}
       canClose={!isProcessing}
-      // The restrained tint the brief asks for: the collection's colour at 8%
-      // over the sheet surface, so a task reads as belonging somewhere without
-      // the panel becoming a coloured box.
-      surfaceColor={collectionTint(collectionColor, isDark)}
+      // The app's own ground, not a tint of the collection's colour.
+      //
+      // `--surface-field` is what AppSurface paints behind every screen, and it
+      // already carries both the theme and the background chosen in Settings —
+      // so the sheet is the same colour as the screen it slid up over, in all
+      // four backgrounds, rather than a panel in a colour of its own.
+      //
+      // BottomSheet ramps this surface's opacity from 1 at the top stop to 0.72
+      // at the half stop, so it is see-through enough at half height to show
+      // the list behind it and solid once dragged to the top.
+      surfaceColor="var(--surface-field)"
       footer={
         <div className="mx-auto w-full max-w-md space-y-2">
           {!isEditing ? (
@@ -941,7 +957,7 @@ const TaskSidebar = ({
                 value={resolvedCollectionName}
                 isDark={isDark}
               />
-              <InfoRow label="List" value={listName} isDark={isDark} />
+              <InfoRow label="List" value={resolvedListName} isDark={isDark} />
             </div>
           </div>
         ) : (

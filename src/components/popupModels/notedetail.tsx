@@ -38,7 +38,6 @@ import {
   PRIMARY,
   SUCCESS,
   WARNING,
-  collectionTint,
 } from "@/components/ui/tokens";
 
 interface NoteSidebarProps {
@@ -545,9 +544,31 @@ const NoteDetails = ({
       label={isEditing ? "Edit note" : "Note details"}
       isDark={isDark}
       canClose={!isProcessing}
-      // A note has its own stored colour, so the tint comes from that rather than
-      // from the collection — it is the thing the card already showed as a stripe.
-      surfaceColor={collectionTint(selectedColor || null, isDark, 6)}
+      // The note's own colour, at the strength the note card itself paints —
+      // so the sheet reads as the note it was opened from rather than as a 6%
+      // hint of it, which is what `collectionTint`'s default gave.
+      //
+      // The numbers are NOTE_WASH in noteCard.tsx averaged. The card washes the
+      // colour over `--surface-field` as a gradient (0.4 → 0.2 light, 0.5 →
+      // 0.28 dark); a flat surface cannot carry a gradient, so this is its
+      // midpoint and mixes over the same base.
+      //
+      // Deliberately still a wash rather than the raw hex. The card's own note
+      // records why: at full strength the type on top has to be chosen by
+      // luminance — dark on a yellow note, white on a navy one — and keeping it
+      // close to the ground means the theme's own foreground reads on every
+      // colour in the palette.
+      //
+      // No colour on the note falls back to the app's ground, as the task sheet
+      // does. BottomSheet ramps the opacity from 1 at the top stop to 0.72 at
+      // the half stop either way.
+      surfaceColor={
+        selectedColor
+          ? `color-mix(in srgb, ${selectedColor} ${
+              isDark ? 39 : 30
+            }%, var(--surface-field))`
+          : "var(--surface-field)"
+      }
       footer={
         <div className="mx-auto w-full max-w-md space-y-2">
           {!isEditing ? (

@@ -152,7 +152,12 @@ export default function NativeListCard({
         type="button"
         {...pressHandlers}
         aria-label={`Open list ${list.list_name || "Untitled"}`}
-        className={`${waveBase} h-[58px] w-[160px] shrink-0 flex-col items-start justify-center`}
+        /* `w-full`, not the fixed 160px it carried as a scrolling rail. The
+           pinned section is a two-column grid now, so the cell decides the
+           width and the card fills it — which is also what lets two sit side
+           by side on a 360dp screen, where two 160px cards and the gap between
+           them are wider than the section is. */
+        className={`${waveBase} h-[58px] w-full flex-col items-start justify-center`}
         style={waveStyle}
       >
         <ListWave color={color} isDark={isDark} />
