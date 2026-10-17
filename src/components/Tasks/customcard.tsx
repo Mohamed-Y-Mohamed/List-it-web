@@ -22,7 +22,11 @@ import {
   taskStatus,
   type TaskStatus,
 } from "@/components/ui/tokens";
-import { formatTaskDue, toDateObject } from "@/utils/dateUtils";
+import {
+  formatDisplayDate,
+  formatTaskDue,
+  toDateObject,
+} from "@/utils/dateUtils";
 
 interface TodayTaskCardProps {
   id: string;
@@ -138,6 +142,25 @@ export default function TodayTaskCard({
     taskDueDate,
     due_has_time,
   );
+
+  /**
+   * The card shows one date in that slot: the due date, or the day the task was
+   * added when it has no due date. Nothing, if it somehow has neither.
+   *
+   * The created one is labelled, because the slot and the icon are shared and an
+   * unlabelled date there reads as a deadline. It is never tinted rose either —
+   * `overdue` is about the due date, and a creation date cannot be late.
+   */
+  const dateRow = formattedDate
+    ? {
+        text: formattedTime
+          ? `${formattedDate} · ${formattedTime}`
+          : formattedDate,
+        isDue: true,
+      }
+    : createdDate
+      ? { text: `Added ${formatDisplayDate(createdDate)}`, isDue: false }
+      : null;
 
   const overdue = (() => {
     if (!dueDate || completed) return false;
@@ -435,12 +458,12 @@ export default function TodayTaskCard({
           </div>
 
           {/* SCHEDULE DIRECTLY BELOW TITLE */}
-          {formattedDate && (
+          {dateRow && (
             <div
               className={`
                 mt-1 flex items-center gap-1.5 text-[11px] font-medium
                 ${
-                  overdue && status !== "flagged"
+                  dateRow.isDue && overdue && status !== "flagged"
                     ? "text-rose-500"
                     : isDark
                       ? "text-slate-400"
@@ -450,10 +473,7 @@ export default function TodayTaskCard({
             >
               <CalendarDays className="h-3.5 w-3.5 shrink-0" />
 
-              <span>
-                {formattedDate}
-                {formattedTime && ` · ${formattedTime}`}
-              </span>
+              <span>{dateRow.text}</span>
             </div>
           )}
 

@@ -22,7 +22,11 @@ import {
   taskStatus,
   type TaskStatus,
 } from "@/components/ui/tokens";
-import { formatTaskDue, toDateObject } from "@/utils/dateUtils";
+import {
+  formatDisplayDate,
+  formatTaskDue,
+  toDateObject,
+} from "@/utils/dateUtils";
 
 interface TaskCardProps {
   id: string;
@@ -143,6 +147,24 @@ const TaskCard = ({
     taskDueDate,
     due_has_time,
   );
+
+  /**
+   * One date in that slot: the due date, or the day the task was added when it
+   * has no due date. Same rule as the collection card.
+   *
+   * Labelled, because the slot and the icon are shared and an unlabelled date
+   * reads as a deadline. Never tinted rose — a creation date cannot be late.
+   */
+  const dateRow = formattedDate
+    ? {
+        text: formattedTime
+          ? `${formattedDate} · ${formattedTime}`
+          : formattedDate,
+        isDue: true,
+      }
+    : createdDate
+      ? { text: `Added ${formatDisplayDate(createdDate)}`, isDue: false }
+      : null;
 
   const overdue = useMemo(() => {
     if (!dueDate || completed) {
@@ -530,7 +552,7 @@ const TaskCard = ({
               Directly below the title
              =============================================== */}
 
-          {formattedDate && (
+          {dateRow && (
             <div
               className={`
                 mt-1
@@ -542,7 +564,7 @@ const TaskCard = ({
                 font-medium
 
                 ${
-                  overdue && status !== "flagged"
+                  dateRow.isDue && overdue && status !== "flagged"
                     ? "text-rose-500"
                     : isDark
                       ? "text-slate-400"
@@ -558,11 +580,7 @@ const TaskCard = ({
                 "
               />
 
-              <span className="truncate">
-                {formattedDate}
-
-                {formattedTime && ` · ${formattedTime}`}
-              </span>
+              <span className="truncate">{dateRow.text}</span>
             </div>
           )}
 

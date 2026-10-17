@@ -34,6 +34,7 @@ import { formatDetailDate } from "@/utils/dateUtils";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { applyCompletion } from "@/lib/completion";
+import { isLightColor, isUsableHex } from "@/lib/colors";
 import {
   composeDue,
   describeReminders,
@@ -429,11 +430,25 @@ const TaskSidebar = ({
 
   const dueLabel = dueDate ? formatDateKey(dueDate, dueTime || null) : null;
 
+  const taskCollection =
+    collections.find((c) => c.id === (task.collection_id || "")) ?? null;
+
   const resolvedCollectionName =
-    collectionName ??
-    collections.find((c) => c.id === (task.collection_id || ""))
-      ?.collection_name ??
-    null;
+    collectionName ?? taskCollection?.collection_name ?? null;
+
+  /**
+   * The colour the sheet's own actions take: the collection's, at full strength.
+   *
+   * The surfaces around it stay a wash of this colour — that is what keeps the
+   * theme's foreground readable across the whole palette — but the buttons are
+   * meant to be the one place it lands undiluted, whatever the collection is set
+   * to. Which means the label can no longer be white: see `primaryButton`.
+   *
+   * No collection, or a colour that is not a usable hex, falls back to PRIMARY.
+   */
+  const actionColor = isUsableHex(taskCollection?.bg_color_hex)
+    ? (taskCollection?.bg_color_hex as string)
+    : PRIMARY;
 
   /**
    * The list this task sits in, by the same falls-back-to-a-lookup rule as the
@@ -704,6 +719,12 @@ const TaskSidebar = ({
   };
 
   // --- PIECES ---
+  /**
+   * The label colour is picked from the fill rather than fixed to white, because
+   * the fill is now an arbitrary collection colour. White on a yellow or mint
+   * collection is unreadable; `isLightColor` weights the channels perceptually,
+   * so those get near-black and a navy one still gets white.
+   */
   const primaryButton = (
     label: string,
     onClick: () => void,
@@ -714,8 +735,11 @@ const TaskSidebar = ({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="min-h-[48px] w-full rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-45"
-      style={{ backgroundColor: color }}
+      className="min-h-[48px] w-full rounded-2xl text-[15px] font-semibold transition-opacity active:opacity-85 disabled:opacity-45"
+      style={{
+        backgroundColor: color,
+        color: isLightColor(color) ? "#111827" : "#FFFFFF",
+      }}
     >
       {label}
     </button>
@@ -765,7 +789,7 @@ const TaskSidebar = ({
               {primaryButton(
                 "Edit task",
                 () => setIsEditing(true),
-                PRIMARY,
+                actionColor,
                 isProcessing,
               )}
               {/* Delete sits here and nowhere near the completion control at the
@@ -783,7 +807,7 @@ const TaskSidebar = ({
               {primaryButton(
                 isSaving ? "Saving..." : "Save changes",
                 handleSaveTask,
-                PRIMARY,
+                actionColor,
                 isProcessing || !isTaskChanged || !taskText.trim(),
               )}
               {ghostButton("Cancel", handleCancelEdit, isProcessing)}

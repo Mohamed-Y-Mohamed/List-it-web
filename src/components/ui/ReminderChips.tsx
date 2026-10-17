@@ -149,6 +149,26 @@ export default function ReminderChips({
    */
   const noneActive = reminders.length === 0 && !customOpen;
 
+  /**
+   * The offsets worth showing: the ones that could still fire, plus any already
+   * set.
+   *
+   * They used to render disabled with a title explaining themselves, so a task
+   * due in 59 minutes put up a row of grey chips nobody could use and the only
+   * live controls were None and Custom. Hiding them says the same thing without
+   * the dead row — what is on screen is what can be picked.
+   *
+   * An offset already set stays visible once its moment has gone, because the
+   * lit chip is the only control that clears it. Hiding it would leave a
+   * reminder saved on the task with nothing on screen to remove it.
+   */
+  const visiblePresets = dueDateKey
+    ? OFFSET_PRESETS.filter(
+        (preset) =>
+          usedOffsets.has(preset.minutes) || !offsetHasPassed(preset.minutes),
+      )
+    : [];
+
   const chipBase =
     "min-h-[36px] rounded-full px-3.5 text-[13px] font-medium transition-colors disabled:opacity-35";
   const chipIdle = isDark
@@ -171,26 +191,22 @@ export default function ReminderChips({
           None
         </button>
 
-        {dueDateKey &&
-          OFFSET_PRESETS.map((preset) => {
-            const on = usedOffsets.has(preset.minutes);
-            const passed = !on && offsetHasPassed(preset.minutes);
-            return (
-              <button
-                key={preset.minutes}
-                type="button"
-                disabled={!on && passed}
-                title={passed ? "That moment has already passed" : undefined}
-                onClick={() => toggleOffset(preset.minutes)}
-                aria-pressed={on}
-                className={`${chipBase} ${on ? "text-white" : chipIdle}`}
-                style={on ? { backgroundColor: WARNING } : undefined}
-              >
-                {on && <Check className="mr-1 inline h-3 w-3" />}
-                {preset.label}
-              </button>
-            );
-          })}
+        {visiblePresets.map((preset) => {
+          const on = usedOffsets.has(preset.minutes);
+          return (
+            <button
+              key={preset.minutes}
+              type="button"
+              onClick={() => toggleOffset(preset.minutes)}
+              aria-pressed={on}
+              className={`${chipBase} ${on ? "text-white" : chipIdle}`}
+              style={on ? { backgroundColor: WARNING } : undefined}
+            >
+              {on && <Check className="mr-1 inline h-3 w-3" />}
+              {preset.label}
+            </button>
+          );
+        })}
 
         <button
           type="button"
@@ -212,6 +228,18 @@ export default function ReminderChips({
         >
           Add a due date to remind yourself a set time before it, or use Custom
           for a fixed day and time.
+        </p>
+      )}
+
+      {/* There is a due date, but every offset counted back from it has already
+          gone — a task due in the next hour. Without this the chips simply are
+          not there and the row looks broken rather than narrowed. */}
+      {dueDateKey && visiblePresets.length === 0 && (
+        <p
+          className={`text-[11px] ${isDark ? "text-gray-500" : "text-gray-400"}`}
+        >
+          This task is due too soon to be reminded a set time beforehand. Custom
+          takes a fixed day and time.
         </p>
       )}
 

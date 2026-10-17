@@ -9,6 +9,7 @@ import { useAppColors } from "@/hooks/useAppColors";
 import ModalShell from "@/components/ui/ModalShell";
 import NameColorForm from "@/components/ui/NameColorForm";
 import { PRIMARY } from "@/components/ui/tokens";
+import { isLightColor, isUsableHex } from "@/lib/colors";
 
 // Define a proper result type for submission
 interface SubmissionResult {
@@ -260,12 +261,24 @@ const EditCollectionPopup: React.FC<EditCollectionPopupProps> = ({
       canClose={!isLoading}
       footer={
         <div className="space-y-2">
+          {/* Takes the collection's colour at full strength, and the colour
+              being picked rather than the one saved — so the button previews
+              what is about to be committed. Label by luminance, because the
+              fill can be anything in the palette. */}
           <button
             type="submit"
             form="edit-collection-form"
             disabled={isLoading || !isFormValid || isSubmitting}
-            className="min-h-[48px] w-full rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-45"
-            style={{ backgroundColor: PRIMARY }}
+            className="min-h-[48px] w-full rounded-2xl text-[15px] font-semibold transition-opacity active:opacity-85 disabled:opacity-45"
+            style={{
+              backgroundColor: isUsableHex(selectedColor)
+                ? selectedColor
+                : PRIMARY,
+              color:
+                isUsableHex(selectedColor) && isLightColor(selectedColor)
+                  ? "#111827"
+                  : "#FFFFFF",
+            }}
           >
             {isLoading ? "Saving..." : "Save changes"}
           </button>
