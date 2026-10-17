@@ -26,19 +26,29 @@ export const DEFAULT_DUE_HOUR = 9;
 // Ascending, because that is the order the chips render in and a list of offsets
 // that jumps about has to be read rather than skimmed.
 //
-// `1 month before` is 30 days, not a calendar month. Offsets here are plain
-// subtraction — see `reminderFireAt` — so a true calendar month would make the
-// gap depend on which month the due date happened to fall in. Thirty days is what
-// the label means in every other reminder UI and it needs no new arithmetic.
+// A week is as far ahead as this offers. Past that the reminder stops being a
+// nudge about this task and becomes a second, vaguer due date.
 export const OFFSET_PRESETS: readonly { minutes: number; label: string }[] = [
   { minutes: 0, label: "When it's due" },
   { minutes: 60, label: "1 hour before" },
   { minutes: 60 * 24, label: "1 day before" },
   { minutes: 60 * 24 * 2, label: "2 days before" },
   { minutes: 60 * 24 * 7, label: "1 week before" },
-  { minutes: 60 * 24 * 14, label: "2 weeks before" },
-  { minutes: 60 * 24 * 30, label: "1 month before" },
 ] as const;
+
+/**
+ * Offsets that were once offered and are not any more.
+ *
+ * Dropping them from OFFSET_PRESETS stops the chips appearing, but it does not
+ * reach the `reminders` jsonb of every task already carrying one. Those rows
+ * still fire correctly — the arithmetic is just `minutes` — so the only thing at
+ * risk is how they read, and `describeReminder`'s fallback would have rendered
+ * them as "20160 minutes before". Kept as labels only: nothing offers these.
+ */
+const RETIRED_OFFSET_LABELS: Readonly<Record<number, string>> = {
+  [60 * 24 * 14]: "2 weeks before",
+  [60 * 24 * 30]: "1 month before",
+};
 
 /** Reminders a single task may carry. Past this the sheet stops offering more. */
 export const MAX_REMINDERS_PER_TASK = 5;
@@ -195,6 +205,7 @@ export function describeReminder(reminder: Reminder): string {
   }
   return (
     OFFSET_PRESETS.find((p) => p.minutes === reminder.minutes)?.label ??
+    RETIRED_OFFSET_LABELS[reminder.minutes] ??
     `${reminder.minutes} minutes before`
   );
 }

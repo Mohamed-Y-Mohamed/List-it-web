@@ -1,79 +1,43 @@
 "use client";
 
-// Scheduled: everything with a date on it, soonest problem first.
+// Overdue: what has already slipped, and nothing else.
 //
-// This was Overdue, and showed only what had already slipped. That made it a
-// screen you opened to feel bad and never to plan, and it meant the question
-// "what is coming up?" had no home at all. It now covers anything dated and
-// unfinished, with overdue as the first band rather than the whole screen.
+// This briefly covered everything dated — overdue, today, tomorrow and upcoming,
+// in four bands — because when Overdue was the only dated screen, "what is coming
+// up?" had nowhere to live and the screen was one you opened to feel bad rather
+// than to plan. That reasoning held while this was the only dated view. It is not
+// any more: Scheduled is a month calendar covering anything with a date on it, so
+// the planning question has a better home than a band at the bottom of this list,
+// and this screen is free to answer the one question it is named after.
 //
-// Today still has its own screen, and still wins for one-off work due today.
-// This one is the wider view: what has slipped, what lands today, and what is
-// coming.
-//
-// One of two screens that band rather than showing a flat list, so it supplies
-// its own body while still sitting in the shared frame.
+// The rule is whole days: a task is overdue when its date is before today, which
+// is `bandByDueDate`'s rule and the one every other screen already uses. A task
+// due today is never overdue here, however late in the day — the alternative is
+// rows sliding onto this screen while the user is looking at it, and Today and
+// Overdue disagreeing about the same task.
 
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
-import {
-  AlertTriangle,
-  Calendar,
-  CalendarClock,
-  Clock,
-  Target,
-  TrendingDown,
-} from "lucide-react";
+import { AlertTriangle, History, Target } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useTaskView } from "@/hooks/useTaskView";
 import { useTaskActions } from "@/hooks/useTaskActions";
-import { bandByDueDate, daysBetween, sortTasks } from "@/lib/taskView";
+import { daysBetween, sortTasks } from "@/lib/taskView";
 import TaskScreen from "@/components/Tasks/TaskScreen";
-import TaskList, { type TaskListHandlers } from "@/components/Tasks/TaskList";
-import { TaskSectionHeader } from "@/components/Tasks/TaskStatsCard";
-import type { Collection as SchemaCollection } from "@/types/schema";
+import TaskList from "@/components/Tasks/TaskList";
 import type { TaskRow } from "@/types/taskView";
-
-/** The four bands, most urgent first. */
-const BANDS = [
-  {
-    key: "overdue" as const,
-    title: "Overdue",
-    color: "text-red-600 dark:text-red-400",
-    icon: AlertTriangle,
-    cardClassName: "border-l-4 border-red-600",
-  },
-  {
-    key: "today" as const,
-    title: "Today",
-    color: "text-orange-600 dark:text-orange-400",
-    icon: Clock,
-    cardClassName: "border-l-4 border-orange-500",
-  },
-  {
-    key: "tomorrow" as const,
-    title: "Tomorrow",
-    color: "text-amber-600 dark:text-amber-400",
-    icon: Calendar,
-    cardClassName: "border-l-4 border-amber-500",
-  },
-  {
-    key: "upcoming" as const,
-    title: "Upcoming",
-    color: "text-sky-600 dark:text-sky-400",
-    icon: CalendarClock,
-    cardClassName: "border-l-4 border-sky-500",
-  },
-];
 
 /**
  * Anything with a date on it. Module level, not an inline arrow: useTaskView puts
  * the predicate in `refresh`'s dependency array, so a fresh identity each render
  * means a fetch each render.
+ *
+ * The narrowing to "before today" happens below rather than here, because it
+ * needs `today` — which the hook owns and re-checks past midnight.
  */
 const isScheduled = (task: TaskRow) => Boolean(task.due_date);
 
-export default function ScheduledPage() {
+export default function OverduePage() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
@@ -88,72 +52,60 @@ export default function ScheduledPage() {
   } = useTaskView({ isCompleted: false, predicate: isScheduled });
 
   const actions = useTaskActions(setTasks, { collections, tasks });
-  const sorted = useMemo(() => sortTasks(tasks), [tasks]);
 
-  const daysOverdue = useMemo(
-    () => (dueDate: string) => daysBetween(dueDate, today),
-    [today],
+  /** Dated, unfinished, and before today. Soonest-overdue first via `sortTasks`. */
+  const overdue = useMemo(
+    () =>
+      sortTasks(tasks).filter(
+        (task) => task.due_date && daysBetween(task.due_date, today) > 0,
+      ),
+    [tasks, today],
   );
 
-  // Everything bands together, recurring included — see `bandByDueDate`.
-  const grouped = useMemo(() => bandByDueDate(sorted, today), [sorted, today]);
-
   const averageDaysOverdue = useMemo(() => {
-    if (sorted.length === 0) return 0;
-    // Only across what has actually slipped. Averaging in things due next week
-    // would report a negative delay, which reads as nonsense on a stat tile.
-    const late = sorted.filter(
-      (task) => task.due_date && daysOverdue(task.due_date) > 0,
-    );
-    if (late.length === 0) return 0;
-    const total = late.reduce(
-      (sum, task) => sum + daysOverdue(task.due_date as string),
+    if (overdue.length === 0) return 0;
+    const total = overdue.reduce(
+      (sum, task) => sum + daysBetween(task.due_date as string, today),
       0,
     );
-    return Math.round(total / late.length);
-  }, [sorted, daysOverdue]);
+    return Math.round(total / overdue.length);
+  }, [overdue, today]);
+
+  /** The worst one, which is the number that actually prompts someone to act. */
+  const oldestDaysOverdue = useMemo(
+    () =>
+      overdue.reduce(
+        (worst, task) =>
+          Math.max(worst, daysBetween(task.due_date as string, today)),
+        0,
+      ),
+    [overdue, today],
+  );
 
   return (
     <TaskScreen
       isDark={isDark}
-      icon={CalendarClock}
-      accent={{ dark: "text-sky-400", light: "text-sky-500" }}
-      title="Scheduled"
+      icon={AlertTriangle}
+      accent={{ dark: "text-red-400", light: "text-red-500" }}
+      title="Overdue"
       subtitle={
         <>
-          {sorted.length} dated task{sorted.length !== 1 ? "s" : ""}
-          {grouped.overdue.length > 0
-            ? `, ${grouped.overdue.length} overdue`
-            : ", nothing overdue"}
+          {overdue.length} task{overdue.length !== 1 ? "s" : ""} past their date
         </>
       }
       onRefresh={refresh}
       isRefreshing={isRefreshing}
       isLoading={isLoading}
-      loadingLabel="Loading your schedule..."
+      loadingLabel="Checking what has slipped..."
       stats={
-        sorted.length > 0
+        overdue.length > 0
           ? [
               {
                 title: "Overdue",
-                value: grouped.overdue.length,
+                value: overdue.length,
                 icon: AlertTriangle,
                 color: "bg-red-500",
                 description: "Past their date",
-              },
-              {
-                title: "Due Today",
-                value: grouped.today.length,
-                icon: Clock,
-                color: "bg-orange-500",
-                description: "Landing today",
-              },
-              {
-                title: "Upcoming",
-                value: grouped.tomorrow.length + grouped.upcoming.length,
-                icon: TrendingDown,
-                color: "bg-sky-500",
-                description: "Still ahead of you",
               },
               {
                 title: "Average Delay",
@@ -161,17 +113,25 @@ export default function ScheduledPage() {
                 icon: Target,
                 color: "bg-yellow-500",
                 suffix: " days",
-                description: "Across what has slipped",
+                description: "Across all of them",
+              },
+              {
+                title: "Longest",
+                value: oldestDaysOverdue,
+                icon: History,
+                color: "bg-orange-500",
+                suffix: " days",
+                description: "The one waiting longest",
               },
             ]
           : undefined
       }
       empty={
-        sorted.length === 0
+        overdue.length === 0
           ? {
-              title: "Nothing scheduled",
+              title: "Nothing overdue",
               message:
-                "Tasks with a date show up here, whether they have slipped, land today, or are still ahead of you.",
+                "Nothing has slipped past its date. Anything dated and still ahead of you is on Scheduled.",
               icon: "check",
             }
           : undefined
@@ -181,60 +141,22 @@ export default function ScheduledPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.3 }}
-        className="space-y-8"
+        /* `space-y-4`, the gap every other task screen uses. AnimatePresence
+           renders no element of its own, so TaskList's cards are direct children
+           of this and the spacing reaches them. Without it the rows sat flush
+           against each other, which the banded version never showed because each
+           band brought its own wrapper. */
+        className="space-y-4"
       >
-        {BANDS.map((band) => (
-          <ScheduledBand
-            key={band.key}
-            band={band}
-            tasks={grouped[band.key]}
-            collections={collections}
-            isDark={isDark}
-            handlers={actions}
-          />
-        ))}
+        {/* One flat list, no bands. Every row here is the same kind of thing —
+            late — so a heading over it would name the screen twice. */}
+        <TaskList
+          tasks={overdue}
+          collections={collections}
+          cardClassName="border-l-4 border-red-600"
+          {...actions}
+        />
       </motion.div>
     </TaskScreen>
-  );
-}
-
-function ScheduledBand({
-  band,
-  tasks,
-  collections,
-  isDark,
-  handlers,
-}: {
-  band: (typeof BANDS)[number];
-  tasks: TaskRow[];
-  collections: SchemaCollection[];
-  isDark: boolean;
-  handlers: TaskListHandlers;
-}) {
-  if (tasks.length === 0) return null;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.5 }}
-    >
-      <TaskSectionHeader
-        title={band.title}
-        count={tasks.length}
-        color={band.color}
-        icon={band.icon}
-        isDark={isDark}
-      />
-      <div className="space-y-4">
-        <TaskList
-          tasks={tasks}
-          collections={collections}
-          cardClassName={band.cardClassName}
-          {...handlers}
-        />
-      </div>
-    </motion.div>
   );
 }

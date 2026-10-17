@@ -22,7 +22,11 @@ import {
   taskStatus,
   type TaskStatus,
 } from "@/components/ui/tokens";
-import { formatTaskDue, toDateObject } from "@/utils/dateUtils";
+import {
+  formatDisplayDate,
+  formatTaskDue,
+  toDateObject,
+} from "@/utils/dateUtils";
 
 interface TodayTaskCardProps {
   id: string;
@@ -138,6 +142,25 @@ export default function TodayTaskCard({
     taskDueDate,
     due_has_time,
   );
+
+  /**
+   * The card shows one date in that slot: the due date, or the day the task was
+   * added when it has no due date. Nothing, if it somehow has neither.
+   *
+   * The created one is labelled, because the slot and the icon are shared and an
+   * unlabelled date there reads as a deadline. It is never tinted rose either —
+   * `overdue` is about the due date, and a creation date cannot be late.
+   */
+  const dateRow = formattedDate
+    ? {
+        text: formattedTime
+          ? `${formattedDate} · ${formattedTime}`
+          : formattedDate,
+        isDue: true,
+      }
+    : createdDate
+      ? { text: `Added ${formatDisplayDate(createdDate)}`, isDue: false }
+      : null;
 
   const overdue = (() => {
     if (!dueDate || completed) return false;
@@ -383,7 +406,14 @@ export default function TodayTaskCard({
           aria-hidden="true"
         />
 
-        <div className="px-4 py-3.5 sm:px-[18px]">
+        {/* Tighter than it was: `px-4 py-3.5 sm:px-[18px]`.
+
+            A task card is one line of text with two optional lines under it, and
+            at the old padding four of them filled a phone screen. The row heights
+            below come down with it, so the card gets denser rather than just
+            losing its margins. Still well clear of the 44px minimum — the whole
+            card is the tap target, not the title. */}
+        <div className="px-3.5 py-2.5 sm:px-4">
           {/* TITLE + STATUS */}
           <div className="flex min-w-0 items-start justify-between gap-3">
             <h3
@@ -405,35 +435,35 @@ export default function TodayTaskCard({
               {taskText || "Untitled Task"}
             </h3>
 
-            {/* Never display "Normal". */}
-            {status !== "normal" && (
-              <div className="flex shrink-0 items-center gap-1.5 pt-[2px]">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{
-                    backgroundColor: statusInfo.colour,
-                  }}
-                />
+            {/* The dot alone. Never shown for "Normal".
 
-                <span
-                  className={`
-                    text-[10px] font-semibold uppercase tracking-[0.07em]
-                    ${isDark ? "text-slate-400" : "text-slate-500"}
-                  `}
-                >
-                  {statusInfo.label}
-                </span>
-              </div>
+                The word next to it — OVERDUE, PINNED, FLAGGED — said in eight
+                characters what the card already says twice over: the status
+                colour runs down the edge, and an overdue date is printed in red
+                directly underneath. Three ways of saying one thing, on the row
+                carrying the task's own name.
+
+                The label moves to `aria-label` rather than disappearing, because
+                without it the only remaining signal is a colour, which is no
+                signal at all to a screen reader or to someone who cannot tell
+                rose from amber. */}
+            {status !== "normal" && (
+              <span
+                className="mt-[5px] h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: statusInfo.colour }}
+                role="img"
+                aria-label={statusInfo.label}
+              />
             )}
           </div>
 
           {/* SCHEDULE DIRECTLY BELOW TITLE */}
-          {formattedDate && (
+          {dateRow && (
             <div
               className={`
-                mt-1.5 flex items-center gap-1.5 text-[11px] font-medium
+                mt-1 flex items-center gap-1.5 text-[11px] font-medium
                 ${
-                  overdue && status !== "flagged"
+                  dateRow.isDue && overdue && status !== "flagged"
                     ? "text-rose-500"
                     : isDark
                       ? "text-slate-400"
@@ -443,10 +473,7 @@ export default function TodayTaskCard({
             >
               <CalendarDays className="h-3.5 w-3.5 shrink-0" />
 
-              <span>
-                {formattedDate}
-                {formattedTime && ` · ${formattedTime}`}
-              </span>
+              <span>{dateRow.text}</span>
             </div>
           )}
 
@@ -454,7 +481,7 @@ export default function TodayTaskCard({
           {taskDescription && (
             <p
               className={`
-                mt-2.5 line-clamp-2 text-[12px] leading-[1.5]
+                mt-1.5 line-clamp-2 text-[12px] leading-[1.5]
                 ${
                   completed
                     ? isDark
@@ -474,7 +501,7 @@ export default function TodayTaskCard({
           {(collection_name || list_name) && (
             <div
               className={`
-                mt-3 flex min-w-0 items-center gap-3 border-t pt-2.5
+                mt-2 flex min-w-0 items-center gap-3 border-t pt-2
                 ${isDark ? "border-white/[0.055]" : "border-slate-100"}
               `}
             >

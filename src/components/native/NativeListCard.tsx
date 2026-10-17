@@ -81,7 +81,16 @@ export default function NativeListCard({
   const surface = "bg-[var(--surface-card)]";
   const edge = isDark ? "border-white/[0.08]" : "border-black/[0.06]";
   const nameText = isDark ? "text-white" : "text-gray-900";
-  const metaText = isDark ? "text-gray-400" : "text-gray-500";
+  /**
+   * The counts line, now the same colour as the name rather than a grey under it.
+   *
+   * It was `gray-400`/`gray-500`, which on a card whose left third is a saturated
+   * wave had to compete with that colour and lost — the counts read as disabled
+   * rather than as secondary. Hierarchy still comes from size and weight: the
+   * name is 14-15px medium, this is 11-12px regular, which is enough separation
+   * without also dropping the contrast.
+   */
+  const metaText = isDark ? "text-white" : "text-gray-900";
 
   const base = `relative flex touch-manipulation select-none overflow-hidden rounded-2xl border ${surface} ${edge} transition-transform duration-100 active:scale-[0.98]`;
 
@@ -152,7 +161,12 @@ export default function NativeListCard({
         type="button"
         {...pressHandlers}
         aria-label={`Open list ${list.list_name || "Untitled"}`}
-        className={`${waveBase} h-[58px] w-[160px] shrink-0 flex-col items-start justify-center`}
+        /* `w-full`, not the fixed 160px it carried as a scrolling rail. The
+           pinned section is a two-column grid now, so the cell decides the
+           width and the card fills it — which is also what lets two sit side
+           by side on a 360dp screen, where two 160px cards and the gap between
+           them are wider than the section is. */
+        className={`${waveBase} h-[58px] w-full flex-col items-start justify-center`}
         style={waveStyle}
       >
         <ListWave color={color} isDark={isDark} />

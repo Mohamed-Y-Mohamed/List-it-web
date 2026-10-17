@@ -48,6 +48,7 @@ export async function middleware(request: NextRequest) {
     "/stats",
     "/tomorrow",
     "/overdue",
+    "/scheduled",
     "/List",
     "/setting",
     "/profile",

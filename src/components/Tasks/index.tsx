@@ -22,7 +22,11 @@ import {
   taskStatus,
   type TaskStatus,
 } from "@/components/ui/tokens";
-import { formatTaskDue, toDateObject } from "@/utils/dateUtils";
+import {
+  formatDisplayDate,
+  formatTaskDue,
+  toDateObject,
+} from "@/utils/dateUtils";
 
 interface TaskCardProps {
   id: string;
@@ -143,6 +147,24 @@ const TaskCard = ({
     taskDueDate,
     due_has_time,
   );
+
+  /**
+   * One date in that slot: the due date, or the day the task was added when it
+   * has no due date. Same rule as the collection card.
+   *
+   * Labelled, because the slot and the icon are shared and an unlabelled date
+   * reads as a deadline. Never tinted rose — a creation date cannot be late.
+   */
+  const dateRow = formattedDate
+    ? {
+        text: formattedTime
+          ? `${formattedDate} · ${formattedTime}`
+          : formattedDate,
+        isDue: true,
+      }
+    : createdDate
+      ? { text: `Added ${formatDisplayDate(createdDate)}`, isDue: false }
+      : null;
 
   const overdue = useMemo(() => {
     if (!dueDate || completed) {
@@ -452,13 +474,16 @@ const TaskCard = ({
         />
 
         <div
+          /* Tightened to match customcard.tsx — see the note there. The extra
+             left padding stays proportional: it is clearing the status bar down
+             the card's edge, which has not changed width. */
           className="
-            px-4
-            py-3.5
-            pl-[18px]
+            px-3.5
+            py-2.5
+            pl-[16px]
 
-            sm:px-[18px]
-            sm:pl-[21px]
+            sm:px-4
+            sm:pl-[19px]
           "
         >
           {/* ===============================================
@@ -507,42 +532,18 @@ const TaskCard = ({
               {taskText || "Untitled Task"}
             </h3>
 
-            {/* Normal never displays text on the card. */}
+            {/* The dot alone — see the matching note in customcard.tsx. The
+                word beside it repeated what the edge colour and the red date
+                already say, on the row carrying the task's own name. The label
+                moves to `aria-label` so the meaning survives for anyone who
+                cannot read it off a colour. */}
             {status !== "normal" && (
-              <div
-                className="
-                  flex
-                  shrink-0
-                  items-center
-                  gap-1.5
-                  pt-[2px]
-                "
-              >
-                <span
-                  className="
-                    h-2
-                    w-2
-                    rounded-full
-                  "
-                  style={{
-                    backgroundColor: statusInfo.colour,
-                  }}
-                  aria-hidden="true"
-                />
-
-                <span
-                  className={`
-                    text-[10px]
-                    font-semibold
-                    uppercase
-                    tracking-[0.07em]
-
-                    ${isDark ? "text-slate-400" : "text-slate-500"}
-                  `}
-                >
-                  {statusInfo.label}
-                </span>
-              </div>
+              <span
+                className="mt-[5px] h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: statusInfo.colour }}
+                role="img"
+                aria-label={statusInfo.label}
+              />
             )}
           </div>
 
@@ -551,10 +552,10 @@ const TaskCard = ({
               Directly below the title
              =============================================== */}
 
-          {formattedDate && (
+          {dateRow && (
             <div
               className={`
-                mt-1.5
+                mt-1
                 flex
                 items-center
                 gap-1.5
@@ -563,7 +564,7 @@ const TaskCard = ({
                 font-medium
 
                 ${
-                  overdue && status !== "flagged"
+                  dateRow.isDue && overdue && status !== "flagged"
                     ? "text-rose-500"
                     : isDark
                       ? "text-slate-400"
@@ -579,11 +580,7 @@ const TaskCard = ({
                 "
               />
 
-              <span className="truncate">
-                {formattedDate}
-
-                {formattedTime && ` · ${formattedTime}`}
-              </span>
+              <span className="truncate">{dateRow.text}</span>
             </div>
           )}
 
@@ -599,7 +596,7 @@ const TaskCard = ({
             <p
               title={taskDescription}
               className={`
-                mt-2.5
+                mt-1.5
                 w-3/4
                 truncate
 
@@ -628,14 +625,14 @@ const TaskCard = ({
           {(collection_name || list_name) && (
             <div
               className={`
-                mt-3
+                mt-2
                 flex
                 min-w-0
                 items-center
                 gap-3
 
                 border-t
-                pt-2.5
+                pt-2
 
                 ${isDark ? "border-white/[0.055]" : "border-slate-100"}
               `}

@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Calendar,
   CalendarClock,
+  CalendarDays,
   CalendarRange,
   CheckCircle2,
   Circle,
@@ -36,6 +37,10 @@ const SF_SYMBOL_TO_ICON: Record<string, LucideIcon> = {
   "exclamationmark.circle": AlertCircle,
   "sun.max": Sun,
   "calendar.badge.exclamationmark": CalendarRange,
+  // The month calendar. `calendar.badge.clock` would have been the closer SF
+  // name but Tomorrow already carries it, and two rows of one menu sharing an
+  // icon is worse than a slightly looser match.
+  "calendar.day.timeline.left": CalendarDays,
 };
 
 export function iconForList(list: List): LucideIcon {

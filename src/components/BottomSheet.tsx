@@ -8,7 +8,6 @@ import {
   motion,
   useDragControls,
   useMotionValue,
-  useTransform,
   type PanInfo,
 } from "framer-motion";
 import { pushOverlay } from "@/lib/overlayStack";
@@ -62,8 +61,6 @@ const SPRING = {
   stiffness: 420,
   damping: 40,
 };
-
-const HALF_SURFACE_OPACITY = 0.72;
 
 interface BottomSheetProps {
   isOpen: boolean;
@@ -247,19 +244,6 @@ export default function BottomSheet({
      */
     animate(y, halfOffset, SPRING);
   }, [isOpen, halfOffset, y]);
-
-  // ------------------------------------------------------------
-  // Mobile surface transparency
-  // ------------------------------------------------------------
-
-  const surfaceOpacity = useTransform(
-    y,
-    [0, Math.max(halfOffset, 1)],
-    [1, HALF_SURFACE_OPACITY],
-    {
-      clamp: true,
-    },
-  );
 
   // ------------------------------------------------------------
   // Mobile dragging
@@ -495,23 +479,18 @@ export default function BottomSheet({
               dragMomentum={false}
               onDragEnd={handleDragEnd}
             >
-              {/* Mobile surface / collection colour */}
+              {/* Mobile surface / collection colour. Solid at every stop — it
+                  used to ramp its opacity with the drag, which meant the screen
+                  behind read through the sheet at the resting height. */}
 
-              <motion.div
+              <div
                 className={`
                 absolute
                 inset-0
 
                 ${!surfaceColor ? (isDark ? "bg-[var(--surface-field)]" : "bg-white") : ""}
               `}
-                style={{
-                  opacity: surfaceOpacity,
-                  ...(surfaceColor
-                    ? {
-                        backgroundColor: surfaceColor,
-                      }
-                    : {}),
-                }}
+                style={surfaceColor ? { backgroundColor: surfaceColor } : undefined}
                 aria-hidden="true"
               />
 

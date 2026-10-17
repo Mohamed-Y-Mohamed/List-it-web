@@ -10,7 +10,6 @@ import NativeTransition from "@/components/native/NativeTransition";
 import AppDataProvider from "@/components/native/AppDataProvider";
 import NativeBackBar from "@/components/native/NativeBackBar";
 import NativeLoading from "@/components/native/NativeLoading";
-import PullToRefresh from "@/components/native/PullToRefresh";
 import AppSurface from "@/components/AppSurface";
 import NativeTabBar from "@/components/native/NativeTabBar";
 import NativeTutorial from "@/components/native/NativeTutorial";
@@ -45,6 +44,24 @@ export default function SecureLayout({
   // bar. The Lists tab is excluded because NativeHome pins its own header with
   // pt-safe-top already, and padding it here would inset it twice.
   const needsTopInset = onTabRoot && normalisePath(pathname) !== HOME_TAB_PATH;
+
+  // Marks the document as the tab-bar shell, which switches off the body's
+  // bottom inset in globals.css. The inset is already paid for twice in here —
+  // the fixed tab bar pads itself with it, and the wrapper's `pb-tab-bar`
+  // includes it as content clearance — and the body's copy is the one that
+  // makes the document taller than the viewport, which is what let every screen
+  // in the app be dragged up by the height of the gesture pill.
+  //
+  // Removed on unmount so the public screens, which have no tab bar over that
+  // band and no inset of their own, get theirs back.
+  useEffect(() => {
+    if (!isNative) return;
+
+    const root = document.documentElement;
+    root.classList.add("native-tabbed");
+
+    return () => root.classList.remove("native-tabbed");
+  }, [isNative]);
 
   // The walkthrough, for an account that has never seen it. Native only — the
   // hook short-circuits on IS_NATIVE_BUILD, so the web bundle never carries it
@@ -165,14 +182,20 @@ export default function SecureLayout({
               .join(" ")}
           >
             <AppSurface />
-            {/* Pull down from the top to refetch. Native only — PullToRefresh
-                is a pass-through off-native, and the web has the browser's own
-                reload for the same job. It sits outside NativeTransition so the
-                gesture survives navigation rather than being re-keyed with the
-                screen. */}
-            <PullToRefresh>
-              <NativeTransition>{children}</NativeTransition>
-            </PullToRefresh>
+            {/* The pull-down-to-refresh gesture used to wrap this.
+                It has gone, and refetching is a Refresh row in the ⋯ menu on
+                the Lists tab instead.
+
+                The gesture was reading a drag that began anywhere at the top of
+                the screen, which on a screen that no longer scrolls is every
+                drag on the header — so the whole window followed the finger
+                when nothing was meant to move. A menu row cannot be triggered
+                by accident, and it is the only thing on this screen that was
+                ever refreshing anyway.
+
+                `PullToRefresh` itself is left in the tree as a component; it is
+                simply not mounted here. */}
+            <NativeTransition>{children}</NativeTransition>
           </div>
           <NativeTabBar />
           {tutorialVisible && <NativeTutorial onDone={dismissTutorial} />}

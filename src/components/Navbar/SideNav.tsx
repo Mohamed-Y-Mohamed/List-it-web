@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   CircleMinus,
   CalendarPlus2,
+  CalendarDays,
   ClockAlert,
   Pin,
   Home,
@@ -149,9 +150,15 @@ const VIEWS: {
     Icon: CircleMinus,
   },
   {
-    path: "/overdue",
+    path: "/scheduled",
     label: "Scheduled",
-    title: "Tasks with a date",
+    title: "Tasks with a date, by month",
+    Icon: CalendarDays,
+  },
+  {
+    path: "/overdue",
+    label: "Overdue",
+    title: "Tasks past their date",
     Icon: ClockAlert,
   },
   {

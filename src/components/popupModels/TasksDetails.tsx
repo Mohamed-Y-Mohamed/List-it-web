@@ -27,7 +27,6 @@ import {
   Pin,
   Pencil,
   CalendarPlus,
-  ChevronLeft,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Collection, OperationResult } from "@/types/schema";
@@ -35,6 +34,7 @@ import { formatDetailDate } from "@/utils/dateUtils";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { applyCompletion } from "@/lib/completion";
+import { isLightColor, isUsableHex } from "@/lib/colors";
 import {
   composeDue,
   describeReminders,
@@ -58,7 +58,6 @@ import {
   PRIMARY,
   SUCCESS,
   WARNING,
-  collectionTint,
 } from "@/components/ui/tokens";
 
 interface TaskSidebarProps {
@@ -141,7 +140,6 @@ const TaskSidebar = ({
   const { user } = useAuth();
   const isDark = theme === "dark";
 
-  const bodyText = isDark ? "text-gray-200" : "text-gray-700";
   const mutedText = isDark ? "text-gray-400" : "text-gray-500";
   const fieldClass = isDark
     ? "border-white/[0.08] bg-white/[0.04] text-gray-100 placeholder:text-gray-600"
@@ -432,16 +430,40 @@ const TaskSidebar = ({
 
   const dueLabel = dueDate ? formatDateKey(dueDate, dueTime || null) : null;
 
-  const resolvedCollectionName =
-    collectionName ??
-    collections.find((c) => c.id === (task.collection_id || ""))
-      ?.collection_name ??
-    null;
+  const taskCollection =
+    collections.find((c) => c.id === (task.collection_id || "")) ?? null;
 
-  /** The collection's stored colour, for the sheet's restrained tint. */
-  const collectionColor =
-    collections.find((c) => c.id === (task.collection_id || ""))
-      ?.bg_color_hex ?? null;
+  const resolvedCollectionName =
+    collectionName ?? taskCollection?.collection_name ?? null;
+
+  /**
+   * The colour the sheet's own actions take: the collection's, at full strength.
+   *
+   * The surfaces around it stay a wash of this colour — that is what keeps the
+   * theme's foreground readable across the whole palette — but the buttons are
+   * meant to be the one place it lands undiluted, whatever the collection is set
+   * to. Which means the label can no longer be white: see `primaryButton`.
+   *
+   * No collection, or a colour that is not a usable hex, falls back to PRIMARY.
+   */
+  const actionColor = isUsableHex(taskCollection?.bg_color_hex)
+    ? (taskCollection?.bg_color_hex as string)
+    : PRIMARY;
+
+  /**
+   * The list this task sits in, by the same falls-back-to-a-lookup rule as the
+   * collection row above it.
+   *
+   * Only SideNav was passing `listName`, so every sheet opened from a task card
+   * — which is every sheet on the phone — read "List: None". The id is on the
+   * task itself and `appData.lists` is already the cache the rest of this file
+   * refreshes, so the name is a lookup rather than a prop each of the three
+   * mount points would have to remember to pass.
+   */
+  const resolvedListName =
+    listName ??
+    appData?.lists.find((l) => l.id === (task.list_id || ""))?.list_name ??
+    null;
 
   const formattedCompletedDate = task.date_completed
     ? formatDetailDate(task.date_completed)
@@ -697,6 +719,12 @@ const TaskSidebar = ({
   };
 
   // --- PIECES ---
+  /**
+   * The label colour is picked from the fill rather than fixed to white, because
+   * the fill is now an arbitrary collection colour. White on a yellow or mint
+   * collection is unreadable; `isLightColor` weights the channels perceptually,
+   * so those get near-black and a navy one still gets white.
+   */
   const primaryButton = (
     label: string,
     onClick: () => void,
@@ -707,8 +735,11 @@ const TaskSidebar = ({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="min-h-[48px] w-full rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-45"
-      style={{ backgroundColor: color }}
+      className="min-h-[48px] w-full rounded-2xl text-[15px] font-semibold transition-opacity active:opacity-85 disabled:opacity-45"
+      style={{
+        backgroundColor: color,
+        color: isLightColor(color) ? "#111827" : "#FFFFFF",
+      }}
     >
       {label}
     </button>
@@ -740,10 +771,25 @@ const TaskSidebar = ({
       label={isEditing ? "Edit task" : "Task details"}
       isDark={isDark}
       canClose={!isProcessing}
-      // The restrained tint the brief asks for: the collection's colour at 8%
-      // over the sheet surface, so a task reads as belonging somewhere without
-      // the panel becoming a coloured box.
-      surfaceColor={collectionTint(collectionColor, isDark)}
+      // The collection's own colour, as a wash over the app's ground — the same
+      // rule the note sheet applies with the note's colour.
+      //
+      // A wash rather than the raw hex because every label, field and hint in
+      // here takes its colour from the theme. At full strength the type would
+      // have to be chosen by luminance for each one — dark on a yellow
+      // collection, white on a navy one — whereas kept close to the ground the
+      // theme's own foreground reads on all of them. The buttons are where the
+      // colour lands undiluted; see `actionColor`.
+      //
+      // No collection, or an unusable hex, leaves the ground exactly as
+      // AppSurface painted it.
+      surfaceColor={
+        isUsableHex(taskCollection?.bg_color_hex)
+          ? `color-mix(in srgb, ${taskCollection?.bg_color_hex} ${
+              isDark ? 39 : 30
+            }%, var(--surface-field))`
+          : "var(--surface-field)"
+      }
       footer={
         <div className="mx-auto w-full max-w-md space-y-2">
           {!isEditing ? (
@@ -751,7 +797,7 @@ const TaskSidebar = ({
               {primaryButton(
                 "Edit task",
                 () => setIsEditing(true),
-                PRIMARY,
+                actionColor,
                 isProcessing,
               )}
               {/* Delete sits here and nowhere near the completion control at the
@@ -769,7 +815,7 @@ const TaskSidebar = ({
               {primaryButton(
                 isSaving ? "Saving..." : "Save changes",
                 handleSaveTask,
-                PRIMARY,
+                actionColor,
                 isProcessing || !isTaskChanged || !taskText.trim(),
               )}
               {ghostButton("Cancel", handleCancelEdit, isProcessing)}
@@ -784,21 +830,10 @@ const TaskSidebar = ({
           isDark ? "text-gray-100" : "text-gray-900"
         }`}
       >
-        {/* A labelled Back on the left is the control Android users look for; the
-            X stays for anyone used to it. Neither saves — Save changes does, and
-            Cancel says so outright. */}
-        <div className="flex items-center justify-between py-1">
-          <button
-            onClick={handleClose}
-            disabled={isProcessing}
-            className={`-ml-2 flex min-h-[44px] items-center gap-1 rounded-full px-2 pr-3 text-[14px] font-medium ${bodyText} ${
-              isDark ? "active:bg-white/10" : "active:bg-black/5"
-            }`}
-            aria-label="Back"
-          >
-            <ChevronLeft className="h-5 w-5" />
-            Back
-          </button>
+        {/* The X alone. The labelled Back beside it called the same handleClose,
+            so the header carried two controls for one behaviour. Neither ever
+            saved — Save changes does, and Cancel says so outright. */}
+        <div className="flex items-center justify-end py-1">
           <button
             onClick={handleClose}
             disabled={isProcessing}
@@ -941,7 +976,7 @@ const TaskSidebar = ({
                 value={resolvedCollectionName}
                 isDark={isDark}
               />
-              <InfoRow label="List" value={listName} isDark={isDark} />
+              <InfoRow label="List" value={resolvedListName} isDark={isDark} />
             </div>
           </div>
         ) : (

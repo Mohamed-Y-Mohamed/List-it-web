@@ -21,10 +21,10 @@ import {
   AlertCircle,
   Pin,
   Pencil,
-  ChevronLeft,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import BottomSheet from "@/components/BottomSheet";
+import { useOptionalAppData } from "@/components/native/AppDataProvider";
 import ConfirmDialog from "./ConfirmDialog";
 import { OperationResult } from "@/types/schema";
 import { useAuth } from "@/context/AuthContext";
@@ -38,7 +38,6 @@ import {
   PRIMARY,
   SUCCESS,
   WARNING,
-  collectionTint,
 } from "@/components/ui/tokens";
 
 interface NoteSidebarProps {
@@ -89,10 +88,10 @@ const NoteDetails = ({
 }: NoteSidebarProps) => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const appData = useOptionalAppData();
   const isDark = theme === "dark";
 
   const mutedText = isDark ? "text-gray-400" : "text-gray-500";
-  const bodyText = isDark ? "text-gray-200" : "text-gray-700";
   const hairline = isDark ? "border-white/[0.08]" : "border-black/[0.06]";
   const fieldClass = isDark
     ? "border-white/[0.08] bg-white/[0.04] text-gray-100 placeholder:text-gray-600"
@@ -228,7 +227,13 @@ const NoteDetails = ({
           collection_id: data.collection_id,
           is_pinned: data.is_pinned,
           is_deleted: data.is_deleted,
-          list_id: data.list_id,
+          // Falls back to the row the card handed down rather than taking the
+          // payload's value flat. This field is not editable here, so the only
+          // thing an absent one can do is lose what the card already knew — and
+          // losing it is what makes the List row read "None". The task sheet
+          // never had the problem because it reads `task.list_id` off its prop
+          // and never replaces it.
+          list_id: data.list_id ?? note.list_id,
         });
       })
       .catch(() => {
@@ -497,6 +502,20 @@ const NoteDetails = ({
     collections.find((c) => c.id === (verifiedNote.collection_id || ""))
       ?.collection_name ?? null;
 
+  /**
+   * The list this note sits in, by the same rule the task sheet uses.
+   *
+   * Only the sidebar passed `listName`, so a note opened from a card — which is
+   * every note on the phone — read "List: None". The id is on the note itself and
+   * `appData.lists` is the cache already behind the home screen, so this is a
+   * lookup rather than a prop each mount point has to remember to pass.
+   */
+  const resolvedListName =
+    listName ??
+    appData?.lists.find((l) => l.id === (verifiedNote.list_id || ""))
+      ?.list_name ??
+    null;
+
   const colorName =
     appColors.find((c) => c.color_hex === selectedColor)?.color_name ?? null;
 
@@ -545,9 +564,30 @@ const NoteDetails = ({
       label={isEditing ? "Edit note" : "Note details"}
       isDark={isDark}
       canClose={!isProcessing}
-      // A note has its own stored colour, so the tint comes from that rather than
-      // from the collection — it is the thing the card already showed as a stripe.
-      surfaceColor={collectionTint(selectedColor || null, isDark, 6)}
+      // The note's own colour, at the strength the note card itself paints —
+      // so the sheet reads as the note it was opened from rather than as a 6%
+      // hint of it, which is what `collectionTint`'s default gave.
+      //
+      // The numbers are NOTE_WASH in noteCard.tsx averaged. The card washes the
+      // colour over `--surface-field` as a gradient (0.4 → 0.2 light, 0.5 →
+      // 0.28 dark); a flat surface cannot carry a gradient, so this is its
+      // midpoint and mixes over the same base.
+      //
+      // Deliberately still a wash rather than the raw hex. The card's own note
+      // records why: at full strength the type on top has to be chosen by
+      // luminance — dark on a yellow note, white on a navy one — and keeping it
+      // close to the ground means the theme's own foreground reads on every
+      // colour in the palette.
+      //
+      // No colour on the note falls back to the app's ground, as the task sheet
+      // does with no collection. Either way the surface is solid at every stop.
+      surfaceColor={
+        selectedColor
+          ? `color-mix(in srgb, ${selectedColor} ${
+              isDark ? 39 : 30
+            }%, var(--surface-field))`
+          : "var(--surface-field)"
+      }
       footer={
         <div className="mx-auto w-full max-w-md space-y-2">
           {!isEditing ? (
@@ -585,18 +625,9 @@ const NoteDetails = ({
           isDark ? "text-gray-100" : "text-gray-900"
         }`}
       >
-        <div className="flex items-center justify-between py-1">
-          <button
-            onClick={handleClose}
-            disabled={isProcessing}
-            className={`-ml-2 flex min-h-[44px] items-center gap-1 rounded-full px-2 pr-3 text-[14px] font-medium ${bodyText} ${
-              isDark ? "active:bg-white/10" : "active:bg-black/5"
-            }`}
-            aria-label="Back"
-          >
-            <ChevronLeft className="h-5 w-5" />
-            Back
-          </button>
+        {/* The X alone. A labelled Back sat next to it calling the same
+            handleClose — two controls, one behaviour, side by side. */}
+        <div className="flex items-center justify-end py-1">
           <button
             onClick={handleClose}
             disabled={isProcessing}
@@ -712,7 +743,7 @@ const NoteDetails = ({
                 value={resolvedCollectionName}
                 isDark={isDark}
               />
-              <InfoRow label="List" value={listName} isDark={isDark} />
+              <InfoRow label="List" value={resolvedListName} isDark={isDark} />
               <div className="flex min-h-[32px] items-center justify-between gap-4">
                 <span className={`text-[13px] ${mutedText}`}>Colour</span>
                 <span className="flex items-center gap-2">

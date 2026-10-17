@@ -15,6 +15,7 @@ module.exports = {
     '/completed',
     '/notcomplete', 
     '/overdue',
+    '/scheduled',
     '/api/*'
   ],
 
@@ -23,7 +24,7 @@ module.exports = {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/dashboard', '/today', '/tomorrow', '/priority', '/completed', '/notcomplete', '/overdue', '/api/']
+        disallow: ['/dashboard', '/today', '/tomorrow', '/priority', '/completed', '/notcomplete', '/overdue', '/scheduled', '/api/']
       }
     ]
   },

@@ -8,6 +8,7 @@ Disallow: /priority
 Disallow: /completed
 Disallow: /notcomplete
 Disallow: /overdue
+Disallow: /scheduled
 Disallow: /api/
 
 # Host
