@@ -51,10 +51,20 @@ import { App as CapacitorApp } from "@capacitor/app";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { isNativeApp } from "@/lib/platform";
-import type { Collection, List, Note, Task } from "@/types/schema";
+import type { Collection, List, Note, Task, User } from "@/types/schema";
 import { useTaskReminders } from "@/hooks/useTaskReminders";
 
 interface AppDataValue {
+  /**
+   * The signed-in user's row in the `users` table.
+   *
+   * The account's name lives here, not in `auth.user_metadata`. Both carry a
+   * `full_name` and the two drift — Settings only ever wrote the table — so the
+   * table is the source of truth and the one every screen reads. The iOS app
+   * reads the same row. Null until the first fetch settles, or if it fails.
+   */
+  profile: User | null;
+
   lists: List[];
   /** The user's open, undeleted tasks. */
   tasks: Task[];
@@ -105,6 +115,7 @@ export default function AppDataProvider({
 }) {
   const { user } = useAuth();
 
+  const [profile, setProfile] = useState<User | null>(null);
   const [lists, setLists] = useState<List[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -126,7 +137,8 @@ export default function AppDataProvider({
       try {
         // Parallel, as NativeHome already did. The three are independent and
         // serialising them was never necessary.
-        const [listsRes, tasksRes, notesRes] = await Promise.all([
+        const [profileRes, listsRes, tasksRes, notesRes] = await Promise.all([
+          apiFetch("/api/user/profile"),
           apiFetch("/api/lists"),
           apiFetch("/api/tasks?is_deleted=false&is_completed=false"),
           apiFetch("/api/notes?is_deleted=false"),
@@ -134,6 +146,7 @@ export default function AppDataProvider({
 
         // Each applied independently: one failing request should not discard the
         // two that succeeded, and whatever is already cached stays on screen.
+        if (profileRes.ok) setProfile((await profileRes.json()).data ?? null);
         if (listsRes.ok) setLists((await listsRes.json()).data ?? []);
         if (tasksRes.ok) setTasks((await tasksRes.json()).data ?? []);
         if (notesRes.ok) setNotes((await notesRes.json()).data ?? []);
@@ -164,6 +177,7 @@ export default function AppDataProvider({
     if (previousUserId.current === userId) return;
     previousUserId.current = userId;
 
+    setProfile(null);
     setLists([]);
     setTasks([]);
     setNotes([]);
@@ -219,6 +233,7 @@ export default function AppDataProvider({
 
   const value = useMemo<AppDataValue>(
     () => ({
+      profile,
       lists,
       tasks,
       notes,
@@ -230,6 +245,7 @@ export default function AppDataProvider({
       putCollections,
     }),
     [
+      profile,
       lists,
       tasks,
       notes,

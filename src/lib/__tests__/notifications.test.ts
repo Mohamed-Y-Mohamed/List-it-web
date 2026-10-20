@@ -90,7 +90,11 @@ beforeEach(() => {
 });
 
 describe("planReminders", () => {
-  it("expands a task into one entry per reminder", () => {
+  // One reminder per task now, matching iOS, where the notification request is
+  // identified by the task id. `parseReminders` caps at MAX_REMINDERS_PER_TASK,
+  // so a legacy row carrying several plans only its first — this used to assert
+  // that two reminders produced two entries.
+  it("plans one entry per task, from its first reminder", () => {
     const planned = planReminders(
       [
         task({
@@ -101,6 +105,31 @@ describe("planReminders", () => {
             { id: "r1", kind: "offset", minutes: 60 },
             { id: "r2", kind: "offset", minutes: 120 },
           ],
+        }),
+      ],
+      NOW,
+    );
+    expect(planned).toHaveLength(1);
+    expect(planned[0].taskId).toBe("t1");
+  });
+
+  it("gives two tasks two distinct notification ids", () => {
+    // The id is a hash of the task and reminder ids. A collision here is one
+    // task's reminder silently replacing another's, which is invisible until
+    // someone misses something.
+    const planned = planReminders(
+      [
+        task({
+          id: "t1",
+          due_date: new Date(2026, 2, 6, 17, 0, 0),
+          due_has_time: true,
+          reminders: [{ id: "r1", kind: "offset", minutes: 60 }],
+        }),
+        task({
+          id: "t2",
+          due_date: new Date(2026, 2, 6, 17, 0, 0),
+          due_has_time: true,
+          reminders: [{ id: "r1", kind: "offset", minutes: 60 }],
         }),
       ],
       NOW,

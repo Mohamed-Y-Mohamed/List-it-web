@@ -54,14 +54,24 @@ export default function NativeBackBar() {
       // Pinned and opaque: `pt-safe-top` clears the status bar, and content
       // scrolling past goes behind this rather than into the system UI. The
       // hairline underneath separates it without drawing a heavy rule.
-      className={`sticky top-0 z-40 pt-safe-top backdrop-blur-xl ${
+      //
+      // The fill is the page's own field in both themes, at full strength.
+      //
+      // Dark already read the ramp; light was a hardcoded `bg-white/85`, which is
+      // only the right colour on the White background — on Cream, Ice blue and
+      // Warm paper it drew a white band across the top of every pushed screen,
+      // which is the same complaint the dark half had before it moved onto the
+      // variable. One declaration now covers both themes and all four grounds.
+      //
+      // Solid rather than 85%: the bar is meant to be the same colour as the page
+      // behind it, and a translucent fill over a scrolling list is a different
+      // colour on every frame. `backdrop-blur` goes with it — there is nothing
+      // left to see through. What separates the bar from the page is the hairline
+      // under it and nothing else.
+      className={`sticky top-0 z-40 bg-[var(--surface-field)] pt-safe-top ${
         isDark
-          ? // The page's own field rather than gray-950, which is several steps
-            // darker and left the bar reading as a separate band across the top of
-            // every pushed screen. Same value as AppSurface, so what separates the
-            // bar from the page is the hairline under it and nothing else.
-            "bg-[var(--surface-field)]/85 text-white shadow-[inset_0_-1px_0_rgba(255,255,255,0.08)]"
-          : "bg-white/85 text-gray-900 shadow-[inset_0_-1px_0_rgba(16,24,40,0.07)]"
+          ? "text-white shadow-[inset_0_-1px_0_rgba(255,255,255,0.08)]"
+          : "text-gray-900 shadow-[inset_0_-1px_0_rgba(16,24,40,0.07)]"
       }`}
     >
       <div className="relative flex h-11 items-center px-1.5">

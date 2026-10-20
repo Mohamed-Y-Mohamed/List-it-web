@@ -151,10 +151,16 @@ export default function TaskScreen({
               type="button"
               onClick={onRefresh}
               disabled={isRefreshing}
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-colors ${
+              // The card surface in both themes. Light used to be a hardcoded
+              // `bg-white`, which is only right on the White background — on
+              // Cream, Ice blue and Warm paper it put a white chip beside the
+              // screen's title. `--surface-card` already carries the right value
+              // for the theme and the chosen ground, which is the whole reason
+              // it exists; see the note at the top of ui/tokens.ts.
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-[var(--surface-card)] transition-colors ${
                 isDark
-                  ? "border-white/[0.08] bg-[var(--surface-card)] text-gray-300 active:bg-white/10"
-                  : "border-black/[0.06] bg-white text-gray-700 active:bg-black/5"
+                  ? "border-white/[0.08] text-gray-300 active:bg-white/10"
+                  : "border-black/[0.06] text-gray-700 active:bg-black/5"
               }`}
               aria-label="Refresh tasks"
             >

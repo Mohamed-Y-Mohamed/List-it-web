@@ -42,10 +42,10 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 
   return (
     <div
-      className={`rounded-2xl border px-5 py-8 text-center ${
-        isDark
-          ? "border-white/[0.08] bg-[var(--surface-card)]"
-          : "border-black/[0.06] bg-white"
+      // The ramp in both themes. Light was a hardcoded white, which is correct
+      // only on the White background.
+      className={`rounded-2xl border bg-[var(--surface-card)] px-5 py-8 text-center ${
+        isDark ? "border-white/[0.08]" : "border-black/[0.06]"
       }`}
     >
       <Icon

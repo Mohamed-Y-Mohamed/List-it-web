@@ -25,6 +25,7 @@ import { useTaskActions } from "@/hooks/useTaskActions";
 import { daysBetween, sortTasks } from "@/lib/taskView";
 import TaskScreen from "@/components/Tasks/TaskScreen";
 import TaskList from "@/components/Tasks/TaskList";
+import { dayTitle, startOfLocalDay } from "@/utils/dateUtils";
 import type { TaskRow } from "@/types/taskView";
 
 /**
@@ -61,6 +62,37 @@ export default function OverduePage() {
       ),
     [tasks, today],
   );
+
+  /**
+   * The same thing again, grouped by the day each task was due.
+   *
+   * Completed reads as a column of days — "Today", "Yesterday", then the
+   * weekday and date, each with a count — and this screen is the same shape of
+   * question asked of a different column, so it is grouped the same way. A flat
+   * list of late tasks says how many there are; a list under day headings says
+   * *when* they were meant to happen, which is the thing that decides what to
+   * pick up first.
+   *
+   * Oldest day first, so the worst of it is at the top. That is the opposite of
+   * Completed's order and deliberately so: Completed is a record and reads
+   * newest first, this is a queue and the thing waiting longest leads it.
+   */
+  const overdueDays = useMemo(() => {
+    const byDay = new Map<number, TaskRow[]>();
+
+    for (const task of overdue) {
+      const day = startOfLocalDay(task.due_date);
+      if (!day) continue;
+
+      const bucket = byDay.get(day.getTime());
+      if (bucket) bucket.push(task);
+      else byDay.set(day.getTime(), [task]);
+    }
+
+    return [...byDay.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([key, dayTasks]) => ({ date: new Date(key), tasks: dayTasks }));
+  }, [overdue]);
 
   const averageDaysOverdue = useMemo(() => {
     if (overdue.length === 0) return 0;
@@ -146,16 +178,41 @@ export default function OverduePage() {
            of this and the spacing reaches them. Without it the rows sat flush
            against each other, which the banded version never showed because each
            band brought its own wrapper. */
-        className="space-y-4"
+        className="space-y-6"
       >
-        {/* One flat list, no bands. Every row here is the same kind of thing —
-            late — so a heading over it would name the screen twice. */}
-        <TaskList
-          tasks={overdue}
-          collections={collections}
-          cardClassName="border-l-4 border-red-600"
-          {...actions}
-        />
+        {/* Grouped by the day each task was due, the way Completed groups by
+            the day each was finished. The headings carry the date and the
+            count, so the rows underneath do not have to be read to know how
+            far back the screen goes. */}
+        {overdueDays.map((group) => (
+          <section key={group.date.getTime()} className="space-y-2">
+            <header className="flex items-baseline gap-2">
+              <h2
+                className={`text-[15px] font-semibold ${
+                  isDark ? "text-white" : "text-black"
+                }`}
+              >
+                {dayTitle(group.date)}
+              </h2>
+              <span
+                className={`text-[13px] ${
+                  isDark ? "text-gray-500" : "text-gray-400"
+                }`}
+              >
+                {group.tasks.length} overdue
+              </span>
+            </header>
+
+            <div className="space-y-4">
+              <TaskList
+                tasks={group.tasks}
+                collections={collections}
+                cardClassName="border-l-4 border-red-600"
+                {...actions}
+              />
+            </div>
+          </section>
+        ))}
       </motion.div>
     </TaskScreen>
   );

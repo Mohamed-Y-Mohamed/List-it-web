@@ -195,7 +195,20 @@ export default function NativeTutorial({ onDone }: { onDone: () => void }) {
         </AnimatePresence>
       </motion.div>
 
-      <div className="px-8 pb-6">
+      {/* Pinned to the foot of the overlay.
+
+          `mt-auto` is what does it. The scrolling area above is `flex-1`, which
+          puts this at the bottom only while that area is actually filling the
+          space — on a tall screen, or once the walkthrough grew to fourteen
+          steps and the dots wrapped onto two lines, the block ended up floating
+          somewhere around the middle with the art centred above it. An auto top
+          margin takes whatever is left over regardless, so the button sits on
+          the bottom edge at every height.
+
+          `shrink-0` stops it being the thing that gives when the content above
+          wants more room than there is, and the overlay's own `pb-safe-bottom`
+          keeps it clear of the gesture bar. */}
+      <div className="mt-auto shrink-0 px-8 pb-6">
         {/* Progress. Tappable, because a dot that shows position but refuses to
             take you there is a control pretending to be decoration.
 
@@ -205,7 +218,7 @@ export default function NativeTutorial({ onDone }: { onDone: () => void }) {
             active pill bled into its neighbours. Narrower buttons and a wrap put
             them on two tidy lines instead, which is also what the help sheet
             does with the same list. The tap target keeps its 44px height. */}
-        <div className="mb-7 flex flex-wrap justify-center gap-y-0 gap-x-1">
+        <div className="mb-4 flex flex-wrap justify-center gap-y-0 gap-x-1">
           {STEPS.map((item, dot) => (
             <button
               key={item.title}

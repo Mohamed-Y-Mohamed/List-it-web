@@ -12,27 +12,44 @@
 import {
   DEFAULT_DUE_HOUR,
   MAX_REMINDERS_PER_TASK,
-  OFFSET_PRESETS,
+  clampReminderToDueDay,
   describeReminder,
   describeReminders,
   dueMoment,
+  isDueDayPast,
   newReminderId,
   notificationId,
   parseReminders,
   reminderFireAt,
+  reminderLimit,
 } from "@/lib/reminders";
 
 const at = (y: number, m: number, d: number, h = 12, min = 0) =>
   new Date(y, m - 1, d, h, min, 0, 0);
 
 describe("parseReminders", () => {
-  it("keeps well-formed entries of both kinds", () => {
+  it("reads both kinds, and keeps only the first", () => {
+    // One reminder per task now, matching iOS, where the notification request is
+    // identified by the task id and so there is room for exactly one. A legacy
+    // row holding several collapses to its first rather than showing reminders
+    // the sheet has no way to reach.
+    const parsed = parseReminders([
+      { id: "a", kind: "offset", minutes: 60 },
+      { id: "b", kind: "absolute", at: "2026-03-06T09:00:00.000Z" },
+    ]);
+
+    expect(parsed).toHaveLength(MAX_REMINDERS_PER_TASK);
+    expect(parsed[0]).toEqual({ id: "a", kind: "offset", minutes: 60 });
+  });
+
+  it("reads a well-formed absolute entry on its own", () => {
     expect(
       parseReminders([
-        { id: "a", kind: "offset", minutes: 60 },
         { id: "b", kind: "absolute", at: "2026-03-06T09:00:00.000Z" },
       ]),
-    ).toHaveLength(2);
+    ).toEqual([
+      { id: "b", kind: "absolute", at: "2026-03-06T09:00:00.000Z" },
+    ]);
   });
 
   it("drops entries it cannot schedule", () => {
@@ -190,25 +207,33 @@ describe("describeReminders", () => {
   });
 });
 
-describe("retired offsets", () => {
+// Offsets are no longer offered at all — the picker is a single date and time,
+// matching TaskDetailView. Rows saved under the old chip picker still carry one,
+// and they still have to read as words and fire at the right moment.
+describe("legacy offsets", () => {
   const TWO_WEEKS = 60 * 24 * 14;
-  const ONE_MONTH = 60 * 24 * 30;
+  const THIRTY_DAYS = 60 * 24 * 30;
 
-  it("stops offering anything beyond a week", () => {
-    expect(OFFSET_PRESETS.map((p) => p.minutes)).not.toContain(TWO_WEEKS);
-    expect(OFFSET_PRESETS.map((p) => p.minutes)).not.toContain(ONE_MONTH);
-    expect(Math.max(...OFFSET_PRESETS.map((p) => p.minutes))).toBe(60 * 24 * 7);
-  });
-
-  // A task saved before they were retired still carries the offset, and the
-  // fallback renders a bare minute count — "20160 minutes before" — which is
-  // what this guards against.
-  it("still reads a saved one as words", () => {
-    expect(describeReminder({ id: "a", kind: "offset", minutes: TWO_WEEKS })).toBe(
-      "2 weeks before",
+  it("reads a saved one as words rather than a minute count", () => {
+    expect(describeReminder({ id: "a", kind: "offset", minutes: 0 })).toBe(
+      "When it's due",
     );
-    expect(describeReminder({ id: "b", kind: "offset", minutes: ONE_MONTH })).toBe(
-      "1 month before",
+    expect(describeReminder({ id: "b", kind: "offset", minutes: 60 })).toBe(
+      "1 hour before",
+    );
+    expect(describeReminder({ id: "c", kind: "offset", minutes: 60 * 24 })).toBe(
+      "1 day before",
+    );
+    expect(
+      describeReminder({ id: "d", kind: "offset", minutes: TWO_WEEKS }),
+    ).toBe("2 weeks before");
+    // Derived rather than looked up in a table of the presets that happened to
+    // be offered, so an offset no build ever shipped still reads as something.
+    expect(
+      describeReminder({ id: "e", kind: "offset", minutes: THIRTY_DAYS }),
+    ).toBe("30 days before");
+    expect(describeReminder({ id: "f", kind: "offset", minutes: 90 })).toBe(
+      "90 minutes before",
     );
   });
 
@@ -217,5 +242,73 @@ describe("retired offsets", () => {
     expect(
       reminderFireAt({ id: "a", kind: "offset", minutes: TWO_WEEKS }, due),
     ).toEqual(at(2026, 6, 1, 9, 0));
+  });
+});
+
+// The window a reminder may sit in, ported from TaskDetailView.
+describe("reminder bounds", () => {
+  const key = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+      date.getDate(),
+    ).padStart(2, "0")}`;
+
+  const tomorrow = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    return date;
+  };
+
+  const yesterday = () => {
+    const date = new Date();
+    date.setDate(date.getDate() - 1);
+    return date;
+  };
+
+  it("caps at the end of the due day", () => {
+    const limit = reminderLimit(key(tomorrow()));
+
+    expect(limit).not.toBeNull();
+    expect(limit!.getHours()).toBe(23);
+    expect(limit!.getMinutes()).toBe(59);
+    expect(limit!.getDate()).toBe(tomorrow().getDate());
+  });
+
+  it("has no cap without a due date", () => {
+    expect(reminderLimit(null)).toBeNull();
+  });
+
+  it("has no cap once the due day has gone", () => {
+    expect(reminderLimit(key(yesterday()))).toBeNull();
+  });
+
+  it("calls a finished due day past, and a future one not", () => {
+    expect(isDueDayPast(key(yesterday()))).toBe(true);
+    expect(isDueDayPast(key(tomorrow()))).toBe(false);
+    expect(isDueDayPast(null)).toBe(false);
+  });
+
+  it("pulls a reminder back onto the due day, keeping its time", () => {
+    // The due date moved earlier and left the reminder past the end of the day
+    // it belongs to. iOS keeps the hour and minute and re-anchors the day.
+    const dueKey = key(tomorrow());
+    const wayOut = new Date(tomorrow());
+    wayOut.setDate(wayOut.getDate() + 10);
+    wayOut.setHours(14, 30, 0, 0);
+
+    const clamped = clampReminderToDueDay(wayOut, dueKey);
+
+    expect(clamped.getDate()).toBe(tomorrow().getDate());
+    expect(clamped.getHours()).toBe(14);
+    expect(clamped.getMinutes()).toBe(30);
+  });
+
+  it("leaves one that already fits alone", () => {
+    const dueKey = key(tomorrow());
+    const inside = new Date(tomorrow());
+    inside.setHours(9, 0, 0, 0);
+
+    expect(clampReminderToDueDay(inside, dueKey).getTime()).toBe(
+      inside.getTime(),
+    );
   });
 });

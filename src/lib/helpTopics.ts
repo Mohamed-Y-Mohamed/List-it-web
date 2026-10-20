@@ -69,7 +69,7 @@ export const WALKTHROUGH_TOPICS: readonly HelpTopic[] = [
   {
     id: "default-views",
     title: "Find things again",
-    body: "Today, Priority and Scheduled sit above your own lists on the Lists tab. Each one gathers matching tasks from all of your lists, so nothing gets lost at the bottom of a long list.",
+    body: "Tap the ⋯ beside Your Lists for the built-in views: Today, Tomorrow, Priority, Completed, Not Completed, Scheduled and Overdue. Each one gathers matching tasks from every list you own, so nothing gets lost at the bottom of a long one.",
   },
 ] as const;
 
@@ -93,7 +93,7 @@ export const RECENT_TOPICS: readonly HelpTopic[] = [
   {
     id: "reminders",
     title: "Reminders, when you want them",
-    body: "Turn on Reminders in a task and add as many as you need: an hour before, a day before, or a time you pick yourself. Give the task a time as well as a date and the offsets count back from it. You can switch all reminders off in Settings without losing them.",
+    body: "A task can carry one reminder: open it and pick the day and the time you want telling. It can be any time between now and the end of the day the task is due. Change your mind and Remind Again sets another. You can switch all reminders off in Settings without losing them.",
   },
   {
     id: "switch-tabs",
@@ -102,8 +102,23 @@ export const RECENT_TOPICS: readonly HelpTopic[] = [
   },
   {
     id: "scheduled",
-    title: "Scheduled shows the whole picture",
-    body: "Scheduled replaces Overdue. It still puts anything that has slipped at the top, and now also shows what lands today and what is still ahead, so you can plan from it rather than only catch up.",
+    title: "Scheduled is a month at a glance",
+    body: "Scheduled is a calendar. Every day holding work carries a dot, and tapping one lists what is due that day, so you can plan a week rather than read a list. Overdue is its own screen again and holds only what has already slipped.",
+  },
+  {
+    id: "backgrounds",
+    title: "Pick the background",
+    body: "Settings has an Appearance section with four backgrounds for each theme. Dark gives you Black, Midnight, Navy and Midnight Velvet; light gives you White, Cream, Ice blue and Warm paper. The choice is remembered per theme, so dark and light can look however you like independently.",
+  },
+  {
+    id: "completed-timeline",
+    title: "Completed, day by day",
+    body: "Completed groups everything you have finished under the day you finished it, newest first, with the time beside each one. Filter it to a single list, or search it by the collection a task sat in. Anything ticked off today can be undone from here, and goes straight back where it was.",
+  },
+  {
+    id: "dates-and-times",
+    title: "Dates are days",
+    body: "A due date is a day, not a time of day — that is the part a reminder is for. Give a task a date and it turns up under Today, Tomorrow or Scheduled on the day it is due, and moves to Overdue once that day has passed.",
   },
 ] as const;
 

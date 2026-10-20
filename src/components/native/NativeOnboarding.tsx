@@ -245,7 +245,20 @@ export default function NativeOnboarding() {
         </AnimatePresence>
       </motion.div>
 
-      <div className="px-8 pb-6">
+      {/* Pinned to the foot of the overlay.
+
+          `mt-auto` is what does it. The scrolling area above is `flex-1`, which
+          puts this at the bottom only while that area is actually filling the
+          space — on a tall screen, or once the walkthrough grew to fourteen
+          steps and the dots wrapped onto two lines, the block ended up floating
+          somewhere around the middle with the art centred above it. An auto top
+          margin takes whatever is left over regardless, so the button sits on
+          the bottom edge at every height.
+
+          `shrink-0` stops it being the thing that gives when the content above
+          wants more room than there is, and the overlay's own `pb-safe-bottom`
+          keeps it clear of the gesture bar. */}
+      <div className="mt-auto shrink-0 px-8 pb-6">
         {/* Progress. Tappable, because a dot that shows position but refuses to
             take you there is a control pretending to be decoration. */}
         <div className="mb-7 flex justify-center gap-2">

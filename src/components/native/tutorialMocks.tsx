@@ -1157,16 +1157,7 @@ function ToggleCard({
 }
 
 /** The pill both pickers use, styled the same way in each. */
-const pillClass = (isDark: boolean, active = false) =>
-  `rounded-full px-3 py-1.5 text-xs font-medium ${
-    active
-      ? "bg-orange-500 text-white"
-      : isDark
-        ? "bg-gray-700/60 text-gray-300"
-        : "bg-gray-100 text-gray-700"
-  }`;
-
-/** Reminders, switched on, with one set and the offsets still on offer. */
+/** Reminders: one per task, picked as a date and a time. */
 export function MockReminders({ isDark }: MockProps) {
   return (
     <Screen
@@ -1179,65 +1170,49 @@ export function MockReminders({ isDark }: MockProps) {
           isDark={isDark}
           Icon={Bell}
           title="Reminders"
-          summary="1 hour before"
+          summary="12 Oct, 09:00"
           enabled
         >
-          <div className="space-y-4">
-            {/* What is already set, with the X that takes it off again. There is no
-                Add button anywhere in this section and the mock must not invent
-                one: a chip commits the moment it is tapped, and this row is the
-                confirmation that it did. */}
-            <ul className="space-y-2">
-              <li
-                className={`flex items-center gap-2 rounded-xl px-3 py-2 ${
-                  isDark ? "bg-gray-700/50" : "bg-gray-100"
-                }`}
-              >
-                <Bell className="h-4 w-4 shrink-0 text-orange-500" />
-                <span className="min-w-0 flex-1 truncate text-sm">
-                  1 hour before
-                </span>
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400">
-                  <X className="h-4 w-4" />
-                </span>
-              </li>
-            </ul>
+          {/* The row as ReminderPicker draws it: the bell, the date and time
+              that was picked, and the X that takes it off again.
 
-            <div>
-              <p
-                className={`pb-2 text-xs ${
-                  isDark ? "text-gray-400" : "text-gray-500"
-                }`}
-              >
-                Before it is due
-              </p>
-              {/* The offsets still on offer, in OFFSET_PRESETS order and minus the
-                  one already on the list above, which the real picker stops
-                  offering twice. Four of the five remaining: the fifth opens a
-                  third row that teaches nothing the first two have not. */}
-              <div className="flex flex-wrap gap-2">
-                {[
-                  "When it's due",
-                  "1 day before",
-                  "2 days before",
-                  "1 week before",
-                ].map((label) => (
-                  <span key={label} className={pillClass(isDark)}>
-                    <Plus className="mr-1 inline h-3 w-3" />
-                    {label}
-                  </span>
-                ))}
-              </div>
-            </div>
+              This used to be a list of offset chips — "1 hour before", "1 day
+              before" and the rest — drawn from OFFSET_PRESETS. Those have gone
+              with the model behind them: a task carries one reminder and it is
+              an instant the user chooses outright, which is what the iOS sheet
+              has always done. A walkthrough teaching a picker the app no longer
+              has is worse than one that teaches nothing, so the drawing moved
+              with the feature. */}
+          <div className="flex items-center gap-2.5">
+            <Bell className="h-4 w-4 shrink-0 text-orange-500" />
+            <span
+              className={`min-w-0 flex-1 truncate rounded-xl px-3 py-2 text-sm ${
+                isDark
+                  ? "bg-gray-700/50 text-gray-200"
+                  : "bg-gray-100 text-gray-800"
+              }`}
+            >
+              12 Oct 2026, 09:00
+            </span>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400">
+              <X className="h-4 w-4" />
+            </span>
           </div>
+
+          <p
+            className={`pt-3 text-xs ${
+              isDark ? "text-gray-400" : "text-gray-500"
+            }`}
+          >
+            A reminder can be any time up to the end of the day it is due.
+          </p>
         </ToggleCard>
       </div>
-      {/* The first offset chip. The body starts at 106 (card top 20, border, 68px
-          header, border, 16px of padding); the reminder row is 48 tall and the note
-          above the chips 24, with space-y-4 between the two, which puts the first
-          row of chips at 194 and its middle at 208. The ring sits 28px in from the
-          content edge at 33, well inside the chip whatever its text measures to. */}
-      <Pointer x={61} y={208} from="bottom-right" radius={20} />
+      {/* The picked date. The body starts at 106 (card top 20, border, 68px
+          header, border, 16px of padding) and the row is 40 tall, so its middle
+          sits at 126. The ring is 28px in from the content edge at 33, which
+          lands inside the field whatever its text measures to. */}
+      <Pointer x={61} y={126} from="bottom-right" radius={20} />
     </Screen>
   );
 }

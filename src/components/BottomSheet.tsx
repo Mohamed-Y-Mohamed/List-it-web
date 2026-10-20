@@ -37,20 +37,21 @@ import { pushOverlay } from "@/lib/overlayStack";
  * The md: classes are kept as a second line of defence.
  */
 
-const FULL_FRACTION = 0.9;
-
 /**
- * Where the sheet rests before anyone drags it: half the viewport.
+ * There is one stop, and the sheet opens at it.
  *
- * This was 0.82 for a while, because at 0.55 the detail view's own fields
- * filled the stop and every visit began with a drag to reach Edit. That reason
- * has since gone: the actions moved into a footer pinned outside the scroll
- * area, so Edit and Delete sit on the visible edge at whatever stop the sheet
- * is resting at. A true half shows the task and leaves the list behind it in
- * view, which is the point of a sheet rather than a full screen.
+ * There used to be two — a half-height rest and a full one, the web equivalent
+ * of SwiftUI's `.presentationDetents([.medium, .large])`. The medium detent is
+ * gone from the iOS app and gone from here: the task and note sheets are long
+ * enough that half a viewport showed the title and little else, so every visit
+ * began with a drag before anything could be read. The list behind it was never
+ * worth the half screen it cost.
+ *
+ * So the panel is `h-[90dvh]` and rests at y=0. Dragging down still dismisses —
+ * that is the gesture people reach for and the only one left — but it no longer
+ * has a second stop to catch on, which is also why `atFullStop` and the padding
+ * that compensated for it have gone with it.
  */
-const HALF_FRACTION = 0.5;
-
 const DESKTOP_QUERY = "(min-width: 768px)";
 
 const DISMISS_SLOP = 90;
@@ -115,11 +116,9 @@ export default function BottomSheet({
    */
   const y = useMotionValue(0);
 
-  const [halfOffset, setHalfOffset] = useState(0);
   const [panelHeight, setPanelHeight] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [atFullStop, setAtFullStop] = useState(false);
 
   const hasEntered = useRef(false);
 
@@ -196,8 +195,6 @@ export default function BottomSheet({
       if (!height) return;
 
       setPanelHeight(height);
-
-      setHalfOffset((height * (FULL_FRACTION - HALF_FRACTION)) / FULL_FRACTION);
     };
 
     /**
@@ -224,26 +221,22 @@ export default function BottomSheet({
       return;
     }
 
-    if (!halfOffset || hasEntered.current) {
+    if (!panelHeight || hasEntered.current) {
       return;
     }
 
     hasEntered.current = true;
 
-    setAtFullStop(false);
-
-    const height = mobilePanelRef.current?.offsetHeight ?? 0;
-
     /**
      * Begin below the visible viewport.
      */
-    y.set(halfOffset + height);
+    y.set(panelHeight);
 
     /**
-     * Settle at the normal resting position.
+     * Settle at the one stop there is.
      */
-    animate(y, halfOffset, SPRING);
-  }, [isOpen, halfOffset, y]);
+    animate(y, 0, SPRING);
+  }, [isOpen, panelHeight, y]);
 
   // ------------------------------------------------------------
   // Mobile dragging
@@ -254,28 +247,18 @@ export default function BottomSheet({
     const velocity = info.velocity.y;
 
     /**
-     * Pull far enough down, or flick down quickly enough,
-     * and dismiss the sheet.
+     * Pull far enough down, or flick down quickly enough, and dismiss.
+     *
+     * Measured from y=0 rather than from a half stop, since there is no longer
+     * one to pass through on the way out.
      */
-    if (
-      canClose &&
-      (current > halfOffset + DISMISS_SLOP || velocity > DISMISS_VELOCITY)
-    ) {
+    if (canClose && (current > DISMISS_SLOP || velocity > DISMISS_VELOCITY)) {
       onClose();
       return;
     }
 
-    /**
-     * Upward movement expands.
-     *
-     * Otherwise choose the closest sensible resting position.
-     */
-    const towardsFull =
-      velocity < -200 || (velocity <= 200 && current < halfOffset / 2);
-
-    setAtFullStop(towardsFull);
-
-    animate(y, towardsFull ? 0 : halfOffset, SPRING);
+    /** Anything short of that springs back to the top. */
+    animate(y, 0, SPRING);
   };
 
   if (!mounted) {
@@ -373,7 +356,7 @@ export default function BottomSheet({
                 absolute
                 inset-0
 
-                ${!surfaceColor ? (isDark ? "bg-[var(--surface-field)]" : "bg-white") : ""}
+                ${!surfaceColor ? "bg-[var(--surface-field)]" : ""}
               `}
                 style={
                   surfaceColor
@@ -468,13 +451,17 @@ export default function BottomSheet({
               drag="y"
               dragListener={false}
               dragControls={dragControls}
+              // Down is 1:1 and runs the height of the panel, so a dismissing
+              // drag carries the sheet out under the finger rather than
+              // rubber-banding against a stop that no longer exists. Up is
+              // pinned at the single resting position.
               dragConstraints={{
                 top: 0,
-                bottom: halfOffset,
+                bottom: panelHeight || 1000,
               }}
               dragElastic={{
                 top: 0,
-                bottom: 0.35,
+                bottom: 0,
               }}
               dragMomentum={false}
               onDragEnd={handleDragEnd}
@@ -488,7 +475,7 @@ export default function BottomSheet({
                 absolute
                 inset-0
 
-                ${!surfaceColor ? (isDark ? "bg-[var(--surface-field)]" : "bg-white") : ""}
+                ${!surfaceColor ? "bg-[var(--surface-field)]" : ""}
               `}
                 style={surfaceColor ? { backgroundColor: surfaceColor } : undefined}
                 aria-hidden="true"
@@ -504,12 +491,11 @@ export default function BottomSheet({
                 h-full
                 flex-col
               "
-                style={{
-                  paddingBottom: `calc(
-                  var(--safe-bottom, 0px) +
-                  ${atFullStop ? 0 : Math.round(halfOffset)}px
-                )`,
-                }}
+                // Just the device inset now. The second term was the half stop's
+                // compensation — the panel is taller than its resting height, so
+                // the slack below had to be padded out or the footer sat off
+                // screen. With one stop there is no slack.
+                style={{ paddingBottom: "var(--safe-bottom, 0px)" }}
               >
                 {/* Mobile drag handle */}
 

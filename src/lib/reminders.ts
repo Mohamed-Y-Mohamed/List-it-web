@@ -23,35 +23,35 @@ export type Reminder =
 /** The hour a date-only due date is treated as. Was DEFAULT_REMINDER_HOUR. */
 export const DEFAULT_DUE_HOUR = 9;
 
-// Ascending, because that is the order the chips render in and a list of offsets
-// that jumps about has to be read rather than skimmed.
-//
-// A week is as far ahead as this offers. Past that the reminder stops being a
-// nudge about this task and becomes a second, vaguer due date.
-export const OFFSET_PRESETS: readonly { minutes: number; label: string }[] = [
-  { minutes: 0, label: "When it's due" },
-  { minutes: 60, label: "1 hour before" },
-  { minutes: 60 * 24, label: "1 day before" },
-  { minutes: 60 * 24 * 2, label: "2 days before" },
-  { minutes: 60 * 24 * 7, label: "1 week before" },
-] as const;
+/**
+ * Offsets are no longer offered.
+ *
+ * `OFFSET_PRESETS` used to list "1 hour before", "1 day before" and the rest, and
+ * the reminder picker was a row of chips over them. The iOS app has never worked
+ * that way — `TaskDetailView` is one `DatePicker` with `[.date, .hourAndMinute]`,
+ * bounded to the due day — and the two had drifted into different features
+ * wearing the same name. This file now describes the iOS one.
+ *
+ * `kind: "offset"` survives in the type and in `parseReminders` on purpose. The
+ * `reminders` jsonb of every task saved under the old picker still holds them,
+ * the arithmetic to fire one is just `minutes`, and silently dropping a reminder
+ * someone is relying on is worse than keeping a shape nothing creates any more.
+ * They read correctly, they fire correctly, and the first edit through the new
+ * picker replaces them.
+ */
 
 /**
- * Offsets that were once offered and are not any more.
+ * Reminders a single task may carry.
  *
- * Dropping them from OFFSET_PRESETS stops the chips appearing, but it does not
- * reach the `reminders` jsonb of every task already carrying one. Those rows
- * still fire correctly — the arithmetic is just `minutes` — so the only thing at
- * risk is how they read, and `describeReminder`'s fallback would have rendered
- * them as "20160 minutes before". Kept as labels only: nothing offers these.
+ * One, matching iOS, where the notification request *is* identified by the task
+ * id (`UNNotificationRequest(identifier: taskID)`) and so there is physically
+ * room for exactly one. This was 5.
+ *
+ * A legacy row holding more collapses to its first on read. That is a real if
+ * small loss, and it is the deliberate one: the alternative is a sheet that can
+ * show four reminders and offer no way to reach three of them.
  */
-const RETIRED_OFFSET_LABELS: Readonly<Record<number, string>> = {
-  [60 * 24 * 14]: "2 weeks before",
-  [60 * 24 * 30]: "1 month before",
-};
-
-/** Reminders a single task may carry. Past this the sheet stops offering more. */
-export const MAX_REMINDERS_PER_TASK = 5;
+export const MAX_REMINDERS_PER_TASK = 1;
 
 /**
  * Narrows whatever came back from the `reminders` jsonb column.
@@ -139,38 +139,112 @@ export function dueMoment(task: DueTask): Date | null {
 }
 
 /**
- * Turn the two form inputs into what gets stored.
+ * Turn the due-date field into what gets stored.
  *
- * Both task sheets and the reminder validation all need this, and before it was
- * one function it was three copies of the same ternary — one of which had already
- * drifted into reading the date back in UTC.
- *
- * With a time, the result is a real local instant. Without one it is the
+ * A due date is a day and nothing more, which is what the iOS picker has always
+ * collected — `DatePicker(..., displayedComponents: [.date])`. The time half of
+ * this function has gone with the field that fed it, so the result is always the
  * long-standing UTC-noon marker: not a meaningful time of day, but a date that
- * cannot slip either side of midnight when it crosses a timezone, which is why it
- * was chosen and why the iOS app can parse it.
+ * cannot slip either side of midnight when it crosses a timezone, which is why
+ * it was chosen and why the iOS app can parse it.
+ *
+ * `hasTime` stays in the return, always false, because `due_has_time` is still a
+ * column and every write has to send a consistent pair. Rows written before this
+ * keep their stored time and `dueMoment` still reads it — see the note there.
  */
 export function composeDue(
   dateInput: string,
-  timeInput: string,
-): { due: Date; hasTime: boolean } | null {
+): { due: Date; hasTime: false } | null {
   if (!dateInput) return null;
 
   const [year, month, day] = dateInput.split("-").map(Number);
   if (!year || !month || !day) return null;
 
-  if (timeInput) {
-    const [hour, minute] = timeInput.split(":").map(Number);
-    return {
-      due: new Date(year, month - 1, day, hour || 0, minute || 0, 0, 0),
-      hasTime: true,
-    };
-  }
-
   return {
     due: new Date(Date.UTC(year, month - 1, day, 12, 0, 0)),
     hasTime: false,
   };
+}
+
+/**
+ * The last instant of a task's due day, local time — iOS `reminderLimit`.
+ *
+ * Null when there is no due date, and null when that day has already finished,
+ * which is the same thing `TaskDetailView` means by returning nil: there is no
+ * window left to put a reminder in.
+ */
+export function reminderLimit(dueDateKey: string | null): Date | null {
+  if (!dueDateKey) return null;
+
+  const [year, month, day] = dueDateKey.split("-").map(Number);
+  if (!year || !month || !day) return null;
+
+  const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 0);
+  return endOfDay > new Date() ? endOfDay : null;
+}
+
+/**
+ * Whether the due day has already finished — iOS `isOverdue`.
+ *
+ * A task is past reminding when the end of its due day has gone, not when the
+ * due *moment* has: a task due today at 09:00 can still be reminded about this
+ * afternoon, which is the behaviour the iOS caption describes.
+ */
+export function isDueDayPast(dueDateKey: string | null): boolean {
+  if (!dueDateKey) return false;
+
+  const [year, month, day] = dueDateKey.split("-").map(Number);
+  if (!year || !month || !day) return false;
+
+  return new Date(year, month - 1, day, 23, 59, 59, 0) <= new Date();
+}
+
+/**
+ * The range the reminder picker may offer — iOS `reminderRange`.
+ *
+ * From now to the end of the due day. With no due date there is no upper bound:
+ * an absolute reminder is the only kind that can be set on an undated task, and
+ * it has nothing to be capped against.
+ */
+export function reminderBounds(dueDateKey: string | null): {
+  min: Date;
+  max: Date | null;
+} {
+  return { min: new Date(), max: reminderLimit(dueDateKey) };
+}
+
+/**
+ * Pull a reminder back inside the due day — iOS `keepReminderWithinDueDay`.
+ *
+ * Called when the due date moves. It keeps the time of day the user picked and
+ * re-anchors it to the due day, then clamps that into the allowed window, so
+ * moving a due date earlier drags its reminder along rather than silently
+ * invalidating it.
+ *
+ * Returns the reminder unchanged when it already fits.
+ */
+export function clampReminderToDueDay(
+  at: Date,
+  dueDateKey: string | null,
+): Date {
+  const limit = reminderLimit(dueDateKey);
+  if (!limit || at <= limit) return at;
+
+  const [year, month, day] = (dueDateKey as string).split("-").map(Number);
+  const sameTimeOnDueDay = new Date(
+    year,
+    month - 1,
+    day,
+    at.getHours(),
+    at.getMinutes(),
+    0,
+    0,
+  );
+
+  const now = new Date();
+  return new Date(
+    Math.min(Math.max(sameTimeOnDueDay.getTime(), now.getTime()), limit.getTime()),
+  );
 }
 
 /** When a reminder should fire, or null if it has nothing to anchor to. */
@@ -203,11 +277,29 @@ export function describeReminder(reminder: Reminder): string {
       minute: "2-digit",
     });
   }
-  return (
-    OFFSET_PRESETS.find((p) => p.minutes === reminder.minutes)?.label ??
-    RETIRED_OFFSET_LABELS[reminder.minutes] ??
-    `${reminder.minutes} minutes before`
-  );
+  return describeOffset(reminder.minutes);
+}
+
+/**
+ * A legacy offset, in words.
+ *
+ * Nothing creates offsets any more, but tasks saved under the old picker still
+ * carry them and they still fire, so they still have to read as something. This
+ * is derived rather than looked up in a table: the table only covered the
+ * presets that happened to have been offered, and an offset stored by a build in
+ * between would have rendered as "20160 minutes before".
+ */
+function describeOffset(minutes: number): string {
+  if (minutes === 0) return "When it's due";
+
+  const plural = (value: number, unit: string) =>
+    `${value} ${unit}${value === 1 ? "" : "s"} before`;
+
+  if (minutes % (60 * 24 * 7) === 0)
+    return plural(minutes / (60 * 24 * 7), "week");
+  if (minutes % (60 * 24) === 0) return plural(minutes / (60 * 24), "day");
+  if (minutes % 60 === 0) return plural(minutes / 60, "hour");
+  return plural(minutes, "minute");
 }
 
 /**

@@ -236,7 +236,10 @@ export default function ProgressView({
     [lists, tasks],
   );
 
-  const card = isDark ? "bg-[var(--surface-card)]" : "bg-white";
+  // One value for both themes: `--surface-card` already carries the right card
+  // colour for the theme *and* the background chosen in Settings. Light used to
+  // be a hardcoded white, which only matched the White ground.
+  const card = "bg-[var(--surface-card)]";
   const edge = isDark ? "border-white/[0.08]" : "border-black/[0.06]";
   const muted = isDark ? "text-gray-400" : "text-gray-500";
   const strong = isDark ? "text-white" : "text-gray-900";
@@ -333,7 +336,7 @@ export default function ProgressView({
                       onClick={() => setRange(option.id)}
                       className={`rounded-[10px] px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
                         range === option.id
-                          ? `${isDark ? "bg-[var(--surface-selected)]" : "bg-white"} ${strong}`
+                          ? `bg-[var(--surface-selected)] ${strong}`
                           : muted
                       }`}
                     >

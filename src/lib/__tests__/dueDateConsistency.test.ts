@@ -19,7 +19,7 @@ describe("date-only due dates", () => {
   const key = "2026-10-08";
 
   it("composeDue stores the marker at UTC noon", () => {
-    const composed = composeDue(key, "");
+    const composed = composeDue(key);
 
     expect(composed).not.toBeNull();
     expect(composed!.hasTime).toBe(false);
@@ -27,7 +27,7 @@ describe("date-only due dates", () => {
   });
 
   it("the card shows the day the marker names, and no time", () => {
-    const { due } = composeDue(key, "")!;
+    const { due } = composeDue(key)!;
     const shown = formatTaskDue(due, false);
 
     expect(shown.time).toBeNull();
@@ -38,13 +38,13 @@ describe("date-only due dates", () => {
     // The sheet decides with `Boolean(task.due_has_time)`. A card that treated
     // null as "unknown, read it locally" disagreed with it on every row where
     // the column had never been written.
-    const { due } = composeDue(key, "")!;
+    const { due } = composeDue(key)!;
 
     expect(formatTaskDue(due, null)).toEqual(formatTaskDue(due, false));
   });
 
   it("the reminder anchors to the same calendar day the card shows", () => {
-    const { due } = composeDue(key, "")!;
+    const { due } = composeDue(key)!;
     const moment = dueMoment({
       due_date: due.toISOString(),
       due_has_time: false,
@@ -59,28 +59,32 @@ describe("date-only due dates", () => {
   });
 });
 
-describe("timed due dates", () => {
-  it("composeDue keeps the time as a real local instant", () => {
-    const composed = composeDue("2026-10-08", "17:00");
-
-    expect(composed!.hasTime).toBe(true);
-    expect(composed!.due.getHours()).toBe(17);
+// A due date is a day. `composeDue` no longer takes a time and always writes the
+// UTC-noon marker, matching the iOS picker's `displayedComponents: [.date]`.
+describe("due dates are date-only", () => {
+  it("composeDue never reports a time", () => {
+    expect(composeDue("2026-10-08")!.hasTime).toBe(false);
   });
+});
 
-  it("the card shows a time for them", () => {
-    const { due } = composeDue("2026-10-08", "17:00")!;
-
-    expect(formatTaskDue(due, true).time).not.toBeNull();
-  });
+// Rows written before the time field was removed still hold a real local
+// instant. Nothing creates them any more, but they have to keep reading as the
+// day they were saved for — which is why `formatTaskDue` and `dueMoment` keep
+// their `due_has_time` branch rather than assuming the marker.
+describe("legacy timed rows still read correctly", () => {
+  const stored = new Date(2026, 9, 8, 17, 0, 0, 0);
 
   it("dueMoment uses the stored instant untouched", () => {
-    const { due } = composeDue("2026-10-08", "17:00")!;
     const moment = dueMoment({
-      due_date: due.toISOString(),
+      due_date: stored.toISOString(),
       due_has_time: true,
     });
 
-    expect(moment!.getTime()).toBe(due.getTime());
+    expect(moment!.getTime()).toBe(stored.getTime());
+  });
+
+  it("the card still names the right day for one", () => {
+    expect(formatTaskDue(stored, true).date).toContain("8");
   });
 });
 

@@ -33,7 +33,6 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { appPath, listHref } from "@/lib/routes";
@@ -203,14 +202,17 @@ export default function NativeHome() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
-  // Only for the screen title below. The secure layout holds the first paint on
-  // native until the stored session has been read, so by the time this renders
-  // there is a user — but the name is a field on it rather than a guarantee, and
-  // an account created before it was collected has none.
-  const { user } = useAuth();
-  const accountName =
-    (user?.user_metadata?.full_name as string | undefined)?.trim() ||
-    "Your Lists";
+  // Only for the screen title below.
+  //
+  // The name comes from the `users` table, which is where the account's name
+  // actually lives and what the iOS app reads. It used to come from
+  // `auth.user_metadata.full_name`, a second copy that Settings never wrote —
+  // so changing your name there updated the table and this heading went on
+  // showing the old one until the account was recreated.
+  //
+  // `profile` is null for the frame before the launch fetch settles, and for an
+  // account created before a name was collected, so the old heading is still
+  // the fallback.
 
   // There is no document to portal into during the server render, and the first
   // client render has to match it.
@@ -229,6 +231,7 @@ export default function NativeHome() {
   // `setLists` still applies optimistic updates — just against the cache, so the
   // change persists past a navigation instead of being thrown away.
   const {
+    profile,
     lists,
     tasks,
     notes,
@@ -236,6 +239,8 @@ export default function NativeHome() {
     refresh: refreshData,
     setLists,
   } = useAppData();
+
+  const accountName = profile?.full_name?.trim() || "Your Lists";
 
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("oldest");
