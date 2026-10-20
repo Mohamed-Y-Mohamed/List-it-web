@@ -166,10 +166,8 @@ export default function ScheduledPage() {
         className="mx-auto w-full max-w-2xl"
       >
         <section
-          className={`rounded-2xl border p-4 ${
-            isDark
-              ? "border-white/[0.08] bg-[var(--surface-card)]"
-              : "border-black/[0.06] bg-white"
+          className={`rounded-2xl border bg-[var(--surface-card)] p-4 ${
+            isDark ? "border-white/[0.08]" : "border-black/[0.06]"
           }`}
         >
           {/* Month, and the two ways out of it */}
@@ -309,7 +307,6 @@ export default function ScheduledPage() {
               <ScheduledTaskRow
                 key={task.id}
                 task={task}
-                today={today}
                 isDark={isDark}
                 onOpen={() => setSelectedTask(task)}
               />
@@ -430,17 +427,19 @@ function DayCell({
  * A task on the selected day.
  *
  * Deliberately lighter than the cards on the list screens: this one sits under a
- * calendar that has already said which day it is, so it carries the time, where
- * the task lives, and nothing else.
+ * calendar that has already said which day it is, so it carries the task, where
+ * it lives, and nothing else.
+ *
+ * It used to take `today` as well, to redden a due time that had gone. A due
+ * date is a day now and prints no time, so there was nothing left for the
+ * comparison to colour.
  */
 function ScheduledTaskRow({
   task,
-  today,
   isDark,
   onOpen,
 }: {
   task: TaskRow;
-  today: Date;
   isDark: boolean;
   onOpen: () => void;
 }) {
@@ -451,17 +450,17 @@ function ScheduledTaskRow({
     appData?.lists.find((list) => list.id === task.list_id)?.bg_color_hex ||
     (isDark ? "#6B7280" : "#9CA3AF");
 
-  const due = task.due_date ? new Date(task.due_date) : null;
-  const isOverdue = Boolean(due && startOfDay(due) < today);
+  // `due` and the `isOverdue` derived from it were only ever read by the time
+  // printed beside the title, and a due date no longer carries one — see
+  // composeDue. The row is already inside the day the user tapped, so there was
+  // nothing for a red clock to add even while there was a time to redden.
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      className={`relative block w-full overflow-hidden rounded-xl border py-3 pl-4 pr-3 text-left active:scale-[0.99] ${
-        isDark
-          ? "border-white/[0.08] bg-[var(--surface-card)]"
-          : "border-black/[0.06] bg-white"
+      className={`relative block w-full overflow-hidden rounded-xl border bg-[var(--surface-card)] py-3 pl-4 pr-3 text-left active:scale-[0.99] ${
+        isDark ? "border-white/[0.08]" : "border-black/[0.06]"
       }`}
       style={{ borderColor: `${accent}40` }}
     >
@@ -481,22 +480,9 @@ function ScheduledTaskRow({
           {task.text}
         </span>
 
-        {due && task.due_has_time && (
-          <span
-            className={`shrink-0 text-[12px] font-medium ${
-              isOverdue
-                ? "text-red-500"
-                : isDark
-                  ? "text-gray-400"
-                  : "text-gray-500"
-            }`}
-          >
-            {due.toLocaleTimeString(undefined, {
-              hour: "numeric",
-              minute: "2-digit",
-            })}
-          </span>
-        )}
+        {/* No time beside the title. A due date is a day — see composeDue —
+            and the rows that still hold a stored time are legacy ones whose
+            time was never something the user could have chosen here. */}
       </div>
 
       {task.description && (

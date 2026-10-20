@@ -14,14 +14,7 @@
 // wrong collection is worse than one that takes a beat to show the right one.
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import {
-  X,
-  Check,
-  Trash2,
-  AlertCircle,
-  Pin,
-  Pencil,
-} from "lucide-react";
+import { Check, Trash2, AlertCircle, Pin } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import BottomSheet from "@/components/BottomSheet";
 import { useOptionalAppData } from "@/components/native/AppDataProvider";
@@ -32,7 +25,6 @@ import { useAppColors } from "@/hooks/useAppColors";
 import { apiFetch } from "@/lib/apiFetch";
 import SectionLabel from "@/components/ui/SectionLabel";
 import InfoRow from "@/components/ui/InfoRow";
-import MetaToggle from "@/components/ui/MetaToggle";
 import {
   DANGER,
   PRIMARY,
@@ -91,7 +83,11 @@ const NoteDetails = ({
   const appData = useOptionalAppData();
   const isDark = theme === "dark";
 
-  const mutedText = isDark ? "text-gray-400" : "text-gray-500";
+  // Secondary text: labels, dates, captions. Lifted a step in dark mode, where
+  // gray-400 over the note tint was the other half of the readability
+  // complaint. Still grey rather than white in both themes, so the hierarchy the
+  // sheet relies on survives — iOS draws the same split with .primary/.secondary.
+  const mutedText = isDark ? "text-gray-300" : "text-gray-600";
   const hairline = isDark ? "border-white/[0.08]" : "border-black/[0.06]";
   const fieldClass = isDark
     ? "border-white/[0.08] bg-white/[0.04] text-gray-100 placeholder:text-gray-600"
@@ -521,37 +517,47 @@ const NoteDetails = ({
 
   if (!isOpen) return null;
 
-  const primaryButton = (
+  /**
+   * `.buttonStyle(.bordered)` with a `.tint` — the tint at low strength as the
+   * fill, the tint itself as the label. The same pair of helpers the task sheet
+   * uses, so the two sheets read as siblings rather than as two designs.
+   */
+  const borderedButton = (
     label: string,
+    icon: React.ReactNode,
     onClick: () => void,
-    color: string,
+    tone: string,
     disabled?: boolean,
   ) => (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="min-h-[48px] w-full rounded-2xl text-[15px] font-semibold text-white transition-opacity active:opacity-85 disabled:opacity-45"
-      style={{ backgroundColor: color }}
+      className="flex min-h-[40px] items-center gap-1.5 rounded-xl px-3 text-[14px] font-medium transition-opacity active:opacity-70 disabled:opacity-40"
+      style={{
+        backgroundColor: `color-mix(in srgb, ${tone} 16%, transparent)`,
+        color: tone,
+      }}
     >
+      {icon}
       {label}
     </button>
   );
 
-  const ghostButton = (
+  /** A toolbar word: Dismiss, Cancel, Save, Edit. */
+  const barButton = (
     label: string,
     onClick: () => void,
-    disabled?: boolean,
-    tone?: string,
+    opts: { bold?: boolean; disabled?: boolean; tone?: string } = {},
   ) => (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
-      className={`min-h-[48px] w-full rounded-2xl border text-[15px] font-medium transition-colors disabled:opacity-45 ${hairline} ${
-        isDark ? "active:bg-white/10" : "active:bg-black/5"
-      }`}
-      style={tone ? { color: tone } : undefined}
+      disabled={opts.disabled}
+      className={`touch-target -mx-2 rounded-lg px-2 text-[16px] disabled:opacity-40 ${
+        opts.bold ? "font-bold" : "font-normal"
+      } ${isDark ? "active:bg-white/10" : "active:bg-black/5"}`}
+      style={{ color: opts.tone ?? PRIMARY }}
     >
       {label}
     </button>
@@ -564,80 +570,92 @@ const NoteDetails = ({
       label={isEditing ? "Edit note" : "Note details"}
       isDark={isDark}
       canClose={!isProcessing}
-      // The note's own colour, at the strength the note card itself paints —
-      // so the sheet reads as the note it was opened from rather than as a 6%
-      // hint of it, which is what `collectionTint`'s default gave.
+      // The note's own colour, as a wash over the app's ground.
       //
-      // The numbers are NOTE_WASH in noteCard.tsx averaged. The card washes the
-      // colour over `--surface-field` as a gradient (0.4 → 0.2 light, 0.5 →
-      // 0.28 dark); a flat surface cannot carry a gradient, so this is its
-      // midpoint and mixes over the same base.
+      // 8%, matching the task sheet, which takes it from the iOS detail view's
+      // `.background(collection?.bgColor.opacity(0.08))`. It was 30% light / 39%
+      // dark — the note card's own gradient averaged — and at that strength the
+      // sheet read as a coloured panel rather than a tinted one, which is also
+      // what made the text on it hard to read.
       //
-      // Deliberately still a wash rather than the raw hex. The card's own note
-      // records why: at full strength the type on top has to be chosen by
-      // luminance — dark on a yellow note, white on a navy one — and keeping it
-      // close to the ground means the theme's own foreground reads on every
-      // colour in the palette.
+      // Still a wash rather than the raw hex: at full strength the type on top
+      // has to be chosen by luminance, dark on a yellow note and white on a navy
+      // one, and keeping it close to the ground means the theme's own foreground
+      // reads on every colour in the palette.
       //
       // No colour on the note falls back to the app's ground, as the task sheet
       // does with no collection. Either way the surface is solid at every stop.
       surfaceColor={
         selectedColor
-          ? `color-mix(in srgb, ${selectedColor} ${
-              isDark ? 39 : 30
-            }%, var(--surface-field))`
+          ? `color-mix(in srgb, ${selectedColor} 8%, var(--surface-field))`
           : "var(--surface-field)"
       }
+      /* The actions row, laid out as the task sheet's is.
+       *
+       * A note has no Complete, so the trailing prominent slot the Swift gives
+       * that action is simply empty here and the row is Pin and Delete at the
+       * leading edge. Editing collapses it to Delete alone: Cancel and Save
+       * have moved to the top bar, so the only thing left down here is the
+       * action that is neither. */
       footer={
-        <div className="mx-auto w-full max-w-md space-y-2">
-          {!isEditing ? (
-            <>
-              {primaryButton(
-                "Edit note",
-                () => setIsEditing(true),
-                PRIMARY,
-                isProcessing,
-              )}
-              {ghostButton(
-                "Delete",
-                () => setShowDeleteConfirmation(true),
-                isProcessing,
-                DANGER,
-              )}
-            </>
-          ) : (
-            <>
-              {primaryButton(
-                isSaving ? "Saving..." : "Save changes",
-                handleSaveNote,
-                PRIMARY,
-                isProcessing || !isNoteChanged || !noteTitle.trim(),
-              )}
-              {ghostButton("Cancel", handleCancelEdit, isProcessing)}
-            </>
+        <div className="mx-auto flex w-full max-w-md items-center gap-2">
+          {!isEditing &&
+            borderedButton(
+              isPinned ? "Unpin" : "Pin",
+              <Pin className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`} />,
+              togglePinned,
+              WARNING,
+              isProcessing,
+            )}
+
+          {borderedButton(
+            "Delete",
+            <Trash2 className="h-4 w-4" />,
+            () => setShowDeleteConfirmation(true),
+            DANGER,
+            isProcessing,
           )}
+
+          <div className="flex-1" />
         </div>
       }
     >
       <div
         ref={sheetRef}
+        /* White on dark, black on light.
+           It was gray-100 / gray-900 — a near-white and a near-black that read
+           as grey against the note tint, which is what made a note's own title
+           hard to pick out in dark mode. Secondary text stays grey; see
+           `mutedText`. */
         className={`mx-auto w-full max-w-md px-5 ${
-          isDark ? "text-gray-100" : "text-gray-900"
+          isDark ? "text-white" : "text-black"
         }`}
       >
-        {/* The X alone. A labelled Back sat next to it calling the same
-            handleClose — two controls, one behaviour, side by side. */}
-        <div className="flex items-center justify-end py-1">
-          <button
-            onClick={handleClose}
-            disabled={isProcessing}
-            className={`-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-              isDark ? "active:bg-white/10" : "active:bg-black/5"
-            }`}
-            aria-label="Close"
-          >
-            <X className={`h-5 w-5 ${mutedText}`} />
-          </button>
+        {/* A cancellation action at the leading edge and a confirmation action,
+            bold, at the trailing one — the same toolbar the task sheet draws,
+            which is the shape SwiftUI declares with `.cancellationAction` and
+            `.confirmationAction`. It was a bare X in the corner, which gave the
+            sheet no way to say what the other half of the gesture was. */}
+        <div className="flex items-center justify-between py-1">
+          {isEditing
+            ? barButton("Cancel", handleCancelEdit, {
+                disabled: isProcessing,
+                tone: isDark ? "#E5E7EB" : "#374151",
+              })
+            : barButton("Dismiss", handleClose, {
+                disabled: isProcessing,
+                tone: isDark ? "#E5E7EB" : "#374151",
+              })}
+
+          {isEditing
+            ? barButton(isSaving ? "Saving\u2026" : "Save", handleSaveNote, {
+                bold: true,
+                disabled: isProcessing || !isNoteChanged || !noteTitle.trim(),
+              })
+            : barButton("Edit", () => setIsEditing(true), {
+                bold: true,
+                disabled: isProcessing,
+              })}
         </div>
 
         {successMessage && (
@@ -687,33 +705,11 @@ const NoteDetails = ({
               <p className={`text-[13px] ${mutedText}`}>{createdLabel}</p>
             </div>
 
-            {/* The two things a note's view is allowed to do. Editing the text,
-                the colour or the collection is behind Edit note. */}
-            <div className="grid grid-cols-2 gap-2">
-              <MetaToggle
-                icon={
-                  <Pin
-                    className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`}
-                  />
-                }
-                label="Pin"
-                activeLabel="Pinned"
-                active={isPinned}
-                tone={WARNING}
-                onClick={togglePinned}
-                disabled={isProcessing}
-                isDark={isDark}
-              />
-              <MetaToggle
-                icon={<Pencil className="h-4 w-4" />}
-                label="Edit"
-                active={false}
-                tone={PRIMARY}
-                onClick={() => setIsEditing(true)}
-                disabled={isProcessing}
-                isDark={isDark}
-              />
-            </div>
+            {/* The Pin / Edit pair of cards used to sit here. Pin has gone to
+                the actions row at the foot of the sheet and Edit to the top bar,
+                which is where the task sheet puts them — two tinted cards taking
+                a full row each was the web inventing a control the app it is
+                matching does not have. Pin still writes on the tap. */}
 
             <div className="space-y-1.5">
               <SectionLabel isDark={isDark}>Note</SectionLabel>
@@ -870,35 +866,10 @@ const NoteDetails = ({
               </select>
             </div>
 
-            <div className="space-y-2">
-              <SectionLabel isDark={isDark}>Status</SectionLabel>
-              <MetaToggle
-                icon={
-                  <Pin
-                    className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`}
-                  />
-                }
-                label="Pin"
-                activeLabel="Pinned"
-                active={isPinned}
-                tone={WARNING}
-                onClick={togglePinned}
-                disabled={isProcessing}
-                isDark={isDark}
-                className="w-full"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowDeleteConfirmation(true)}
-              disabled={isProcessing}
-              className={`flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border text-[14px] font-medium disabled:opacity-45 ${hairline}`}
-              style={{ color: DANGER }}
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete note
-            </button>
+            {/* No Status row and no Delete button here any more. Pin is in the
+                actions row at the foot of the sheet, and Delete is the one
+                thing that row keeps while editing — so both were a second copy
+                of a control already on screen. */}
           </div>
         )}
 

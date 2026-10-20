@@ -20,7 +20,6 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
-  X,
   Check,
   Trash2,
   AlertCircle,
@@ -38,7 +37,6 @@ import { isLightColor, isUsableHex } from "@/lib/colors";
 import {
   composeDue,
   describeReminders,
-  dueMoment,
   parseReminders,
   type Reminder,
 } from "@/lib/reminders";
@@ -47,10 +45,9 @@ import BottomSheet from "@/components/BottomSheet";
 import { useOptionalAppData } from "@/components/native/AppDataProvider";
 import SectionLabel from "@/components/ui/SectionLabel";
 import InfoRow from "@/components/ui/InfoRow";
-import MetaToggle from "@/components/ui/MetaToggle";
 import DateChip from "@/components/ui/DateChip";
 import DueDateEditor from "@/components/ui/DueDateEditor";
-import ReminderChips from "@/components/ui/ReminderChips";
+import ReminderPicker from "@/components/ui/ReminderPicker";
 import { formatDateKey, toDateKey } from "@/components/ui/MiniCalendar";
 import {
   DANGER,
@@ -140,7 +137,11 @@ const TaskSidebar = ({
   const { user } = useAuth();
   const isDark = theme === "dark";
 
-  const mutedText = isDark ? "text-gray-400" : "text-gray-500";
+  // Secondary text: labels, dates, captions. Lifted a step in dark mode, where
+  // gray-400 over the collection tint was the other half of the readability
+  // complaint. Still grey rather than white in both themes, so the hierarchy the
+  // sheet relies on survives — iOS draws the same split with .primary/.secondary.
+  const mutedText = isDark ? "text-gray-300" : "text-gray-600";
   const fieldClass = isDark
     ? "border-white/[0.08] bg-white/[0.04] text-gray-100 placeholder:text-gray-600"
     : "border-black/[0.08] bg-white text-gray-900 placeholder:text-gray-400";
@@ -177,9 +178,6 @@ const TaskSidebar = ({
     task.due_date
       ? formatDateForInput(task.due_date, Boolean(task.due_has_time))
       : "",
-  );
-  const [dueTime, setDueTime] = useState<string>(
-    task.due_has_time && task.due_date ? formatTimeForInput(task.due_date) : "",
   );
   const [reminders, setReminders] = useState<Reminder[]>(
     parseReminders(task.reminders),
@@ -226,11 +224,6 @@ const TaskSidebar = ({
         ? formatDateForInput(task.due_date, Boolean(task.due_has_time))
         : "",
     );
-    setDueTime(
-      task.due_has_time && task.due_date
-        ? formatTimeForInput(task.due_date)
-        : "",
-    );
     setReminders(parseReminders(task.reminders));
     setSelectedCollection(task.collection_id || "");
     setIsPinned(task.is_pinned || false);
@@ -262,18 +255,12 @@ const TaskSidebar = ({
     const oldDueDate = task.due_date
       ? formatDateForInput(task.due_date, Boolean(task.due_has_time))
       : "";
-    const oldDueTime =
-      task.due_has_time && task.due_date
-        ? formatTimeForInput(task.due_date)
-        : "";
-
     // Compared as JSON because both are plain data off a jsonb column; a deep
     // equality helper for two shapes this small would be ceremony.
     const changed =
       taskText !== task.text ||
       taskDescription !== (task.description || "") ||
       dueDate !== oldDueDate ||
-      dueTime !== oldDueTime ||
       selectedCollection !== (task.collection_id || "") ||
       JSON.stringify(reminders) !==
         JSON.stringify(parseReminders(task.reminders));
@@ -283,7 +270,6 @@ const TaskSidebar = ({
     taskText,
     taskDescription,
     dueDate,
-    dueTime,
     selectedCollection,
     reminders,
     task,
@@ -313,19 +299,6 @@ const TaskSidebar = ({
       // the meridian, or early morning east of it.
       if (!hasTime) return dateObj.toISOString().split("T")[0];
       return toDateKey(dateObj);
-    } catch {
-      return "";
-    }
-  }
-
-  function formatTimeForInput(date: Date | string | null | undefined): string {
-    if (!date) return "";
-    try {
-      const dateObj = date instanceof Date ? date : new Date(date);
-      if (Number.isNaN(dateObj.getTime())) return "";
-      const hours = `${dateObj.getHours()}`.padStart(2, "0");
-      const minutes = `${dateObj.getMinutes()}`.padStart(2, "0");
-      return `${hours}:${minutes}`;
     } catch {
       return "";
     }
@@ -372,11 +345,6 @@ const TaskSidebar = ({
         ? formatDateForInput(task.due_date, Boolean(task.due_has_time))
         : "",
     );
-    setDueTime(
-      task.due_has_time && task.due_date
-        ? formatTimeForInput(task.due_date)
-        : "",
-    );
     setReminders(parseReminders(task.reminders));
     setSelectedCollection(task.collection_id || "");
     setIsTaskChanged(false);
@@ -418,17 +386,14 @@ const TaskSidebar = ({
   }, [isOpen, showDeleteConfirmation, isProcessing, handleClose]);
 
   // --- DERIVED ---
-  const composed = composeDue(dueDate, dueTime);
-  const dueAt = composed
-    ? dueMoment({ due_date: composed.due, due_has_time: composed.hasTime })
-    : null;
+  const composed = composeDue(dueDate);
 
   /** Past its due day and still open. Drives the rose chip. */
   const isOverdue = Boolean(
     dueDate && !isCompleted && dueDate < toDateKey(new Date()),
   );
 
-  const dueLabel = dueDate ? formatDateKey(dueDate, dueTime || null) : null;
+  const dueLabel = dueDate ? formatDateKey(dueDate, null) : null;
 
   const taskCollection =
     collections.find((c) => c.id === (task.collection_id || "")) ?? null;
@@ -720,13 +685,43 @@ const TaskSidebar = ({
 
   // --- PIECES ---
   /**
+   * `.buttonStyle(.bordered)` with a `.tint`: the tint at low strength as the
+   * fill, the tint itself as the label. Pin and Delete, which is where iOS puts
+   * them.
+   */
+  const borderedButton = (
+    label: string,
+    icon: React.ReactNode,
+    onClick: () => void,
+    tone: string,
+    disabled?: boolean,
+  ) => (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex min-h-[40px] items-center gap-1.5 rounded-xl px-3 text-[14px] font-medium transition-opacity active:opacity-70 disabled:opacity-40"
+      style={{
+        backgroundColor: `color-mix(in srgb, ${tone} 16%, transparent)`,
+        color: tone,
+      }}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+
+  /**
+   * `.buttonStyle(.borderedProminent)`: the colour undiluted.
+   *
    * The label colour is picked from the fill rather than fixed to white, because
-   * the fill is now an arbitrary collection colour. White on a yellow or mint
+   * the fill is an arbitrary collection colour. White on a yellow or mint
    * collection is unreadable; `isLightColor` weights the channels perceptually,
    * so those get near-black and a navy one still gets white.
    */
-  const primaryButton = (
+  const prominentButton = (
     label: string,
+    icon: React.ReactNode,
     onClick: () => void,
     color: string,
     disabled?: boolean,
@@ -735,30 +730,31 @@ const TaskSidebar = ({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="min-h-[48px] w-full rounded-2xl text-[15px] font-semibold transition-opacity active:opacity-85 disabled:opacity-45"
+      className="flex min-h-[40px] items-center gap-1.5 rounded-xl px-3.5 text-[14px] font-semibold transition-opacity active:opacity-85 disabled:opacity-40"
       style={{
         backgroundColor: color,
         color: isLightColor(color) ? "#111827" : "#FFFFFF",
       }}
     >
+      {icon}
       {label}
     </button>
   );
 
-  const ghostButton = (
+  /** A toolbar word: Dismiss, Cancel, Save, Edit. */
+  const barButton = (
     label: string,
     onClick: () => void,
-    disabled?: boolean,
-    tone?: string,
+    opts: { bold?: boolean; disabled?: boolean; tone?: string } = {},
   ) => (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
-      className={`min-h-[48px] w-full rounded-2xl border text-[15px] font-medium transition-colors disabled:opacity-45 ${hairline} ${
-        isDark ? "active:bg-white/10" : "active:bg-black/5"
-      }`}
-      style={tone ? { color: tone } : undefined}
+      disabled={opts.disabled}
+      className={`touch-target -mx-2 rounded-lg px-2 text-[16px] disabled:opacity-40 ${
+        opts.bold ? "font-bold" : "font-normal"
+      } ${isDark ? "active:bg-white/10" : "active:bg-black/5"}`}
+      style={{ color: opts.tone ?? actionColor }}
     >
       {label}
     </button>
@@ -771,13 +767,18 @@ const TaskSidebar = ({
       label={isEditing ? "Edit task" : "Task details"}
       isDark={isDark}
       canClose={!isProcessing}
-      // The collection's own colour, as a wash over the app's ground — the same
-      // rule the note sheet applies with the note's colour.
+      // The collection's own colour, as a wash over the app's ground.
       //
-      // A wash rather than the raw hex because every label, field and hint in
-      // here takes its colour from the theme. At full strength the type would
-      // have to be chosen by luminance for each one — dark on a yellow
-      // collection, white on a navy one — whereas kept close to the ground the
+      // 8%, which is what the iOS sheet uses —
+      // `.background(collection?.bgColor.opacity(0.08))`. It was 30% light / 39%
+      // dark here, matched to the note card rather than to the Swift, and at
+      // that strength the sheet read as a coloured panel rather than a tinted
+      // one.
+      //
+      // A wash rather than the raw hex either way, because every label, field
+      // and hint in here takes its colour from the theme: at full strength the
+      // type would have to be chosen by luminance for each one, dark on a yellow
+      // collection and white on a navy one. Kept close to the ground, the
       // theme's own foreground reads on all of them. The buttons are where the
       // colour lands undiluted; see `actionColor`.
       //
@@ -785,65 +786,92 @@ const TaskSidebar = ({
       // AppSurface painted it.
       surfaceColor={
         isUsableHex(taskCollection?.bg_color_hex)
-          ? `color-mix(in srgb, ${taskCollection?.bg_color_hex} ${
-              isDark ? 39 : 30
-            }%, var(--surface-field))`
+          ? `color-mix(in srgb, ${taskCollection?.bg_color_hex} 8%, var(--surface-field))`
           : "var(--surface-field)"
       }
+      /* The actions row, in iOS's arrangement.
+       *
+       * `TaskDetailView.actionsRow` is Pin and Delete bordered at the leading
+       * edge, a Spacer, then Complete prominent at the trailing one: the two
+       * reversible things together on the left, the one that ends the task on
+       * the right, and the gap between Delete and Complete so neither is a slip
+       * away from the other.
+       *
+       * Editing collapses it to Delete alone. Cancel and Save have moved to the
+       * top bar, where the Swift declares them (`.cancellationAction` and
+       * `.confirmationAction`), so the only thing left down here is the action
+       * that is neither of those. */
       footer={
-        <div className="mx-auto w-full max-w-md space-y-2">
-          {!isEditing ? (
-            <>
-              {primaryButton(
-                "Edit task",
-                () => setIsEditing(true),
-                actionColor,
-                isProcessing,
-              )}
-              {/* Delete sits here and nowhere near the completion control at the
-                  top. They are one tap apart in intent and a world apart in
-                  consequence. */}
-              {ghostButton(
-                "Delete",
-                () => setShowDeleteConfirmation(true),
-                isProcessing,
-                DANGER,
-              )}
-            </>
-          ) : (
-            <>
-              {primaryButton(
-                isSaving ? "Saving..." : "Save changes",
-                handleSaveTask,
-                actionColor,
-                isProcessing || !isTaskChanged || !taskText.trim(),
-              )}
-              {ghostButton("Cancel", handleCancelEdit, isProcessing)}
-            </>
+        <div className="mx-auto flex w-full max-w-md items-center gap-2">
+          {!isEditing &&
+            borderedButton(
+              isPinned ? "Unpin" : "Pin",
+              <Pin className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`} />,
+              togglePinned,
+              WARNING,
+              isProcessing,
+            )}
+
+          {borderedButton(
+            "Delete",
+            <Trash2 className="h-4 w-4" />,
+            () => setShowDeleteConfirmation(true),
+            DANGER,
+            isProcessing,
           )}
+
+          <div className="flex-1" />
+
+          {!isEditing &&
+            prominentButton(
+              isCompleted ? "Completed" : "Complete",
+              <Check className="h-4 w-4" />,
+              toggleCompleted,
+              actionColor,
+              isProcessing,
+            )}
         </div>
       }
     >
       <div
         ref={sheetRef}
+        /* White on dark, black on light.
+           It was gray-100 / gray-900 — a near-white and a near-black that read
+           as grey against the collection tint, which is what made a task's own
+           title hard to pick out in dark mode. Secondary text stays grey; see
+           `mutedText`. */
         className={`mx-auto w-full max-w-md px-5 ${
-          isDark ? "text-gray-100" : "text-gray-900"
+          isDark ? "text-white" : "text-black"
         }`}
       >
-        {/* The X alone. The labelled Back beside it called the same handleClose,
-            so the header carried two controls for one behaviour. Neither ever
-            saved — Save changes does, and Cancel says so outright. */}
-        <div className="flex items-center justify-end py-1">
-          <button
-            onClick={handleClose}
-            disabled={isProcessing}
-            className={`-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-              isDark ? "active:bg-white/10" : "active:bg-black/5"
-            }`}
-            aria-label="Close"
-          >
-            <X className={`h-5 w-5 ${mutedText}`} />
-          </button>
+        {/* The toolbar, as the Swift declares it: a cancellation action at the
+            leading edge and a confirmation action, bold, at the trailing one.
+            It was a bare X in the corner, which gave the sheet no way to say
+            what the other half of the gesture was.
+
+            Reading, the pair is Dismiss and Edit. Editing, it is Cancel and
+            Save — the two words that actually describe what leaving does from
+            there, which an X never did. */}
+        <div className="flex items-center justify-between py-1">
+          {isEditing
+            ? barButton("Cancel", handleCancelEdit, {
+                disabled: isProcessing,
+                tone: isDark ? "#E5E7EB" : "#374151",
+              })
+            : barButton("Dismiss", handleClose, {
+                disabled: isProcessing,
+                tone: isDark ? "#E5E7EB" : "#374151",
+              })}
+
+          {isEditing
+            ? barButton(isSaving ? "Saving\u2026" : "Save", handleSaveTask, {
+                bold: true,
+                disabled: isProcessing || !isTaskChanged || !taskText.trim(),
+              })
+            : barButton("Edit", () => setIsEditing(true), {
+                bold: true,
+                disabled: isProcessing,
+              })}
         </div>
 
         {successMessage && (
@@ -897,36 +925,13 @@ const TaskSidebar = ({
               </p>
             </div>
 
-            {/* Completion lives here and only here. Ticking a task off a
-                scrolling list is one mis-tap from marking the wrong thing done,
-                and undoing it means finding it again in a view it has just left.
-                Pin sits beside it because it is the other thing worth one tap. */}
-            <div className="grid grid-cols-2 gap-2">
-              <MetaToggle
-                icon={<Check className="h-4 w-4" />}
-                label="Mark complete"
-                activeLabel="Completed"
-                active={isCompleted}
-                tone={SUCCESS}
-                onClick={toggleCompleted}
-                disabled={isProcessing}
-                isDark={isDark}
-              />
-              <MetaToggle
-                icon={
-                  <Pin
-                    className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`}
-                  />
-                }
-                label="Pin"
-                activeLabel="Pinned"
-                active={isPinned}
-                tone={WARNING}
-                onClick={togglePinned}
-                disabled={isProcessing}
-                isDark={isDark}
-              />
-            </div>
+            {/* The Mark complete / Pin pair of cards used to sit here.
+                They have gone to the actions row at the foot of the sheet,
+                which is where `TaskDetailView.actionsRow` puts them — two
+                tinted cards taking a full row each was the web inventing a
+                control the app it is matching does not have. The behaviour is
+                unchanged: both still write the instant they are tapped, through
+                the same `toggleCompleted` and `togglePinned`. */}
 
             <div className="space-y-1.5">
               <SectionLabel isDark={isDark}>Due date</SectionLabel>
@@ -1050,16 +1055,14 @@ const TaskSidebar = ({
               {dueEditorOpen ? (
                 <DueDateEditor
                   date={dueDate || null}
-                  time={dueTime || null}
                   canClear={Boolean(dueDate)}
                   isDark={isDark}
-                  onDone={(nextDate, nextTime) => {
+                  onDone={(nextDate) => {
                     setDueDate(nextDate ?? "");
-                    setDueTime(nextTime ?? "");
                     setDueEditorOpen(false);
-                    // An offset reminder with no due date can never fire, so
-                    // clearing the date clears them rather than leaving a chip
-                    // lit over nothing. Fixed-time reminders are unaffected.
+                    // A legacy offset has nothing left to count back from once
+                    // the date is cleared, so it goes. The absolute reminder the
+                    // picker now writes stands on its own and is untouched.
                     if (!nextDate) {
                       setReminders((current) =>
                         current.filter(
@@ -1105,58 +1108,18 @@ const TaskSidebar = ({
 
             <div className="space-y-2">
               <SectionLabel isDark={isDark}>Reminder</SectionLabel>
-              <ReminderChips
+              <ReminderPicker
                 reminders={reminders}
                 onChange={setReminders}
                 dueDateKey={dueDate || null}
-                dueAt={dueAt}
                 isDark={isDark}
               />
             </div>
 
-            {/* Still here in the form, still writing immediately. Listed in the
-                edit fields by the brief, and someone who opened the form to
-                change a date should not have to leave it to pin the thing. */}
-            <div className="space-y-2">
-              <SectionLabel isDark={isDark}>Status</SectionLabel>
-              <div className="grid grid-cols-2 gap-2">
-                <MetaToggle
-                  icon={<Check className="h-4 w-4" />}
-                  label="Mark complete"
-                  activeLabel="Completed"
-                  active={isCompleted}
-                  tone={SUCCESS}
-                  onClick={toggleCompleted}
-                  disabled={isProcessing}
-                  isDark={isDark}
-                />
-                <MetaToggle
-                  icon={
-                    <Pin
-                      className={`h-4 w-4 ${isPinned ? "fill-current" : ""}`}
-                    />
-                  }
-                  label="Pin"
-                  activeLabel="Pinned"
-                  active={isPinned}
-                  tone={WARNING}
-                  onClick={togglePinned}
-                  disabled={isProcessing}
-                  isDark={isDark}
-                />
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowDeleteConfirmation(true)}
-              disabled={isProcessing}
-              className={`flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border text-[14px] font-medium disabled:opacity-45 ${hairline}`}
-              style={{ color: DANGER }}
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete task
-            </button>
+            {/* No Status pair and no Delete button here any more.
+                Completion and pin are in the actions row at the foot of the
+                sheet, and Delete is the one thing the row keeps while editing —
+                so all three were a second copy of a control already on screen. */}
           </div>
         )}
 

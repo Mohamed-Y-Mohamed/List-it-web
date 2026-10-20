@@ -143,10 +143,12 @@ const TaskCard = ({
 
   // One rule for both cards and the detail sheet: a date-only due date is
   // stored at UTC noon and has to be read back in UTC, and has no time to show.
-  const { date: formattedDate, time: formattedTime } = formatTaskDue(
-    taskDueDate,
-    due_has_time,
-  );
+  // A due date is a day and nothing else now, so only the date half is read.
+  // `formatTaskDue` still takes `due_has_time` and still needs to: a row saved
+  // before the time field was removed holds a real local instant rather than
+  // the UTC-noon marker, and reading that in UTC would name the wrong day. The
+  // time it returns is simply no longer shown.
+  const { date: formattedDate } = formatTaskDue(taskDueDate, due_has_time);
 
   /**
    * One date in that slot: the due date, or the day the task was added when it
@@ -157,9 +159,7 @@ const TaskCard = ({
    */
   const dateRow = formattedDate
     ? {
-        text: formattedTime
-          ? `${formattedDate} · ${formattedTime}`
-          : formattedDate,
+        text: formattedDate,
         isDue: true,
       }
     : createdDate

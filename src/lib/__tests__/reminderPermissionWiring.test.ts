@@ -12,10 +12,9 @@
 // The ask was wired only to the Reminders switch flipping on, which misses the
 // two realistic routes to a reminder that cannot fire: a switch already on from
 // an earlier edit, and a permission revoked in system Settings after the fact.
-// `ReminderChips` is the one funnel every reminder passes through — the offset
-// chips and the fixed-time field both go through it — so the ask belongs there.
-// (It replaced `RemindersPicker`, which was never wired to either sheet and has
-// been deleted.)
+// `ReminderPicker` is the one funnel every reminder passes through, so the ask
+// belongs there. (It replaced `ReminderChips`, whose offset presets have gone
+// with the model behind them; before that, `RemindersPicker`.)
 //
 // A unit test cannot catch this: the component asks through a Capacitor plugin
 // that does not exist under jsdom, and mocking it proves only that the mock was
@@ -28,13 +27,13 @@ const ROOT = join(__dirname, "..", "..");
 
 const read = (relative: string) => readFileSync(join(ROOT, relative), "utf8");
 
-const CHIPS = "components/ui/ReminderChips.tsx";
+const PICKER = "components/ui/ReminderPicker.tsx";
 
 /** The surfaces a user turns reminders on from. Each must be able to ask. */
-const OPT_IN_PATHS = [CHIPS, "app/(secure)/setting/page.tsx"];
+const OPT_IN_PATHS = [PICKER, "app/(secure)/setting/page.tsx"];
 
 /**
- * The two task sheets no longer ask directly. They render `ReminderChips`, which
+ * The two task sheets no longer ask directly. They render `ReminderPicker`, which
  * owns the add funnel and the ask, so the grant still happens on the one route a
  * reminder can be created from. They are checked for that delegation instead: a
  * sheet that hand-rolled its own reminder UI would bypass the ask and rebuild the
@@ -50,39 +49,46 @@ describe("reminder permission wiring", () => {
     expect(read(file)).toContain("ensureNotificationPermission");
   });
 
-  it.each(DELEGATING_HOSTS)("%s routes reminders through the chips", (file) => {
-    expect(read(file)).toContain("ReminderChips");
+  it.each(DELEGATING_HOSTS)("%s routes reminders through the picker", (file) => {
+    expect(read(file)).toContain("ReminderPicker");
   });
 
-  it("asks from the chips add path, not only on render", () => {
-    const source = read(CHIPS);
+  it("asks from the add path, not only on render", () => {
+    const source = read(PICKER);
 
-    // `toggleOffset` is the add branch for the presets; `addCustom` is the
-    // fixed-time field. Both converge on `askPermission`, and the declaration
-    // alone is not enough — the bug was live while the import sat unused.
+    // There is one add branch now — the Add Reminder / Remind Again button —
+    // and it has to converge on `askPermission`. The declaration alone is not
+    // enough: the original bug was live while the import sat unused.
     expect(source).toContain("const askPermission =");
-
-    const calls = source.match(/askPermission\(\)/g) ?? [];
-    expect(calls.length).toBeGreaterThanOrEqual(2);
+    expect(source).toMatch(/askPermission\(\)/);
   });
 
   it("keeps the answer rather than discarding it", () => {
     // `void ensureNotificationPermission()` threw the boolean away, so a user
     // who had denied notifications for good got a lit chip, a saved reminder,
     // and nothing delivered — with nothing on screen saying so.
-    const source = read(CHIPS);
+    const source = read(PICKER);
 
     expect(source).toContain("setPermissionBlocked");
     expect(source).not.toMatch(/void ensureNotificationPermission\(\);/);
   });
 
-  it("refuses an offset that has already passed", () => {
-    // The custom field always validated this; the preset chips did not, so
-    // "1 hour before" on a task due in ten minutes saved and was then silently
-    // dropped by planReminders for being in the past.
-    const source = read(CHIPS);
+  it("refuses a reminder once the due day has gone", () => {
+    // iOS disables the button and explains why rather than letting someone set
+    // a reminder that planReminders would then drop for being in the past.
+    const source = read(PICKER);
 
-    expect(source).toContain("offsetHasPassed");
+    expect(source).toContain("isDueDayPast");
+    expect(source).toContain("disabled={overdue}");
+  });
+
+  it("bounds the picker to the due day", () => {
+    // `reminderRange` on iOS. Without the max, a reminder could be set days
+    // after the task it is reminding about.
+    const source = read(PICKER);
+
+    expect(source).toContain("reminderBounds");
+    expect(source).toContain("clampReminderToDueDay");
   });
 
   it("never asks from the sync path", () => {

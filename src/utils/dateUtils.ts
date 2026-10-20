@@ -163,3 +163,52 @@ export const formatTimeAgo = (dateString: string): string => {
     return "Unknown";
   }
 };
+
+/**
+ * Midnight on the local day a timestamp falls on.
+ *
+ * The key both Completed and Overdue group on. A `Date` for midnight rather
+ * than a formatted string, so the groups can be sorted by time without parsing
+ * the label back.
+ */
+export const startOfLocalDay = (
+  value: Date | string | null | undefined,
+): Date | null => {
+  if (!value) return null;
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (!isValid(date)) return null;
+
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+/**
+ * A day heading: "Today", "Yesterday", or "Monday 12 October".
+ *
+ * Shared by Completed, which groups by the day a task was finished, and Overdue,
+ * which groups by the day it was due. Both screens show a column of dated
+ * groups and they have to name a day the same way, so the rule lives here rather
+ * than once in each — the iOS `dayTitle` it is ported from is a single function
+ * for the same reason.
+ */
+export const dayTitle = (date: Date): string => {
+  const today = new Date();
+  const startOfToday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+
+  const diffDays = Math.round(
+    (startOfToday.getTime() - date.getTime()) / 86_400_000,
+  );
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+
+  return date.toLocaleDateString(undefined, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+};

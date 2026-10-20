@@ -371,10 +371,10 @@ const ListLayoutSetting: React.FC<{
       <div
         role="radiogroup"
         aria-labelledby="list-layout-label"
-        className={`overflow-hidden rounded-lg border ${
+        className={`overflow-hidden rounded-lg border bg-[var(--surface-raised)] ${
           isDark
-            ? "divide-y divide-gray-700 border-[var(--surface-border)] bg-[var(--surface-raised)]"
-            : "divide-y divide-gray-200 border-gray-200 bg-white"
+            ? "divide-y divide-gray-700 border-[var(--surface-border)]"
+            : "divide-y divide-gray-200 border-gray-200"
         }`}
       >
         {LAYOUT_OPTIONS.map((option) => {
@@ -563,10 +563,19 @@ export default function SettingsPage() {
         return;
       }
 
+      // The route writes the `users` row and mirrors the name onto the sign-in
+      // metadata. A half-done write comes back as a warning rather than an
+      // error, because the row — which is what every screen reads — did save.
+      const { warning } = await res.json();
+
       setUserProfile((prev) =>
         prev ? { ...prev, full_name: fullName.trim() } : null,
       );
-      showNotification("success", "Profile updated successfully");
+
+      showNotification(
+        warning ? "info" : "success",
+        warning ?? "Profile updated successfully",
+      );
     } catch (error) {
       console.error("Unexpected error updating profile:", error);
       showNotification("error", "An unexpected error occurred");
@@ -716,10 +725,10 @@ export default function SettingsPage() {
             </div>
 
             <div
-              className={`flex items-center justify-between rounded-lg border p-4 ${
+              className={`flex items-center justify-between rounded-lg border bg-[var(--surface-raised)] p-4 ${
                 isDark
-                  ? "border-[var(--surface-border)] bg-[var(--surface-raised)]"
-                  : "border-gray-200 bg-white"
+                  ? "border-[var(--surface-border)]"
+                  : "border-gray-200"
               }`}
             >
               <div className="flex items-center space-x-3">
@@ -809,10 +818,10 @@ export default function SettingsPage() {
                 sections are to each other. */}
             <div className="space-y-3">
               <div
-                className={`flex items-center justify-between rounded-lg border p-4 ${
+                className={`flex items-center justify-between rounded-lg border bg-[var(--surface-raised)] p-4 ${
                   isDark
-                    ? "border-[var(--surface-border)] bg-[var(--surface-raised)]"
-                    : "border-gray-200 bg-white"
+                    ? "border-[var(--surface-border)]"
+                    : "border-gray-200"
                 }`}
               >
                 <div className="flex items-center space-x-3">
@@ -1475,10 +1484,10 @@ export default function SettingsPage() {
             href="https://forms.gle/dE21epzC4L8Tx1Kd9"
             target="_blank"
             rel="noopener noreferrer"
-            className={`flex min-h-[56px] w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left ${
+            className={`flex min-h-[56px] w-full items-center gap-3 rounded-2xl border bg-[var(--surface-card)] px-4 py-3.5 text-left ${
               isDark
-                ? "border-white/[0.08] bg-[var(--surface-card)]"
-                : "border-black/[0.06] bg-white"
+                ? "border-white/[0.08]"
+                : "border-black/[0.06]"
             }`}
           >
             <MessageSquarePlus
@@ -1507,10 +1516,10 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={logout}
-              className={`flex min-h-[56px] w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left ${
+              className={`flex min-h-[56px] w-full items-center gap-3 rounded-2xl border bg-[var(--surface-card)] px-4 py-3.5 text-left ${
                 isDark
-                  ? "border-white/[0.08] bg-[var(--surface-card)] text-orange-300"
-                  : "border-black/[0.06] bg-white text-orange-600"
+                  ? "border-white/[0.08] text-orange-300"
+                  : "border-black/[0.06] text-orange-600"
               }`}
             >
               <LogOut className="h-5 w-5 shrink-0" />

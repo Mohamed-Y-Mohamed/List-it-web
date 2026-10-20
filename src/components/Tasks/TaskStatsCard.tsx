@@ -82,10 +82,11 @@ export function TaskStatsCard({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={`rounded-2xl border p-4 ${
-        isDark
-          ? "border-white/[0.08] bg-[var(--surface-card)]"
-          : "border-black/[0.06] bg-white"
+      // `--surface-card` in both themes. Light was a hardcoded `bg-white`, which
+      // only matched the White background; on Cream, Ice blue and Warm paper a
+      // row of stat tiles read as white slabs laid over a coloured page.
+      className={`rounded-2xl border bg-[var(--surface-card)] p-4 ${
+        isDark ? "border-white/[0.08]" : "border-black/[0.06]"
       }`}
     >
       <div className="flex items-center gap-1.5">

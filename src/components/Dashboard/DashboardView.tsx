@@ -9,6 +9,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { IS_NATIVE_BUILD } from "@/lib/platform";
 import { useAuth } from "@/context/AuthContext";
+import { useOptionalAppData } from "@/components/native/AppDataProvider";
 import { supabase } from "@/utils/client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -778,6 +779,21 @@ export default function DashboardView({
 }: { heading?: string } = {}) {
   const { theme } = useTheme();
   const { user } = useAuth();
+
+  /**
+   * The account's name, from the `users` table.
+   *
+   * That row is where the name actually lives and what Settings writes; the copy
+   * on `auth.user_metadata` is a mirror kept in step by the profile route. The
+   * table is read first so a rename shows here on the next launch rather than
+   * whenever the auth session next refreshes, and the mirror is the fallback for
+   * the frame before the cache has settled.
+   */
+  const appData = useOptionalAppData();
+  const accountName =
+    appData?.profile?.full_name?.trim() ||
+    (user?.user_metadata?.full_name as string | undefined)?.trim() ||
+    "there";
   const isDark = theme === "dark";
 
   const [isLoading, setIsLoading] = useState(true);
@@ -1132,7 +1148,7 @@ export default function DashboardView({
             <p
               className={`text-sm md:text-base mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}
             >
-              Welcome back, {user?.user_metadata.full_name || "there"}!
+              Welcome back, {accountName}!
             </p>
           </motion.header>
           <NewUserWelcome isDark={isDark} />
@@ -1163,7 +1179,7 @@ export default function DashboardView({
           <p
             className={`text-sm md:text-base mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}
           >
-            Welcome back, {user?.user_metadata.full_name || "there"}!
+            Welcome back, {accountName}!
           </p>
         </motion.header>
 

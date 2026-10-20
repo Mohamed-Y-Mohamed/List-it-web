@@ -27,7 +27,20 @@ mockChain.single = jest.fn(() => Promise.resolve(dbResult));
 mockChain.then = (res: any, rej?: any) =>
   Promise.resolve(dbResult).then(res, rej);
 
-const mockSupabaseClient = { from: jest.fn().mockReturnValue(mockChain) };
+/**
+ * The auth half of the client.
+ *
+ * PATCH writes the name twice — the `users` row, then the mirror on the sign-in
+ * metadata — so the mock has to answer both. Its result is settable per test so
+ * the half-done case can be exercised.
+ */
+const authResult: { error: unknown } = { error: null };
+const mockUpdateUser = jest.fn(() => Promise.resolve(authResult));
+
+const mockSupabaseClient = {
+  from: jest.fn().mockReturnValue(mockChain),
+  auth: { updateUser: mockUpdateUser },
+};
 jest.mock("@/utils/server", () => ({
   createClient: jest.fn(async () => mockSupabaseClient),
 }));
@@ -84,6 +97,8 @@ beforeEach(() => {
   for (const m of ["select", "update", "eq"]) {
     mockChain[m].mockReturnValue(mockChain);
   }
+  authResult.error = null;
+  mockUpdateUser.mockImplementation(() => Promise.resolve(authResult));
   mockChain.single.mockImplementation(() => Promise.resolve(dbResult));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   mockChain.then = (res: any, rej?: any) =>
@@ -159,5 +174,56 @@ describe("PATCH /api/user/profile", () => {
     dbResult.error = { message: "Update failed" };
     const res = await PATCH(makeReq("PATCH", { full_name: "New Name" }));
     expect(res.status).toBe(500);
+  });
+
+  // The name is held in two places: `users.full_name`, which every screen reads,
+  // and `auth.user_metadata.full_name`, which the public top nav reads. Only the
+  // first was ever written here, so renaming yourself left the two disagreeing.
+  it("mirrors the name onto the sign-in metadata", async () => {
+    authOk();
+    dbResult.data = { id: "user-1", full_name: "New Name" };
+
+    await PATCH(makeReq("PATCH", { full_name: "New Name" }));
+
+    expect(mockUpdateUser).toHaveBeenCalledWith({
+      data: { full_name: "New Name" },
+    });
+  });
+
+  it("does not touch the metadata when the name is not being changed", async () => {
+    authOk();
+    dbResult.data = { id: "user-1", avatar_url: "/a.png" };
+
+    await PATCH(makeReq("PATCH", { avatar_url: "/a.png" }));
+
+    expect(mockUpdateUser).not.toHaveBeenCalled();
+  });
+
+  // The row is the source of truth and it saved, so the request succeeds. The
+  // warning is what says the mirror is briefly behind — reporting this as a
+  // failure would tell the user their rename did not happen when it did.
+  it("still succeeds, with a warning, when only the mirror fails", async () => {
+    authOk();
+    dbResult.data = { id: "user-1", full_name: "New Name" };
+    authResult.error = { message: "auth unavailable" };
+
+    const res = await PATCH(makeReq("PATCH", { full_name: "New Name" }));
+
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.data).toEqual(dbResult.data);
+    expect(body.warning).toEqual(expect.any(String));
+  });
+
+  it("sends no warning when both writes land", async () => {
+    authOk();
+    dbResult.data = { id: "user-1", full_name: "New Name" };
+
+    const body = await (
+      await PATCH(makeReq("PATCH", { full_name: "New Name" }))
+    ).json();
+
+    expect(body.warning).toBeUndefined();
   });
 });

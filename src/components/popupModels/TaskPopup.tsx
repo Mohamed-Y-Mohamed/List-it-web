@@ -15,13 +15,13 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { AlertCircle, CalendarPlus, Check, Pencil, Pin } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Collection } from "@/types/schema";
-import { composeDue, dueMoment, type Reminder } from "@/lib/reminders";
+import { composeDue, type Reminder } from "@/lib/reminders";
 import ModalShell from "@/components/ui/ModalShell";
 import SectionLabel from "@/components/ui/SectionLabel";
 import MetaToggle from "@/components/ui/MetaToggle";
 import DateChip from "@/components/ui/DateChip";
 import DueDateEditor from "@/components/ui/DueDateEditor";
-import ReminderChips from "@/components/ui/ReminderChips";
+import ReminderPicker from "@/components/ui/ReminderPicker";
 import { formatDateKey } from "@/components/ui/MiniCalendar";
 import { DANGER, INFO, PRIMARY, WARNING } from "@/components/ui/tokens";
 
@@ -59,10 +59,9 @@ const CreateTaskModal = ({
   const [taskName, setTaskName] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
   const [isPinned, setIsPinned] = useState(false);
+  // A due date is a day. The time half went with the iOS picker's
+  // `displayedComponents: [.date]`; see composeDue.
   const [dueDate, setDueDate] = useState<string>("");
-  // Blank means due that day without a particular moment, which is the behaviour
-  // every task created before times existed already has.
-  const [dueTime, setDueTime] = useState<string>("");
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string>("");
   const [dueEditorOpen, setDueEditorOpen] = useState(false);
@@ -73,10 +72,7 @@ const CreateTaskModal = ({
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const composed = composeDue(dueDate, dueTime);
-  const dueAt = composed
-    ? dueMoment({ due_date: composed.due, due_has_time: composed.hasTime })
-    : null;
+  const composed = composeDue(dueDate);
 
   const defaultCollection = collections.find((c) => c.is_default);
 
@@ -101,7 +97,6 @@ const CreateTaskModal = ({
     setTaskDescription("");
     setIsPinned(false);
     setDueDate("");
-    setDueTime("");
     setReminders([]);
     setSelectedCollectionId("");
     setDueEditorOpen(false);
@@ -164,7 +159,7 @@ const CreateTaskModal = ({
     }
   };
 
-  const dueLabel = dueDate ? formatDateKey(dueDate, dueTime || null) : null;
+  const dueLabel = dueDate ? formatDateKey(dueDate, null) : null;
 
   const mutedText = isDark ? "text-gray-400" : "text-gray-500";
   const fieldClass = isDark
@@ -281,14 +276,14 @@ const CreateTaskModal = ({
           {dueEditorOpen ? (
             <DueDateEditor
               date={dueDate || null}
-              time={dueTime || null}
               canClear={Boolean(dueDate)}
               isDark={isDark}
-              onDone={(nextDate, nextTime) => {
+              onDone={(nextDate) => {
                 setDueDate(nextDate ?? "");
-                setDueTime(nextTime ?? "");
                 setDueEditorOpen(false);
-                // An offset reminder with no due date can never fire.
+                // A legacy offset has nothing left to count back from once the
+                // date is cleared, so it goes. The absolute reminder the picker
+                // now writes stands on its own and is untouched.
                 if (!nextDate) {
                   setReminders((current) =>
                     current.filter((reminder) => reminder.kind === "absolute"),
@@ -328,11 +323,10 @@ const CreateTaskModal = ({
 
         <div className="space-y-2">
           <SectionLabel isDark={isDark}>Reminder</SectionLabel>
-          <ReminderChips
+          <ReminderPicker
             reminders={reminders}
             onChange={setReminders}
             dueDateKey={dueDate || null}
-            dueAt={dueAt}
             isDark={isDark}
           />
         </div>

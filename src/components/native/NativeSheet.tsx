@@ -24,6 +24,16 @@ interface NativeSheetProps {
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
+  /**
+   * Pinned below the scrolling body, against the bottom of the sheet.
+   *
+   * For a control that has to stay reachable wherever the content ends. The
+   * help sheet's Next button was inside `children`, so on a 55vh sheet holding
+   * two short paragraphs it came to rest somewhere around the middle of the
+   * screen with empty sheet below it. A footer sits on the bottom edge at every
+   * content length, and takes the device inset so it clears the navigation bar.
+   */
+  footer?: React.ReactNode;
   /** Height the sheet opens at. Dragging up promotes it to "large". */
   initialDetent?: Detent;
 }
@@ -43,6 +53,7 @@ export default function NativeSheet({
   onClose,
   title,
   children,
+  footer,
   initialDetent = "medium",
 }: NativeSheetProps) {
   const { theme } = useTheme();
@@ -152,8 +163,11 @@ export default function NativeSheet({
               </h2>
             )}
 
-            {/* Only the content scrolls, so the handle and title stay put. The
-                bottom padding clears the navigation bar and the keyboard.
+            {/* Only the content scrolls, so the handle and title stay put.
+
+                The bottom inset is paid here when there is no footer, and by the
+                footer when there is — otherwise the two would stack and leave a
+                navigation bar's worth of dead space above the pinned control.
 
                 Capacitor measures the navigation bar natively and publishes it
                 as --safe-area-inset-bottom; --safe-bottom reads that and falls
@@ -161,12 +175,27 @@ export default function NativeSheet({
             <div
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5"
               style={{
-                paddingBottom:
-                  "calc(var(--safe-bottom) + var(--keyboard-offset, 0px) + 1.25rem)",
+                paddingBottom: footer
+                  ? "1rem"
+                  : "calc(var(--safe-bottom) + var(--keyboard-offset, 0px) + 1.25rem)",
               }}
             >
               {children}
             </div>
+
+            {footer && (
+              <div
+                className={`shrink-0 border-t px-5 pt-3 ${
+                  isDark ? "border-white/10" : "border-black/10"
+                }`}
+                style={{
+                  paddingBottom:
+                    "calc(var(--safe-bottom) + var(--keyboard-offset, 0px) + 0.75rem)",
+                }}
+              >
+                {footer}
+              </div>
+            )}
           </motion.div>
         </>
       )}

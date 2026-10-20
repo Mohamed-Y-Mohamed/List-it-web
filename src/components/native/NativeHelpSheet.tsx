@@ -102,7 +102,27 @@ export default function NativeHelpSheet({
   const offset = reduceMotion ? 0 : 28;
 
   return (
-    <NativeSheet isOpen={isOpen} onClose={close} title="How List It works">
+    <NativeSheet
+      isOpen={isOpen}
+      onClose={close}
+      title="How List It works"
+      /* Pinned to the bottom of the sheet, above the navigation bar.
+
+         It used to be the last element inside the scrolling body, directly
+         under the dots — which on a 55vh sheet holding two short paragraphs put
+         it somewhere around the middle of the screen with empty sheet beneath
+         it. A sheet's primary action belongs on its bottom edge, where it is in
+         the same place on every topic however long the copy runs. */
+      footer={
+        <button
+          type="button"
+          onClick={advance}
+          className="flex min-h-[50px] w-full items-center justify-center rounded-[14px] bg-blue-500 text-[16px] font-semibold text-white transition-transform duration-100 active:scale-[0.98] active:bg-blue-600"
+        >
+          {isLast ? "Done" : "Next"}
+        </button>
+      }
+    >
       {/* The drag sits on this container rather than the card: AnimatePresence
           re-keys the card per step, so a gesture bound to it would be torn down
           mid-swipe. `pan-y` leaves vertical panning to the sheet, which owns
@@ -151,8 +171,12 @@ export default function NativeHelpSheet({
         </div>
 
         {/* Progress. Tappable, because a dot that shows position but refuses to
-            take you there is a control pretending to be decoration. */}
-        <div className="mb-5 mt-6 flex flex-wrap justify-center gap-1">
+            take you there is a control pretending to be decoration.
+
+            No bottom margin any more: the button it used to sit above has moved
+            to the sheet's footer, so this is the last thing in the scroll and
+            the footer's own border is what separates the two. */}
+        <div className="mt-6 flex flex-wrap justify-center gap-1">
           {HELP_TOPICS.map((item, dot) => (
             <button
               key={item.id}
@@ -178,14 +202,6 @@ export default function NativeHelpSheet({
             </button>
           ))}
         </div>
-
-        <button
-          type="button"
-          onClick={advance}
-          className="flex min-h-[50px] w-full items-center justify-center rounded-[14px] bg-blue-500 text-[16px] font-semibold text-white transition-transform duration-100 active:scale-[0.98] active:bg-blue-600"
-        >
-          {isLast ? "Done" : "Next"}
-        </button>
       </motion.div>
     </NativeSheet>
   );

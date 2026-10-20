@@ -87,10 +87,9 @@ export function SkeletonTaskList({
 export function SkeletonStatTile({ isDark }: { isDark: boolean }) {
   return (
     <div
-      className={`rounded-2xl border p-4 ${
-        isDark
-          ? "border-white/[0.08] bg-[var(--surface-card)]"
-          : "border-black/[0.06] bg-white"
+      // Reads the ramp in both themes, matching the tile it stands in for.
+      className={`rounded-2xl border bg-[var(--surface-card)] p-4 ${
+        isDark ? "border-white/[0.08]" : "border-black/[0.06]"
       }`}
       aria-hidden="true"
     >
