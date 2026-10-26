@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { IS_NATIVE_BUILD, isNativeApp } from "@/lib/platform";
@@ -127,6 +128,11 @@ const Notification: React.FC<{
   notification: NotificationState;
   onClose: () => void;
 }> = ({ notification, onClose }) => {
+  // document.body does not exist during the server render, so the portal below
+  // waits for the client. Same guard ModalShell uses.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     if (notification.visible) {
       const timer = setTimeout(() => {
@@ -174,18 +180,32 @@ const Notification: React.FC<{
   const styles = getNotificationStyles();
   const Icon = styles.icon;
 
-  return (
+  // Portalled to the body, which is the whole reason this toast is visible in
+  // the app at all.
+  //
+  // `position: fixed` is only fixed to the viewport when no ancestor carries a
+  // transform. On native, SecureLayout wraps every screen in NativeTransition,
+  // a motion.div animating translateX — so the toast's containing block was
+  // that wrapper, not the window, and it rendered at the top of a page that was
+  // scrolled well past it. Off-screen, every time. The web branch of that
+  // layout renders children bare, which is exactly why this looked fine there
+  // and never appeared on Android: the green tick after a password change and,
+  // worse, the errors. A failed save was indistinguishable from a successful
+  // one, which is how a password change that did nothing went unnoticed.
+  //
+  // ModalShell portals for this same reason; this follows it rather than
+  // inventing a second answer.
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0, y: -50, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -50, scale: 0.95 }}
         transition={{ duration: 0.3 }}
-        // top-4 put this under the status bar in the app, so every toast this
-        // screen raises — the green tick after a password change and, worse,
-        // the errors — was invisible on Android. A failed save looked exactly
-        // like a successful one. env() is 0 in a browser, so max() leaves the
-        // web at the 1rem it already had.
+        // Clears the status bar now that it really is at the top of the window.
+        // env() is 0 in a browser, so max() leaves the web at its original 1rem.
         style={{ top: "max(1rem, calc(var(--safe-top) + 0.5rem))" }}
         className={`fixed right-4 z-50 flex items-center space-x-3 rounded-lg border p-4 shadow-lg backdrop-blur-sm ${styles.bg} ${styles.border} ${styles.color}`}
       >
@@ -204,7 +224,8 @@ const Notification: React.FC<{
           </svg>
         </button>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 };
 
