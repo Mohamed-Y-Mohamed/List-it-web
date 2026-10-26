@@ -30,9 +30,14 @@ module.exports = {
   },
 
   transform: async (config, path) => {
-    // Only include public routes
-    const publicRoutes = ['/', '/landingpage', '/aboutus', '/login', '/register', '/forgotPassword', '/resetPassword'];
-    
+    // Only include public routes.
+    //
+    // /privacy and /data-deletion are listed because Google Play points at both
+    // and expects them publicly reachable. Leaving them out of the sitemap does
+    // not hide them, but a policy URL the site itself declines to list is the
+    // wrong signal to send about a page that is meant to be found.
+    const publicRoutes = ['/', '/landingpage', '/aboutus', '/login', '/register', '/forgotPassword', '/resetPassword', '/privacy', '/data-deletion'];
+
     if (!publicRoutes.includes(path)) {
       return null; // This excludes the route
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { ArrowUp } from "lucide-react";
 import { FaApple } from "react-icons/fa";
 import { useTheme } from "@/context/ThemeContext";
@@ -80,13 +81,33 @@ const Footer = () => {
           </div>
 
           <div
-            className={`mt-12 flex flex-col items-center justify-between border-t ${
+            className={`mt-12 flex flex-col items-center justify-between gap-4 border-t ${
               isDark ? "border-gray-800" : "border-gray-300"
             } pt-8 ${isDark ? "text-gray-400" : "text-gray-600"} md:flex-row`}
           >
             <p>
               &copy; {new Date().getFullYear()} LIST IT. All rights reserved.
             </p>
+
+            {/* The two pages Google Play requires be publicly reachable, and the
+                only place on the website that links to either. The deletion
+                page in particular has to be findable by someone who cannot sign
+                in — that is the whole reason it exists — and until now you had
+                to know the URL. */}
+            <nav className="flex items-center gap-5 text-sm">
+              <Link
+                href="/privacy"
+                className="transition-colors hover:text-indigo-500"
+              >
+                Privacy Policy
+              </Link>
+              <Link
+                href="/data-deletion"
+                className="transition-colors hover:text-indigo-500"
+              >
+                Delete my account
+              </Link>
+            </nav>
           </div>
         </div>
       </footer>

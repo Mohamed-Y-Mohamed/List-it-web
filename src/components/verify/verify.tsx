@@ -15,6 +15,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { appPath } from "@/lib/routes";
+import { CONTACT_MAILTO } from "@/lib/contact";
 
 const EmailVerification = () => {
   const { theme } = useTheme();
@@ -377,7 +378,10 @@ const EmailVerification = () => {
                 Need help?{" "}
                 <motion.a
                   whileHover={{ scale: 1.05 }}
-                  href="mailto:support@listit.com"
+                  // Was mailto:support@listit.com — a domain nobody here owns,
+                  // so every click bounced. A contact address that works is
+                  // something app store reviewers check.
+                  href={CONTACT_MAILTO}
                   className={`${
                     isDark
                       ? "text-orange-400 hover:text-orange-300"

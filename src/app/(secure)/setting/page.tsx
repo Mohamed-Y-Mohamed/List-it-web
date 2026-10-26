@@ -29,7 +29,9 @@ import {
   LogOut,
   MessageSquarePlus,
   ExternalLink,
+  ShieldCheck,
 } from "lucide-react";
+import PolicyModal from "@/components/legal/PolicyModal";
 import { apiFetch } from "@/lib/apiFetch";
 import { useListLayout } from "@/hooks/useListLayout";
 import { type ListLayout } from "@/lib/listLayout";
@@ -473,6 +475,8 @@ export default function SettingsPage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  // The privacy policy sheet, opened from the row beside Feedback.
+  const [policyOpen, setPolicyOpen] = useState(false);
 
   const { theme, toggleTheme, surface, setSurface } = useTheme();
   const { user, logout } = useAuth();
@@ -1470,6 +1474,38 @@ export default function SettingsPage() {
             );
           })}
 
+          {/* The privacy policy. Beside Feedback rather than inside a section
+              because it is a document, not a preference — and outside the
+              IS_NATIVE_BUILD guard that wraps Sign out, so web and Android both
+              get it from the one row. Play's User Data policy wants the policy
+              reachable from inside the app, not only from the store listing.
+
+              A sheet rather than a link to /privacy: Settings is deep in the
+              tab stack, and sending someone to a full page means managing a way
+              back from it. ModalShell already wires Android's back button to
+              dismiss, so the sheet costs nothing and strands nobody. */}
+          <button
+            type="button"
+            onClick={() => setPolicyOpen(true)}
+            className={`flex min-h-[56px] w-full items-center gap-3 rounded-2xl border bg-[var(--surface-card)] px-4 py-3.5 text-left ${
+              isDark ? "border-white/[0.08]" : "border-black/[0.06]"
+            }`}
+          >
+            <ShieldCheck
+              className={`h-5 w-5 shrink-0 ${isDark ? "text-orange-400" : "text-sky-500"}`}
+            />
+            <span className="min-w-0 flex-1">
+              <span
+                className={`block text-[15px] font-medium ${isDark ? "text-white" : "text-gray-900"}`}
+              >
+                Privacy Policy
+              </span>
+              <span className="block text-[12px] text-gray-500">
+                What we collect, and how to delete it
+              </span>
+            </span>
+          </button>
+
           {/* Feedback. Outside the sections for the same reason Sign out is: it
               is a way out of the app, not a preference.
 
@@ -1540,6 +1576,12 @@ export default function SettingsPage() {
 
       {/* Notification */}
       <Notification notification={notification} onClose={hideNotification} />
+
+      <PolicyModal
+        isOpen={policyOpen}
+        onClose={() => setPolicyOpen(false)}
+        isDark={isDark}
+      />
     </main>
   );
 }
