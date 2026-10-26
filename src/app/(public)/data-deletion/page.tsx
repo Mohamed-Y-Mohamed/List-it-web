@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { IS_NATIVE_BUILD } from "@/lib/platform";
+import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/contact";
+import { appPath } from "@/lib/routes";
 
 const FORM_NAME = "account-deletion";
 
@@ -86,6 +88,14 @@ export default function DataDeletionPage() {
       className={`min-h-screen w-full px-4 py-12 ${
         isDark ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"
       }`}
+      // Same top-spacing rule as /privacy, which this page is a pair with — see
+      // the comment there. On the web the fixed 4rem TopNavigation was covering
+      // the heading at scroll-top; in the app there is no top bar and it is the
+      // status bar that has to be cleared instead.
+      style={{
+        paddingTop: IS_NATIVE_BUILD ? "max(3rem, var(--safe-top))" : "7rem",
+        paddingBottom: "max(3rem, var(--safe-bottom))",
+      }}
     >
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -153,6 +163,24 @@ export default function DataDeletionPage() {
               >
                 Send the email address on the account and we will delete it
                 within 30 days. We will email you when it is done.
+              </p>
+              {/* A plain address as well as the form. The form posts to Netlify,
+                  which can fail, be blocked, or simply not be the thing someone
+                  wants to use — and a deletion route that has only one mechanism
+                  has a single point of failure in front of a policy obligation. */}
+              <p
+                className={`mt-1 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}
+              >
+                Or email us directly at{" "}
+                <a
+                  href={CONTACT_MAILTO}
+                  className={`underline underline-offset-2 ${
+                    isDark ? "text-orange-400" : "text-sky-600"
+                  }`}
+                >
+                  {CONTACT_EMAIL}
+                </a>
+                .
               </p>
 
               {IS_NATIVE_BUILD ? (
@@ -298,6 +326,20 @@ export default function DataDeletionPage() {
             page are actioned within 30 days; deleting from inside the app is
             immediate. We keep no backups of deleted accounts beyond that
             window.
+          </p>
+          <p
+            className={`mt-3 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}
+          >
+            For the full picture of what we hold and why, see our{" "}
+            <Link
+              href={appPath("/privacy")}
+              className={`underline underline-offset-2 ${
+                isDark ? "text-orange-400" : "text-sky-600"
+              }`}
+            >
+              Privacy Policy
+            </Link>
+            .
           </p>
         </section>
       </motion.div>

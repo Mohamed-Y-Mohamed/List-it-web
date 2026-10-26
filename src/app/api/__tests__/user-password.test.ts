@@ -17,15 +17,20 @@ jest.mock("@/lib/api-auth", () => ({
   getRouteClient: jest.fn(),
 }));
 
-// Anon client mock
+// Anon client mock. This is the one that signs in with the current password,
+// and therefore the only client in the request that ends up holding a session —
+// so it is also the one that must perform the update. See the note in the route.
 const mockSignIn = jest.fn();
+const mockAnonUpdateUser = jest.fn();
 jest.mock("@supabase/supabase-js", () => ({
   createClient: jest.fn(() => ({
-    auth: { signInWithPassword: mockSignIn },
+    auth: { signInWithPassword: mockSignIn, updateUser: mockAnonUpdateUser },
   })),
 }));
 
-// Session client mock — the route now receives this from getRouteClient.
+// Route client mock. Kept so a regression that reaches for it is visible: on the
+// native bearer path this client has no session, and auth.updateUser on it
+// throws AuthSessionMissingError.
 const mockUpdateUser = jest.fn();
 const mockSessionClient = { auth: { updateUser: mockUpdateUser } };
 jest.mock("@/utils/server", () => ({
@@ -121,7 +126,9 @@ describe("POST /api/user/password", () => {
   it("returns 500 when updateUser fails", async () => {
     authOk();
     mockSignIn.mockResolvedValue({ error: null });
-    mockUpdateUser.mockResolvedValue({ error: { message: "Update failed" } });
+    mockAnonUpdateUser.mockResolvedValue({
+      error: { message: "Update failed" },
+    });
     const res = await POST(
       makeReq({ currentPassword: "old123", newPassword: "new123" }),
     );
@@ -131,13 +138,37 @@ describe("POST /api/user/password", () => {
   it("returns 200 on successful password change", async () => {
     authOk();
     mockSignIn.mockResolvedValue({ error: null });
-    mockUpdateUser.mockResolvedValue({ error: null });
+    mockAnonUpdateUser.mockResolvedValue({ error: null });
     const res = await POST(
       makeReq({ currentPassword: "old123", newPassword: "new123" }),
     );
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
+  });
+
+  // The regression. The Android app authenticates with a bearer token, not a
+  // cookie, and the client getRouteClient builds for that case carries the
+  // token as a request header only — its auth module has no session in storage,
+  // so auth.updateUser throws AuthSessionMissingError and the route 500s with
+  // the password unchanged. Verified against the real server: bearer path
+  // "Auth session missing!", cookie path 200.
+  //
+  // The update therefore has to run on the client that signed in with the
+  // current password a few lines earlier, which holds a real session on both
+  // platforms.
+  it("updates through the client that verified the password, not the route client", async () => {
+    authOk();
+    mockSignIn.mockResolvedValue({ error: null });
+    mockAnonUpdateUser.mockResolvedValue({ error: null });
+
+    const res = await POST(
+      makeReq({ currentPassword: "old123", newPassword: "new123" }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockAnonUpdateUser).toHaveBeenCalledWith({ password: "new123" });
+    expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
   it("returns 500 when Supabase env vars are missing", async () => {

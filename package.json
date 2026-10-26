@@ -20,7 +20,7 @@
     "test:watch": "jest --watch",
     "prepare": "husky install",
     "pre-push": ".husky/pre-push",
-    "android:release": "npm run build:native && cap sync android && cd android && gradlew.bat bundleRelease"
+    "android:release": "npm run build:native && cap sync android && cd android && .\\gradlew.bat bundleRelease"
   },
   "lint-staged": {
     "*.{js,ts,tsx}": [
@@ -45,7 +45,7 @@
     "next": "^15.5.9",
     "next-sitemap": "^4.2.3",
     "pinst": "^3.0.0",
-    "postcss": "^8.5.3",
+    "postcss": "^8.5.31",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
@@ -76,6 +76,9 @@
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "^5"
+  },
+  "overrides": {
+    "postcss": "$postcss"
   },
   "packageManager": "npm@11.2.0",
   "engines": {

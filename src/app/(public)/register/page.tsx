@@ -31,6 +31,12 @@ import {
   AUTH_SCROLL_PADDING,
 } from "@/components/native/authStyles";
 import { appPath } from "@/lib/routes";
+import {
+  passwordError,
+  PASSWORD_RULE,
+  PASSWORD_MIN_LENGTH,
+} from "@/lib/password";
+import PolicyModal from "@/components/legal/PolicyModal";
 
 const Signup = () => {
   const { theme } = useTheme();
@@ -59,6 +65,10 @@ const Signup = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [verificationSent, setVerificationSent] = useState(false);
   const [resendingVerification, setResendingVerification] = useState(false);
+  // Consent to the privacy policy, and the sheet that shows it. Required to
+  // submit; see the checkbox above the submit button.
+  const [agreed, setAgreed] = useState(false);
+  const [policyOpen, setPolicyOpen] = useState(false);
 
   // Toggle password visibility
   const togglePasswordVisibility = () => {
@@ -84,12 +94,21 @@ const Signup = () => {
       setError("Please enter a valid email address");
       return false;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+    // Same rules the auth server enforces, so the refusal arrives here in our
+    // own words rather than from Supabase in its own.
+    const pwError = passwordError(password);
+    if (pwError) {
+      setError(pwError);
       return false;
     }
     if (password !== confirmPassword) {
       setError("Passwords do not match");
+      return false;
+    }
+    // Belt and braces: the submit button is already disabled without this, but
+    // a form can also be submitted by pressing Enter in a field.
+    if (!agreed) {
+      setError("Please agree to the Privacy Policy to create an account");
       return false;
     }
     return true;
@@ -594,7 +613,7 @@ const Signup = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    minLength={6}
+                    minLength={PASSWORD_MIN_LENGTH}
                   />
                   <motion.button
                     whileHover={{ scale: 1.1 }}
@@ -617,6 +636,17 @@ const Signup = () => {
                     )}
                   </motion.button>
                 </motion.div>
+
+                {/* The rule, stated before it is broken. Sign-up asked for
+                    nothing and then refused what you typed in Supabase's
+                    words. */}
+                <p
+                  className={`-mt-2 text-[12px] leading-snug ${
+                    isDark ? "text-gray-400" : "text-gray-500"
+                  }`}
+                >
+                  {PASSWORD_RULE}
+                </p>
 
                 <motion.div whileFocus={{ scale: 1.02 }} className="relative">
                   <Lock
@@ -663,11 +693,52 @@ const Signup = () => {
                   </motion.button>
                 </motion.div>
 
+                {/* Consent. Sign-up is where name, email and password are
+                    collected, so it is where the policy has to be offered —
+                    Play's User Data policy wants the disclosure at the point of
+                    collection, not buried in a menu.
+
+                    Reading is optional and ticking is the gate: the label is
+                    plain enough to be the whole disclosure for anyone who does
+                    not open the sheet, and the sheet is one tap away for anyone
+                    who does. The policy link is a button rather than a link to
+                    /privacy on purpose — navigating away mid-form loses the
+                    four fields above it. */}
+                <div className="mt-5 flex items-start gap-3">
+                  <input
+                    id="policy-agreement"
+                    type="checkbox"
+                    checked={agreed}
+                    onChange={(e) => setAgreed(e.target.checked)}
+                    className={`mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded border-2 accent-orange-500 ${
+                      isDark ? "border-gray-600" : "border-gray-400"
+                    }`}
+                  />
+                  <label
+                    htmlFor="policy-agreement"
+                    className={`text-[13px] leading-snug ${
+                      isDark ? "text-gray-300" : "text-gray-600"
+                    }`}
+                  >
+                    I agree to the{" "}
+                    <button
+                      type="button"
+                      onClick={() => setPolicyOpen(true)}
+                      className="font-semibold text-orange-500 underline underline-offset-2"
+                    >
+                      Privacy Policy
+                    </button>
+                    . We only collect what the app needs, store it securely, and
+                    never sell it. You can delete your account and everything in
+                    it at any time.
+                  </label>
+                </div>
+
                 <motion.button
                   whileHover={{ scale: 1.02, y: -2 }}
                   whileTap={{ scale: 0.98 }}
                   type="submit"
-                  disabled={loading || verificationSent}
+                  disabled={loading || verificationSent || !agreed}
                   className={
                     isNative
                       ? AUTH_PRIMARY_BUTTON
@@ -675,7 +746,7 @@ const Signup = () => {
                           isDark
                             ? "bg-orange-600/80 hover:bg-orange-700/80 text-white border border-orange-500/30"
                             : "bg-orange-500/80 hover:bg-orange-600/80 text-white border border-orange-400/30"
-                        } ${loading || verificationSent ? "opacity-70 cursor-not-allowed" : "hover:shadow-xl"}`
+                        } ${loading || verificationSent || !agreed ? "opacity-70 cursor-not-allowed" : "hover:shadow-xl"}`
                   }
                 >
                   {loading ? (
@@ -723,6 +794,14 @@ const Signup = () => {
           </div>
         </motion.div>
       </motion.div>
+
+      {/* Portalled to the body by ModalShell, so its position here is immaterial
+          — it sits outside the form only so a tap inside it cannot submit. */}
+      <PolicyModal
+        isOpen={policyOpen}
+        onClose={() => setPolicyOpen(false)}
+        isDark={isDark}
+      />
     </div>
   );
 };

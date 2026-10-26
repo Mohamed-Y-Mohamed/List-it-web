@@ -17,6 +17,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/client";
 import { appPath } from "@/lib/routes";
+import { passwordError, PASSWORD_RULE } from "@/lib/password";
 
 const ResetPasswordPage = () => {
   const { theme } = useTheme();
@@ -101,13 +102,11 @@ const ResetPasswordPage = () => {
     setShowConfirmPassword(!showConfirmPassword);
   };
 
-  // Validate password strength
-  const validatePassword = (password: string): string | null => {
-    if (password.length < 8) {
-      return "Password must be at least 8 characters long";
-    }
-    return null;
-  };
+  // Validate password strength. The length was right here and the character
+  // classes were missing, so a long all-lowercase password passed and was then
+  // refused by the auth server at the last step — after the reset link had
+  // been spent.
+  const validatePassword = passwordError;
 
   // Handle setting new password
   const handleSetNewPassword = async (e: React.FormEvent) => {
@@ -468,7 +467,7 @@ const ResetPasswordPage = () => {
                   transition={{ duration: 0.6, delay: 0.5 }}
                   className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"} mt-2`}
                 >
-                  Password must be at least 8 characters long.
+                  {PASSWORD_RULE}
                 </motion.p>
 
                 <motion.button

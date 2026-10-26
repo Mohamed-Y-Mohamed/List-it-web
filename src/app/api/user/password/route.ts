@@ -3,7 +3,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, getRouteClient } from "@/lib/api-auth";
+import { requireAuth } from "@/lib/api-auth";
 import { logger } from "@/lib/logger";
 
 // POST /api/user/password
@@ -48,7 +48,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const anonClient = createClient(supabaseUrl, supabaseAnonKey);
+    // persistSession keeps this client's session in its own in-memory store
+    // rather than a shared one, so two people changing their password at the
+    // same moment cannot end up looking at each other's session. The session
+    // still lives for as long as this client does, which is the point below.
+    const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
 
     const { error: signInError } = await anonClient.auth.signInWithPassword({
       email: userEmail,
@@ -62,9 +68,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update password using the session-scoped server client
-    const supabase = await getRouteClient();
-    const { error: updateError } = await supabase.auth.updateUser({
+    // The update runs on the client that just signed in, because that is the
+    // only client in this request that holds a session.
+    //
+    // It used to run on getRouteClient()'s client, which works on the web and
+    // silently cannot work in the app. That client mirrors whichever credential
+    // the caller used, and the Android app's credential is a bearer token
+    // attached as a global request header. A header authenticates PostgREST, so
+    // every `.from(...)` query behaves — but auth.updateUser reads the session
+    // out of the client's own storage, finds nothing, and throws
+    // AuthSessionMissingError before it makes any request at all. The route
+    // returned 500 and the password was never changed, while the identical code
+    // on the web returned 200 and worked. Confirmed against a running server:
+    // bearer path "Auth session missing!", cookie path 200.
+    const { error: updateError } = await anonClient.auth.updateUser({
       password: newPassword,
     });
 

@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { IS_NATIVE_BUILD, isNativeApp } from "@/lib/platform";
 import { logoutRedirectUrl } from "@/lib/routes";
+import { passwordError, PASSWORD_RULE } from "@/lib/password";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings,
@@ -29,7 +31,9 @@ import {
   LogOut,
   MessageSquarePlus,
   ExternalLink,
+  ShieldCheck,
 } from "lucide-react";
+import PolicyModal from "@/components/legal/PolicyModal";
 import { apiFetch } from "@/lib/apiFetch";
 import { useListLayout } from "@/hooks/useListLayout";
 import { type ListLayout } from "@/lib/listLayout";
@@ -125,6 +129,11 @@ const Notification: React.FC<{
   notification: NotificationState;
   onClose: () => void;
 }> = ({ notification, onClose }) => {
+  // document.body does not exist during the server render, so the portal below
+  // waits for the client. Same guard ModalShell uses.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     if (notification.visible) {
       const timer = setTimeout(() => {
@@ -172,14 +181,34 @@ const Notification: React.FC<{
   const styles = getNotificationStyles();
   const Icon = styles.icon;
 
-  return (
+  // Portalled to the body, which is the whole reason this toast is visible in
+  // the app at all.
+  //
+  // `position: fixed` is only fixed to the viewport when no ancestor carries a
+  // transform. On native, SecureLayout wraps every screen in NativeTransition,
+  // a motion.div animating translateX — so the toast's containing block was
+  // that wrapper, not the window, and it rendered at the top of a page that was
+  // scrolled well past it. Off-screen, every time. The web branch of that
+  // layout renders children bare, which is exactly why this looked fine there
+  // and never appeared on Android: the green tick after a password change and,
+  // worse, the errors. A failed save was indistinguishable from a successful
+  // one, which is how a password change that did nothing went unnoticed.
+  //
+  // ModalShell portals for this same reason; this follows it rather than
+  // inventing a second answer.
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0, y: -50, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -50, scale: 0.95 }}
         transition={{ duration: 0.3 }}
-        className={`fixed top-4 right-4 z-50 flex items-center space-x-3 rounded-lg border p-4 shadow-lg backdrop-blur-sm ${styles.bg} ${styles.border} ${styles.color}`}
+        // Clears the status bar now that it really is at the top of the window.
+        // env() is 0 in a browser, so max() leaves the web at its original 1rem.
+        style={{ top: "max(1rem, calc(var(--safe-top) + 0.5rem))" }}
+        className={`fixed right-4 z-50 flex items-center space-x-3 rounded-lg border p-4 shadow-lg backdrop-blur-sm ${styles.bg} ${styles.border} ${styles.color}`}
       >
         <Icon className="h-5 w-5 flex-shrink-0" />
         <p className="text-sm font-medium">{notification.message}</p>
@@ -196,7 +225,8 @@ const Notification: React.FC<{
           </svg>
         </button>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 };
 
@@ -473,6 +503,8 @@ export default function SettingsPage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  // The privacy policy sheet, opened from the row beside Feedback.
+  const [policyOpen, setPolicyOpen] = useState(false);
 
   const { theme, toggleTheme, surface, setSurface } = useTheme();
   const { user, logout } = useAuth();
@@ -598,8 +630,11 @@ export default function SettingsPage() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      showNotification("error", "New password must be at least 6 characters");
+    // Same rules the auth server enforces, checked here so the refusal is our
+    // sentence and not Supabase's, which recites its whole symbol set.
+    const pwError = passwordError(newPassword);
+    if (pwError) {
+      showNotification("error", pwError);
       return;
     }
 
@@ -623,7 +658,26 @@ export default function SettingsPage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      showNotification("success", "Password updated successfully");
+
+      // Changing the password revokes every other session the account has,
+      // which includes the one this screen is running on — measured: the
+      // access token 401s and the refresh token is rejected the moment the
+      // change lands. Staying put would leave the app holding a dead session
+      // and failing on the next request for no visible reason, so say what
+      // happened and go to sign-in deliberately.
+      showNotification(
+        "success",
+        "Password changed. Sign in again with your new password.",
+      );
+
+      setTimeout(async () => {
+        try {
+          await logout();
+        } catch (logoutError) {
+          console.error("Error signing out after password change:", logoutError);
+          window.location.href = logoutRedirectUrl(isNativeApp());
+        }
+      }, 2200);
     } catch (error) {
       console.error("Unexpected error updating password:", error);
       showNotification("error", "An unexpected error occurred");
@@ -1141,7 +1195,7 @@ export default function SettingsPage() {
                 <p
                   className={`mt-1 text-xs ${isDark ? "text-gray-500" : "text-gray-500"}`}
                 >
-                  Password must be at least 6 characters long
+                  {PASSWORD_RULE}
                 </p>
               </div>
 
@@ -1470,6 +1524,38 @@ export default function SettingsPage() {
             );
           })}
 
+          {/* The privacy policy. Beside Feedback rather than inside a section
+              because it is a document, not a preference — and outside the
+              IS_NATIVE_BUILD guard that wraps Sign out, so web and Android both
+              get it from the one row. Play's User Data policy wants the policy
+              reachable from inside the app, not only from the store listing.
+
+              A sheet rather than a link to /privacy: Settings is deep in the
+              tab stack, and sending someone to a full page means managing a way
+              back from it. ModalShell already wires Android's back button to
+              dismiss, so the sheet costs nothing and strands nobody. */}
+          <button
+            type="button"
+            onClick={() => setPolicyOpen(true)}
+            className={`flex min-h-[56px] w-full items-center gap-3 rounded-2xl border bg-[var(--surface-card)] px-4 py-3.5 text-left ${
+              isDark ? "border-white/[0.08]" : "border-black/[0.06]"
+            }`}
+          >
+            <ShieldCheck
+              className={`h-5 w-5 shrink-0 ${isDark ? "text-orange-400" : "text-sky-500"}`}
+            />
+            <span className="min-w-0 flex-1">
+              <span
+                className={`block text-[15px] font-medium ${isDark ? "text-white" : "text-gray-900"}`}
+              >
+                Privacy Policy
+              </span>
+              <span className="block text-[12px] text-gray-500">
+                What we collect, and how to delete it
+              </span>
+            </span>
+          </button>
+
           {/* Feedback. Outside the sections for the same reason Sign out is: it
               is a way out of the app, not a preference.
 
@@ -1540,6 +1626,12 @@ export default function SettingsPage() {
 
       {/* Notification */}
       <Notification notification={notification} onClose={hideNotification} />
+
+      <PolicyModal
+        isOpen={policyOpen}
+        onClose={() => setPolicyOpen(false)}
+        isDark={isDark}
+      />
     </main>
   );
 }

@@ -100,6 +100,23 @@ try {
       // Inlined into the client bundle as a compile-time constant; see
       // IS_NATIVE_BUILD in src/lib/platform.ts.
       NEXT_PUBLIC_BUILD_TARGET: "native",
+
+      // Google Analytics is for the website only, and this is what keeps it
+      // that way.
+      //
+      // layout.tsx renders the gtag snippet whenever NEXT_PUBLIC_GA_ID is set,
+      // and the env above spreads the whole of process.env — so the day that
+      // variable lands in a local .env file to test the site, the next native
+      // build silently ships an analytics tracker inside the app. Nothing would
+      // look wrong: the app would work, and only the Data safety declaration in
+      // Play Console ("no data collected, no analytics") would quietly have
+      // become false, which is the kind of mismatch that gets an app pulled.
+      //
+      // Blanked here rather than trusted to be absent. If the app is ever meant
+      // to have analytics, that is a deliberate change to this line plus a
+      // change to the Data safety form plus an in-app consent prompt for UK/EEA
+      // users — not something that arrives by accident through a .env file.
+      NEXT_PUBLIC_GA_ID: "",
     },
   });
 } catch (err) {
