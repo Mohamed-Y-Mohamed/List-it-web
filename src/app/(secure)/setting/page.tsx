@@ -181,7 +181,13 @@ const Notification: React.FC<{
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -50, scale: 0.95 }}
         transition={{ duration: 0.3 }}
-        className={`fixed top-4 right-4 z-50 flex items-center space-x-3 rounded-lg border p-4 shadow-lg backdrop-blur-sm ${styles.bg} ${styles.border} ${styles.color}`}
+        // top-4 put this under the status bar in the app, so every toast this
+        // screen raises — the green tick after a password change and, worse,
+        // the errors — was invisible on Android. A failed save looked exactly
+        // like a successful one. env() is 0 in a browser, so max() leaves the
+        // web at the 1rem it already had.
+        style={{ top: "max(1rem, calc(var(--safe-top) + 0.5rem))" }}
+        className={`fixed right-4 z-50 flex items-center space-x-3 rounded-lg border p-4 shadow-lg backdrop-blur-sm ${styles.bg} ${styles.border} ${styles.color}`}
       >
         <Icon className="h-5 w-5 flex-shrink-0" />
         <p className="text-sm font-medium">{notification.message}</p>
@@ -627,7 +633,26 @@ export default function SettingsPage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      showNotification("success", "Password updated successfully");
+
+      // Changing the password revokes every other session the account has,
+      // which includes the one this screen is running on — measured: the
+      // access token 401s and the refresh token is rejected the moment the
+      // change lands. Staying put would leave the app holding a dead session
+      // and failing on the next request for no visible reason, so say what
+      // happened and go to sign-in deliberately.
+      showNotification(
+        "success",
+        "Password changed. Sign in again with your new password.",
+      );
+
+      setTimeout(async () => {
+        try {
+          await logout();
+        } catch (logoutError) {
+          console.error("Error signing out after password change:", logoutError);
+          window.location.href = logoutRedirectUrl(isNativeApp());
+        }
+      }, 2200);
     } catch (error) {
       console.error("Unexpected error updating password:", error);
       showNotification("error", "An unexpected error occurred");
