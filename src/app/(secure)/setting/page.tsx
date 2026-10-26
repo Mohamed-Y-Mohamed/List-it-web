@@ -6,6 +6,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { IS_NATIVE_BUILD, isNativeApp } from "@/lib/platform";
 import { logoutRedirectUrl } from "@/lib/routes";
+import { passwordError, PASSWORD_RULE } from "@/lib/password";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings,
@@ -629,8 +630,11 @@ export default function SettingsPage() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      showNotification("error", "New password must be at least 6 characters");
+    // Same rules the auth server enforces, checked here so the refusal is our
+    // sentence and not Supabase's, which recites its whole symbol set.
+    const pwError = passwordError(newPassword);
+    if (pwError) {
+      showNotification("error", pwError);
       return;
     }
 
@@ -1191,7 +1195,7 @@ export default function SettingsPage() {
                 <p
                   className={`mt-1 text-xs ${isDark ? "text-gray-500" : "text-gray-500"}`}
                 >
-                  Password must be at least 6 characters long
+                  {PASSWORD_RULE}
                 </p>
               </div>
 

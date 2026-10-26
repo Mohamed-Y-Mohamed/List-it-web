@@ -31,6 +31,11 @@ import {
   AUTH_SCROLL_PADDING,
 } from "@/components/native/authStyles";
 import { appPath } from "@/lib/routes";
+import {
+  passwordError,
+  PASSWORD_RULE,
+  PASSWORD_MIN_LENGTH,
+} from "@/lib/password";
 import PolicyModal from "@/components/legal/PolicyModal";
 
 const Signup = () => {
@@ -89,8 +94,11 @@ const Signup = () => {
       setError("Please enter a valid email address");
       return false;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+    // Same rules the auth server enforces, so the refusal arrives here in our
+    // own words rather than from Supabase in its own.
+    const pwError = passwordError(password);
+    if (pwError) {
+      setError(pwError);
       return false;
     }
     if (password !== confirmPassword) {
@@ -605,7 +613,7 @@ const Signup = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    minLength={6}
+                    minLength={PASSWORD_MIN_LENGTH}
                   />
                   <motion.button
                     whileHover={{ scale: 1.1 }}
@@ -628,6 +636,17 @@ const Signup = () => {
                     )}
                   </motion.button>
                 </motion.div>
+
+                {/* The rule, stated before it is broken. Sign-up asked for
+                    nothing and then refused what you typed in Supabase's
+                    words. */}
+                <p
+                  className={`-mt-2 text-[12px] leading-snug ${
+                    isDark ? "text-gray-400" : "text-gray-500"
+                  }`}
+                >
+                  {PASSWORD_RULE}
+                </p>
 
                 <motion.div whileFocus={{ scale: 1.02 }} className="relative">
                   <Lock
