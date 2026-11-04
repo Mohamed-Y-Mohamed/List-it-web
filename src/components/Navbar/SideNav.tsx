@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   CalendarCheck,
@@ -35,7 +35,7 @@ import { List } from "@/types/schema";
 import EditListPopup from "@/components/popupModels/editListPopup";
 import { apiFetch } from "@/lib/apiFetch";
 import { activeListId, listHref } from "@/lib/routes";
-import { useIsNative } from "@/hooks/useIsNative";
+import { useOptionalAppData } from "@/components/AppDataProvider";
 
 /**
  * Surfaces for the sidebar, in both themes.
@@ -227,8 +227,6 @@ interface SideNavProps {
 const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const isNative = useIsNative();
   const { theme, toggleTheme } = useTheme();
   const { isLoggedIn, user, logout } = useAuth();
   const isDark = theme === "dark";
@@ -312,6 +310,21 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
     fetchLists();
   }, [fetchLists]);
 
+  // Keep the shared app data (the dashboard's list cards) in step with every
+  // create, rename, pin and delete made here. Only once the sidebar has loaded,
+  // so its empty starting state never wipes the shared copy.
+  const appData = useOptionalAppData();
+  const setSharedLists = appData?.setLists;
+  const sidebarLoaded = useRef(false);
+  useEffect(() => {
+    if (isLoadingLists) return;
+    if (!sidebarLoaded.current) {
+      sidebarLoaded.current = true;
+      return;
+    }
+    setSharedLists?.(lists);
+  }, [lists, isLoadingLists, setSharedLists]);
+
   const sortedLists = useMemo(() => {
     return [...lists].sort((a, b) => {
       if (a.is_pinned && !b.is_pinned) return -1;
@@ -320,10 +333,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
     });
   }, [lists]);
 
-  // Reads either URL shape, since native navigates to /List?id=… — see listHref.
-  const currentListId = useMemo(() => {
-    return activeListId(pathname, searchParams);
-  }, [pathname, searchParams]);
+  const currentListId = useMemo(() => activeListId(pathname), [pathname]);
 
   const toggleSidebar = (): void => {
     setSidebarOpen((prev) => !prev);
@@ -339,7 +349,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
   };
 
   const handleListClick = (listId: string): void => {
-    navigateTo(listHref(listId, isNative));
+    navigateTo(listHref(listId));
   };
 
   const handleTogglePinList = async (listId: string): Promise<void> => {
@@ -452,7 +462,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         );
         if (dup) {
           await fetchLists();
-          navigateTo(listHref(dup.id, isNative));
+          navigateTo(listHref(dup.id));
           setIsLoadingLists(false);
           return { success: true };
         }
@@ -530,7 +540,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
         if (lists.length > 1) {
           const nextList = lists.find((list) => list.id !== listId);
           if (nextList) {
-            navigateTo(listHref(nextList.id, isNative));
+            navigateTo(listHref(nextList.id));
           } else {
             navigateTo("/dashboard");
           }
@@ -724,7 +734,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                       // At the old h-9 the three bands resolved to a few pixels
                       // each and the 28px leading bar did not fit; 48px is also
                       // the comfortable touch target, so the row reads as the
-                      // same object as the Android card rather than a squashed
+                      // same object as the list card rather than a squashed
                       // copy of it.
                       //
                       // `overflow-hidden` clips the wave to the corners,
@@ -735,14 +745,7 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                           : "hover:bg-[var(--sb-hover)]"
                       }`}
                     >
-                      {/* The full three-band treatment, identical to the Lists
-                          cards on Android — same depths, same curvature, same
-                          opacities. The design is the design on both platforms.
-
-                          I had this as a single quieter band first, on the
-                          grounds that three curves across a 36px row resolve to
-                          a few pixels each. Overruled, and the rows are taller
-                          now to carry it properly. */}
+                      {/* The same three-band wave as the list cards. */}
                       <ListWave
                         color={list.bg_color_hex || "var(--sb-muted)"}
                         isDark={isDark}
@@ -761,7 +764,8 @@ const SideNavigation: React.FC<SideNavProps> = ({ children }) => {
                       <button
                         type="button"
                         onClick={() => handleListClick(list.id)}
-                        className="relative z-10 flex h-full min-w-0 flex-1 items-center gap-3 rounded-[17px] px-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sb-primary)]"
+                        // The name stays inside the first 80%, clear of the wave's edge.
+                        className="relative z-10 flex h-full min-w-0 max-w-[80%] flex-1 items-center gap-3 rounded-[17px] px-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sb-primary)]"
                         title={list.list_name ?? undefined}
                       >
                         {/* The line, not a dot — the same 4x28 marker the Lists

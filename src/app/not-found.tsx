@@ -18,11 +18,7 @@ const NotFound: React.FC = () => {
       {/* Background. The product's own flat field, light and dark. This page
           carried the last of the brown-and-orange gradients that made the site
           look like a different product from the app. */}
-      {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full bg-[#0B1222]" />
-      ) : (
-        <div className="absolute inset-0 -z-10 size-full bg-[#F6F8FC]" />
-      )}
+      <div className="absolute inset-0 -z-10 size-full bg-[var(--surface-field)]" />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center">

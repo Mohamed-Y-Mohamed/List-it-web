@@ -36,7 +36,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { apiFetch } from "@/lib/apiFetch";
 import { applyCompletion } from "@/lib/completion";
 import { isUsableHex } from "@/lib/colors";
-import { useOptionalAppData } from "@/components/native/AppDataProvider";
+import { useOptionalAppData } from "@/components/AppDataProvider";
 import AppSurface from "@/components/AppSurface";
 import { SkeletonTaskList } from "@/components/ui/Skeleton";
 import { SUCCESS } from "@/components/ui/tokens";

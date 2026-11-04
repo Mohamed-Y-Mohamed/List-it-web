@@ -30,8 +30,8 @@ const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay }}
       whileHover={{ y: -8, scale: 1.02 }}
       className={`rounded-xl p-6 sm:p-8 transition-all duration-300 border group relative overflow-hidden ${
         isDark

@@ -16,7 +16,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/client";
-import { appPath } from "@/lib/routes";
 import { passwordError, PASSWORD_RULE } from "@/lib/password";
 
 const ResetPasswordPage = () => {
@@ -47,11 +46,11 @@ const ResetPasswordPage = () => {
     setLoggingOut(true);
     try {
       await logout();
-      router.push(appPath("/login"));
+      router.push("/login");
     } catch (err) {
       console.error("Error during logout:", err);
       // Continue anyway - don't block user flow
-      router.push(appPath("/login"));
+      router.push("/login");
     } finally {
       setLoggingOut(false);
     }
@@ -76,7 +75,7 @@ const ResetPasswordPage = () => {
             logoutError,
           );
         }
-        router.push(appPath("/login?password_reset=success"));
+        router.push("/login?password_reset=success");
       };
 
       performLogoutAndRedirect();
@@ -156,7 +155,7 @@ const ResetPasswordPage = () => {
             console.error("Error during logout after reset:", logoutErr);
           });
 
-          router.push(appPath("/login?password_reset=success"));
+          router.push("/login?password_reset=success");
         }
       }, 1000);
     } catch (err: unknown) {
@@ -174,13 +173,8 @@ const ResetPasswordPage = () => {
   return (
     <div className="min-h-screen w-full relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       {/* Background. The product's own flat field, light and dark, rather than
-          the gradient this used to carry. Web-only route: the native app never
-          opens a password reset link in the shell. */}
-      {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full bg-[#0B1222]" />
-      ) : (
-        <div className="absolute inset-0 -z-10 size-full bg-[#F6F8FC]" />
-      )}
+          the gradient this used to carry. */}
+      <div className="absolute inset-0 -z-10 size-full bg-[var(--surface-field)]" />
 
       {/* Floating elements */}
       <motion.div
@@ -572,7 +566,7 @@ const ResetPasswordPage = () => {
                         } catch (logoutError) {
                           console.error("Error during logout:", logoutError);
                         }
-                        router.push(appPath("/login?password_reset=success"));
+                        router.push("/login?password_reset=success");
                       }}
                       className={`mt-4 px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
                         isDark

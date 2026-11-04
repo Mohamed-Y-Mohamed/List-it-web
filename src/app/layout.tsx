@@ -4,9 +4,8 @@ import "./globals.css";
 import Footer from "@/components/Footer";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
+import BootLoader from "@/components/BootLoader";
 import PWAProvider from "@/components/PWAProvider";
-import NativeShell from "@/components/native/NativeShell";
-import { IS_NATIVE_BUILD } from "@/lib/platform";
 import { SURFACE_RAMPS } from "@/lib/surfaceTheme";
 
 const geistSans = Geist({
@@ -101,13 +100,12 @@ export default function RootLayout({
         {/* Paints the stored theme and background before the first frame.
             Render-blocking on purpose, and kept to a few hundred bytes for it.
 
-            ThemeContext reads localStorage in an effect, which is after mount and
-            therefore after paint: a dark-mode user saw one white frame, and once
-            the background became a preference that frame could be the wrong colour
-            as well as the wrong brightness. The CSS defaults below it can only know
-            the system setting, not the choice.
+            The theme and background are saved in cookies (listit_theme,
+            listit_surface, and listit_custom_light / listit_custom_dark for a
+            custom colour). One background choice covers both themes. With nothing saved it
+            follows the system theme and uses Grey (light) or Midnight (dark).
 
-            Everything is inside a try/catch returning silently: the WebView throws
+            Everything is inside a try/catch returning silently: the browser throws
             rather than returning null when site data is blocked, and a background
             preference is not worth taking the document down over. */}
         <script
@@ -115,12 +113,16 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `(function(){try{
 var RAMPS=${JSON.stringify(SURFACE_RAMPS)};
-var t=localStorage.getItem('theme');
+function k(n){var m=document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)'));return m?decodeURIComponent(m[1]):null;}
+var t=k('listit_theme');
 if(t!=='dark'&&t!=='light'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
 document.documentElement.classList.toggle('dark',t==='dark');
-var c=localStorage.getItem('listit.surface.'+t);
-if(c!=='mono'&&c!=='soft'&&c!=='cool'&&c!=='warm'){c='mono';}
-var r=RAMPS[t][c],s=document.documentElement.style;
+document.documentElement.style.colorScheme=t;
+var c=k('listit_surface')||k('listit_surface_'+t);
+var r=RAMPS[t][c];
+if(c==='custom'){var p=(k('listit_custom_'+t)||'').split('|');if(p.length===6&&/^#[0-9a-fA-F]{6}$/.test(p[0])){r={field:p[0],deep:p[1],raised:p[2],card:p[3],selected:p[4],border:p[5]};}}
+if(!r){r=RAMPS[t].soft;}
+var s=document.documentElement.style;
 s.setProperty('--surface-field',r.field);
 s.setProperty('--surface-deep',r.deep);
 s.setProperty('--surface-raised',r.raised);
@@ -150,22 +152,31 @@ s.setProperty('--surface-border',r.border);
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased w-full min-h-screen`}
       >
+        {/* App-icon loading screen. Plain markup so it is on the very first
+            paint; BootLoader fades it out once the page is ready. */}
+        <div id="boot-loader" role="status" aria-label="Loading List It">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/android-chrome-192x192.png" alt="" width={96} height={96} />
+          <span className="boot-dots" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+        </div>
+        <noscript>
+          <style>{`#boot-loader{display:none}`}</style>
+        </noscript>
         <AuthProvider>
           <ThemeProvider>
-            {/* Renders nothing; every effect is a no-op outside the native shell. */}
-            <NativeShell />
             <PWAProvider>
               <div className="flex flex-col w-full min-h-50">
                 {children}
-                {/* The footer carries App Store links, company links and social
-                    icons — a website's furniture. An installed app should not be
-                    advertising its own store listing, and the iOS app has no
-                    equivalent, so it is web-only. */}
-                {!IS_NATIVE_BUILD && <Footer />}
+                <Footer />
               </div>
             </PWAProvider>
           </ThemeProvider>
         </AuthProvider>
+        <BootLoader />
       </body>
     </html>
   );

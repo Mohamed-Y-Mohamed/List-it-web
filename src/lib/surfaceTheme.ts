@@ -24,12 +24,11 @@
 // about how the app should look in daylight — and the choice is stored per theme, so
 // the pairing inside a key is organisational, not something the user ever feels.
 //
-// `soft` is the fourth, added after the first three shipped. It is the only key whose
-// two halves are not obviously the same idea — Midnight is a lifted black, Cream a
-// warmed white — which is what the name is doing: the softened version of `mono`,
-// in whichever direction the theme runs.
+// `soft` is the default in both themes: Midnight in dark, Grey in light.
 
-export type SurfaceChoice = "mono" | "soft" | "cool" | "warm";
+export type PresetChoice = "mono" | "soft" | "cool" | "warm";
+/** A preset, or `custom`: a colour the user picked, with the ramp derived from it. */
+export type SurfaceChoice = PresetChoice | "custom";
 export type SurfaceTheme = "light" | "dark";
 
 export interface SurfaceRamp {
@@ -42,9 +41,9 @@ export interface SurfaceRamp {
 }
 
 /**
- * `mono` is the default in both themes.
+ * `soft` is the default in both themes (Midnight / Grey).
  *
- * Its light half used to be the one combination here with no tonal separation at
+ * `mono` light used to be the one combination here with no tonal separation at
  * all: a white card on a white field, with the border doing all the work. On a
  * screen of cards that read as one flat sheet with hairlines ruled across it, so
  * the card is a light grey now and the field keeps the white.
@@ -60,7 +59,7 @@ export interface SurfaceRamp {
  */
 export const SURFACE_RAMPS: Record<
   SurfaceTheme,
-  Record<SurfaceChoice, SurfaceRamp>
+  Record<PresetChoice, SurfaceRamp>
 > = {
   dark: {
     // True black. Cheap on an OLED panel, and the card is lifted far enough off it
@@ -128,19 +127,15 @@ export const SURFACE_RAMPS: Record<
       selected: "#EEEEF0",
       border: "rgba(15,23,42,0.12)",
     },
-    // Parchment. The one light field with enough chroma to be a colour rather than a
-    // temperature, so the card stays pure white and the hairline is tinted a warm
-    // olive — a slate border on this field reads as a grey line drawn on yellow.
-    //
-    // `deep` drops a long way for the same reason the field is bold: a 2% step on a
-    // saturated field is invisible, where on white it is plenty.
+    // Grey: a soft #E8E8E8 page with pure white cards, so every box stands out.
+    // The light partner of Midnight and the light default.
     soft: {
-      field: "#FDFBD4",
-      deep: "#EFEAAF",
-      raised: "#F8F4C4",
+      field: "#E8E8E8",
+      deep: "#DCDCDC",
+      raised: "#F4F4F5",
       card: "#FFFFFF",
-      selected: "#F6F1C2",
-      border: "rgba(60,54,16,0.11)",
+      selected: "#F0F0F2",
+      border: "rgba(15,23,42,0.10)",
     },
     // Ice blue, which replaced a near-white cool grey (#F6F8FC). The grey was a
     // temperature rather than a choice — next to White in a four-up row it read as
@@ -168,7 +163,7 @@ export const SURFACE_RAMPS: Record<
 /** What each option is called, per theme. The same ramp, named for what you see. */
 export const SURFACE_LABELS: Record<
   SurfaceTheme,
-  Record<SurfaceChoice, { label: string; hint: string }>
+  Record<PresetChoice, { label: string; hint: string }>
 > = {
   dark: {
     mono: { label: "Black", hint: "True black, easiest on an OLED screen" },
@@ -184,7 +179,7 @@ export const SURFACE_LABELS: Record<
   },
   light: {
     mono: { label: "White", hint: "Plain white, the most contrast" },
-    soft: { label: "Cream", hint: "A warm parchment, pairs with Midnight" },
+    soft: { label: "Grey", hint: "Soft grey with white cards, pairs with Midnight" },
     cool: { label: "Ice blue", hint: "A cool blue cast, pairs with Navy" },
     warm: {
       label: "Warm paper",
@@ -193,69 +188,192 @@ export const SURFACE_LABELS: Record<
   },
 };
 
-export const DEFAULT_SURFACE: SurfaceChoice = "mono";
+export const DEFAULT_SURFACE: PresetChoice = "soft";
 
+/** The order the options are offered in: the default first. */
+export const SURFACE_ORDER: PresetChoice[] = ["soft", "mono", "cool", "warm"];
+
+// ---------------------------------------------------------------------------
+// Storage: cookies, so the choice survives reloads and is readable by the tiny
+// inline script in the root layout before the first paint.
+
+const ONE_YEAR = 60 * 60 * 24 * 365;
+
+export const THEME_COOKIE = "listit_theme";
 /**
- * The order the options are offered in.
- *
- * Set deliberately rather than derived: it used to mirror how far each option was
- * from plain, which stopped being a rule the moment there were four and the dark set
- * was asked for as Black, Midnight, Navy, Midnight Velvet. By luminance that order
- * is 0, 0.0147, 0.0062, 0.0088 — not a ramp, and it does not need to be one. The light
- * set follows the same slots: White, Cream, Ice blue, Warm paper.
+ * One choice for both themes. Each key is a pair — Grey/Midnight, White/Black,
+ * Ice blue/Navy, Warm paper/Midnight Velvet, or a custom colour and its partner —
+ * so switching to dark mode shows the dark version of what was picked.
  */
-export const SURFACE_ORDER: SurfaceChoice[] = ["mono", "soft", "cool", "warm"];
+export const SURFACE_COOKIE = "listit_surface";
+/** Per-theme cookies from before the choice was shared; still read as a fallback. */
+export const legacySurfaceCookie = (theme: SurfaceTheme) => `listit_surface_${theme}`;
 
-const STORAGE_KEY_PREFIX = "listit.surface.";
+/** Reads a cookie by name, or null. */
+export function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  try {
+    const match = document.cookie
+      .split("; ")
+      .find((part) => part.startsWith(`${name}=`));
+    return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+  } catch {
+    return null;
+  }
+}
 
-const storageKey = (theme: SurfaceTheme) => `${STORAGE_KEY_PREFIX}${theme}`;
+/** Writes a site-wide cookie that lasts a year. */
+export function writeCookie(name: string, value: string): void {
+  if (typeof document === "undefined") return;
+  try {
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${ONE_YEAR}; SameSite=Lax`;
+  } catch {
+    // Cookies blocked: the choice then lasts this page only.
+  }
+}
 
-/**
- * Narrows an unknown stored value, falling back to the default.
- *
- * Same reasoning as the list layout: the value comes out of localStorage, which is
- * shared with every other key on the origin and survives app updates, so a stale
- * or hand-edited one has to land on a ramp that exists rather than be trusted into
- * `undefined.field`.
- */
+/** Narrows an unknown stored value, falling back to the default. */
 export function parseSurfaceChoice(value: unknown): SurfaceChoice {
   return value === "mono" ||
     value === "soft" ||
     value === "cool" ||
-    value === "warm"
+    value === "warm" ||
+    value === "custom"
     ? value
     : DEFAULT_SURFACE;
 }
 
-/** The stored choice for a theme, or the default when nothing is stored. */
-export function readSurfaceChoice(theme: SurfaceTheme): SurfaceChoice {
-  if (typeof window === "undefined") return DEFAULT_SURFACE;
-
-  try {
-    return parseSurfaceChoice(window.localStorage.getItem(storageKey(theme)));
-  } catch {
-    return DEFAULT_SURFACE;
-  }
+/** The saved theme, or null when the visitor has never chosen one. */
+export function readThemeChoice(): SurfaceTheme | null {
+  const value = readCookie(THEME_COOKIE);
+  return value === "dark" || value === "light" ? value : null;
 }
 
-/** Records the choice for a theme. Silent on failure, as reads are. */
+export function writeThemeChoice(theme: SurfaceTheme): void {
+  writeCookie(THEME_COOKIE, theme);
+}
+
+/** The stored background for a theme, or the default when nothing is stored. */
+export function readSurfaceChoice(theme: SurfaceTheme): SurfaceChoice {
+  return parseSurfaceChoice(
+    readCookie(SURFACE_COOKIE) ?? readCookie(legacySurfaceCookie(theme)),
+  );
+}
+
+/** Records the background. It applies to both themes (see SURFACE_COOKIE). */
 export function writeSurfaceChoice(
-  theme: SurfaceTheme,
+  _theme: SurfaceTheme,
   choice: SurfaceChoice,
 ): void {
-  if (typeof window === "undefined") return;
+  writeCookie(SURFACE_COOKIE, choice);
+}
 
-  try {
-    window.localStorage.setItem(storageKey(theme), choice);
-  } catch {
-    // The choice then lasts the session, which beats the setting refusing to move.
+// ---------------------------------------------------------------------------
+// Custom colour. The ramp is derived from one hex and saved whole in a cookie
+// (`|`-separated, field first), so the inline script in the root layout can
+// paint it before the first frame without repeating this maths.
+
+export const customCookie = (theme: SurfaceTheme) => `listit_custom_${theme}`;
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+export function isHexColor(value: unknown): value is string {
+  return typeof value === "string" && HEX.test(value);
+}
+
+function mix(hex: string, target: number, amount: number): string {
+  const channel = (i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  const out = [0, 1, 2].map((i) =>
+    Math.round(channel(i) + (target - channel(i)) * amount)
+      .toString(16)
+      .padStart(2, "0"),
+  );
+  return `#${out.join("")}`.toUpperCase();
+}
+
+/** Relative luminance, 0 (black) to 1 (white). */
+export function luminance(hex: string): number {
+  const lin = (i: number) => {
+    const c = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(0) + 0.7152 * lin(1) + 0.0722 * lin(2);
+}
+
+/**
+ * A full ramp from one colour. Light mode keeps white cards on the colour (the
+ * same idea as Grey); dark mode lifts the cards a step towards white.
+ */
+export function customRamp(theme: SurfaceTheme, hex: string): SurfaceRamp {
+  const field = hex.toUpperCase();
+  if (theme === "light") {
+    const nearWhite = luminance(field) > 0.85;
+    return {
+      field,
+      deep: mix(field, 0, 0.06),
+      raised: mix(field, 255, 0.55),
+      card: nearWhite ? "#F4F4F5" : "#FFFFFF",
+      selected: mix(field, 255, 0.4),
+      border: "rgba(15,23,42,0.10)",
+    };
   }
+  return {
+    field,
+    deep: mix(field, 0, 0.3),
+    raised: mix(field, 255, 0.14),
+    card: mix(field, 255, 0.08),
+    selected: mix(field, 255, 0.18),
+    border: "rgba(255,255,255,0.09)",
+  };
+}
+
+const RAMP_KEYS: (keyof SurfaceRamp)[] = [
+  "field",
+  "deep",
+  "raised",
+  "card",
+  "selected",
+  "border",
+];
+
+/** The saved custom colour for a theme, or null. */
+export function readCustomColor(theme: SurfaceTheme): string | null {
+  const field = readCookie(customCookie(theme))?.split("|")[0];
+  return isHexColor(field) ? field : null;
+}
+
+/**
+ * The same colour for the other theme: a deep shade of it for dark mode, a pale
+ * tint of it for light mode. A colour that already suits the theme is kept.
+ */
+export function partnerColor(hex: string, theme: SurfaceTheme): string {
+  const lum = luminance(hex);
+  if (theme === "dark") return lum < 0.05 ? hex.toUpperCase() : mix(hex, 0, 0.82);
+  return lum > 0.6 ? hex.toUpperCase() : mix(hex, 255, 0.82);
+}
+
+/**
+ * Saves a custom colour picked while in `theme`, plus its partner for the other
+ * theme, so dark mode shows the dark version of it and light mode the light one.
+ */
+export function writeCustomColor(theme: SurfaceTheme, hex: string): void {
+  const other: SurfaceTheme = theme === "dark" ? "light" : "dark";
+  const save = (t: SurfaceTheme, colour: string) => {
+    const ramp = customRamp(t, colour);
+    writeCookie(customCookie(t), RAMP_KEYS.map((key) => ramp[key]).join("|"));
+  };
+  save(theme, hex);
+  save(other, partnerColor(hex, other));
 }
 
 export function surfaceRamp(
   theme: SurfaceTheme,
   choice: SurfaceChoice,
 ): SurfaceRamp {
+  if (choice === "custom") {
+    const hex = readCustomColor(theme);
+    return hex ? customRamp(theme, hex) : SURFACE_RAMPS[theme][DEFAULT_SURFACE];
+  }
   return SURFACE_RAMPS[theme][choice];
 }
 

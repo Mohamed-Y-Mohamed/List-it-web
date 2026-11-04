@@ -3,12 +3,11 @@
 // Long-press detection, standing in for SwiftUI's `.contextMenu`.
 //
 // iOS opens a context menu when a card is held; the hint text on the lists screen
-// ("Holds Lists for more options") tells users to expect exactly that, so the
-// Android build needs the same gesture rather than a visible overflow button.
+// ("Holds Lists for more options") tells users to expect exactly that, so touch
+// screens get the same gesture rather than a visible overflow button.
 
 import { useCallback, useRef } from "react";
-import { Haptics, ImpactStyle } from "@capacitor/haptics";
-import { isNativeApp } from "@/lib/platform";
+import { haptic } from "@/lib/haptics";
 
 // iOS fires its context menu at roughly half a second.
 const LONG_PRESS_MS = 500;
@@ -52,9 +51,7 @@ export function useLongPress({ onLongPress, onTap }: LongPressHandlers) {
 
         // The tap that confirms a long press is what tells the user the gesture
         // landed, since the menu appears under their finger.
-        if (isNativeApp()) {
-          Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
-        }
+        haptic(15);
 
         onLongPress({ x, y });
       }, LONG_PRESS_MS);

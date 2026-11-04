@@ -98,8 +98,8 @@ export function statusColor(
  *
  * The brief asks for a restrained tint rather than a coloured panel, and
  * `color-mix` is how to get one from a stored hex without knowing it in advance:
- * 8% of the collection's colour over the card surface. Supported in the Android
- * WebView from Chrome 111 and in every browser this app targets on the web; the
+ * 8% of the collection's colour over the card surface. Supported in every
+ * browser this app targets; the
  * second argument is the plain surface, so a browser that drops the declaration
  * still gets a readable card rather than a transparent one.
  */

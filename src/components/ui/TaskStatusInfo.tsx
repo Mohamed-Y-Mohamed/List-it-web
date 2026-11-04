@@ -17,8 +17,8 @@
 // `taskStatus()` rather than the old legend's, because the ranking is the thing
 // being explained.
 //
-// Shared by both platforms: ModalShell renders a bottom sheet on native and a
-// centred dialog on the web, and it portals to the body — which matters here,
+// ModalShell renders a bottom sheet on a phone and a centred dialog on wider
+// screens, and it portals to the body — which matters here,
 // since this opens from inside list and collection views that carry their own
 // transforms and overflow clipping.
 

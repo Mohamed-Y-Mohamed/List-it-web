@@ -6,9 +6,9 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { useTheme } from "@/context/ThemeContext";
 import { useLongPress } from "@/hooks/useLongPress";
-import NativeContextMenu, {
+import ContextMenu, {
   type ContextMenuItem,
-} from "@/components/native/NativeContextMenu";
+} from "@/components/ui/ContextMenu";
 import NoteSidebar from "@/components/popupModels/notedetail";
 import { Note, OperationResult } from "@/types/schema";
 import { normaliseHex, withAlpha } from "@/lib/colors";
@@ -651,7 +651,7 @@ const NoteCard = ({
       {/* Hold menu. Rendered outside the card so its backdrop covers the screen
           rather than the card it was opened from. */}
       {menuItems.length > 0 && (
-        <NativeContextMenu
+        <ContextMenu
           origin={menuOrigin}
           items={menuItems}
           onClose={() => setMenuOrigin(null)}

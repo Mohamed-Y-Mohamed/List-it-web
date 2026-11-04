@@ -10,44 +10,15 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion, type PanInfo } from "framer-motion";
-import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { haptic } from "@/lib/haptics";
 
 import TaskCard from "@/components/Tasks/index";
 import NoteCard from "@/components/Notes/noteCard";
 import { Collection, Note, OperationResult, Task } from "@/types/schema";
 import { useTheme } from "@/context/ThemeContext";
-import { IS_NATIVE_BUILD, isNativeApp } from "@/lib/platform";
 import { tabForSwipe } from "@/lib/panelSwipe";
 import { withAlpha } from "@/lib/colors";
 
-/**
- * Native only: an expanded collection shows about three cards and scrolls for the
- * rest, instead of growing to fit everything it holds.
- *
- * A collection with a dozen tasks used to push the next one entirely off screen,
- * so opening two meant scrolling the page between them and never seeing both at
- * once. Capping the panel keeps several collections reachable in one viewport and
- * turns a long page scroll into a short one inside the card.
- *
- * The height is three cards' worth, measured on device: a task card with a date
- * row is ~70px and `space-y-2.5` puts 10px between them, so 3*70 + 2*10. It is a
- * ceiling, not a height — a collection holding one task is still one task tall.
- *
- * No `overscroll-contain` on purpose. Containment would stop the flick at the end
- * of the inner list and make the user lift and swipe again to carry on down the
- * page; letting it chain is both the platform default and the smoother of the two.
- *
- * `touch-pan-y` is load-bearing, not decoration. This scroller sits inside the
- * draggable Tasks/Notes panel, and a scroll container defaults to
- * `touch-action: auto` — which lets the WebView claim a horizontal gesture that
- * starts on it, fire `pointercancel`, and leave framer having never seen a drag.
- * The panel's own `pan-y` does not cover it, because touch-action is resolved from
- * the element the finger actually landed on. Without this the tab swipe does
- * nothing anywhere a card is, which is most of the panel.
- */
-const NATIVE_PANEL_SCROLL = IS_NATIVE_BUILD
-  ? "max-h-[232px] touch-pan-y overflow-y-auto"
-  : "";
 
 const STAGGER_STEP = 0.055;
 const MAX_STAGGERED_ITEMS = 6;
@@ -82,13 +53,11 @@ const entranceDelay = (index: number): number =>
  * touches the card. Change NOTE_HEIGHT in Notes/noteCard and this moves with
  * it; nothing else can shift it.
  *
- * `touch-pan-y` for the same reason as NATIVE_PANEL_SCROLL: this scroller sits
- * inside the draggable Tasks/Notes panel, and without it the WebView claims any
- * horizontal gesture starting on a card and the tab swipe dies.
+ * `touch-pan-y` is load-bearing: this scroller sits inside the swipeable
+ * Tasks/Notes panel, and without it a phone browser claims any horizontal
+ * gesture starting on a card and the tab swipe dies.
  */
-const NOTES_ROWS_MAX_H = IS_NATIVE_BUILD
-  ? "max-h-[192px] touch-pan-y overflow-y-auto"
-  : "max-h-[192px] overflow-y-auto";
+const NOTES_ROWS_MAX_H = "max-h-[192px] touch-pan-y overflow-y-auto";
 
 /* =======================================================
    DIAGONAL SLICE — settings
@@ -96,7 +65,7 @@ const NOTES_ROWS_MAX_H = IS_NATIVE_BUILD
    The collection colour as one thick diagonal slab behind the header row,
    swept from a narrow block on the leading edge out to the full width of the
    row when the collection opens. Ported from the SwiftUI `DiagonalSliceShape`
-   so the web, the Android WebView and iOS draw the same header.
+   so the web and the mobile apps draw the same header.
 
    This replaced a wave cut into the lower edge of a solid colour block. That
    block was opaque, so the header had to compute its own ink colour from the
@@ -117,7 +86,7 @@ const SLICE_SKEW = 24;
 /** Leading and trailing gradient stops, as alpha on the collection colour. */
 const SLICE_ALPHA = {
   dark: { from: 0.4, to: 0.2 },
-  light: { from: 0.28, to: 0.14 },
+  light: { from: 0.2, to: 0.1 },
 } as const;
 
 /**
@@ -163,7 +132,7 @@ const cardTransform = (isExpanded: boolean, lift: number): string =>
  *
  * Animating the width, as the Swift does, would mean a layout pass per frame
  * for every open collection. That is cheap on one card and visibly not on a
- * screenful in the Android WebView. Clipping a layer that is already full width
+ * screenful on a phone. Clipping a layer that is already full width
  * costs nothing to lay out.
  *
  * Both clip paths are emitted as `calc(<percentage> - <length>)` even when the
@@ -350,9 +319,7 @@ const EnhancedCollectionComponent = ({
    * take that away from anyone using the web app with a trackpad — for a gesture
    * they have no reason to try, since the tabs are right there.
    *
-   * `(pointer: coarse)` rather than IS_NATIVE_BUILD on purpose: a phone browser
-   * on the web app deserves the gesture just as much as the Android shell does,
-   * and that is what "both platforms" means here. It starts false so the server
+   * `(pointer: coarse)` so phones and tablets get the gesture and mouse users do not. It starts false so the server
    * render and the first client render agree, and the listener keeps it honest on
    * a device that has both, like a touchscreen laptop.
    */
@@ -751,9 +718,7 @@ const EnhancedCollectionComponent = ({
       // The panel springs back to centre whatever happens, so a gesture with no
       // tap in it needs something that confirms it landed. Same weight the hold
       // menus use.
-      if (isNativeApp()) {
-        Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
-      }
+      haptic();
     },
     [activeTab],
   );
@@ -1159,7 +1124,7 @@ const EnhancedCollectionComponent = ({
                   transition={{ duration: 0.18 }}
                 >
                   {priorityTasks.length > 0 || regularTasks.length > 0 ? (
-                    <div className={`space-y-2.5 ${NATIVE_PANEL_SCROLL}`}>
+                    <div className="space-y-2.5">
                       {priorityTasks.map((task, index) => (
                         <motion.div
                           key={task.id}

@@ -23,9 +23,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
-import { IS_NATIVE_BUILD } from "@/lib/platform";
 import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/contact";
-import { appPath } from "@/lib/routes";
 
 const FORM_NAME = "account-deletion";
 
@@ -86,14 +84,11 @@ export default function DataDeletionPage() {
   return (
     <div
       className={`min-h-screen w-full px-4 py-12 ${
-        isDark ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"
+        isDark ? "bg-[var(--surface-field)] text-white" : "bg-[var(--surface-field)] text-gray-900"
       }`}
-      // Same top-spacing rule as /privacy, which this page is a pair with — see
-      // the comment there. On the web the fixed 4rem TopNavigation was covering
-      // the heading at scroll-top; in the app there is no top bar and it is the
-      // status bar that has to be cleared instead.
+      // Same top-spacing rule as /privacy: clears the fixed 4rem TopNavigation.
       style={{
-        paddingTop: IS_NATIVE_BUILD ? "max(3rem, var(--safe-top))" : "7rem",
+        paddingTop: "7rem",
         paddingBottom: "max(3rem, var(--safe-bottom))",
       }}
     >
@@ -183,23 +178,7 @@ export default function DataDeletionPage() {
                 .
               </p>
 
-              {IS_NATIVE_BUILD ? (
-                // The app is served from https://localhost inside a WebView, so a
-                // form post cannot reach the site's form handler. Hand off to the
-                // browser, where the request is same-origin and works.
-                <a
-                  href="https://list-it-dom.netlify.app/data-deletion"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium ${
-                    isDark
-                      ? "bg-gray-700 text-white hover:bg-gray-600"
-                      : "bg-gray-900 text-white hover:bg-gray-800"
-                  }`}
-                >
-                  Open the request form
-                </a>
-              ) : status === "sent" ? (
+              {status === "sent" ? (
                 <div
                   className={`mt-4 flex items-start gap-2 rounded-lg p-3 text-sm ${
                     isDark
@@ -332,7 +311,7 @@ export default function DataDeletionPage() {
           >
             For the full picture of what we hold and why, see our{" "}
             <Link
-              href={appPath("/privacy")}
+              href={"/privacy"}
               className={`underline underline-offset-2 ${
                 isDark ? "text-orange-400" : "text-sky-600"
               }`}

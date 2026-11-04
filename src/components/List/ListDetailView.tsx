@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { createPortal } from "react-dom";
 
 import { Collection, List, Note, OperationResult, Task } from "@/types/schema";
 
@@ -19,10 +18,8 @@ import EditCollectionPopup from "@/components/popupModels/EditCollectionPopup";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { applyCompletion } from "@/lib/completion";
-import { IS_NATIVE_BUILD } from "@/lib/platform";
 
-import { useSetScreenTitle } from "@/components/native/ScreenTitleContext";
-import { useOptionalAppData } from "@/components/native/AppDataProvider";
+import { useOptionalAppData } from "@/components/AppDataProvider";
 
 import AppSurface from "@/components/AppSurface";
 import { SkeletonCollectionList } from "@/components/ui/Skeleton";
@@ -170,11 +167,8 @@ export default function ListDetailView({ listId }: { listId: string }) {
   const isDark = theme === "dark";
 
   /*
-   * Set when a reminder was tapped: NativeShell's notification handler routes
-   * here with the task
-   * id in the query. Only the collection holding that task opens; the rest of
-   * the screen stays shut, which is the point of arriving from a notification
-   * about one task.
+   * Set when a link carries `?task=<id>`. Only the collection holding that task
+   * opens; the rest of the screen stays shut.
    */
   const reminderTaskId = searchParams?.get("task") ?? null;
 
@@ -182,7 +176,6 @@ export default function ListDetailView({ listId }: { listId: string }) {
      MODALS
      ======================================================= */
 
-  // Web only: native opens the same sheet from the back bar's info button.
   const [statusInfoOpen, setStatusInfoOpen] = useState(false);
   const [isCollectionModalOpen, setIsCollectionModalOpen] = useState(false);
 
@@ -220,12 +213,6 @@ export default function ListDetailView({ listId }: { listId: string }) {
    */
   const [collapseNonce, setCollapseNonce] = useState(0);
 
-  /* The floating Add is portalled, so it cannot render on the server pass. */
-  const [portalReady, setPortalReady] = useState(false);
-  useEffect(() => {
-    setPortalReady(true);
-  }, []);
-
   const collapseAllCollections = useCallback(() => {
     setCollapseNonce((previous) => previous + 1);
   }, []);
@@ -247,8 +234,6 @@ export default function ListDetailView({ listId }: { listId: string }) {
   const [revalidationTrigger, setRevalidationTrigger] = useState(0);
 
   const appData = useOptionalAppData();
-
-  useSetScreenTitle(listData?.list_name ?? null);
 
   /* =======================================================
      HELPERS
@@ -322,7 +307,7 @@ export default function ListDetailView({ listId }: { listId: string }) {
         const next =
           typeof updater === "function" ? updater(previous) : updater;
 
-        if (!IS_NATIVE_BUILD && listData) {
+        if (listData) {
           writeListCache(listId, listData, next);
         }
 
@@ -337,10 +322,6 @@ export default function ListDetailView({ listId }: { listId: string }) {
      ======================================================= */
 
   useEffect(() => {
-    if (IS_NATIVE_BUILD) {
-      return;
-    }
-
     if (!listData) {
       return;
     }
@@ -349,7 +330,7 @@ export default function ListDetailView({ listId }: { listId: string }) {
   }, [listId, listData, collections]);
 
   /* =======================================================
-     NATIVE CACHE
+     SHARED APP DATA
      ======================================================= */
 
   const cachedLists = appData?.lists;
@@ -363,17 +344,12 @@ export default function ListDetailView({ listId }: { listId: string }) {
   const putCachedCollections = appData?.putCollections;
 
   /* =======================================================
-     NATIVE — DISPLAY CACHE
+     DISPLAY CACHE
      ======================================================= */
 
   useEffect(() => {
-    // Gated on the provider being there, not on the platform.
-    //
-    // This was `!IS_NATIVE_BUILD || !appData`, from when AppDataProvider was
-    // mounted only in the native shell. It is mounted on both now, so the web
-    // reads the launch fetch exactly as the app does and the per-screen fetch
-    // below is skipped. Whichever path runs is decided by whether a provider is
-    // above this component, which is the thing that actually matters.
+    // Read the shared launch fetch when the provider is mounted, so the
+    // per-screen fetch below is skipped.
     if (!appData || !listId) {
       return;
     }
@@ -426,7 +402,7 @@ export default function ListDetailView({ listId }: { listId: string }) {
   ]);
 
   /* =======================================================
-     NATIVE — QUIET REVALIDATION
+     QUIET REVALIDATION
      ======================================================= */
 
   useEffect(() => {
@@ -450,7 +426,7 @@ export default function ListDetailView({ listId }: { listId: string }) {
       setIsLoading(true);
     }
 
-    const fetchNativeData = async () => {
+    const fetchListData = async () => {
       try {
         const [listRes, collectionsRes] = await Promise.all([
           apiFetch(`/api/lists?id=${listId}`),
@@ -511,7 +487,7 @@ export default function ListDetailView({ listId }: { listId: string }) {
       }
     };
 
-    void fetchNativeData();
+    void fetchListData();
 
     return () => {
       cancelled = true;
@@ -2078,8 +2054,7 @@ export default function ListDetailView({ listId }: { listId: string }) {
      RENDER
      ======================================================= */
 
-  /* Declared once and placed twice: inline beside the title on web, portalled
-     to a floating position on native. Same element, same handlers. */
+  /* The add menu, inline beside the title. */
   const addMenu = (
     <ListFilterPlus
       onCollapseAll={
@@ -2116,7 +2091,7 @@ export default function ListDetailView({ listId }: { listId: string }) {
         className={`
           box-border
           p-4
-          ${IS_NATIVE_BUILD ? "pt-2" : "pt-20"}
+          pt-20
         `}
       >
         <div className="mx-auto max-w-6xl">
@@ -2171,56 +2146,41 @@ export default function ListDetailView({ listId }: { listId: string }) {
                   flex
                   items-center
                   px-4
-                  ${
-                    IS_NATIVE_BUILD
-                      ? "mb-2 justify-end"
-                      : "mb-6 justify-between"
-                  }
+                  mb-6
+                  justify-between
                 `}
               >
-                {!IS_NATIVE_BUILD && (
-                  <div className="flex min-w-0 items-center gap-2">
-                    <h1
-                      className={`
-                        truncate
-                        text-2xl
-                        font-bold
-                        ${isDark ? "text-gray-100" : "text-gray-800"}
-                      `}
-                      style={{
-                        color: listData.bg_color_hex ?? "#ffffff",
-                      }}
-                    >
-                      {listData.list_name}
-                    </h1>
+                <div className="flex min-w-0 items-center gap-2">
+                  <h1
+                    className={`
+                      truncate
+                      text-2xl
+                      font-bold
+                      ${isDark ? "text-gray-100" : "text-gray-800"}
+                    `}
+                    style={{
+                      color: listData.bg_color_hex ?? "#ffffff",
+                    }}
+                  >
+                    {listData.list_name}
+                  </h1>
 
-                    {/* The same explainer the native back bar carries. Both
-                        platforms lost the per-collection legend, so both need
-                        somewhere to put it. */}
-                    <button
-                      type="button"
-                      onClick={() => setStatusInfoOpen(true)}
-                      aria-label="What the task colours mean"
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors ${
-                        isDark
-                          ? "text-gray-400 hover:bg-white/10"
-                          : "text-gray-500 hover:bg-black/5"
-                      }`}
-                    >
-                      <Info className="h-[18px] w-[18px]" />
-                    </button>
-                  </div>
-                )}
+                  {/* What the task colours mean. */}
+                  <button
+                    type="button"
+                    onClick={() => setStatusInfoOpen(true)}
+                    aria-label="What the task colours mean"
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors ${
+                      isDark
+                        ? "text-gray-400 hover:bg-white/10"
+                        : "text-gray-500 hover:bg-black/5"
+                    }`}
+                  >
+                    <Info className="h-[18px] w-[18px]" />
+                  </button>
+                </div>
 
-                {/* Web keeps the quiet icon button beside the title. On native
-                    it is the screen's floating Add and belongs at the bottom,
-                    which is what `ListFilterPlus` already dresses itself for —
-                    it styles a filled circle and opens its menu upward "just
-                    above the tab bar". Only the placement was missing, so the
-                    button sat in the top corner contradicting its own menu. */}
-                {!IS_NATIVE_BUILD && (
-                  <div className="flex-shrink-0">{addMenu}</div>
-                )}
+                <div className="flex-shrink-0">{addMenu}</div>
               </div>
 
               {/* ===========================================
@@ -2381,36 +2341,11 @@ export default function ListDetailView({ listId }: { listId: string }) {
         </>
       )}
 
-      {/* The floating Add, on native only.
-
-          Portalled to the body, and that is not optional: NativeTransition wraps
-          this screen in a `transform`, which makes it the containing block for
-          any `position: fixed` child. Rendered in place the button measures
-          itself against the transition wrapper rather than the viewport. The
-          same trap NativeHome and the detail sheets documented.
-
-          `pb-20` on <main> already reserves the room, so nothing rests under it. */}
-      {IS_NATIVE_BUILD &&
-        portalReady &&
-        !isLoading &&
-        listData &&
-        createPortal(
-          <div
-            className="fixed right-5 z-40"
-            style={{ bottom: "calc(56px + var(--safe-bottom) + 4px)" }}
-          >
-            {addMenu}
-          </div>,
-          document.body,
-        )}
-
-      {!IS_NATIVE_BUILD && (
-        <TaskStatusInfo
-          isOpen={statusInfoOpen}
-          onClose={() => setStatusInfoOpen(false)}
-          isDark={isDark}
-        />
-      )}
+      <TaskStatusInfo
+        isOpen={statusInfoOpen}
+        onClose={() => setStatusInfoOpen(false)}
+        isDark={isDark}
+      />
     </main>
   );
 }

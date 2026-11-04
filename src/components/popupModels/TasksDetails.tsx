@@ -42,7 +42,7 @@ import {
 } from "@/lib/reminders";
 import ConfirmDialog from "./ConfirmDialog";
 import BottomSheet from "@/components/BottomSheet";
-import { useOptionalAppData } from "@/components/native/AppDataProvider";
+import { useOptionalAppData } from "@/components/AppDataProvider";
 import SectionLabel from "@/components/ui/SectionLabel";
 import InfoRow from "@/components/ui/InfoRow";
 import DateChip from "@/components/ui/DateChip";
@@ -236,22 +236,9 @@ const TaskSidebar = ({
 
     // Keyed on the task's identity, not the object.
     //
-    // AppDataProvider refetches on every Capacitor "resume", which hands down a
-    // brand-new task object with identical contents. Depending on `task` meant
-    // this reset ran on each return to the app and discarded whatever was being
-    // typed. The reminder flow made it reproducible — adding a reminder asks for
-    // notification permission, the system dialog pauses the activity, and the
-    // reminder just entered was gone by the time the user tapped Allow — but it
-    // applied to every field, so switching apps mid-edit lost the lot.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task.id, isOpen]);
-
-  // --- TRACK CHANGES ---
-  //
-  // Pin and completion are deliberately absent. They are written the instant they
-  // are tapped, so counting them as unsaved changes would pop the discard dialog
-  // on the way out of a sheet where nothing is actually unsaved.
-  useEffect(() => {
+    // AppDataProvider refetches when the tab becomes visible again, which hands
+    // down a brand-new task object with identical contents. Depending on `task`
+    // would reset the form and discard whatever was being typed.
     const oldDueDate = task.due_date
       ? formatDateForInput(task.due_date, Boolean(task.due_has_time))
       : "";

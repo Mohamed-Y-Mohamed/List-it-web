@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
-import { IS_NATIVE_BUILD, isNativeApp } from "@/lib/platform";
 import { logoutRedirectUrl } from "@/lib/routes";
 import { passwordError, PASSWORD_RULE } from "@/lib/password";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,9 +23,6 @@ import {
   Shield,
   Sun,
   Moon,
-  Bell,
-  LayoutGrid,
-  Rows3,
   ChevronDown,
   LogOut,
   MessageSquarePlus,
@@ -35,8 +31,6 @@ import {
 } from "lucide-react";
 import PolicyModal from "@/components/legal/PolicyModal";
 import { apiFetch } from "@/lib/apiFetch";
-import { useListLayout } from "@/hooks/useListLayout";
-import { type ListLayout } from "@/lib/listLayout";
 import {
   SURFACE_LABELS,
   SURFACE_ORDER,
@@ -44,9 +38,6 @@ import {
   type SurfaceChoice,
   type SurfaceTheme,
 } from "@/lib/surfaceTheme";
-import { ensureNotificationPermission } from "@/lib/notifications";
-import { useNotificationPrefs } from "@/hooks/useNotificationPrefs";
-import { DEFAULT_NOTIFICATION_PREFS } from "@/lib/notificationPrefs";
 import AppSurface from "@/components/AppSurface";
 
 // Types
@@ -92,37 +83,16 @@ const SETTINGS_SECTIONS: SettingsSection[] = [
   },
 ];
 
-// On the web the theme toggle lives in the sidebar. The native app has no
-// sidebar, so without this there is no way to change the theme in the app at all.
-// The secure layout is what is one viewport tall in the native shell, and its own
-// padding lives inside that height. A min-h-screen here as well made the document
-// taller than the screen by the top inset, so these screens scrolled a little past
-// their content and showed the wrapper padding at the end. The web keeps it: there
-// is no such wrapper there, and this is what stops a short page floating.
-const ROOT_MIN_HEIGHT = IS_NATIVE_BUILD ? "" : "min-h-screen";
+const ROOT_MIN_HEIGHT = "min-h-screen";
 
-// Appearance is on both platforms now. It was native-only because the only thing
-// in it the web lacked was a theme toggle, which the sidebar already had — but the
-// background choice has no home in the sidebar and is just as useful in a browser,
-// so the section moves out and the one native-only control inside it (List layout)
-// is gated on its own.
+// Appearance sits second, after Profile.
 SETTINGS_SECTIONS.splice(1, 0, {
   id: "appearance",
   title: "Appearance",
   icon: Sun,
-  description: "Theme, background and layout",
+  description: "Theme and background colour",
 });
 
-if (IS_NATIVE_BUILD) {
-  // Still native only, and for the stronger reason: the browser has nothing to
-  // deliver, so a switch there would promise something the web build cannot keep.
-  SETTINGS_SECTIONS.splice(2, 0, {
-    id: "notifications",
-    title: "Notifications",
-    icon: Bell,
-    description: "Reminders from your tasks",
-  });
-}
 
 // Notification component
 const Notification: React.FC<{
@@ -181,18 +151,8 @@ const Notification: React.FC<{
   const styles = getNotificationStyles();
   const Icon = styles.icon;
 
-  // Portalled to the body, which is the whole reason this toast is visible in
-  // the app at all.
-  //
-  // `position: fixed` is only fixed to the viewport when no ancestor carries a
-  // transform. On native, SecureLayout wraps every screen in NativeTransition,
-  // a motion.div animating translateX — so the toast's containing block was
-  // that wrapper, not the window, and it rendered at the top of a page that was
-  // scrolled well past it. Off-screen, every time. The web branch of that
-  // layout renders children bare, which is exactly why this looked fine there
-  // and never appeared on Android: the green tick after a password change and,
-  // worse, the errors. A failed save was indistinguishable from a successful
-  // one, which is how a password change that did nothing went unnoticed.
+  // Portalled to the body so `position: fixed` is relative to the window even
+  // when an ancestor carries a transform.
   //
   // ModalShell portals for this same reason; this follows it rather than
   // inventing a second answer.
@@ -231,51 +191,18 @@ const Notification: React.FC<{
 };
 
 /**
- * The List layout control: both options stated inline, one of them selected.
- *
- * It was a bare <select> pinned to the right of the row, which the system renders
- * as a grey box in its own typeface, and then a custom menu that opened under the
- * row. The menu could not work in this position. It was `absolute` inside the
- * Appearance section, and that section sits in two boxes that both clip it: the
- * body is `overflow-hidden` because the expand animates `height: 0 -> auto`, and
- * the card around it is `overflow-hidden` so content keeps to the rounded corners.
- * Both are load-bearing. Appearance is the last block in its card, so the menu
- * opened past the bottom edge and was cut to a sliver — unusable on Android.
- *
- * Two options do not need a popup. Stating both costs about 90px and gets rid of
- * the open state, the Escape handler, the outside-click catcher and the entrance
- * animation, none of which a pair of radio rows needs. It also reads as a pair with
- * the Dark mode toggle directly above, which was always inline.
- */
-/**
- * The background picker: four grounds for the theme you are currently in.
- *
- * Only the current theme's four are offered. A dark background says nothing about
- * how the app should look in daylight, and showing eight at once asks the user to
- * imagine seven of them. The sets share keys — Black with White, Midnight with
- * Cream, Navy with Ice blue, Midnight Velvet with Warm paper — but are stored
- * separately, so switching theme keeps whichever ground was chosen for it.
- *
- * Four across at every width, which is the reason the swatch is h-11 and the label
- * 11px rather than the h-14/13px three of them could afford: at 360px the cells are
- * about 76px, and "Warm paper" truncates to "Warm p…" at the larger size.
- *
- * The label wraps rather than truncating. "Midnight Velvet" is about 78px at 11px
- * against roughly 60px of usable cell, so truncation would render it "Midnight V…"
- * — indistinguishable from the Midnight sitting two swatches to its left. Over two
- * lines it reads in full, and the grid rows share a height anyway so the taller
- * cell costs nothing.
- *
- * Each swatch previews the ramp rather than one colour: the field with a card
- * drawn on it at the real radius and hairline. That is the thing worth showing,
- * because the risk with a chosen background is a card that vanishes into it.
+ * The background picker: four presets for the current theme plus a custom
+ * colour. One choice covers both themes (each preset has a light and a dark
+ * version), saved in a cookie so the page paints it straight away next visit.
  */
 const SurfaceSetting: React.FC<{
   isDark: boolean;
   theme: SurfaceTheme;
   surface: SurfaceChoice;
   onChange: (next: SurfaceChoice) => void;
-}> = ({ isDark, theme, surface, onChange }) => (
+  customColor: string | null;
+  onCustomColor: (hex: string) => void;
+}> = ({ isDark, theme, surface, onChange, customColor, onCustomColor }) => (
   <div>
     <div
       id="background-label"
@@ -346,124 +273,50 @@ const SurfaceSetting: React.FC<{
       })}
     </div>
 
+    {/* Custom colour: any hex, with cards and borders derived from it. */}
+    <label
+      className={`mt-2 flex cursor-pointer items-center gap-3 rounded-xl border p-2 transition-colors ${
+        surface === "custom"
+          ? isDark
+            ? "border-orange-400"
+            : "border-sky-500"
+          : isDark
+            ? "border-[var(--surface-border)]"
+            : "border-gray-200"
+      }`}
+    >
+      <input
+        type="color"
+        aria-label="Custom background colour"
+        value={(customColor ?? surfaceRamp(theme, "soft").field).toLowerCase()}
+        onChange={(event) => onCustomColor(event.target.value)}
+        className="h-9 w-12 shrink-0 cursor-pointer rounded-md border-0 bg-transparent p-0"
+      />
+      <span className="min-w-0 flex-1">
+        <span
+          className={`block text-[13px] font-medium ${isDark ? "text-white" : "text-gray-900"}`}
+        >
+          Custom colour
+        </span>
+        <span className="block text-[11px] text-gray-500">
+          {customColor ?? "Pick any colour for the page background"}
+        </span>
+      </span>
+      {surface === "custom" && (
+        <CheckCircle
+          className={`h-4 w-4 shrink-0 ${isDark ? "text-orange-400" : "text-sky-500"}`}
+        />
+      )}
+    </label>
+
     <p className="mt-2 px-1 text-[12px] text-gray-500">
       {isDark
-        ? "Applies to dark mode. Light mode keeps its own choice."
-        : "Applies to light mode. Dark mode keeps its own choice."}
+        ? "Light mode uses the matching light version of this colour."
+        : "Dark mode uses the matching dark version of this colour."}
     </p>
   </div>
 );
 
-const LAYOUT_OPTIONS: {
-  value: ListLayout;
-  label: string;
-  hint: string;
-  Icon: React.ElementType;
-}[] = [
-  {
-    value: "cards",
-    label: "Cards",
-    hint: "A three-column grid",
-    Icon: LayoutGrid,
-  },
-  {
-    value: "list",
-    label: "List",
-    // No longer "swipe for actions": the row swipe is gone and holding a card is
-    // what opens its actions, in either layout. The hint describes what the
-    // layout is, which is the only thing that differs between the two now.
-    hint: "One full-width row each",
-    Icon: Rows3,
-  },
-];
-
-const ListLayoutSetting: React.FC<{
-  isDark: boolean;
-  layout: ListLayout | null;
-  onChange: (next: ListLayout) => void;
-}> = ({ isDark, layout, onChange }) => {
-  // `layout` is null only for the frame before the stored value is read, and the
-  // default is what it resolves to for anyone who has never opened this.
-  const current =
-    LAYOUT_OPTIONS.find((option) => option.value === layout) ??
-    LAYOUT_OPTIONS[0];
-
-  return (
-    <div>
-      {/* The group needs a name of its own, now that no row carries one. */}
-      <div
-        id="list-layout-label"
-        className={`mb-2 px-1 font-medium ${isDark ? "text-white" : "text-gray-900"}`}
-      >
-        List layout
-      </div>
-
-      <div
-        role="radiogroup"
-        aria-labelledby="list-layout-label"
-        className={`overflow-hidden rounded-lg border bg-[var(--surface-raised)] ${
-          isDark
-            ? "divide-y divide-gray-700 border-[var(--surface-border)]"
-            : "divide-y divide-gray-200 border-gray-200"
-        }`}
-      >
-        {LAYOUT_OPTIONS.map((option) => {
-          const isActive = option.value === current.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              role="radio"
-              aria-checked={isActive}
-              onClick={() => onChange(option.value)}
-              className={`flex min-h-[44px] w-full items-center gap-3 p-4 text-left transition-colors ${
-                isActive
-                  ? isDark
-                    ? "bg-orange-500/15"
-                    : "bg-sky-50"
-                  : isDark
-                    ? "hover:bg-[var(--surface-raised)]"
-                    : "hover:bg-gray-50"
-              }`}
-            >
-              <option.Icon
-                className={`h-5 w-5 shrink-0 ${
-                  isActive
-                    ? isDark
-                      ? "text-orange-400"
-                      : "text-sky-500"
-                    : isDark
-                      ? "text-gray-400"
-                      : "text-gray-500"
-                }`}
-              />
-              <span className="min-w-0 flex-1">
-                <span
-                  className={`block font-medium ${isDark ? "text-white" : "text-gray-900"}`}
-                >
-                  {option.label}
-                </span>
-                <span
-                  className={`block text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}
-                >
-                  {option.hint}
-                </span>
-              </span>
-              {/* The tick, not just a tint: colour alone is not a state. */}
-              {isActive && (
-                <CheckCircle
-                  className={`h-4 w-4 shrink-0 ${isDark ? "text-orange-400" : "text-sky-500"}`}
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-// Loading component
 const LoadingSpinner: React.FC<{ isDark: boolean }> = ({ isDark }) => (
   <div className="flex items-center justify-center space-x-2">
     <RefreshCw
@@ -506,25 +359,11 @@ export default function SettingsPage() {
   // The privacy policy sheet, opened from the row beside Feedback.
   const [policyOpen, setPolicyOpen] = useState(false);
 
-  const { theme, toggleTheme, surface, setSurface } = useTheme();
+  const { theme, toggleTheme, surface, setSurface, customColor, setCustomColor } =
+    useTheme();
   const { user, logout } = useAuth();
   const isDark = theme === "dark";
 
-  // Sits beside the theme because it answers the same kind of question: how this
-  // device draws the app, nothing about the account's data. Native only in
-  // practice — the whole Appearance section is.
-  const { layout, setLayout } = useListLayout();
-
-  // Also per device rather than per account: a reminder is delivered by the
-  // install that holds this, so silencing one phone should not silence another.
-  const { prefs: notificationPrefs, setPrefs: setNotificationPrefs } =
-    useNotificationPrefs();
-
-  // null only for the frame before the stored value is read, and the default is
-  // what it resolves to for anyone who has never opened this.
-  const remindersEnabled =
-    notificationPrefs?.remindersEnabled ??
-    DEFAULT_NOTIFICATION_PREFS.remindersEnabled;
 
   // Show notification
   const showNotification = useCallback(
@@ -675,7 +514,7 @@ export default function SettingsPage() {
           await logout();
         } catch (logoutError) {
           console.error("Error signing out after password change:", logoutError);
-          window.location.href = logoutRedirectUrl(isNativeApp());
+          window.location.href = logoutRedirectUrl();
         }
       }, 2200);
     } catch (error) {
@@ -741,7 +580,7 @@ export default function SettingsPage() {
         } catch (logoutError) {
           console.error("Error during logout:", logoutError);
           // Force redirect even if logout fails
-          window.location.href = logoutRedirectUrl(isNativeApp());
+          window.location.href = logoutRedirectUrl();
         }
       }, 1500);
     } catch (error) {
@@ -831,124 +670,10 @@ export default function SettingsPage() {
               theme={isDark ? "dark" : "light"}
               surface={surface}
               onChange={setSurface}
+              customColor={customColor}
+              onCustomColor={setCustomColor}
             />
 
-            {/* Native only. The web dashboard has its own layout and nothing to
-                switch between, so offering the choice there would promise
-                something the browser build cannot keep — the same reasoning that
-                kept Notifications off the web. */}
-            {IS_NATIVE_BUILD && (
-              <ListLayoutSetting
-                isDark={isDark}
-                layout={layout}
-                onChange={setLayout}
-              />
-            )}
-          </motion.div>
-        );
-
-      case "notifications":
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="space-y-6"
-          >
-            <div>
-              <h2
-                className={`text-2xl font-semibold ${isDark ? "text-white" : "text-gray-900"}`}
-              >
-                Notifications
-              </h2>
-              <p
-                className={`mt-1 text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}
-              >
-                Choose what List It interrupts you for on this device.
-              </p>
-            </div>
-
-            {/* The note belongs to the row, so it sits closer to it than the
-                sections are to each other. */}
-            <div className="space-y-3">
-              <div
-                className={`flex items-center justify-between rounded-lg border bg-[var(--surface-raised)] p-4 ${
-                  isDark
-                    ? "border-[var(--surface-border)]"
-                    : "border-gray-200"
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <Bell
-                    className={`h-5 w-5 ${isDark ? "text-orange-400" : "text-sky-500"}`}
-                  />
-                  <div>
-                    <div
-                      className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}
-                    >
-                      Task reminders
-                    </div>
-                    <div
-                      className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}
-                    >
-                      {remindersEnabled ? "On" : "Off"}
-                    </div>
-                  </div>
-                </div>
-
-                {/* The pill is 28px tall, which is well under what a thumb
-                    needs. The button is the full 44 and the pill is drawn
-                    inside it, so the row looks the same as the Dark mode one
-                    and the target is the size it should always have been. */}
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={remindersEnabled}
-                  aria-label="Toggle task reminders"
-                  onClick={() => {
-                    const next = !remindersEnabled;
-                    setNotificationPrefs({ remindersEnabled: next });
-
-                    // The one place in Settings allowed to ask. Scheduling itself
-                    // only ever checks, because it runs again on every resume and
-                    // a prompt there traps anyone who dismisses it. Turning this
-                    // on is an explicit request to be notified, so it is the right
-                    // moment to ask the OS.
-                    if (next) void ensureNotificationPermission();
-                  }}
-                  className="flex h-11 w-12 shrink-0 items-center"
-                >
-                  <span
-                    className={`relative block h-7 w-12 rounded-full transition-colors duration-200 ${
-                      remindersEnabled
-                        ? isDark
-                          ? "bg-orange-500"
-                          : "bg-sky-500"
-                        : "bg-gray-300"
-                    }`}
-                  >
-                    <span
-                      // `left-0` anchors the knob to the track. Without it the
-                      // knob takes its static position at the end of the span
-                      // and the translate then pushes it clean outside the pill.
-                      className={`absolute left-0 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
-                        remindersEnabled
-                          ? "translate-x-[26px]"
-                          : "translate-x-1"
-                      }`}
-                    />
-                  </span>
-                </button>
-              </div>
-
-              <p
-                className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}
-              >
-                Turning this off keeps every reminder you have set, it just
-                stops them being delivered. Reminders arrive through the mobile
-                app, so this covers this device only.
-              </p>
-            </div>
           </motion.div>
         );
 
@@ -1524,16 +1249,7 @@ export default function SettingsPage() {
             );
           })}
 
-          {/* The privacy policy. Beside Feedback rather than inside a section
-              because it is a document, not a preference — and outside the
-              IS_NATIVE_BUILD guard that wraps Sign out, so web and Android both
-              get it from the one row. Play's User Data policy wants the policy
-              reachable from inside the app, not only from the store listing.
-
-              A sheet rather than a link to /privacy: Settings is deep in the
-              tab stack, and sending someone to a full page means managing a way
-              back from it. ModalShell already wires Android's back button to
-              dismiss, so the sheet costs nothing and strands nobody. */}
+          {/* The privacy policy, as a sheet so there is no page to find a way back from. */}
           <button
             type="button"
             onClick={() => setPolicyOpen(true)}
@@ -1556,15 +1272,7 @@ export default function SettingsPage() {
             </span>
           </button>
 
-          {/* Feedback. Outside the sections for the same reason Sign out is: it
-              is a way out of the app, not a preference.
-
-              A plain anchor rather than the Browser plugin. capacitor.config.ts
-              sets no `allowNavigation` allowlist, so the WebView hands any
-              off-origin URL to the system browser — which is what we want, since
-              a Google Form opened inside the shell would trap the user on a page
-              with no address bar and no way back. `rel` is set because the form
-              opens in a context that could otherwise reach back through
+          {/* Feedback. Opens in a new tab; `rel` stops it reaching back through
               `window.opener`. */}
           <a
             href="https://forms.gle/dE21epzC4L8Tx1Kd9"
@@ -1595,10 +1303,7 @@ export default function SettingsPage() {
             />
           </a>
 
-          {/* Sign out. On the web this lives in the sidebar, which the native
-              app does not have — without it there is no way to leave the account
-              on Android. Outside the sections because it is not a setting. */}
-          {IS_NATIVE_BUILD && (
+          {/* Sign out, also in the sidebar. Here too so it is one tap away on a phone. */}
             <button
               type="button"
               onClick={logout}
@@ -1620,7 +1325,6 @@ export default function SettingsPage() {
                 </span>
               </span>
             </button>
-          )}
         </div>
       </div>
 

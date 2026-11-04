@@ -1,9 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { IS_NATIVE_BUILD } from "@/lib/platform";
 import {
-  Plus,
   PlusCircle,
   CheckCircle,
   ClipboardList,
@@ -143,21 +141,14 @@ const ListFilterPlus: React.FC<ListFilterPlusProps> = ({
       <button
         ref={buttonRef}
         onClick={toggleMenu}
-        // On native this is the screen's floating Add, so it takes the same
-        // shape as the one on Lists Home — a filled primary circle. The web keeps
-        // the quiet icon button it has always had in the header.
-        className={`transition-colors ${
-          IS_NATIVE_BUILD
-            ? "flex h-14 w-14 items-center justify-center rounded-full bg-[#6366F1] text-white shadow-lg shadow-[#6366F1]/30 active:bg-[#4f52d6]"
-            : `rounded-full p-2 ${
-                isDark
-                  ? isOpen
-                    ? "bg-gray-700 text-orange-400"
-                    : "text-gray-300 hover:bg-gray-700"
-                  : isOpen
-                    ? "bg-gray-200 text-orange-500"
-                    : "text-gray-600 hover:bg-gray-200"
-              }`
+        className={`rounded-full p-2 transition-colors ${
+          isDark
+            ? isOpen
+              ? "bg-gray-700 text-orange-400"
+              : "text-gray-300 hover:bg-gray-700"
+            : isOpen
+              ? "bg-gray-200 text-orange-500"
+              : "text-gray-600 hover:bg-gray-200"
         } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
         aria-label={buttonAriaLabel}
         aria-expanded={isOpen}
@@ -165,21 +156,13 @@ const ListFilterPlus: React.FC<ListFilterPlusProps> = ({
         disabled={disabled}
         title={buttonAriaLabel}
       >
-        {IS_NATIVE_BUILD ? (
-          <Plus className="h-6 w-6" strokeWidth={2.4} />
-        ) : (
-          <PlusCircle className="h-6 w-6" />
-        )}
+        <PlusCircle className="h-6 w-6" />
       </button>
 
       {isOpen && (
         <div
           ref={menuRef}
-          // Opens upward on native, where this button floats just above the tab
-          // bar — a menu hanging below it would be off the bottom of the screen.
-          className={`absolute right-0 z-10 w-56 rounded-md shadow-lg ${
-            IS_NATIVE_BUILD ? "bottom-full mb-2" : "mt-2"
-          } ${
+          className={`absolute right-0 z-10 mt-2 w-56 rounded-md shadow-lg ${
             isDark ? "bg-gray-800" : "bg-white"
           } ring-1 ring-black ring-opacity-5 focus:outline-none`}
           role="menu"

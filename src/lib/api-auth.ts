@@ -3,11 +3,10 @@
 //
 // There are two ways a caller can present a session:
 //
-//   * Web    — the Supabase session cookie, set on the site origin. This is the
-//              original path and still the only one the browser app uses.
-//   * Native — an `Authorization: Bearer <access_token>` header. The Android app
-//              is served from `https://localhost` inside a WebView, so it shares
-//              no origin with this API and has no cookie to send.
+//   * Cookie — the Supabase session cookie, set on the site origin. This is
+//              what the website uses.
+//   * Bearer — an `Authorization: Bearer <access_token>` header, for scripts
+//              and other clients that have no cookie to send.
 //
 // `requireAuth` accepts either. `getRouteClient` returns a Supabase client
 // authenticated as that same caller, so row-level security applies identically

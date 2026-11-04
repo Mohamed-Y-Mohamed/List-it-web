@@ -40,12 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Capacitor / native build
-.native-build-stash/
-out/
-android/app/src/main/assets/public/
-
-# Android signing — never commit keys or their passwords
-android/keystore.properties
+# Signing keys
 *.jks
 *.keystore

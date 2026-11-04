@@ -7,6 +7,9 @@ import {
   SURFACE_RAMPS,
   surfaceRamp,
   writeSurfaceChoice,
+  customRamp,
+  readCustomColor,
+  writeCustomColor,
   type SurfaceTheme,
 } from "../surfaceTheme";
 
@@ -116,19 +119,67 @@ describe("surfaceTheme", () => {
       expect(parseSurfaceChoice("warm")).toBe("warm");
     });
 
-    // The point of storing per theme: picking a dark ground must not decide what
-    // light mode looks like.
-    it("keeps each theme's choice independent", () => {
-      writeSurfaceChoice("dark", "warm");
+    // One choice, two versions: picking Ice blue in light means Navy in dark.
+    it("shares one choice between light and dark", () => {
       writeSurfaceChoice("light", "cool");
-
-      expect(readSurfaceChoice("dark")).toBe("warm");
       expect(readSurfaceChoice("light")).toBe("cool");
+      expect(readSurfaceChoice("dark")).toBe("cool");
+      expect(surfaceRamp("dark", readSurfaceChoice("dark"))).toEqual(SURFACE_RAMPS.dark.cool);
     });
 
     it("reads the default for a theme that has never been chosen for", () => {
-      writeSurfaceChoice("dark", "cool");
+      document.cookie = "listit_surface=; path=/; max-age=0";
+      document.cookie = "listit_surface_light=; path=/; max-age=0";
       expect(readSurfaceChoice("light")).toBe(DEFAULT_SURFACE);
+    });
+
+    it("stores the choice in a cookie so it survives a reload", () => {
+      writeSurfaceChoice("dark", "warm");
+      expect(document.cookie).toContain("listit_surface=warm");
+    });
+
+    it("defaults to Midnight in dark and Grey in light", () => {
+      expect(DEFAULT_SURFACE).toBe("soft");
+      expect(SURFACE_RAMPS.dark.soft.field).toBe("#202024");
+      expect(SURFACE_RAMPS.light.soft.field).toBe("#E8E8E8");
+      expect(SURFACE_RAMPS.light.soft.card).toBe("#FFFFFF");
+      expect(SURFACE_LABELS.dark.soft.label).toBe("Midnight");
+      expect(SURFACE_LABELS.light.soft.label).toBe("Grey");
+    });
+  });
+
+  describe("custom colour", () => {
+    it("derives a ramp whose cards stand out from the chosen field", () => {
+      for (const hex of ["#3366CC", "#E8E8E8", "#101010", "#FDE68A"]) {
+        for (const theme of ["light", "dark"] as const) {
+          const ramp = customRamp(theme, hex);
+          expect(ramp.field).toBe(hex.toUpperCase());
+          expect(Math.abs(luminance(ramp.card) - luminance(ramp.field))).toBeGreaterThan(0.004);
+        }
+      }
+    });
+
+    it("saves the colour in a cookie and paints it as the custom ramp", () => {
+      writeCustomColor("light", "#3366cc");
+      writeSurfaceChoice("light", "custom");
+      expect(readCustomColor("light")).toBe("#3366CC");
+      expect(readSurfaceChoice("light")).toBe("custom");
+      expect(surfaceRamp("light", "custom").field).toBe("#3366CC");
+      expect(document.cookie).toContain("listit_custom_light=");
+    });
+
+    it("saves a dark version of a colour picked in light mode, and back", () => {
+      writeCustomColor("light", "#FFD7A8");
+      const dark = readCustomColor("dark")!;
+      expect(dark).toBeTruthy();
+      expect(luminance(dark)).toBeLessThan(0.05);
+      writeCustomColor("dark", "#1E3A8A");
+      expect(luminance(readCustomColor("light")!)).toBeGreaterThan(0.6);
+    });
+
+    it("falls back to the default ramp when no custom colour is saved", () => {
+      document.cookie = "listit_custom_dark=; path=/; max-age=0";
+      expect(surfaceRamp("dark", "custom")).toEqual(SURFACE_RAMPS.dark.soft);
     });
   });
 });

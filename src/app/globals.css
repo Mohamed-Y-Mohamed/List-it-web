@@ -8,42 +8,12 @@
    utilities agree with the in-app theme toggle. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ---------------------------------------------------------------------------
-   Device insets. One definition, and everything else reads it.
-
-   Capacitor's injected variable first, `env()` as the fallback. That order is
-   the fix, and the reason is not obvious.
-
-   Capacitor 8.3+ does not leave the native insets alone. SystemBars.java
-   rewrites them to zero —
-
-     WindowInsetsCompat.Builder(insets)
-       .setInsets(systemBars | displayCutout, Insets.of(0, 0, 0, 0))
-
-   — to dodge a Chromium bug (issues.chromium.org/issues/461332423) where WebView
-   below 140 reports nonsense for env(). It then measures the real insets itself
-   and publishes them as `--safe-area-inset-*` on the documentElement.
-
-   Which branch you get depends on the WebView. Measured on a WebView 140+
-   emulator, both agree: injected 48px, env() 48px. On WebView below 140
-   Capacitor takes the zeroing branch and env() reports 0 while the injected
-   value stays correct — so reading the variable first is what makes the same
-   stylesheet right on both, and the hardcoded `max(5rem, ...)` floor this app
-   used to carry (a guess at the height of a navigation bar, tied to no
-   measurement) is no longer doing anything useful.
-
-   env() stays as the fallback because it is right everywhere else — iOS, the
-   web, and the first frames on Android before the injection lands, since
-   Capacitor posts it to the main thread rather than setting it synchronously.
-
-   Keyboard: Capacitor zeroes the injected bottom inset while the IME is open,
-   which is correct — a keyboard is not a navigation bar. `--keyboard-offset`
-   from NativeShell is what lifts content over that, and the two add cleanly. */
+/* Device insets (notches, home indicator). 0 on a desktop browser. */
 :root {
-  --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
-  --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
-  --safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
-  --safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 }
 
 @theme {
@@ -56,44 +26,27 @@
 }
 
 :root {
-  /* Kept in step with the on-screen keyboard by NativeShell, so sheets and
-     sticky footers can lift clear of it. Always 0 on the web. */
+  /* Space reserved for an on-screen keyboard. Always 0 in the browser. */
   --keyboard-offset: 0px;
 
-  /* Launch screen colours.
-
-     Deliberately driven by the media query below rather than by ThemeContext or
-     the `.dark` class: both of those are only applied in an effect after mount,
-     so a dark-mode launch would paint white for a frame and then correct itself —
-     the exact flicker the splash exists to prevent. These resolve on the first
-     paint with no JavaScript.
-
-     The values match @color/splashBackground and its values-night counterpart, so
-     the native splash and the web splash that replaces it are the same field and
-     the hand-off is invisible.
-
-     These follow the *default* background, not the chosen one. The native launch
-     theme is compiled into the APK and cannot read a preference, so only the
-     default can hand over seamlessly; someone who picks Midnight, Navy or Midnight
-     Velvet sees the default for the moment before the app paints. That is the cost of a runtime
-     colour and there is no way around it from inside the WebView. */
-  --splash-bg: #ffffff;
+  /* Loading screen colours, resolved on first paint with no JavaScript. */
+  --splash-bg: var(--surface-field);
   --splash-fg: #111827;
   --splash-muted: #6b7280;
 
-  /* The surface ramp. These are the `mono` values from lib/surfaceTheme, written
+  /* The surface ramp. These are the default (`soft`) values from lib/surfaceTheme, written
      here as well so the first paint has a field before ThemeContext has run — the
      inline script in layout.tsx overwrites them with the stored choice, and the
      provider keeps them in step after that.
 
      Everything that paints an app surface reads these rather than a hex, which is
      what lets the background be chosen at all. */
-  --surface-field: #ffffff;
-  --surface-deep: #ebebed;
-  --surface-raised: #ebebed;
-  --surface-card: #f4f4f5;
-  --surface-selected: #eeeef0;
-  --surface-border: rgba(15, 23, 42, 0.12);
+  --surface-field: #e8e8e8;
+  --surface-deep: #dcdcdc;
+  --surface-raised: #f4f4f5;
+  --surface-card: #ffffff;
+  --surface-selected: #f0f0f2;
+  --surface-border: rgba(15, 23, 42, 0.1);
 
   /* Motion curves. The browser's built-in easings are too weak to read as
      deliberate, so these are the stronger equivalents used throughout. */
@@ -103,64 +56,41 @@
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* The system setting is what the native launch theme reads, so the web splash
-   reads the same thing and the two fields are identical. */
+/* Dark class set by the inline script in layout.tsx from the saved theme. */
+:root.dark {
+  --splash-fg: #ffffff;
+  --splash-muted: #9ca3af;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
-    --splash-bg: #000000;
-    --splash-fg: #ffffff;
-    --splash-muted: #9ca3af;
 
-    /* `mono` dark. Same reasoning as above: a field has to exist before any
+    /* Midnight. Same reasoning as above: a field has to exist before any
        JavaScript runs, and the system preference is the only thing available
        that early. */
-    --surface-field: #000000;
-    --surface-deep: #000000;
-    --surface-raised: #1c1c1e;
-    --surface-card: #121212;
-    --surface-selected: #26262a;
-    --surface-border: rgba(255, 255, 255, 0.1);
+    --surface-field: #202024;
+    --surface-deep: #16161a;
+    --surface-raised: #35353b;
+    --surface-card: #2a2a2f;
+    --surface-selected: #3c3c43;
+    --surface-border: rgba(255, 255, 255, 0.09);
   }
 }
 
 /* The minimum comfortable hit area on a touch screen, per Apple's HIG and
-   Material's equivalent guidance. Applied to native-only controls. */
+   Material's equivalent guidance.  */
 @utility touch-target {
   min-height: 44px;
   min-width: 44px;
 }
 
-/* Clearance for the fixed bottom tab bar, applied by the three screens it sits
-   over. The bar is 56px tall plus the gesture-pill inset it pads itself with,
-   and being fixed it takes up no space in the document — so without this the
-   last row of a list sits underneath it. Keep in step with TAB_BAR_HEIGHT_PX in
-   NativeTabBar.tsx. */
+/* Clearance for a fixed bottom bar. */
 @utility pb-tab-bar {
   padding-bottom: calc(56px + var(--safe-bottom));
 }
 
-/* Bottom clearance for a scrolling panel portalled into a fixed overlay: the task
-   and note detail sheets.
-
-   Those panels cannot inherit any of the insets below. `body { padding-bottom }`
-   is the app's only bottom inset, and a fixed element is laid out against the
-   viewport rather than the body's padding box — so the last control in the sheet,
-   which is the Delete button, sat underneath the Android navigation bar with only
-   the form's 16px of `py-4` beneath it. The `pb-tab-bar` clearance does not reach
-   them either: (secure)/layout applies that only on the three tab roots, and
-   /List is not one of them.
-
-   The keyboard offset is part of the sum because these sheets hold text inputs —
-   without it the delete button clears the navigation bar but hides behind the
-   keyboard instead.
-
-   ---------------------------------------------------------------------------
-   This used to carry a `max(5rem, ...)` floor, on the belief that the inset could
-   not be measured from the web layer and 5rem was a safe guess at a navigation
-   bar. The belief was right about `env()` and wrong about the conclusion:
-   Capacitor measures the inset natively and publishes it as
-   `--safe-area-inset-bottom`, which `--safe-bottom` reads. See the note at the
-   top of this file. The value is now the real one, so the guess is gone. */
+/* Bottom clearance for a scrolling panel inside a fixed overlay (task and note
+   sheets), so the last control clears the home indicator and keyboard. */
 @utility pb-sheet-safe {
   padding-bottom: calc(var(--safe-bottom) + var(--keyboard-offset, 0px) + 1.25rem);
 }
@@ -176,145 +106,120 @@
 
    Applied together with `my-auto` on the card: with room to spare the auto margins
    still centre it, and when there is not, they collapse to zero and the overlay
-   scrolls instead of clipping.
-
-   Both insets come from `--safe-top` / `--safe-bottom`, which prefer the values
-   Capacitor measures natively over `env()`. See the note at the top of this
-   file for why reading `env()` directly returns 0 on Android. */
-@utility native-dialog-scroll {
+   scrolls instead of clipping. */
+@utility dialog-scroll {
   overflow-y: auto;
   padding-top: calc(var(--safe-top) + 1rem);
   padding-bottom: calc(var(--safe-bottom) + var(--keyboard-offset, 0px) + 1rem);
 }
 
-/* ---------------------------------------------------------------------------
-   Native-only rules.
-
-   Everything below is scoped to `html.capacitor-native`, a class NativeShell
-   adds at runtime inside the Capacitor WebView. The web app never carries it,
-   so none of this can alter the published site — which matters because some of
-   these rules (suppressing text selection, disabling overscroll) are correct in
-   an app and wrong in a browser.
-   --------------------------------------------------------------------------- */
-
-html.capacitor-native {
-  /* Stop the viewport rescaling text when the device rotates. */
-  -webkit-text-size-adjust: 100%;
-
-  /* No rubber-band overscroll or pull-to-refresh: this is an app, not a page. */
-  overscroll-behavior: none;
-
-  /* Android 15 and above force every app edge-to-edge and ignore the status bar
-     colour an app asks for, so the WebView really does start behind the status
-     bar and the gesture pill. This colour fills the inset bands left by the body
-     padding below, giving the same opaque bar iOS draws.
-
-     It reads the surface variable rather than a hex of its own, so the band behind
-     the status bar is the same ground as the page. It was a fixed light/dark pair,
-     which left a navy strip across the top of a black app the moment the ground
-     became a preference. One declaration now covers both themes and all three
-     backgrounds, because the variable already carries them. */
+/* The page itself paints the chosen background, so every route — public or
+   signed-in — follows the colour picked in Settings. */
+html,
+body {
   background-color: var(--surface-field);
 }
 
-/* An opaque band behind the status bar, pinned to the viewport.
+/* Scrolling list names on pinned cards: rest, travel, rest, repeat. */
+@keyframes marquee {
+  0%,
+  30% {
+    transform: translateX(0);
+  }
+  85%,
+  100% {
+    transform: translateX(var(--marquee-distance, 0px));
+  }
+}
 
-   Padding on the body cannot do this job: padding scrolls with the document, so
-   content rides up underneath the clock and battery as soon as the page moves.
-   A fixed pseudo-element stays put, so whatever scrolls past disappears behind a
-   solid bar instead of colliding with the system UI. Screens pin their own
-   headers on top of it with `pt-safe-top`. */
-html.capacitor-native::before {
-  content: "";
+@utility animate-marquee {
+  animation: marquee 6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+}
+
+/* App-icon loading screen, shown on the first paint of every page until
+   BootLoader adds `app-ready`. Uses the chosen background colour. */
+#boot-loader {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--safe-top);
-  background-color: inherit;
-  /* Above every layer the app draws, including sheets and menus, so the status
-     bar stays legible the way it does on iOS. */
-  z-index: 9999;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background-color: var(--splash-bg);
+  transition: opacity 0.25s ease-out;
+}
+
+#boot-loader img {
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  animation: boot-breathe 1.6s ease-in-out infinite;
+}
+
+#boot-loader .boot-dots {
+  display: flex;
+  gap: 6px;
+}
+
+#boot-loader .boot-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #f97316;
+  animation: boot-dot 0.9s ease-in-out infinite;
+}
+
+#boot-loader .boot-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+#boot-loader .boot-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+html.app-ready #boot-loader {
+  opacity: 0;
   pointer-events: none;
 }
 
-/* Clear of the gesture pill. This one is safe as padding — it is the end of the
-   document, so nothing scrolls past it.
-
-   Screens that pin something to the bottom edge opt out: a fixed element is
-   positioned against the viewport, not the body's padding box, so the tab bar
-   pads itself with pb-safe-bottom instead and fills this band with its own
-   surface. */
-html.capacitor-native body {
-  padding-bottom: var(--safe-bottom);
+html.app-done #boot-loader {
+  display: none;
 }
 
-/* Full-bleed surfaces: sign-in, sign-up, forgot and reset password.
-
-   These used to hide the status-bar band outright. The complaint it was fixing
-   was real — the band cut the page into strips, a plain rectangle above the card
-   in a colour the page never used — but hiding it was the wrong half of the fix,
-   because the band is also what stops content being drawn behind the clock.
-
-   With it gone, anything that scrolled — and on these screens the keyboard makes
-   everything scroll — went straight under the status bar. Measured: the "Create
-   your account" heading sat on top of the clock and the wifi icon with the
-   keyboard open.
-
-   So the band comes back, in the page's own colour. On native these screens
-   paint `AUTH_FIELD`, which is `bg-[var(--splash-bg)]` — the same variable this
-   now uses, so the band is invisible against the page and there is no strip to
-   see, while content still cannot be painted behind the system icons.
-
-   Applied by useImmersiveNative, which adds the class for as long as such a
-   screen is mounted. */
-html.capacitor-native.native-immersive::before {
-  background-color: var(--splash-bg);
+@keyframes boot-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.96);
+  }
 }
 
-html.capacitor-native.native-immersive body {
-  padding-bottom: 0;
+@keyframes boot-dot {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
 }
 
-/* The app shell, where the inset below is already accounted for twice over.
-
-   `(secure)/layout.tsx` adds this class for as long as the tab-bar shell is
-   mounted. Inside it the inset band is covered by the tab bar, which is fixed
-   and pads itself with `pb-safe-bottom`, and the clearance for content is the
-   wrapper's `pb-tab-bar` — which is `56px + var(--safe-bottom)`, the inset
-   included. The body's own `padding-bottom` is a third copy of the same inset
-   and the only one that adds to the document's height.
-
-   That is the drift: with it, the document is `100vh + safe-bottom` on every
-   screen in the app, so the whole window can be dragged up by the height of
-   the gesture pill with nothing underneath it to see. Zeroing it here leaves
-   the document exactly one viewport tall.
-
-   Scoped to the shell rather than removed outright because the public screens
-   genuinely do rely on it: forgot-password, reset-password, verification and
-   the marketing pages are `min-h-screen` with no bottom inset of their own,
-   and they have no tab bar covering the band. */
-html.capacitor-native.native-tabbed body {
-  padding-bottom: 0;
-}
-
-html.capacitor-native body {
-  /* Long-pressing a list item should open its context menu, not start a text
-     selection. Inputs opt back in below. */
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-
-  /* Suppress the grey flash Android draws over tapped elements; components
-     provide their own :active feedback instead. */
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Text entry still needs selection, and 16px is the threshold below which a
-   WebView zooms in on focus. */
-html.capacitor-native input,
-html.capacitor-native textarea {
-  -webkit-user-select: text;
-  user-select: text;
-  font-size: max(16px, 1em);
+@media (prefers-reduced-motion: reduce) {
+  #boot-loader img,
+  #boot-loader .boot-dots span {
+    animation: none;
+  }
 }

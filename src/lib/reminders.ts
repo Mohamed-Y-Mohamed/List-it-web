@@ -9,7 +9,7 @@
 // reminder here was asked for explicitly, on a particular task, by someone who
 // decided it was worth a buzz.
 //
-// Pure: no React, no Capacitor. lib/notifications.ts does the scheduling.
+// Pure: no React. The web stores reminders; the mobile apps deliver them.
 
 /**
  * An offset counts back from the moment the task is due; an absolute reminder is

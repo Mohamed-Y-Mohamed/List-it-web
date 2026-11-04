@@ -46,13 +46,13 @@ const AboutUs = () => {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 0.45 }}
             className="text-center"
           >
             <motion.span
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
+              transition={{ duration: 0.4, delay: 0.05 }}
               className={`mb-4 sm:mb-6 inline-block rounded-full ${
                 isDark
                   ? "bg-indigo-900/30 text-indigo-400 border border-indigo-500/30"
@@ -65,7 +65,7 @@ const AboutUs = () => {
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
+              transition={{ duration: 0.45, delay: 0.1 }}
               className={`mb-4 sm:mb-6 text-3xl sm:text-4xl md:text-5xl font-bold leading-tight tracking-tight ${
                 isDark ? "text-gray-100" : "text-gray-900"
               }`}
@@ -79,7 +79,7 @@ const AboutUs = () => {
                   className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: "100%" }}
-                  transition={{ duration: 1, delay: 1.2 }}
+                  transition={{ duration: 0.45, delay: 0.3 }}
                 />
               </span>{" "}
               <span className={isDark ? "text-blue-400" : "text-blue-500"}>
@@ -90,7 +90,7 @@ const AboutUs = () => {
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.6 }}
+              transition={{ duration: 0.45, delay: 0.15 }}
               className={`mx-auto mb-6 sm:mb-8 max-w-2xl text-base sm:text-lg px-4 ${
                 isDark ? "text-gray-300" : "text-gray-600"
               }`}
@@ -102,7 +102,7 @@ const AboutUs = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.8 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
               className="mx-auto h-1 w-16 sm:w-24 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-600"
             />
           </motion.div>
@@ -118,8 +118,8 @@ const AboutUs = () => {
           <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
             <motion.div
               initial={{ opacity: 0, x: -50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.45 }}
               className="lg:w-2/3"
             >
               <div
@@ -129,8 +129,8 @@ const AboutUs = () => {
               >
                 <motion.h2
                   initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4 }}
                   className={`mb-4 sm:mb-6 text-2xl sm:text-3xl font-bold ${
                     isDark ? "text-gray-100" : "text-gray-900"
                   }`}
@@ -143,16 +143,16 @@ const AboutUs = () => {
                     <motion.div
                       className="absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
                       initial={{ width: 0 }}
-                      whileInView={{ width: "100%" }}
-                      transition={{ duration: 0.8, delay: 0.3 }}
+                      animate={{ width: "100%" }}
+                      transition={{ duration: 0.45, delay: 0.08 }}
                     />
                   </span>
                 </motion.h2>
 
                 <motion.div
                   initial={{ opacity: 0 }}
-                  whileInView={{ opacity: 1 }}
-                  transition={{ duration: 0.8, delay: 0.2 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.45, delay: 0.05 }}
                   className="space-y-4"
                 >
                   <p
@@ -193,8 +193,8 @@ const AboutUs = () => {
 
             <motion.div
               initial={{ opacity: 0, x: 50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.45, delay: 0.05 }}
               className="lg:w-1/3 flex justify-center items-center"
             >
               <motion.div
@@ -222,7 +222,7 @@ const AboutUs = () => {
                 <motion.div
                   className="absolute inset-0 rounded-full border border-blue-500/20"
                   animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.05, 0.2] }}
-                  transition={{ duration: 4, repeat: Infinity, delay: 1 }}
+                  transition={{ duration: 4, repeat: Infinity, delay: 0.25 }}
                 />
               </motion.div>
             </motion.div>
@@ -238,8 +238,8 @@ const AboutUs = () => {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45 }}
             className="text-center mb-12 sm:mb-16"
           >
             <h2
@@ -255,8 +255,8 @@ const AboutUs = () => {
                 <motion.div
                   className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
                   initial={{ width: 0 }}
-                  whileInView={{ width: "100%" }}
-                  transition={{ duration: 0.8, delay: 0.3 }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 0.45, delay: 0.08 }}
                 />
               </span>
             </h2>
@@ -271,7 +271,7 @@ const AboutUs = () => {
 
           <div className="grid gap-6 sm:gap-8 md:grid-cols-3">
             {features.map((feature, index) => (
-              <FeatureCard key={index} {...feature} delay={index * 0.2} />
+              <FeatureCard key={index} {...feature} delay={index * 0.06} />
             ))}
           </div>
         </div>
@@ -285,8 +285,8 @@ const AboutUs = () => {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45 }}
             className="text-center mb-12 sm:mb-16"
           >
             <h2
@@ -302,8 +302,8 @@ const AboutUs = () => {
                 <motion.div
                   className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
                   initial={{ width: 0 }}
-                  whileInView={{ width: "100%" }}
-                  transition={{ duration: 0.8, delay: 0.3 }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 0.45, delay: 0.08 }}
                 />
               </span>
             </h2>
@@ -351,8 +351,8 @@ const AboutUs = () => {
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45 }}
             className={`text-center p-8 sm:p-12 rounded-xl border ${
               isDark
                 ? "bg-gray-800/50 border-gray-700/50"
