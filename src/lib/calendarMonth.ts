@@ -72,8 +72,7 @@ export function monthGrid(month: Date, firstWeekday = 1): (Date | null)[] {
  * The weekday strip, rotated so it starts on `firstWeekday`.
  *
  * The labels are localised but the rotation is not inferred from the locale:
- * `Intl.Locale.weekInfo` is not reliably present in the Android WebView this
- * ships inside, and a strip that silently starts on the wrong day is worse than
+ * `Intl.Locale.weekInfo` is not reliably present in every browser, and a strip that silently starts on the wrong day is worse than
  * one that always starts where the caller asked.
  */
 export function weekdaySymbols(firstWeekday = 1, locale?: string): string[] {

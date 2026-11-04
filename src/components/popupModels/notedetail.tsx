@@ -17,7 +17,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Check, Trash2, AlertCircle, Pin } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import BottomSheet from "@/components/BottomSheet";
-import { useOptionalAppData } from "@/components/native/AppDataProvider";
+import { useOptionalAppData } from "@/components/AppDataProvider";
 import ConfirmDialog from "./ConfirmDialog";
 import { OperationResult } from "@/types/schema";
 import { useAuth } from "@/context/AuthContext";
@@ -825,7 +825,7 @@ const NoteDetails = ({
                         className={`relative flex h-9 w-9 items-center justify-center rounded-full transition-shadow disabled:opacity-50 ${
                           selected
                             ? isDark
-                              ? "ring-2 ring-white ring-offset-2 ring-offset-[#131A2B]"
+                              ? "ring-2 ring-white ring-offset-2 ring-offset-[var(--surface-card)]"
                               : "ring-2 ring-gray-900 ring-offset-2 ring-offset-white"
                             : ""
                         }`}

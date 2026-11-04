@@ -4,10 +4,9 @@
 //
 // Two things brought this into existence.
 //
-// The discard prompts were `window.confirm`. That draws Android's system dialog
-// — different type, different buttons, the package name in the corner — in the
-// middle of a sheet that is otherwise entirely the app's own. It also blocks the
-// WebView's main thread while it is up.
+// The discard prompts were `window.confirm`. That draws the browser's own dialog
+// in the middle of a sheet that is otherwise entirely the app's own, and blocks
+// the page while it is up.
 //
 // The delete prompts were already custom, but they were `position: fixed` inside
 // the detail sheet, and the sheet's panel now carries a framer `transform` to

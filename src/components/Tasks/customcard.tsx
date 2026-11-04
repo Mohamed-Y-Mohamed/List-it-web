@@ -12,9 +12,9 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useLongPress } from "@/hooks/useLongPress";
-import NativeContextMenu, {
+import ContextMenu, {
   type ContextMenuItem,
-} from "@/components/native/NativeContextMenu";
+} from "@/components/ui/ContextMenu";
 import TaskSidebar from "@/components/popupModels/TasksDetails";
 import { Collection, OperationResult } from "@/types/schema";
 import {
@@ -536,11 +536,11 @@ export default function TodayTaskCard({
           )}
         </div>
 
-        {/* The hold menu is NativeContextMenu now, rendered below this card —
+        {/* The hold menu is ContextMenu now, rendered below this card —
             portalled, so no overflow ancestor can crop it. See Tasks/index.tsx. */}
       </motion.article>
 
-      <NativeContextMenu
+      <ContextMenu
         origin={menuOrigin}
         items={menuItems}
         onClose={() => setMenuOrigin(null)}

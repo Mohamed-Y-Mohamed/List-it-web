@@ -27,7 +27,7 @@ import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useTaskView } from "@/hooks/useTaskView";
 import { useTaskActions } from "@/hooks/useTaskActions";
-import { useOptionalAppData } from "@/components/native/AppDataProvider";
+import { useOptionalAppData } from "@/components/AppDataProvider";
 import TaskScreen from "@/components/Tasks/TaskScreen";
 import TaskSidebar from "@/components/popupModels/TasksDetails";
 import {

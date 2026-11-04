@@ -3,20 +3,9 @@
 // The privacy policy as a sheet, for the two places you meet it inside the
 // product: the consent checkbox on sign-up, and the row in Settings.
 //
-// ModalShell rather than a dialog of its own. It already solves the four things
-// this needs and none of them are obvious:
-//
-//   * portals to the body, so opening from inside a transformed ancestor does
-//     not clip the overlay to the card that opened it;
-//   * registers with pushOverlay, so Android's back button closes the sheet
-//     instead of popping the screen underneath it;
-//   * bottom-sheet on native, centred modal on web, from the same markup;
-//   * a safe-area floor on the scrolling body, so the last paragraph clears the
-//     navigation bar on a device that reports no bottom inset.
-//
-// A long document rather than a form, so no footer is passed — ModalShell's
-// footerless branch puts the safe-area floor on the body itself, which is what
-// a scrolling document wants.
+// ModalShell rather than a dialog of its own: it portals to the body, is a bottom
+// sheet on a phone and a centred modal on wider screens, and keeps the last
+// paragraph clear of the home indicator.
 
 import React from "react";
 import ModalShell from "@/components/ui/ModalShell";

@@ -32,9 +32,7 @@ import {
   reminderBounds,
   type Reminder,
 } from "@/lib/reminders";
-import { IS_NATIVE_BUILD } from "@/lib/platform";
-import { ensureNotificationPermission } from "@/lib/notifications";
-import { INFO, WARNING } from "./tokens";
+import { INFO } from "./tokens";
 
 /** `YYYY-MM-DDTHH:MM` in local time, which is what datetime-local speaks. */
 function toLocalInput(date: Date): string {
@@ -64,7 +62,6 @@ export default function ReminderPicker({
   dueDateKey: string | null;
   isDark: boolean;
 }) {
-  const [permissionBlocked, setPermissionBlocked] = React.useState(false);
 
   // The one reminder, or null. Legacy offsets are read but not editable here —
   // they have no instant of their own to put in the field, so the row offers to
@@ -79,16 +76,6 @@ export default function ReminderPicker({
 
   const { min, max } = reminderBounds(dueDateKey);
   const overdue = isDueDayPast(dueDateKey);
-
-  // Asking here rather than only on a master switch. A permission revoked in
-  // system Settings since the last edit looks exactly like a working reminder
-  // and schedules nothing — `syncTaskReminders` bails without the grant. Safe to
-  // call repeatedly: it checks first.
-  const askPermission = () => {
-    void ensureNotificationPermission().then((granted) => {
-      setPermissionBlocked(!granted);
-    });
-  };
 
   const setAt = (next: Date) => {
     onChange([
@@ -177,7 +164,6 @@ export default function ReminderPicker({
               type="button"
               disabled={overdue}
               onClick={() => {
-                askPermission();
                 // An hour from now, pulled inside the due day — the same opening
                 // position the Swift uses (`Date().addingTimeInterval(60 * 60)`).
                 const start = new Date(Date.now() + 60 * 60 * 1000);
@@ -208,22 +194,12 @@ export default function ReminderPicker({
 
       {/* The reminder is saved either way. Saying so beats a row that looks set
           while the OS quietly delivers nothing. */}
-      {permissionBlocked && (
-        <p className="text-[11px]" style={{ color: WARNING }}>
-          Notifications are turned off for List It, so this reminder will not be
-          delivered. Turn them on in your device settings.
-        </p>
-      )}
-
-      {/* Stored and shown on the web, but nothing fires them there: a browser
-          cannot schedule a local notification for later, and doing it properly
-          needs a push backend this app does not have. */}
-      {!IS_NATIVE_BUILD && (
-        <p className={`text-[11px] ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-          Reminders are delivered by the mobile app. They are saved here and will
-          be waiting on your phone.
-        </p>
-      )}
+      {/* Stored with the task, but nothing fires them in a browser: a web page
+          cannot schedule a notification for later without a push backend. */}
+      <p className={`text-[11px] ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+        Reminders are saved with the task. Browsers can&apos;t send them, so set
+        reminders in the List It mobile app to get notified.
+      </p>
     </div>
   );
 }

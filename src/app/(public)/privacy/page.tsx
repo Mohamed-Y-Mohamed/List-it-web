@@ -20,7 +20,6 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
-import { IS_NATIVE_BUILD } from "@/lib/platform";
 import PolicyDocument from "@/components/legal/PolicyDocument";
 
 export default function PrivacyPolicyPage() {
@@ -30,7 +29,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div
       className={`min-h-screen w-full px-4 py-12 ${
-        isDark ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"
+        isDark ? "bg-[var(--surface-field)] text-white" : "bg-[var(--surface-field)] text-gray-900"
       }`}
       // Two different things are being cleared at the top, depending on where
       // this renders.
@@ -41,13 +40,8 @@ export default function PrivacyPolicyPage() {
       // the first thing anyone opening the policy URL would see. 4rem clears the
       // bar, 3rem is the breathing room the rest of the page uses: 7rem, which
       // is also what /landingpage's pt-28 comes to.
-      //
-      // In the app there is no top bar — PublicLayout omits it on native — so
-      // what has to be cleared is the status bar instead, via the safe-area
-      // variable. env() resolves to 0 in a browser, hence max() rather than a
-      // sum: the two cases never apply at once.
       style={{
-        paddingTop: IS_NATIVE_BUILD ? "max(3rem, var(--safe-top))" : "7rem",
+        paddingTop: "7rem",
         paddingBottom: "max(3rem, var(--safe-bottom))",
       }}
     >

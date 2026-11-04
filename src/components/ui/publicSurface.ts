@@ -14,26 +14,16 @@
 // Deliberately CSS variables rather than Tailwind classes. Half of these are
 // used in `style` for gradient stops and colour-mix, where a class name cannot
 // reach, and Tailwind 4 only generates classes it can see written out in full.
-//
-// Web-only in practice: the native app never loads these routes — `src/app/page.tsx`
-// redirects to /landingpage only when `isPWAStandalone()` is false. Nothing here
-// is imported by a shared layout, so none of it reaches the native bundle.
 
 import { PRIMARY } from "./tokens";
 
-// The marketing pages hold their own copies of the Stage 1 surfaces rather than
-// importing them from `ui/tokens`.
-//
-// Those tokens became `var(--surface-*)` when the in-app background turned into a
-// preference, and the public pages must not follow it: a signed-out visitor has no
-// preference, the variables are not set until the app paints, and a landing page
-// that changed colour depending on who last used the browser is not a landing
-// page. These are the values the app shipped with, which is the look the App Store
-// screenshots show.
-const APP_FIELD = "#0B1222";
-const APP_DEEP = "#05080F";
-const APP_RAISED = "#121829";
-const APP_CARD = "#131A2B";
+// The public pages read the same `--surface-*` ramp as the app, so the colour
+// picked in Settings (saved in a cookie) applies to every page on the site. With
+// nothing saved the ramp is the default: Grey in light, Midnight in dark.
+const APP_FIELD = "var(--surface-field)";
+const APP_DEEP = "var(--surface-deep)";
+const APP_RAISED = "var(--surface-raised)";
+const APP_CARD = "var(--surface-card)";
 const APP_SELECTED = "#1B2440";
 
 export interface PublicSurface {
@@ -59,7 +49,7 @@ export const PUBLIC_DARK: PublicSurface = {
   band: APP_DEEP,
   card: APP_CARD,
   raised: APP_RAISED,
-  border: "rgba(255,255,255,0.08)",
+  border: "var(--surface-border)",
   divider: "rgba(255,255,255,0.06)",
   text: "#F1F5F9",
   body: "#A9B4CA",
@@ -67,11 +57,11 @@ export const PUBLIC_DARK: PublicSurface = {
 };
 
 export const PUBLIC_LIGHT: PublicSurface = {
-  field: "#FFFFFF",
-  band: "#F6F8FC",
-  card: "#FFFFFF",
-  raised: "#F1F5F9",
-  border: "rgba(15,23,42,0.09)",
+  field: APP_FIELD,
+  band: APP_DEEP,
+  card: APP_CARD,
+  raised: APP_RAISED,
+  border: "var(--surface-border)",
   divider: "rgba(15,23,42,0.06)",
   text: "#0F172A",
   body: "#475569",

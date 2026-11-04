@@ -7,11 +7,8 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/client";
-import { getApiBaseUrl, isNativeApp } from "@/lib/platform";
-import { appPath, logoutRedirectUrl } from "@/lib/routes";
-import { cancelAllReminders } from "@/lib/notifications";
+import { logoutRedirectUrl } from "@/lib/routes";
 import { User, AuthError } from "@supabase/supabase-js";
 
 // Auth context type
@@ -108,41 +105,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  const router = useRouter();
 
   /**
-   * Leave for the sign-in screen after signing out.
-   *
-   * Native navigates through the client router. A full document load cannot be
-   * used here: Capacitor's local server does not resolve a directory URL like
-   * /login/ to its index.html and falls back to serving the root document, so
-   * the app booted with the address bar on /login/ but the root page mounted —
-   * which renders nothing in app mode — and the user was left on a white screen.
-   * Going through the router also skips the relaunch entirely, so signing out no
-   * longer replays the splash screen on the way to the login form.
-   *
-   * Web keeps the hard navigation deliberately. middleware.ts reads `logout=true`
-   * and clears the auth cookies before the login page renders, and a client-side
-   * push would never reach it.
+   * Leave for the sign-in screen after signing out. A full document load on
+   * purpose: middleware.ts reads `logout=true` and clears the auth cookies before
+   * the login page renders, which a client-side push would never reach.
    */
   const goToLoginAfterLogout = (hadError = false) => {
-    if (isNativeApp()) {
-      router.replace(appPath("/login"));
-      return;
-    }
-    window.location.href = logoutRedirectUrl(false, hadError);
+    window.location.href = logoutRedirectUrl(hadError);
   };
 
-  // Get site URL. This ends up inside verification and password-reset emails, so
-  // it has to be an address the recipient can actually open. Inside the native
-  // shell `window.location.origin` is the WebView's own `https://localhost`,
-  // which would produce a dead link — fall back to the hosted origin there.
+  // Site URL for verification and password-reset emails.
   const getSiteUrl = () => {
     if (process.env.NEXT_PUBLIC_SITE_URL) {
       return process.env.NEXT_PUBLIC_SITE_URL;
-    }
-    if (isNativeApp()) {
-      return getApiBaseUrl();
     }
     return typeof window !== "undefined" ? window.location.origin : "";
   };
@@ -165,8 +141,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         // Read the stored session, retrying once on failure.
         //
-        // A read can fail transiently on a cold document load — a deep link, a
-        // notification tap, a WebView reload — before storage is ready. Treating
+        // A read can fail transiently on a cold document load — a deep link or a
+        // reload — before storage is ready. Treating
         // that first failure as "signed out" is what threw users back to the
         // login screen with a perfectly valid session sitting on disk. Only a
         // clean read that genuinely finds nothing counts as signed out.
@@ -292,9 +268,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Login with email/password
   const login = async (email: string, password: string) => {
     try {
-      // Try to refresh session first
-      await supabase.auth.refreshSession();
-
       // Attempt to sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -408,13 +381,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Clear auth data
       clearAuthData();
-
-      // Pending reminders belong to the account that scheduled them, and they
-      // outlive the session because the OS holds them, not the app. Left behind,
-      // whoever picks the phone up next gets this user's task titles on the lock
-      // screen for days. `cancelAllReminders` already said "used when signing
-      // out" in its own doc comment; nothing had ever called it.
-      await cancelAllReminders();
 
       // Call Supabase signOut
       const { error } = await supabase.auth.signOut({

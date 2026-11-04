@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { publicSurface, publicVars } from "@/components/ui/publicSurface";
+import ListCard from "@/components/ui/ListCard";
+import type { List } from "@/types/schema";
 import { PRIMARY, STATUS_META, taskStatus } from "@/components/ui/tokens";
 
 // Type definitions
@@ -670,8 +672,8 @@ const CollectionComponent: React.FC<CollectionComponentProps> = ({
             style={{
               backgroundImage: `linear-gradient(to right, ${demoAlpha(
                 colour,
-                isDark ? 0.4 : 0.28,
-              )}, ${demoAlpha(colour, isDark ? 0.2 : 0.14)})`,
+                isDark ? 0.4 : 0.2,
+              )}, ${demoAlpha(colour, isDark ? 0.2 : 0.1)})`,
               backgroundSize: `${isExpanded ? 100 : 30}% 100%`,
               backgroundRepeat: "no-repeat",
               clipPath: `polygon(0 0, ${isExpanded ? 100 : 30}% 0, calc(${
@@ -976,6 +978,23 @@ const AnimatedCounter: React.FC<{
 };
 
 // Hero Component
+const demoList = (id: string, name: string, color: string): List => ({
+  id,
+  created_at: new Date(),
+  list_icon: null,
+  list_name: name,
+  is_default: false,
+  bg_color_hex: color,
+  is_pinned: true,
+  user_id: null,
+});
+
+const DEMO_LISTS: List[] = [
+  demoList("demo-work", "Work Projects", "#6366F1"),
+  demoList("demo-home", "Home & Personal Errands", "#10B981"),
+  demoList("demo-trip", "Summer Trip", "#F97316"),
+];
+
 const Hero: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -989,13 +1008,13 @@ const Hero: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 0.45 }}
             className="mb-12 max-w-xl lg:mb-0 lg:w-1/2"
           >
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
+              transition={{ duration: 0.45, delay: 0.05 }}
               className={`mb-6 text-4xl font-bold leading-tight tracking-tight ${
                 isDark ? "text-gray-100" : "text-gray-900"
               } md:text-5xl`}
@@ -1009,7 +1028,7 @@ const Hero: React.FC = () => {
                   className="absolute -bottom-2 left-0 h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: "100%" }}
-                  transition={{ duration: 1, delay: 1 }}
+                  transition={{ duration: 0.45, delay: 0.25 }}
                 />
               </span>
             </motion.h1>
@@ -1017,7 +1036,7 @@ const Hero: React.FC = () => {
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
+              transition={{ duration: 0.45, delay: 0.1 }}
               className={`mb-8 text-lg ${
                 isDark ? "text-gray-300" : "text-gray-600"
               }`}
@@ -1031,7 +1050,7 @@ const Hero: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.6 }}
+              transition={{ duration: 0.45, delay: 0.15 }}
               className="flex flex-col space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0"
             >
               <motion.div
@@ -1072,7 +1091,7 @@ const Hero: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
+            transition={{ duration: 0.45, delay: 0.1 }}
             className="w-full lg:w-1/2"
           >
             <div
@@ -1080,13 +1099,27 @@ const Hero: React.FC = () => {
                 isDark ? "bg-gray-800/40" : "bg-white/40"
               } p-6 shadow-2xl border ${isDark ? "border-gray-700/50" : "border-gray-300/50"}`}
             >
+              {/* The list cards, exactly as they appear in the app. */}
+              <div className="mb-6 grid grid-cols-3 gap-3">
+                {DEMO_LISTS.map((list) => (
+                  <ListCard
+                    key={list.id}
+                    list={list}
+                    isDark={isDark}
+                    variant="pinned"
+                    href="/register"
+                    taskCount={list.id === "demo-work" ? 3 : 2}
+                    noteCount={1}
+                  />
+                ))}
+              </div>
               <div className="space-y-6">
                 {initialData.collections.map((collection, index) => (
                   <motion.div
                     key={collection.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.8 + index * 0.2 }}
+                    transition={{ duration: 0.5, delay: 0.05 + index * 0.06 }}
                   >
                     <CollectionComponent
                       id={collection.id}
@@ -1108,7 +1141,7 @@ const Hero: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 1.2 }}
+        transition={{ duration: 0.45, delay: 0.3 }}
         className={`absolute bottom-0  w-full bg-[var(--ps-primary)] py-6 sm:py-8 text-center text-white`}
       >
         <div className="mx-auto max-w-3xl px-4">
@@ -1144,8 +1177,8 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay }}
       whileHover={{ y: -5, scale: 1.02 }}
       className={`rounded-xl p-4 sm:p-6 transition-all duration-300 border group ${
         isDark
@@ -1196,8 +1229,8 @@ const HowItWorksCard: React.FC<HowItWorksCardProps> = ({
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay }}
       whileHover={{ y: -5 }}
       className={`rounded-xl p-4 sm:p-6 border-2 transition-all duration-300 group relative overflow-hidden ${
         isDark
@@ -1268,8 +1301,8 @@ const BenefitCard: React.FC<BenefitCardProps> = ({
   return (
     <motion.div
       initial={{ opacity: 0, x: -30 }}
-      whileInView={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.6, delay }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.4, delay }}
       whileHover={{ x: 5 }}
       className={`flex items-start p-4 sm:p-6 rounded-xl shadow-lg border transition-all duration-300 ${
         isDark
@@ -1322,8 +1355,8 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45 }}
       className="text-center mb-12 sm:mb-16"
     >
       <h2
@@ -1339,8 +1372,8 @@ const SectionTitle: React.FC<SectionTitleProps> = ({
           <motion.div
             className="absolute -bottom-1 sm:-bottom-2 left-0 h-0.5 sm:h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
             initial={{ width: 0 }}
-            whileInView={{ width: "100%" }}
-            transition={{ duration: 0.8, delay: 0.3 }}
+            animate={{ width: "100%" }}
+            transition={{ duration: 0.45, delay: 0.08 }}
           />
         </span>
       </h2>
@@ -1565,8 +1598,8 @@ const LandingPage: React.FC = () => {
 
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45 }}
             className="overflow-hidden rounded-xl sm:rounded-2xl shadow-2xl"
           >
             <div
@@ -1577,8 +1610,8 @@ const LandingPage: React.FC = () => {
                   <motion.div
                     key={collection.id}
                     initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: index * 0.2 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.06 }}
                   >
                     <CollectionComponent
                       id={collection.id}
@@ -1619,9 +1652,8 @@ const LandingPage: React.FC = () => {
               <motion.div
                 key={level.name}
                 initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.04 }}
                 className="rounded-2xl border border-[var(--ps-border)] bg-[var(--ps-card)] p-6"
               >
                 <div className="mb-3 flex items-center gap-3">
@@ -1714,8 +1746,8 @@ const LandingPage: React.FC = () => {
       {/*  CTA Section */}
       <motion.section
         initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        transition={{ duration: 0.8 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.45 }}
         className={`py-12 sm:py-16 lg:py-20 text-white relative overflow-hidden bg-[var(--ps-primary)]`}
       >
         {/* Animated background elements */}
@@ -1749,8 +1781,8 @@ const LandingPage: React.FC = () => {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45 }}
             className="mx-auto max-w-3xl text-center"
           >
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight mb-4 sm:mb-6">
@@ -1763,8 +1795,8 @@ const LandingPage: React.FC = () => {
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.05 }}
               className="flex flex-col justify-center space-y-4 sm:flex-row sm:space-x-6 sm:space-y-0"
             >
               <motion.div
@@ -1788,8 +1820,8 @@ const LandingPage: React.FC = () => {
             {/* Trust indicators */}
             <motion.div
               initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.45, delay: 0.1 }}
               className="mt-8 sm:mt-12 flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-8 text-sm opacity-80"
             >
               <div className="flex items-center">

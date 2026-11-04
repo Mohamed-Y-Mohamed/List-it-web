@@ -1,4 +1,4 @@
-import { WAVES, wavePath, type Wave } from "../listWaveShape";
+import { WAVES, WAVE_SCALE, wavePath, type Wave } from "../listWaveShape";
 
 /**
  * The iOS ListRowView values, for the record.
@@ -15,8 +15,11 @@ const IOS = {
 } as const;
 
 describe("the wave tables", () => {
-  it("keeps the three iOS depths", () => {
-    expect(WAVES.map((wave) => wave.depth / 100)).toEqual(IOS.depths);
+  it("keeps the iOS proportions, stretched so the outer band reaches 90%", () => {
+    expect(WAVES[0].depth).toBe(90);
+    WAVES.forEach((wave, index) => {
+      expect(wave.depth / 100 / WAVE_SCALE).toBeCloseTo(IOS.depths[index], 6);
+    });
   });
 
   // The reason curvature is a percentage at all. At the width iOS drew these
@@ -24,7 +27,7 @@ describe("the wave tables", () => {
   // full-width row is not the shape that was designed.
   it("resolves to the iOS curvature at the width iOS used", () => {
     WAVES.forEach((wave, index) => {
-      const pixels = (wave.curvature / 100) * IOS.rowWidth;
+      const pixels = (wave.curvature / WAVE_SCALE / 100) * IOS.rowWidth;
       expect(pixels).toBeCloseTo(IOS.curvatures[index], 0);
     });
   });

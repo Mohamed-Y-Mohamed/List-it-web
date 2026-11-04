@@ -14,7 +14,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
-import { appPath } from "@/lib/routes";
 import { CONTACT_MAILTO } from "@/lib/contact";
 
 const EmailVerification = () => {
@@ -46,12 +45,12 @@ const EmailVerification = () => {
       );
     } else {
       // If no status param, redirect to login
-      router.push(appPath("/login"));
+      router.push("/login");
     }
   }, [searchParams, router]);
 
   const handleLoginRedirect = () => {
-    router.push(appPath("/login"));
+    router.push("/login");
   };
 
   if (status === "loading") {
@@ -70,11 +69,7 @@ const EmailVerification = () => {
     <div className="min-h-screen w-full relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       {/* Background. The product's own flat field, light and dark, rather than
           the gradient this used to carry. */}
-      {isDark ? (
-        <div className="absolute inset-0 -z-10 size-full bg-[#0B1222]" />
-      ) : (
-        <div className="absolute inset-0 -z-10 size-full bg-[#F6F8FC]" />
-      )}
+      <div className="absolute inset-0 -z-10 size-full bg-[var(--surface-field)]" />
 
       {/* Floating elements */}
       <motion.div

@@ -12,9 +12,9 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "@/context/ThemeContext";
 import { useLongPress } from "@/hooks/useLongPress";
-import NativeContextMenu, {
+import ContextMenu, {
   type ContextMenuItem,
-} from "@/components/native/NativeContextMenu";
+} from "@/components/ui/ContextMenu";
 import TaskSidebar from "@/components/popupModels/TasksDetails";
 import { Collection, OperationResult } from "@/types/schema";
 import {
@@ -203,7 +203,7 @@ const TaskCard = ({
    * implementations in the app that agreed on nothing — not the delay, not the
    * movement tolerance, not the feedback. `useLongPress` is the one the list
    * cards and the note card use: 500ms, a 10px tolerance so a scroll is not a
-   * hold, and a Capacitor haptic on native.
+   * hold, and a short vibration where the browser supports it.
    */
   const gestureHandlers = useLongPress({
     onLongPress: (position) => setMenuOrigin(position),
@@ -704,7 +704,7 @@ const TaskCard = ({
           )}
         </div>
 
-        {/* The hold menu is NativeContextMenu now, rendered below this card.
+        {/* The hold menu is ContextMenu now, rendered below this card.
 
             It used to be an `absolute` panel right here, which is why holding a
             task showed a menu with its options cut off: the card sits inside the
@@ -716,9 +716,9 @@ const TaskCard = ({
       </motion.article>
 
       {/* The hold menu. Outside the card so its backdrop covers the screen, and
-          portalled to the body by NativeContextMenu so no overflow ancestor can
+          portalled to the body by ContextMenu so no overflow ancestor can
           crop it. */}
-      <NativeContextMenu
+      <ContextMenu
         origin={menuOrigin}
         items={menuItems}
         onClose={() => setMenuOrigin(null)}

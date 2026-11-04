@@ -136,7 +136,7 @@ export default function NameColorForm({
                     className={`relative flex h-9 w-9 items-center justify-center rounded-full transition-shadow disabled:opacity-50 ${
                       selected
                         ? isDark
-                          ? "ring-2 ring-white ring-offset-2 ring-offset-[#131A2B]"
+                          ? "ring-2 ring-white ring-offset-2 ring-offset-[var(--surface-card)]"
                           : "ring-2 ring-gray-900 ring-offset-2 ring-offset-white"
                         : ""
                     }`}

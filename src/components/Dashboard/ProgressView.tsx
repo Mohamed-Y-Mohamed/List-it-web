@@ -24,6 +24,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/utils/client";
 import AppSurface from "@/components/AppSurface";
+import ListsOverview from "@/components/Dashboard/ListsOverview";
 
 type Range = "7d" | "1m" | "1y";
 
@@ -251,7 +252,7 @@ export default function ProgressView({
     // column on desktop rather than stretching across a monitor.
     <div className="relative min-h-screen">
       <AppSurface />
-      <div className="mx-auto w-full max-w-3xl px-5 pb-28 pt-safe-top">
+      <div className="mx-auto w-full max-w-3xl px-5 pb-28 pt-16">
         <header className="pt-3">
           <h1
             className={`text-[26px] font-bold leading-tight tracking-[-0.02em] ${strong}`}
@@ -280,6 +281,8 @@ export default function ProgressView({
             </>
           )}
         </header>
+
+        <ListsOverview isDark={isDark} />
 
         {state === "loading" && (
           <div className="grid grid-cols-2 gap-3 pt-6">

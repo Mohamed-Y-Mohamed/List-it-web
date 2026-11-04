@@ -2,22 +2,11 @@
 
 // The container every create and edit dialog sits in.
 //
-// On the phone it is anchored to the bottom with rounded top corners, which is
-// the shape the brief asks for and the shape Android users expect from a form
-// raised over a screen. On the web it is a centred modal. Same markup, different
-// alignment — not two components.
+// On a phone it is anchored to the bottom with rounded top corners; on wider
+// screens it is a centred modal. Same markup, different alignment.
 //
-// Two things in here were bought the hard way:
-//
-//   * The bottom padding is a `max()` floor, not the raw inset. Android reports
-//     `--safe-bottom` as 0 on a device with no bottom cutout even when the
-//     three-button navigation bar is drawn over the page, so trusting the inset
-//     alone put Create and Cancel underneath it.
-//   * The overlay must not use the `p-4` shorthand on native. It sets
-//     padding-bottom as well, and whether it or the longhand in
-//     `native-dialog-scroll` wins comes down to which Tailwind emits last — so
-//     the floor that clears the navigation bar was being silently replaced by
-//     1rem. The card's own side margin supplies the gutter instead.
+// The bottom padding is a `max()` floor rather than the raw safe-area inset, so
+// Create and Cancel always clear the home indicator.
 //
 // Portalled to the body: these open from inside list and collection views that
 // carry drag and scale transforms, and a transformed ancestor becomes the
@@ -27,8 +16,6 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { IS_NATIVE_BUILD } from "@/lib/platform";
-import { pushOverlay } from "@/lib/overlayStack";
 import { CARD } from "./tokens";
 
 export default function ModalShell({
@@ -65,17 +52,6 @@ export default function ModalShell({
     };
   }, [isOpen, canClose, onClose]);
 
-  // Android's back button is Escape's counterpart, and it had no idea this was
-  // open: it popped the route, closing the dialog and the screen behind it in one
-  // press. The guard is inside the registered function rather than around the
-  // registration so that back during an in-flight write is swallowed instead of
-  // falling through to navigation.
-  useEffect(() => {
-    if (!isOpen) return;
-    return pushOverlay(() => {
-      if (canClose) onClose();
-    });
-  }, [isOpen, canClose, onClose]);
 
   if (!mounted || !isOpen) return null;
 
@@ -90,17 +66,13 @@ export default function ModalShell({
         aria-hidden="true"
       />
       <div
-        className={`fixed inset-0 z-[71] flex justify-center ${
-          IS_NATIVE_BUILD ? "items-end" : "items-center p-4"
-        }`}
+        className="fixed inset-0 z-[71] flex items-center justify-center p-4"
       >
         <div
           role="dialog"
           aria-modal="true"
           aria-label={title}
-          className={`pointer-events-auto flex max-h-[92dvh] w-full flex-col border shadow-2xl ${hairline} ${
-            IS_NATIVE_BUILD ? "rounded-t-[22px]" : "mx-4 max-w-md rounded-2xl"
-          }`}
+          className={`pointer-events-auto flex max-h-[92dvh] w-full flex-col border shadow-2xl ${hairline} mx-4 max-w-md rounded-2xl`}
           style={{ backgroundColor: surface }}
         >
           <div

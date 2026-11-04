@@ -33,7 +33,6 @@
 
 import React from "react";
 import Link from "next/link";
-import { appPath } from "@/lib/routes";
 import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/contact";
 
 /** Shown on the page and in the modal, so the two cannot date differently. */
@@ -254,7 +253,7 @@ export default function PolicyDocument({ isDark }: { isDark: boolean }) {
             </>,
             <>
               <span className={strong}>Can&rsquo;t sign in?</span> Ask us at{" "}
-              <Link href={appPath("/data-deletion")} className={link}>
+              <Link href={"/data-deletion"} className={link}>
                 our deletion page
               </Link>{" "}
               or by email, and we will delete it within 30 days and confirm when

@@ -10,7 +10,6 @@ import {
   useMotionValue,
   type PanInfo,
 } from "framer-motion";
-import { pushOverlay } from "@/lib/overlayStack";
 
 /**
  * MOBILE
@@ -169,14 +168,6 @@ export default function BottomSheet({
     };
   }, [isOpen, canClose, onClose]);
 
-  // Android back is Escape's counterpart here too. Without it, back on an open
-  // task sheet closed the sheet and popped the list out from behind it.
-  useEffect(() => {
-    if (!isOpen) return;
-    return pushOverlay(() => {
-      if (canClose) onClose();
-    });
-  }, [isOpen, canClose, onClose]);
 
   // ------------------------------------------------------------
   // Mobile sheet measurement

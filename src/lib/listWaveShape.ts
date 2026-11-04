@@ -47,14 +47,21 @@ export interface Wave {
 /**
  * The three bands, outermost first so each later one paints over it.
  *
- * Depths are the iOS fractions unchanged. Curvatures are the iOS points divided by
- * the 358pt row they were drawn against: 25/358, 23/358, 20/358.
+ * The iOS depths (38/31/23%) scaled so the outermost band reaches 90% of the
+ * card, as on Android; curvature scales with them so the shape keeps its lean.
+ * Card text stays inside the first 80% (`LIST_TEXT_WIDTH`) so it never sits on
+ * the wave's edge.
  */
+export const WAVE_SCALE = 90 / 38;
+
 export const WAVES: readonly Wave[] = [
-  { depth: 38, curvature: 6.94, dark: 0.16, light: 0.14 },
-  { depth: 31, curvature: 6.39, dark: 0.25, light: 0.22 },
-  { depth: 23, curvature: 5.56, dark: 0.45, light: 0.38 },
+  { depth: 90, curvature: 6.94 * WAVE_SCALE, dark: 0.16, light: 0.14 },
+  { depth: 31 * WAVE_SCALE, curvature: 6.39 * WAVE_SCALE, dark: 0.25, light: 0.22 },
+  { depth: 23 * WAVE_SCALE, curvature: 5.56 * WAVE_SCALE, dark: 0.45, light: 0.38 },
 ] as const;
+
+/** Share of a list card the name and counts may use, as a CSS width. */
+export const LIST_TEXT_WIDTH = "80%";
 
 /** One band as an SVG path, in the 0-100 coordinate space described above. */
 export function wavePath({ depth, curvature }: Wave): string {
